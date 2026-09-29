@@ -34,7 +34,7 @@ create table if not exists product_images (
                   check (kind in ('gallery', 'before', 'after')),
 
   alt_text      text,
-  sort_order    integer not null default 0,
+  sort_order    integer not null default 0 check (sort_order >= 0),
   is_primary    boolean not null default false,
 
   -- بيانات وصفية اختيارية (بتتملى وقت الرفع — مفيدة لتفادي layout shift)
@@ -43,14 +43,18 @@ create table if not exists product_images (
   bytes         integer check (bytes is null or bytes > 0),
   content_type  text,
 
-  -- SHA-256 لمحتوى الملف: يمنع رفع نفس الصورة مرتين لنفس المنتج،
-  -- وبيساعد في اكتشاف الملفات اليتيمة وقت التنظيف
-  checksum      text,
+  -- SHA-256 لمحتوى الملف بصيغة hex صغيرة (64 حرف) — يحسبه الباك إند وقت الرفع.
+  -- يمنع رفع نفس الصورة مرتين لنفس المنتج، وبيساعد في اكتشاف الملفات اليتيمة.
+  checksum      text check (checksum is null or checksum ~ '^[0-9a-f]{64}$'),
 
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
 
-  constraint product_images_object_unique unique (bucket, object_path)
+  constraint product_images_object_unique unique (bucket, object_path),
+
+  -- الصورة الرئيسية لازم تكون من نوع gallery — صور «قبل/بعد» ما تصلحش كصورة رئيسية
+  constraint product_images_primary_is_gallery
+    check (not is_primary or kind = 'gallery')
 );
 
 -- ترتيب العرض داخل المنتج
@@ -106,6 +110,6 @@ commit;
 --     الأعمدة القديمة تفضل للقراءة بس (read-only legacy).
 --
 -- المرحلة ٤ — بعد ما كل منتج يبقى له صفوف هنا وفترة تشغيل آمنة:
---     migration منفصلة (0005) تنقل أي روابط قديمة متبقية وتعلّم الأعمدة deprecated.
+--     migration منفصلة تنقل أي روابط قديمة متبقية وتعلّم الأعمدة deprecated.
 --
 -- المرحلة ٥ — حذف الأعمدة القديمة، بموافقة صريحة وفي migration مستقلة.

@@ -21,7 +21,7 @@ create table if not exists site_images (
 
   alt_text     text,
   caption      text,
-  sort_order   integer not null default 0,
+  sort_order   integer not null default 0 check (sort_order >= 0),
   is_active    boolean not null default true,
 
   -- بيانات وصفية اختيارية (زي product_images)
@@ -29,7 +29,7 @@ create table if not exists site_images (
   height_px    integer check (height_px is null or height_px > 0),
   bytes        integer check (bytes is null or bytes > 0),
   content_type text,
-  checksum     text,
+  checksum     text check (checksum is null or checksum ~ '^[0-9a-f]{64}$'),
 
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now(),
@@ -46,10 +46,11 @@ create unique index if not exists site_images_one_active_logo_idx
   on site_images (kind)
   where kind = 'logo' and is_active;
 
--- منع تكرار نفس الملف داخل نفس النوع
+-- منع تكرار نفس الملف داخل نفس النوع — **للصفوف النشطة فقط**
+-- (لو طبّقناه على الكل، إعادة رفع لوجو قديم متعطّل هتترفض)
 create unique index if not exists site_images_checksum_idx
   on site_images (kind, checksum)
-  where checksum is not null;
+  where checksum is not null and is_active;
 
 -- قفل الجدول فوراً (DEFAULT PRIVILEGES بتمنح anon تلقائياً)
 revoke all on table public.site_images from anon, authenticated;
@@ -64,7 +65,7 @@ create table if not exists storage_orphans (
   id          bigserial primary key,
   bucket      text not null default 'product-images',
   object_path text not null,
-  reason      text not null,               -- 'insert_failed' | 'delete_failed' | 'replaced'
+  reason      text not null check (reason in ('insert_failed', 'delete_failed', 'replaced')),
   created_at  timestamptz not null default now(),
   cleaned_at  timestamptz,
   constraint storage_orphans_object_unique unique (bucket, object_path)
@@ -96,4 +97,11 @@ commit;
 --    الحذف في migration منفصلة بعد فترة تشغيل آمنة وبموافقة صريحة.
 -- 2) معرض «قبل/بعد» العام: صفّين kind='gallery' مربوطين بـ caption واحد،
 --    ولا عمود pair_id؟ (مقترح: pair_id uuid يتضاف لو احتجناه — مؤجّل).
--- 3) `is_active` بيسمح بإخفاء صورة من غير حذفها من Storage.
+-- 3) مراجعة التفرّد:
+--    • (bucket, object_path) unique — صح، الملف الواحد ماينفعش يتسجّل مرتين
+--      (وإلا حذف صف بيكسر التاني لأن الملف بيتمسح من Storage).
+--    • التفرّد ده مابيمنعش إن نفس الملف يترفع تاني بـ UUID جديد — دور فهرس checksum.
+--    • checksum unique للنشط فقط، عشان إعادة استخدام صورة قديمة متعطّلة تفضل ممكنة.
+--      نقطة مراجعة: نفس الصورة مسموحة حالياً في gallery و material مع بعض.
+-- 4) sort_order مقيّد بـ >= 0؛ الترتيب بيتكتب دفعة واحدة من الباك إند.
+-- 5) `is_active` بيسمح بإخفاء صورة من غير حذفها من Storage.
