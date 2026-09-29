@@ -1,0 +1,20 @@
+/* خط عربي + قواعد الاتجاه — خفيفة ومحمولة. */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+
+[dir='rtl'] {
+  font-family: 'Cairo', 'Segoe UI', Tahoma, system-ui, sans-serif;
+}
+
+/* ممنوع تباعد الحروف أو الكلمات على النص العربي — بيكسر وصل الحروف */
+[dir='rtl'],
+[dir='rtl'] * {
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+}
+
+/* الأرقام والتليفونات وأرقام الطلبات من الشمال لليمين */
+.num {
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+}
