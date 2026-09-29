@@ -1,0 +1,55 @@
+name: CI
+
+# التحقق من البناء على الفرع. مفيش نشر ولا دمج ولا أي وصول لقاعدة بيانات.
+on:
+  push:
+    branches:
+      - feat/storefront-admin-split
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: install + typecheck + build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # الإصدار بيتقرا من حقل packageManager في package.json
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Typecheck core
+        run: pnpm --filter @zell/core typecheck
+
+      - name: Typecheck storefront
+        run: pnpm --filter @zell/storefront typecheck
+
+      - name: Build storefront
+        run: pnpm build
+
+      # قفل الاعتماديات لازم يتولّد من install حقيقي، مش يتكتب بالإيد
+      - name: Commit generated lockfile
+        if: github.event_name == 'push'
+        run: |
+          if [ -n "$(git status --porcelain pnpm-lock.yaml)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add pnpm-lock.yaml
+            git commit -m "chore(ci): pnpm-lock.yaml مولّد من install حقيقي"
+            git push
+          else
+            echo "lockfile unchanged"
+          fi
