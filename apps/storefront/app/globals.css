@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 210 20% 98%;
+  --fg: 212 30% 12%;
+  --muted: 212 12% 45%;
+  --card: 0 0% 100%;
+  --border: 212 16% 88%;
+  --brand: 212 61% 22%;
+  --brand-fg: 0 0% 98%;
+  --accent: 177 59% 41%;
+  --gold: 39 67% 55%;
+  --danger: 0 72% 45%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: 212 32% 8%;
+    --fg: 0 0% 96%;
+    --muted: 212 12% 64%;
+    --card: 212 28% 12%;
+    --border: 212 20% 22%;
+    --brand: 177 59% 52%;
+    --brand-fg: 212 61% 10%;
+    --accent: 177 59% 52%;
+    --gold: 39 67% 60%;
+    --danger: 0 72% 62%;
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    text-rendering: optimizeLegibility;
+  }
+
+  /* شيل أسهم الأرقام — الستيبر هو وسيلة التغيير على الموبايل */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+
+  /* هدف لمس مريح على الموبايل */
+  button,
+  a,
+  select,
+  input,
+  textarea {
+    touch-action: manipulation;
+  }
+}
+
+@layer utilities {
+  .safe-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
+  }
+}

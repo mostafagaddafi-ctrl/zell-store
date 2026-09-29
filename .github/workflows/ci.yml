@@ -1,0 +1,44 @@
+name: CI
+
+# التحقق من البناء على الفرع. مفيش نشر ولا دمج ولا أي وصول لقاعدة بيانات.
+on:
+  push:
+    branches:
+      - feat/storefront-admin-split
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: install + typecheck + build
+    runs-on: ubuntu-latest
+
+    # قراءة فقط — الـ workflow مالوش أي صلاحية كتابة على الريبو
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # الإصدار بيتقرا من حقل packageManager في package.json
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # frozen: أي اختلاف بين pnpm-lock.yaml و package.json بيفشل البناء
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck core
+        run: pnpm --filter @zell/core typecheck
+
+      - name: Typecheck storefront
+        run: pnpm --filter @zell/storefront typecheck
+
+      - name: Build storefront
+        run: pnpm build
