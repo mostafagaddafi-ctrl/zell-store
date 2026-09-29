@@ -2,14 +2,12 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Info, MessageCircle } from 'lucide-react'
+import { Info } from 'lucide-react'
 import {
   computeShippingPiastres,
   computeSubtotalPiastres,
-  formatLength,
   formatPiastres,
   hasErrors,
-  normalizePhone,
   validateCheckout,
   type CheckoutValues,
   type StoreProduct,
@@ -65,22 +63,6 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
 
   const set = (patch: Partial<CheckoutValues>) => setValues({ ...values, ...patch })
   const show = (key: keyof typeof errors) => (touched ? errors[key] : undefined)
-
-  const whatsappHref = useMemo(() => {
-    if (!settings.whatsappNumber) return null
-    const lines: string[] = ['طلب جديد من موقع ' + settings.storeName, '']
-    for (const entry of entries) {
-      lines.push('• ' + entry.product.name_ar + ' — ' + formatLength(entry.line.lengthCm))
-    }
-    lines.push('')
-    lines.push('الإجمالي قبل الشحن: ' + formatPiastres(subtotal))
-    if (values.customerName.trim()) lines.push('الاسم: ' + values.customerName.trim())
-    if (values.customerPhone.trim()) lines.push('الموبايل: ' + normalizePhone(values.customerPhone))
-    if (values.governorate) lines.push('المحافظة: ' + values.governorate)
-    if (values.address.trim()) lines.push('العنوان: ' + values.address.trim())
-    if (values.notes.trim()) lines.push('ملاحظات: ' + values.notes.trim())
-    return 'https://wa.me/' + settings.whatsappNumber + '?text=' + encodeURIComponent(lines.join('\n'))
-  }, [entries, settings, subtotal, values])
 
   if (cart.ready && entries.length === 0) {
     return (
@@ -176,7 +158,6 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
         )}
       </div>
 
-      {/* ملخص الحساب */}
       <div className="space-y-2 rounded-2xl border border-border bg-card p-4 text-sm">
         <div className="flex items-center justify-between">
           <span className="text-muted">الأصناف</span>
@@ -199,34 +180,27 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
         <p className="pt-1 text-xs text-muted">الدفع عند الاستلام.</p>
       </div>
 
-      {/* مرحلة ١: إنشاء الطلب لسه مش مربوط بالسيرفر — بقرار صريح */}
+      {/*
+        مرحلة ١: إنشاء الطلب مش مربوط — بقرار صريح.
+        ومفيش أي مسار بديل لإرسال الطلب من الصفحة دي (واتساب اتشال عن قصد)
+        عشان ما يتفهمش إنه إنشاء طلب. واتساب للاستفسار بس ومكانه الصفحة الرئيسية.
+      */}
       <div className="flex gap-3 rounded-2xl border border-gold/50 bg-card p-4">
         <Info className="mt-0.5 h-5 w-5 shrink-0 text-gold" />
         <div className="space-y-1 text-sm">
           <p className="font-semibold text-fg">تأكيد الطلب لسه مش مفعّل في النسخة دي</p>
           <p className="text-xs leading-relaxed text-muted">
-            المتجر الجديد لسه في مرحلة البناء. إنشاء الطلب هيتربط بـ Vercel Server API مع تحقق وحد
-            للمحاولات ومفتاح تكرار في المرحلة الجاية. لحد كده ابعتلنا الطلب على واتساب.
+            المتجر الجديد لسه في مرحلة البناء. إنشاء الطلب هيتربط بـ Server API مع تحقق وحد
+            للمحاولات ومفتاح تكرار في المرحلة الجاية.
           </p>
         </div>
       </div>
 
-      <div className="safe-bottom fixed inset-x-0 bottom-0 z-30 space-y-2 border-t border-border bg-card/95 px-4 pt-3 backdrop-blur">
+      <div className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 px-4 pt-3 backdrop-blur">
         <div className="mx-auto max-w-app space-y-2">
           <button type="submit" disabled className={buttonClasses('primary', 'lg')}>
             تأكيد الطلب (قريباً)
           </button>
-          {whatsappHref ? (
-            <a
-              href={whatsappHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={buttonClasses('whatsapp', 'lg')}
-            >
-              <MessageCircle className="h-5 w-5" />
-              ابعت الطلب على واتساب
-            </a>
-          ) : null}
           {touched && invalid ? (
             <p className="text-center text-xs font-medium text-danger">راجع البيانات المطلوبة فوق</p>
           ) : null}

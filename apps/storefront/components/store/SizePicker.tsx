@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Maximize, Minus, Plus, Ruler } from 'lucide-react'
-import { formatLength, lengthOptions, requiredLengthCm, stripsForWidth, type StoreProduct } from '@zell/core'
+import { AlertTriangle, Maximize, Minus, Plus, Ruler } from 'lucide-react'
+import { areRulesUsable, formatLength, lengthOptions, requiredLength, type StoreProduct } from '@zell/core'
 import { cn } from '../../lib/cn'
 import { inputClasses } from '../ui/Field'
 import { Num } from './Num'
@@ -12,30 +12,61 @@ type Mode = 'window' | 'length'
 /**
  * اختيار المقاس بطريقتين. الافتراضي «بمقاس الشباك» لأن ده اللي الزبون
  * عارفه فعلاً — الطول بالمتر حساب بنعمله إحنا مش هو.
+ *
+ * لو المقاس أكبر من الحد المتاح بنقول كده صراحة وبنمنع الإضافة للسلة،
+ * بدل ما نقصّه بصمت زي النسخة القديمة.
  */
 export function SizePicker({
   product,
   lengthCm,
   onLengthChange,
+  onBlockedChange,
 }: {
   product: StoreProduct
   lengthCm: number
   onLengthChange: (next: number) => void
+  onBlockedChange: (blocked: boolean) => void
 }) {
   const [mode, setMode] = useState<Mode>('window')
   const [width, setWidth] = useState('')
   const [height, setHeight] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [strips, setStrips] = useState(0)
 
-  const widthNum = Math.round(Number(width))
-  const heightNum = Math.round(Number(height))
-  const windowReady = Number.isFinite(widthNum) && Number.isFinite(heightNum) && widthNum > 0 && heightNum > 0
-  const strips = windowReady ? stripsForWidth(widthNum, product.width_cm) : 0
+  const rulesOk = areRulesUsable(product)
+  const options = lengthOptions(product)
+
+  const block = (message: string | null) => {
+    setError(message)
+    onBlockedChange(message !== null)
+  }
 
   const applyWindow = (nextWidth: string, nextHeight: string) => {
-    const w = Math.round(Number(nextWidth))
-    const h = Math.round(Number(nextHeight))
-    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return
-    onLengthChange(requiredLengthCm(w, h, product))
+    if (nextWidth.trim() === '' || nextHeight.trim() === '') {
+      setStrips(0)
+      block(null)
+      return
+    }
+
+    const result = requiredLength(Number(nextWidth), Number(nextHeight), product)
+
+    if (!result.ok) {
+      setStrips(0)
+      // وإحنا بنكتب لسه: ما نزعّقش. بس المقاس الكبير لازم يتقال بوضوح.
+      block(result.code === 'invalid_input' ? null : result.message)
+      return
+    }
+
+    setStrips(result.strips)
+    block(null)
+    onLengthChange(result.lengthCm)
+  }
+
+  const switchMode = (next: Mode) => {
+    setMode(next)
+    // الخروج من وضع الشباك بيلغي أي منع مرتبط بيه
+    if (next === 'length') block(null)
+    else applyWindow(width, height)
   }
 
   const stepBy = (delta: number) => {
@@ -44,16 +75,24 @@ export function SizePicker({
     onLengthChange(next)
   }
 
+  if (!rulesOk) {
+    return (
+      <p className="flex items-start gap-2 rounded-xl border border-danger/40 bg-card p-3 text-sm text-danger">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        بيانات المنتج ده مش مكتملة دلوقتي. كلّمنا على واتساب ونساعدك.
+      </p>
+    )
+  }
+
   const atMin = lengthCm <= product.min_length_cm
   const atMax = lengthCm >= product.max_length_cm
 
   return (
     <div className="space-y-4">
-      {/* اختيار الطريقة */}
       <div className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-1">
         <button
           type="button"
-          onClick={() => setMode('window')}
+          onClick={() => switchMode('window')}
           className={cn(
             'flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors',
             mode === 'window' ? 'bg-brand text-brand-fg' : 'text-muted',
@@ -64,7 +103,7 @@ export function SizePicker({
         </button>
         <button
           type="button"
-          onClick={() => setMode('length')}
+          onClick={() => switchMode('length')}
           className={cn(
             'flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors',
             mode === 'length' ? 'bg-brand text-brand-fg' : 'text-muted',
@@ -88,6 +127,7 @@ export function SizePicker({
                   type="number"
                   inputMode="numeric"
                   min={1}
+                  max={5000}
                   placeholder="120"
                   value={width}
                   onChange={(event) => {
@@ -112,6 +152,7 @@ export function SizePicker({
                   type="number"
                   inputMode="numeric"
                   min={1}
+                  max={5000}
                   placeholder="150"
                   value={height}
                   onChange={(event) => {
@@ -127,7 +168,12 @@ export function SizePicker({
             </div>
           </div>
 
-          {windowReady ? (
+          {error ? (
+            <p className="flex items-start gap-2 rounded-xl border border-danger/40 bg-card p-3 text-sm font-medium text-danger">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              {error}
+            </p>
+          ) : strips > 0 ? (
             <p className="rounded-xl bg-card p-3 text-xs leading-relaxed text-muted">
               الرول عرضه <Num>{String(product.width_cm)}</Num> سم، فالشباك ده هياخد{' '}
               <span className="font-bold text-fg">
@@ -176,23 +222,25 @@ export function SizePicker({
             </button>
           </div>
 
-          <div className="space-y-1.5">
-            <label htmlFor="exact-length" className="block text-sm font-semibold text-fg">
-              أو اختار الطول على طول
-            </label>
-            <select
-              id="exact-length"
-              value={String(lengthCm)}
-              onChange={(event) => onLengthChange(Number(event.target.value))}
-              className={inputClasses}
-            >
-              {lengthOptions(product).map((option) => (
-                <option key={option} value={String(option)}>
-                  {formatLength(option)}
-                </option>
-              ))}
-            </select>
-          </div>
+          {options.length > 0 ? (
+            <div className="space-y-1.5">
+              <label htmlFor="exact-length" className="block text-sm font-semibold text-fg">
+                أو اختار الطول على طول
+              </label>
+              <select
+                id="exact-length"
+                value={String(lengthCm)}
+                onChange={(event) => onLengthChange(Number(event.target.value))}
+                className={inputClasses}
+              >
+                {options.map((option) => (
+                  <option key={option} value={String(option)}>
+                    {formatLength(option)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

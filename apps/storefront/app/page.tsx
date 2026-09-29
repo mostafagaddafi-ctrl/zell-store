@@ -5,7 +5,7 @@ import { MaterialsStrip } from '../components/store/MaterialsStrip'
 import { ProductCard } from '../components/store/ProductCard'
 import { StoreHeader } from '../components/store/StoreHeader'
 import { WhatsAppFab } from '../components/store/WhatsAppFab'
-import { getProducts, getSettings } from '../lib/catalog'
+import { getFallbackProducts, getFallbackSettings } from '../lib/catalog'
 
 const STEPS = [
   { icon: Ruler, title: 'اختار النوع والمقاس', note: 'بمقاس الشباك أو بالمتر' },
@@ -14,8 +14,8 @@ const STEPS = [
 ]
 
 export default function HomePage() {
-  const products = getProducts()
-  const settings = getSettings()
+  const products = getFallbackProducts()
+  const settings = getFallbackSettings()
 
   return (
     <>
@@ -72,6 +72,7 @@ export default function HomePage() {
         </section>
       </main>
 
+      {/* واتساب للاستفسار بس — مش مسار طلب */}
       <WhatsAppFab number={settings.whatsappNumber} message={settings.whatsappMessage} />
       <CartBar />
     </>

@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Cairo } from 'next/font/google'
 import type { ReactNode } from 'react'
 import { CartProvider } from '../lib/cart'
-import { getSettings } from '../lib/catalog'
+import { getFallbackSettings } from '../lib/catalog'
 import './globals.css'
 
 // Cairo خط متغيّر (variable font) — من غير weight عشان ياخد كل الأوزان
@@ -12,7 +12,7 @@ const cairo = Cairo({
   variable: '--font-cairo',
 })
 
-const settings = getSettings()
+const settings = getFallbackSettings()
 
 export const metadata: Metadata = {
   title: {

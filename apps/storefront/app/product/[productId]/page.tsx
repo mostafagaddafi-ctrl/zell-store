@@ -7,17 +7,17 @@ import { FilmArt, variantForProduct } from '../../../components/store/FilmArt'
 import { Num } from '../../../components/store/Num'
 import { ProductBuy } from '../../../components/store/ProductBuy'
 import { StoreHeader } from '../../../components/store/StoreHeader'
-import { getProductById, getProducts, getSettings } from '../../../lib/catalog'
+import { getFallbackProductById, getFallbackProducts, getFallbackSettings } from '../../../lib/catalog'
 
 type PageProps = { params: Promise<{ productId: string }> }
 
 export function generateStaticParams() {
-  return getProducts().map((product) => ({ productId: String(product.id) }))
+  return getFallbackProducts().map((product) => ({ productId: String(product.id) }))
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { productId } = await params
-  const product = getProductById(Number(productId))
+  const product = getFallbackProductById(Number(productId))
   if (!product) return { title: 'المنتج مش موجود' }
   return {
     title: product.name_ar,
@@ -27,10 +27,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ProductPage({ params }: PageProps) {
   const { productId } = await params
-  const product = getProductById(Number(productId))
+  const product = getFallbackProductById(Number(productId))
   if (!product) notFound()
 
-  const settings = getSettings()
+  const settings = getFallbackSettings()
   const variant = variantForProduct(product.name_ar, product.name_en)
 
   return (

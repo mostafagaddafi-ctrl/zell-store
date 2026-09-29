@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Check, ShoppingBag } from 'lucide-react'
-import { computeSubtotalPiastres, formatLength, formatPiastres, type StoreProduct } from '@zell/core'
+import { computeSubtotalPiastres, formatLength, formatPiastres, validateLength, type StoreProduct } from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { buttonClasses } from '../ui/Button'
 import { Num } from './Num'
@@ -13,10 +13,15 @@ export function ProductBuy({ product }: { product: StoreProduct }) {
   const cart = useCart()
   const [lengthCm, setLengthCm] = useState(product.min_length_cm)
   const [justAdded, setJustAdded] = useState(false)
+  const [blocked, setBlocked] = useState(false)
 
   const total = computeSubtotalPiastres(product.price_per_meter_piastres, lengthCm)
+  // حارس أخير قبل السلة — حتى لو حالة الواجهة اتلخبطت
+  const lengthCheck = validateLength(lengthCm, product)
+  const canAdd = !blocked && lengthCheck.ok
 
   const handleAdd = () => {
+    if (!canAdd) return
     cart.add(product.id, lengthCm)
     setJustAdded(true)
   }
@@ -29,6 +34,10 @@ export function ProductBuy({ product }: { product: StoreProduct }) {
         onLengthChange={(next) => {
           setLengthCm(next)
           setJustAdded(false)
+        }}
+        onBlockedChange={(next) => {
+          setBlocked(next)
+          if (next) setJustAdded(false)
         }}
       />
 
@@ -49,16 +58,20 @@ export function ProductBuy({ product }: { product: StoreProduct }) {
         </div>
       ) : null}
 
-      {/* شريط ثابت تحت — السعر والزرار دايماً في متناول الإبهام */}
       <div className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 px-4 pt-3 backdrop-blur">
         <div className="mx-auto flex max-w-app items-center gap-3">
           <div className="min-w-0">
             <p className="text-xs text-muted">الإجمالي</p>
             <p className="truncate text-lg font-extrabold text-brand">
-              <Num>{formatPiastres(total)}</Num>
+              <Num>{canAdd ? formatPiastres(total) : '—'}</Num>
             </p>
           </div>
-          <button type="button" onClick={handleAdd} className={buttonClasses('primary', 'lg', 'flex-1')}>
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={!canAdd}
+            className={buttonClasses('primary', 'lg', 'flex-1')}
+          >
             <ShoppingBag className="h-5 w-5" />
             ضيف للسلة
           </button>

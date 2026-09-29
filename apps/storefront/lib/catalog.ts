@@ -1,16 +1,24 @@
 /**
- * ⚠️ مصدر بيانات مؤقت — مرحلة ١ فقط.
+ * ⚠️⚠️ FALLBACK مؤقت — **مش مصدر بيانات**. ⚠️⚠️
  *
- * الأرقام والنصوص دي منسوخة حرفياً من صفوف Production الحقيقية
- * (جدولي products و settings) عشان الواجهة تتبني على قيم صح مش مخترعة.
- * مفيش أي اتصال بالداتابيز في المرحلة دي وده مقصود: ممنوع أسرار في الريبو.
+ * الملف ده نسخة مجمّدة باليد من صفوف Production وقت كتابة المرحلة الأولى،
+ * موجود لسبب واحد بس: إن الواجهة تتبني وتتراجع بأرقام حقيقية من غير ما
+ * نحط أي مفتاح Supabase في الريبو.
  *
- * مرحلة ٢ هتستبدل الملف ده بقراءة server-side من Supabase،
- * والواجهة ما تتغيّرش لأنها بتستهلك نفس الأنواع من @zell/core.
+ * اللي لازم يكون واضح:
+ *   • الأرقام دي **بتقدم** كل ما حد يعدّل منتج أو سعر من الداشبورد.
+ *   • أي سعر هنا مالوش أي صفة رسمية — الرقم المعتمد بيتحسب في الداتابيز.
+ *   • ممنوع تمامًا إن أي منطق أعمال يعتمد على الملف ده.
+ *   • مصيره الحذف في المرحلة الجاية، مش التوسعة.
+ *
+ * المرحلة الجاية: قراءة server-side من Supabase (anon + policies محدودة)
+ * بترجّع نفس الأنواع من @zell/core، فالمكوّنات ما تتغيّرش.
+ *
+ * آخر مزامنة يدوية مع Production: بداية المرحلة الأولى.
  */
 import type { StoreProduct, StoreSettings } from '@zell/core'
 
-export const TEMP_PRODUCTS: StoreProduct[] = [
+export const FALLBACK_PRODUCTS: StoreProduct[] = [
   {
     id: 1,
     name_ar: 'عازل حرارة',
@@ -66,7 +74,7 @@ export const TEMP_PRODUCTS: StoreProduct[] = [
 
 /** المنتج رقم ٤ (أمان/سيكيورتي) غير نشط في Production فمش معروض هنا — قرار معتمد. */
 
-const SHIPPING_RATES: Record<string, number> = {
+const FALLBACK_SHIPPING_RATES: Record<string, number> = {
   القاهرة: 5000,
   الجيزة: 5000,
   القليوبية: 6000,
@@ -96,26 +104,27 @@ const SHIPPING_RATES: Record<string, number> = {
   'جنوب سيناء': 13000,
 }
 
-export const TEMP_SETTINGS: StoreSettings = {
+export const FALLBACK_SETTINGS: StoreSettings = {
   storeName: 'ZELL',
   logoUrl: '',
   offerText: 'أدوات التركيب مرفقة مجاناً',
   whatsappNumber: '201000000000',
   whatsappMessage: 'مرحباً ZELL، عايز أستفسر عن فيلم زجاج للبيت',
-  shippingRates: SHIPPING_RATES,
+  shippingRates: FALLBACK_SHIPPING_RATES,
   shippingDefaultPiastres: 8000,
   freeShippingThresholdPiastres: 0,
-  governorates: Object.keys(SHIPPING_RATES),
+  governorates: Object.keys(FALLBACK_SHIPPING_RATES),
 }
 
-export function getProducts(): StoreProduct[] {
-  return TEMP_PRODUCTS
+/** الأسماء مكتوبة بـ Fallback عن قصد — عشان مكان الاستدعاء نفسه يفضح إنها مؤقتة. */
+export function getFallbackProducts(): StoreProduct[] {
+  return FALLBACK_PRODUCTS
 }
 
-export function getProductById(id: number): StoreProduct | undefined {
-  return TEMP_PRODUCTS.find((product) => product.id === id)
+export function getFallbackProductById(id: number): StoreProduct | undefined {
+  return FALLBACK_PRODUCTS.find((product) => product.id === id)
 }
 
-export function getSettings(): StoreSettings {
-  return TEMP_SETTINGS
+export function getFallbackSettings(): StoreSettings {
+  return FALLBACK_SETTINGS
 }
