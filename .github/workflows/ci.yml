@@ -12,8 +12,10 @@ jobs:
   build:
     name: install + typecheck + build
     runs-on: ubuntu-latest
+
+    # قراءة فقط — الـ workflow مالوش أي صلاحية كتابة على الريبو
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - name: Checkout
@@ -28,8 +30,9 @@ jobs:
         with:
           node-version: 20
 
+      # frozen: أي اختلاف بين pnpm-lock.yaml و package.json بيفشل البناء
       - name: Install
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck core
         run: pnpm --filter @zell/core typecheck
@@ -39,17 +42,3 @@ jobs:
 
       - name: Build storefront
         run: pnpm build
-
-      # قفل الاعتماديات لازم يتولّد من install حقيقي، مش يتكتب بالإيد
-      - name: Commit generated lockfile
-        if: github.event_name == 'push'
-        run: |
-          if [ -n "$(git status --porcelain pnpm-lock.yaml)" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add pnpm-lock.yaml
-            git commit -m "chore(ci): pnpm-lock.yaml مولّد من install حقيقي"
-            git push
-          else
-            echo "lockfile unchanged"
-          fi
