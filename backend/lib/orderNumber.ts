@@ -1,5 +1,5 @@
 /**
- * توليد رقم الطلب — TypeScript صافي، يعتمد على Web Crypto فقط.
+ * توليد رقم الطلب — TypeScript صافي، يعتمد على Web Crypto فقط (متاح في Node 19+ والمتصفح و Vercel Edge).
  * الصيغة: FLM-XXXXXX بأبجدية من غير O/0/I/1 لتفادي اللبس عند القراءة الصوتية.
  */
 
@@ -11,6 +11,7 @@ export function generateOrderNumber(prefix = 'FLM'): string {
   crypto.getRandomValues(bytes)
   let code = ''
   for (let i = 0; i < CODE_LENGTH; i++) {
+    // 32 = قوة اثنين، فالقسمة الباقية متحيّزة صفر
     code += ALPHABET[(bytes[i] as number) % ALPHABET.length]
   }
   return `${prefix}-${code}`
