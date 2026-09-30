@@ -5,8 +5,15 @@ const nextConfig = {
   transpilePackages: ['@zell/core'],
   images: {
     formats: ['image/avif', 'image/webp'],
-    // مرحلة الصور هتضيف هنا remotePatterns لدومين Supabase Storage
-    remotePatterns: [],
+    // مقيّدة على مسار التخزين العام في Supabase — مش دومين مفتوح.
+    // wildcard على النطاق الفرعي عشان مشروع staging يشتغل من غير تعديل كود.
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
   },
 }
 
