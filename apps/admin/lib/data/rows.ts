@@ -33,8 +33,9 @@ export type ProductRow = {
   updated_at: string
 }
 
+/** id و bigint بتوصل كنص — ممنوع تحويلها لرقم. */
 export type ProductImageRow = {
-  id: number
+  id: string
   product_id: number
   bucket: string
   object_path: string
@@ -49,7 +50,7 @@ export type ProductImageRow = {
 }
 
 export type SiteImageRow = {
-  id: number
+  id: string
   bucket: string
   object_path: string
   alt_text: string | null
@@ -84,7 +85,7 @@ export type OrderItemRow = {
   line_total_piastres: number
 }
 
-export type SettingRow = { key: string; value: unknown }
+export type SettingRow = { key: string; value: unknown; updated_at?: string | null }
 
 // ── محوّلات ──────────────────────────────────────────────────
 function asStringArray(value: unknown, limit = 6): string[] {
@@ -123,7 +124,7 @@ export function toAdminProduct(row: ProductRow, imageCount: number): AdminProduc
 
 export function toAdminImage(row: ProductImageRow, supabaseUrl: string, fallbackAlt: string): AdminImage {
   return {
-    id: row.id,
+    id: String(row.id),
     url: publicImageUrl(supabaseUrl, { bucket: row.bucket, object_path: row.object_path }),
     alt: row.alt_text && row.alt_text.trim() !== '' ? row.alt_text : fallbackAlt,
     fit: asFit(row.fit),
@@ -137,7 +138,7 @@ export function toAdminImage(row: ProductImageRow, supabaseUrl: string, fallback
 
 export function toAdminLogo(row: SiteImageRow, supabaseUrl: string, storeName: string): AdminImage {
   return {
-    id: row.id,
+    id: String(row.id),
     url: publicImageUrl(supabaseUrl, { bucket: row.bucket, object_path: row.object_path }),
     alt: row.alt_text && row.alt_text.trim() !== '' ? row.alt_text : storeName,
     fit: 'contain',
@@ -180,6 +181,26 @@ export function settingsMap(rows: SettingRow[]): Map<string, unknown> {
   const map = new Map<string, unknown>()
   for (const row of rows) map.set(row.key, row.value)
   return map
+}
+
+/**
+ * أحدث updated_at بين مفاتيح محددة — رمز التعارض لحفظ المحتوى.
+ * بيرجّع نص فاضي لو مفيش طابع صالح، والحفظ وقتها لازم يترفض.
+ */
+export function latestUpdatedAt(rows: SettingRow[], keys: readonly string[]): string {
+  let newest = 0
+  let iso = ''
+  for (const row of rows) {
+    if (!keys.includes(row.key)) continue
+    const raw = row.updated_at
+    if (!raw) continue
+    const time = new Date(raw).getTime()
+    if (Number.isFinite(time) && time > newest) {
+      newest = time
+      iso = raw
+    }
+  }
+  return iso
 }
 
 export function readString(map: Map<string, unknown>, key: string, fallback = ''): string {
