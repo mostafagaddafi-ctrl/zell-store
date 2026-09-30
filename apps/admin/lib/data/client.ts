@@ -115,6 +115,43 @@ function safeIdentifier(value: string, what: string): string {
   return value
 }
 
+/**
+ * رموز خطأ **إحنا** اللي عرّفناها جوه دوال الداتابيز.
+ *
+ * القايمة مقفولة عن قصد. جسم رد Supabase بيتقرا **بس** عشان نطابق
+ * رمز من القايمة دي، وبعدين بيترمي. ولا حرف منه بيوصل لطبقة أعلى
+ * ولا لأي رسالة بتوصل للعميل.
+ *
+ * ليه محتاجينه: دوال الترتيب بترمي ZELL_INVALID_ORDER لما المجموعة
+ * المبعوتة مش مساوية للموجود. من غير التمييز ده كان الفشل المتوقع
+ * ده بيبان INTERNAL، وده بيخفي خطأ مدخلات ورا رسالة "خطأ غير متوقع".
+ */
+const KNOWN_SENTINELS = ['ZELL_INVALID_ORDER', 'ZELL_INVALID_SHIPPING', 'ZELL_INVALID_IDENTITY'] as const
+
+export type DbSentinel = (typeof KNOWN_SENTINELS)[number]
+
+class DbCallError extends Error {
+  readonly sentinel: DbSentinel | null
+
+  constructor(message: string, sentinel: DbSentinel | null) {
+    super(message)
+    this.name = 'DbCallError'
+    this.sentinel = sentinel
+  }
+}
+
+/** بيرجّع الرمز المعروف لو الفشل كان واحد منهم، وإلا null. */
+export function sentinelOf(error: unknown): DbSentinel | null {
+  return error instanceof DbCallError ? error.sentinel : null
+}
+
+function matchSentinel(body: string): DbSentinel | null {
+  for (const code of KNOWN_SENTINELS) {
+    if (body.includes(code)) return code
+  }
+  return null
+}
+
 async function sendWrite<T>(args: {
   method: 'POST' | 'PATCH'
   path: string
@@ -142,9 +179,19 @@ async function sendWrite<T>(args: {
     throw new Error('فشل الاتصال أثناء ' + args.what + ': ' + describeFailure(error))
   }
 
-  // الحالة بس — جسم رد Supabase مابيخرجش من هنا أبدًا
   if (!response.ok) {
-    throw new Error(args.what + ' رجّع ' + String(response.status) + ' ' + response.statusText)
+    // الجسم بيتقرا **بس** لمطابقة رمز معروف، وبعدين بيترمي.
+    // رسالة الاستثناء فيها الحالة بس — ولا حرف من رد Supabase.
+    let sentinel: DbSentinel | null = null
+    try {
+      sentinel = matchSentinel(await response.text())
+    } catch {
+      sentinel = null
+    }
+    throw new DbCallError(
+      args.what + ' رجّع ' + String(response.status) + ' ' + response.statusText,
+      sentinel,
+    )
   }
 
   const text = await response.text()

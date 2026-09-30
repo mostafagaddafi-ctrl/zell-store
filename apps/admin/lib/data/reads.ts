@@ -101,6 +101,13 @@ const SHIPPING_KEYS = [
   'shipping_disabled_governorates',
 ] as const
 const IDENTITY_KEYS = ['store_name', 'logo_url', 'offer_text', 'whatsapp_number', 'whatsapp_message'] as const
+
+/**
+ * المفاتيح اللي zell_save_identity بتقفلها وبتقارن عليها.
+ * logo_url **مش** فيهم عن قصد: لو كان، أي تغيير للوجو كان هيدي
+ * CONFLICT وهمي لكل حفظ هوية.
+ */
+const IDENTITY_SAVE_KEYS = ['store_name', 'offer_text', 'whatsapp_number', 'whatsapp_message'] as const
 const OPERATIONAL_KEYS = ['notify_email', 'telegram_bot_token', 'whatsapp_number'] as const
 
 /** حد أعلى للمجاميع لحد ما ييجي view أو RPC للتجميع. */
@@ -279,7 +286,7 @@ export const supabaseAdminData: AdminDataSource = {
   },
 
   async getShipping(): Promise<ShippingSettings> {
-    const rows = await restGet<SettingRow>('settings', 'select=key,value&key=' + inFilter(SHIPPING_KEYS))
+    const rows = await restGet<SettingRow>('settings', 'select=key,value,updated_at&key=' + inFilter(SHIPPING_KEYS))
     const map = settingsMap(rows.rows)
 
     return {
@@ -287,12 +294,13 @@ export const supabaseAdminData: AdminDataSource = {
       defaultPiastres: readNumber(map, 'shipping_default_piastres'),
       freeThresholdPiastres: readNumber(map, 'free_shipping_threshold_piastres'),
       disabled: readStringList(map, 'shipping_disabled_governorates'),
+      updatedAt: latestUpdatedAt(rows.rows, SHIPPING_KEYS),
     }
   },
 
   async getIdentity(): Promise<StoreIdentity> {
     const [rows, logos] = await Promise.all([
-      restGet<SettingRow>('settings', 'select=key,value&key=' + inFilter(IDENTITY_KEYS)),
+      restGet<SettingRow>('settings', 'select=key,value,updated_at&key=' + inFilter(IDENTITY_KEYS)),
       restGet<SiteImageRow>(
         'site_images',
         'select=id,bucket,object_path,alt_text,width_px,height_px,updated_at&kind=eq.logo&is_active=eq.true&order=id.desc&limit=1',
@@ -309,6 +317,7 @@ export const supabaseAdminData: AdminDataSource = {
       offerText: readString(map, 'offer_text'),
       whatsappNumber: readString(map, 'whatsapp_number'),
       whatsappMessage: readString(map, 'whatsapp_message'),
+      updatedAt: latestUpdatedAt(rows.rows, IDENTITY_SAVE_KEYS),
     }
   },
 
