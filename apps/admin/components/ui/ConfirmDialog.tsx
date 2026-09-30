@@ -27,8 +27,19 @@ export function ConfirmDialog({
   onCancel: () => void
   onConfirm?: () => void
   disabledReason?: string
+  notImplementedReason?: string
 }) {
   const enabled = useMutationsEnabled()
+
+  /**
+   * ⚠️ التأكيد بيتعطّل كمان لو onConfirm مش متمرر.
+   *
+   * من غير الشرط ده، لما العلم يتفتح كان زرار «احذف» الأحمر يبقى
+   * **شغّال** وبـ onClick فاضي — يعني إجراء هدّام بيبان متاح
+   * وبيعمل لا شيء. ده أسوأ حالة ممكنة في حوار تأكيد.
+   */
+  const wired = typeof onConfirm === 'function'
+  const blocked = !enabled || !wired
 
   useEffect(() => {
     if (!open) return
@@ -61,15 +72,15 @@ export function ConfirmDialog({
           </div>
         </div>
 
-        {!enabled ? (
+        {blocked ? (
           <p className="mt-3 flex items-start gap-2 rounded border-s-2 border-gold bg-bg p-2.5 text-xs font-semibold text-fg">
             <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold" />
-            {disabledReason}
+            {!enabled ? disabledReason : notImplementedReason}
           </p>
         ) : null}
 
         <div className="mt-5 flex justify-start gap-2">
-          <Button variant="danger" onClick={onConfirm} disabled={!enabled}>
+          <Button variant="danger" onClick={onConfirm} disabled={blocked}>
             {confirmLabel}
           </Button>
           <Button variant="secondary" onClick={onCancel}>

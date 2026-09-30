@@ -6,6 +6,7 @@ import type { OperationalSettings, SaveState } from '../../lib/adminData'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Card, Field, inputClasses } from '../ui/Field'
+import { NotImplementedNotice } from '../ui/NotImplementedNotice'
 import { SaveBar } from '../ui/SaveBar'
 
 export function SettingsEditor({ settings }: { settings: OperationalSettings }) {
@@ -15,6 +16,16 @@ export function SettingsEditor({ settings }: { settings: OperationalSettings }) 
 
   return (
     <div className="space-y-4">
+      {/*
+        إشعار مستقل عن العلم عن قصد: saveOperationalSettingsAction و
+        revalidateStorefrontAction **الاتنين ما اتعملوش**. لو الصفحة
+        اعتمدت على PreviewNotice بس، كانت هتبان شغّالة بعد فتح العلم.
+      */}
+      <NotImplementedNotice
+        what="حفظ إعدادات الإشعارات وتحديث كاش المتجر لسه ما اتعملوش — الصفحة دي للقراءة بس."
+        note="مؤشر الجاهزية تحت بيقرا من قاعدة البيانات فعلًا."
+      />
+
       <Card title="إشعارات الطلبات">
         <Field
           htmlFor="notify"
