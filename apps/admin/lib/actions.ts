@@ -20,46 +20,29 @@
  * ADMIN_MUTATIONS_ENABLED لسه false، فكل اللي تحت بيرجع DISABLED
  * في التشغيل. الكود موجود للمراجعة مش للتنفيذ.
  *
- * ⚠️ خمس عمليات **مش متعملة عن قصد** لأنها محتاجة ذرّية ماينفعش
- * تتحقق بـ PostgREST لوحده. تفاصيلها تحت.
+ * الخمس عمليات اللي كانت مستنية ذرّية بقت متوصّلة بدوال الداتابيز:
+ *   zell_save_content · zell_save_shipping · zell_save_identity
+ *   zell_reorder_products · zell_reorder_product_images
+ * الفحص والكتابة جواها في نفس المعاملة، فمفيش نافذة سباق.
  *
  * معرّفات الصور **نصوص** — أعمدة bigint بتترجع strings.
  *
  * رفع الصور مش Server Action — بيمر على راوت multipart لسه ما اتعملش.
  */
 
-import type {
-  AdminImage,
-  AdminProduct,
-  ImageFit,
-  OrderStatus,
-  ShippingSettings,
-  StoreContent,
-  StoreIdentity,
-} from './adminData'
+import type { AdminImage, AdminProduct, ImageFit, OrderStatus } from './adminData'
 import { requireAdminAction } from './auth/guards'
 import { guardMutations, type MutationResult } from './mutations'
+import type { SaveVersion } from './mutations/concurrency'
+import { saveContent } from './mutations/content'
 import { setImageFit, setPrimaryImage } from './mutations/images'
 import { saveInternalNote, updateOrderStatus } from './mutations/orders'
 import { saveProduct, setProductVisibility } from './mutations/products'
+import { reorderProductImages, reorderProducts } from './mutations/reorder'
+import { saveIdentity, saveShipping } from './mutations/settings'
+import type { ContentInput } from './validation/content'
 import type { ProductInput } from './validation/product'
-
-/**
- * العمليات اللي مستنية RPC ذرّية.
- *
- * السبب: التزامن التفاؤلي بـ GET-ثم-UPSERT **مش ذرّي** — في نافذة بين
- * الفحص والكتابة يقدر حد تاني يكتب فيها وتعديله يتمسح. وترتيب المنتجات
- * أو الصور بعدة PATCH متتالية بيسيب ترتيب نصّه متكتب لو فشل في النص.
- *
- * التنفيذ هيتم لما الدوال دي تتجهّز في Supabase:
- *   zell_save_content · zell_save_shipping · zell_save_identity
- *   zell_reorder_products · zell_reorder_product_images
- *
- * ⚠️ ممنوع تقليدها في TypeScript.
- */
-function awaitingAtomicRpc<T>(): MutationResult<T> {
-  return { ok: false, code: 'INTERNAL', message: 'العملية دي مستنية دالة داتابيز ذرّية. لسه ما اتفعّلتش.' }
-}
+import type { IdentityInput, ShippingInput } from './validation/settings'
 
 // ── المنتجات ─────────────────────────────────────────────────
 export async function saveProductAction(input: ProductInput): Promise<MutationResult<AdminProduct>> {
@@ -82,13 +65,13 @@ export async function setProductVisibilityAction(
   return setProductVisibility(id, visible, expectedUpdatedAt)
 }
 
-/** مستنية zell_reorder_products — ترتيب جزئي ممنوع. */
-export async function reorderProductsAction(_orderedIds: number[]): Promise<MutationResult<null>> {
+/** لازم تشمل كل المنتجات — المخفية كمان — مرة واحدة بالظبط. */
+export async function reorderProductsAction(orderedIds: number[]): Promise<MutationResult<null>> {
   const auth = await requireAdminAction()
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return awaitingAtomicRpc<null>()
+  return reorderProducts(orderedIds)
 }
 
 // ── الصور ────────────────────────────────────────────────────
@@ -118,13 +101,13 @@ export async function setImageFitAction(
   return setImageFit(imageId, fit, expectedUpdatedAt)
 }
 
-/** مستنية zell_reorder_product_images — ترتيب جزئي ممنوع. */
-export async function reorderImagesAction(_productId: number, _orderedIds: string[]): Promise<MutationResult<null>> {
+/** صور المعرض بس، وبتتكتب من صفر. المعرّفات نصوص. */
+export async function reorderImagesAction(productId: number, orderedIds: string[]): Promise<MutationResult<null>> {
   const auth = await requireAdminAction()
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return awaitingAtomicRpc<null>()
+  return reorderProductImages(productId, orderedIds)
 }
 
 /** برّه نطاق المرحلة — محتاجة تنظيف Storage مع الصف في معاملة واحدة. */
@@ -171,34 +154,47 @@ export async function resendNotificationAction(_orderId: number): Promise<Mutati
 }
 
 // ── المحتوى والإعدادات ───────────────────────────────────────
-/** مستنية zell_save_content — الستة مفاتيح لازم تتحفظ بفحص نسخة ذرّي. */
+/**
+ * الستة مفاتيح بتتحفظ مع بعض في معاملة واحدة.
+ * بترجّع الطابع الجديد — الواجهة تستخدمه كرمز تعارض للحفظة الجاية،
+ * ولازم تعيد قراءة المحتوى كامل لو هتعرضه.
+ */
 export async function saveContentAction(
-  _input: StoreContent,
-  _expectedUpdatedAt: string,
-): Promise<MutationResult<StoreContent>> {
+  input: ContentInput,
+  expectedUpdatedAt: string,
+): Promise<MutationResult<SaveVersion>> {
   const auth = await requireAdminAction()
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return awaitingAtomicRpc<StoreContent>()
+  return saveContent(input, expectedUpdatedAt)
 }
 
-/** مستنية zell_save_shipping. */
-export async function saveShippingAction(_patch: Partial<ShippingSettings>): Promise<MutationResult<ShippingSettings>> {
+/** حفظ كامل مش patch — الدالة بتكتب الأربعة مفاتيح مع بعض. */
+export async function saveShippingAction(
+  input: ShippingInput,
+  expectedUpdatedAt: string,
+): Promise<MutationResult<SaveVersion>> {
   const auth = await requireAdminAction()
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return awaitingAtomicRpc<ShippingSettings>()
+  return saveShipping(input, expectedUpdatedAt)
 }
 
-/** مستنية zell_save_identity. اللوجو برّه نطاق المرحلة دي. */
-export async function saveIdentityAction(_patch: Partial<StoreIdentity>): Promise<MutationResult<StoreIdentity>> {
+/**
+ * حفظ كامل للأربعة مفاتيح. **اللوجو مش فيهم** — الدالة مابتلمسش
+ * logo_url، وطابع النسخة محسوب على الأربعة دول بس.
+ */
+export async function saveIdentityAction(
+  input: IdentityInput,
+  expectedUpdatedAt: string,
+): Promise<MutationResult<SaveVersion>> {
   const auth = await requireAdminAction()
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return awaitingAtomicRpc<StoreIdentity>()
+  return saveIdentity(input, expectedUpdatedAt)
 }
 
 /** telegramToken مدخل فقط — ما بيترجعش أبدًا. برّه نطاق المرحلة. */

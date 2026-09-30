@@ -115,6 +115,125 @@ function safeIdentifier(value: string, what: string): string {
   return value
 }
 
+/**
+ * رموز خطأ **إحنا** اللي عرّفناها جوه دوال الداتابيز.
+ *
+ * القايمة مقفولة عن قصد. جسم رد Supabase بيتقرا **بس** عشان نطابق
+ * رمز من القايمة دي، وبعدين بيترمي. ولا حرف منه بيوصل لطبقة أعلى
+ * ولا لأي رسالة بتوصل للعميل.
+ *
+ * ليه محتاجينه: دوال الترتيب بترمي ZELL_INVALID_ORDER لما المجموعة
+ * المبعوتة مش مساوية للموجود. من غير التمييز ده كان الفشل المتوقع
+ * ده بيبان INTERNAL، وده بيخفي خطأ مدخلات ورا رسالة "خطأ غير متوقع".
+ */
+const KNOWN_SENTINELS = ['ZELL_INVALID_ORDER', 'ZELL_INVALID_SHIPPING', 'ZELL_INVALID_IDENTITY'] as const
+
+export type DbSentinel = (typeof KNOWN_SENTINELS)[number]
+
+class DbCallError extends Error {
+  readonly sentinel: DbSentinel | null
+
+  constructor(message: string, sentinel: DbSentinel | null) {
+    super(message)
+    this.name = 'DbCallError'
+    this.sentinel = sentinel
+  }
+}
+
+/** بيرجّع الرمز المعروف لو الفشل كان واحد منهم، وإلا null. */
+export function sentinelOf(error: unknown): DbSentinel | null {
+  return error instanceof DbCallError ? error.sentinel : null
+}
+
+/** سقف قراءة جسم الخطأ. ماينفعش نقرا رد ضخم عشان رمز واحد. */
+const MAX_ERROR_BODY_BYTES = 8192
+
+/**
+ * بيقرا جسم الخطأ بحد أقصى 8 كيلوبايت.
+ * بيرجّع null لو مفيش جسم، أو أكبر من السقف، أو القراءة فشلت —
+ * والتلات حالات بتنتهي INTERNAL.
+ */
+async function readCappedBody(response: Response): Promise<string | null> {
+  const stream = response.body
+  if (!stream) return null
+
+  const reader = stream.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+
+  try {
+    for (;;) {
+      const step = await reader.read()
+      if (step.done) break
+      const chunk = step.value
+      if (!chunk) continue
+      total += chunk.byteLength
+      if (total > MAX_ERROR_BODY_BYTES) return null
+      chunks.push(chunk)
+    }
+  } catch {
+    return null
+  } finally {
+    try {
+      await reader.cancel()
+    } catch {
+      // الرد اتقفل بالفعل — مش مشكلة
+    }
+  }
+
+  const merged = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    merged.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return new TextDecoder('utf-8').decode(merged)
+}
+
+/** الحقول الوحيدة اللي بنبصّ فيها من رد PostgREST. */
+type PostgrestErrorBody = {
+  message?: unknown
+  details?: unknown
+}
+
+/**
+ * مطابقة **منظّمة** مش بحث حر في النص.
+ *
+ * البحث الحر (body.includes) كان ممكن يصنّف خطأ مالوش علاقة كـ
+ * VALIDATION لو الرمز ظهر بالصدفة جوه تفاصيل أو سياق تاني. عشان كده
+ * بنقرا حقل message أو details **بس**، وبنقبل تطابق تام أو بادئة
+ * CODE: معروفة.
+ *
+ * أي جسم مش JSON، أو مش كائن، أو مفيهوش حقل نصي، أو فيه نص مش
+ * مطابق — كله بيرجع null ويبقى INTERNAL.
+ *
+ * الكائن المفكوك بيتسيب هنا وماينتقلش لأي طبقة تانية.
+ */
+function matchSentinel(body: string): DbSentinel | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(body)
+  } catch {
+    return null
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
+
+  const payload = parsed as PostgrestErrorBody
+  const candidate =
+    typeof payload.message === 'string'
+      ? payload.message
+      : typeof payload.details === 'string'
+        ? payload.details
+        : ''
+  if (candidate === '') return null
+
+  for (const code of KNOWN_SENTINELS) {
+    if (candidate === code) return code
+    if (candidate.startsWith(code + ':')) return code
+  }
+  return null
+}
+
 async function sendWrite<T>(args: {
   method: 'POST' | 'PATCH'
   path: string
@@ -142,9 +261,20 @@ async function sendWrite<T>(args: {
     throw new Error('فشل الاتصال أثناء ' + args.what + ': ' + describeFailure(error))
   }
 
-  // الحالة بس — جسم رد Supabase مابيخرجش من هنا أبدًا
   if (!response.ok) {
-    throw new Error(args.what + ' رجّع ' + String(response.status) + ' ' + response.statusText)
+    // الجسم بيتقرا **بس** لمطابقة رمز معروف، وبعدين بيترمي.
+    // رسالة الاستثناء فيها الحالة بس — ولا حرف من رد Supabase.
+    let sentinel: DbSentinel | null = null
+    try {
+      const body = await readCappedBody(response)
+      if (body !== null) sentinel = matchSentinel(body)
+    } catch {
+      sentinel = null
+    }
+    throw new DbCallError(
+      args.what + ' رجّع ' + String(response.status) + ' ' + response.statusText,
+      sentinel,
+    )
   }
 
   const text = await response.text()

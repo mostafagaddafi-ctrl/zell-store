@@ -2,9 +2,12 @@ import 'server-only'
 
 import { restGet, restPatch } from '../data/client'
 
-const CONFLICT_MESSAGE =
+export const CONFLICT_MESSAGE =
   'حد تاني عدّل السجل ده وإنت بتعدّل. اعمل تحديث للصفحة وشوف التغييرات قبل ما تحفظ تاني.'
 const NOT_FOUND_MESSAGE = 'السجل مش موجود. يمكن يكون اتمسح.'
+
+/** رمز النسخة اللي بترجعه عمليات الحفظ الذرّية. */
+export type SaveVersion = { updatedAt: string }
 
 export type GuardFailure = { ok: false; code: 'CONFLICT' | 'NOT_FOUND'; message: string }
 

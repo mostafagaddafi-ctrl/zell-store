@@ -145,6 +145,8 @@ export type ShippingSettings = {
   freeThresholdPiastres: number
   /** المحافظات الموقوفة — مفتاح shipping_disabled_governorates. */
   disabled: string[]
+  /** أحدث updated_at بين مفاتيح الشحن الأربعة — رمز التعارض للحفظ. */
+  updatedAt: string
 }
 
 export type StoreIdentity = {
@@ -153,6 +155,11 @@ export type StoreIdentity = {
   offerText: string
   whatsappNumber: string
   whatsappMessage: string
+  /**
+   * أحدث updated_at بين **أربعة** مفاتيح بس: الاسم ونص العرض ورقم
+   * ورسالة الواتساب. اللوجو مش داخل — zell_save_identity مابتلمسهوش.
+   */
+  updatedAt: string
 }
 
 export type ReadinessCheck = { key: string; label: string; ok: boolean; detail: string }
