@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* لوحة تشغيل — فاتح فقط، نفس لوحة ألوان المتجر */
+:root {
+  color-scheme: light;
+
+  --bg: 38 44% 97%;
+  --surface: 0 0% 100%;
+  --fg: 214 53% 15%;
+  --muted: 214 16% 43%;
+  --border: 37 27% 88%;
+
+  --brand: 212 61% 22%;
+  --brand-fg: 0 0% 100%;
+  --accent: 177 62% 30%;
+  --gold: 39 67% 52%;
+  --danger: 0 65% 42%;
+  --ok: 152 55% 32%;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-size: 14px;
+  }
+
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+}

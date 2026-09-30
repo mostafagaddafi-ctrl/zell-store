@@ -17,8 +17,7 @@ jobs:
     permissions:
       contents: read
 
-    # مصدر بيانات صريح: الـ CI بيبني بالكتالوج المؤقت ومابيلمسش Supabase.
-    # مفيش استنتاج ولا fallback ضمني — القيمة لازم تتحدد هنا.
+    # مصدر بيانات صريح للمتجر: الـ CI بيبني بالكتالوج المؤقت ومابيلمسش Supabase.
     env:
       STOREFRONT_DATA_SOURCE: fallback
 
@@ -26,7 +25,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # الإصدار بيتقرا من حقل packageManager في package.json
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
@@ -46,4 +44,12 @@ jobs:
         run: pnpm --filter @zell/storefront typecheck
 
       - name: Build storefront
-        run: pnpm build
+        run: pnpm --filter @zell/storefront build
+
+      # لوحة التحكم بتتبني في CI بس **ما بتتنشرش** — مشروع Vercel
+      # مربوط على apps/storefront فقط.
+      - name: Typecheck admin
+        run: pnpm --filter @zell/admin typecheck
+
+      - name: Build admin
+        run: pnpm --filter @zell/admin build
