@@ -1,9 +1,10 @@
 import type { Config } from 'tailwindcss'
 
 /**
- * الألوان مكتوبة بصيغة hsl(var(--x) / <alpha-value>) عن قصد:
- * من غير alpha-value أي كلاس فيه شفافية (bg-gold/15، ring-brand/25) بيتجاهل
- * بصمت من غير أي خطأ في البناء — وده أسوأ نوع من الأخطاء.
+ * الألوان بصيغة hsl(var(--x) / <alpha-value>) عشان صيغ الشفافية تشتغل.
+ *
+ * الحواف اتصغّرت عن قصد: كل حاجة كانت rounded-xl (14px) وده أكتر سبب
+ * بيدي إحساس «قالب جاهز». الصور 4px، الأسطح 8px.
  */
 const config: Config = {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}', './lib/**/*.{ts,tsx}'],
@@ -24,12 +25,26 @@ const config: Config = {
       fontFamily: {
         sans: ['var(--font-cairo)', 'system-ui', 'Segoe UI', 'Tahoma', 'sans-serif'],
       },
+      fontSize: {
+        display: ['2rem', { lineHeight: '1.2', letterSpacing: '-0.01em' }],
+        'display-lg': ['3.25rem', { lineHeight: '1.1', letterSpacing: '-0.02em' }],
+      },
       borderRadius: {
-        xl: '0.875rem',
-        '2xl': '1.125rem',
+        none: '0',
+        sm: '2px',
+        DEFAULT: '4px',
+        md: '6px',
+        lg: '8px',
+        xl: '8px',
+        '2xl': '10px',
+        '3xl': '12px',
       },
       maxWidth: {
-        app: '32rem',
+        app: '34rem', // عمود ضيق للفورمات
+        content: '75rem', // ١٢٠٠px — حاوية الديسكتوب
+      },
+      boxShadow: {
+        card: '0 1px 2px 0 rgb(18 35 58 / 0.04), 0 1px 3px 0 rgb(18 35 58 / 0.06)',
       },
     },
   },

@@ -1,20 +1,17 @@
 import type { Metadata } from 'next'
 import { CartView } from '../../components/store/CartView'
-import { StoreHeader } from '../../components/store/StoreHeader'
+import { Container } from '../../components/ui/Container'
 import { getStorefrontData } from '../../lib/data/source'
 
 export const metadata: Metadata = { title: 'السلة' }
 
 export default async function CartPage() {
-  const { products, settings } = await getStorefrontData()
+  const { products } = await getStorefrontData()
 
   return (
-    <>
-      <StoreHeader storeName={settings.storeName} />
-      <main className="mx-auto max-w-app space-y-4 px-4 pb-32 pt-5">
-        <h1 className="text-xl font-extrabold text-fg">سلة الطلب</h1>
-        <CartView products={products} />
-      </main>
-    </>
+    <Container size="narrow" className="space-y-4 pb-32 pt-8">
+      <h1 className="text-xl font-extrabold text-fg">سلة الطلب</h1>
+      <CartView products={products} />
+    </Container>
   )
 }
