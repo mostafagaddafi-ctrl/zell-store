@@ -2,23 +2,25 @@
 
 import Link from 'next/link'
 import { MessageCircle, ShoppingBag } from 'lucide-react'
+import type { StoreImage } from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { Container } from '../ui/Container'
 import { ImageSlot } from '../ui/ImageSlot'
 import { Num } from './Num'
 
 /**
- * اللوجو الحقيقي هيتوصل لاحقًا. لحد كده الخانة بتعرض اسم المتجر كنص عادي
- * — ده احتياطي مش wordmark مصمّم، وبيتشال أول ما src يتمرر.
+ * اللوجو بيتقرا من site_images (kind = 'logo' and is_active = true).
+ * الملف الأصلي مربع 1024×1024، فبيتعرض في خانة مربعة بـ contain.
+ * لو مفيش لوجو نشط: اسم المتجر كنص عادي — احتياطي مش wordmark مصمّم.
  */
 export function SiteHeader({
   storeName,
-  logoUrl,
+  logo,
   whatsappNumber,
   whatsappMessage,
 }: {
   storeName: string
-  logoUrl: string
+  logo: StoreImage | null
   whatsappNumber: string
   whatsappMessage: string
 }) {
@@ -30,17 +32,21 @@ export function SiteHeader({
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-bg/85 backdrop-blur">
       <Container className="flex h-16 items-center justify-between gap-4">
-        <Link href="/" aria-label={storeName} className="shrink-0">
-          <ImageSlot
-            ratio="auto"
-            src={logoUrl || null}
-            alt={storeName}
-            width={112}
-            height={36}
-            label={storeName}
-            labelClassName="text-base font-semibold text-brand"
-            className="h-9 w-28 bg-transparent"
-          />
+        <Link href="/" aria-label={storeName} className="flex shrink-0 items-center">
+          {logo ? (
+            <ImageSlot
+              ratio="1/1"
+              fit="contain"
+              src={logo.url}
+              alt={logo.alt || storeName}
+              sizes="44px"
+              priority
+              className="h-11 w-11 bg-transparent"
+              imageClassName="p-0"
+            />
+          ) : (
+            <span className="text-base font-semibold text-brand">{storeName}</span>
+          )}
         </Link>
 
         <div className="flex items-center gap-1">
