@@ -1,0 +1,284 @@
+import 'server-only'
+
+import { publicImageUrl } from '@zell/core'
+import type {
+  AdminImage,
+  AdminOrder,
+  AdminOrderItem,
+  AdminProduct,
+  FaqItem,
+  FooterLink,
+  HeroContent,
+  OrderStep,
+  StoreSection,
+} from '../adminData'
+import { ORDER_STATUSES, SECTION_KEYS, type ImageFit, type OrderStatus, type SectionKey } from '../enums'
+
+// ── صفوف الداتابيز ───────────────────────────────────────────
+export type ProductRow = {
+  id: number
+  name_ar: string
+  name_en: string | null
+  brand: string | null
+  description_ar: string | null
+  short_benefit: string | null
+  benefits: unknown
+  price_per_meter_piastres: number
+  width_cm: number
+  min_length_cm: number
+  step_cm: number
+  max_length_cm: number
+  is_active: boolean
+  sort_order: number
+  updated_at: string
+}
+
+export type ProductImageRow = {
+  id: number
+  product_id: number
+  bucket: string
+  object_path: string
+  kind: string
+  alt_text: string | null
+  fit: string | null
+  sort_order: number
+  is_primary: boolean
+  width_px: number | null
+  height_px: number | null
+  updated_at: string
+}
+
+export type SiteImageRow = {
+  id: number
+  bucket: string
+  object_path: string
+  alt_text: string | null
+  width_px: number | null
+  height_px: number | null
+  updated_at: string
+}
+
+export type OrderRow = {
+  id: number
+  order_number: string
+  status: string
+  customer_name: string
+  customer_phone: string
+  governorate: string
+  address: string
+  notes: string | null
+  subtotal_piastres: number
+  shipping_piastres: number
+  total_piastres: number
+  notified_at: string | null
+  notify_error: string | null
+  created_at: string
+}
+
+export type OrderItemRow = {
+  order_id: number
+  product_name_ar: string
+  length_cm: number
+  width_cm: number
+  unit_price_piastres: number
+  line_total_piastres: number
+}
+
+export type SettingRow = { key: string; value: unknown }
+
+// ── محوّلات ──────────────────────────────────────────────────
+function asStringArray(value: unknown, limit = 6): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === 'string' && item.trim() !== '').slice(0, limit)
+}
+
+function asFit(value: string | null): ImageFit {
+  return value === 'contain' ? 'contain' : 'cover'
+}
+
+function asStatus(value: string): OrderStatus {
+  return (ORDER_STATUSES as readonly string[]).includes(value) ? (value as OrderStatus) : 'new'
+}
+
+export function toAdminProduct(row: ProductRow, imageCount: number): AdminProduct {
+  return {
+    id: row.id,
+    nameAr: row.name_ar,
+    nameEn: row.name_en ?? '',
+    brand: row.brand ?? '',
+    descriptionAr: row.description_ar ?? '',
+    shortBenefit: row.short_benefit ?? '',
+    benefits: asStringArray(row.benefits),
+    pricePerMeterPiastres: row.price_per_meter_piastres,
+    widthCm: row.width_cm,
+    minLengthCm: row.min_length_cm,
+    stepCm: row.step_cm,
+    maxLengthCm: row.max_length_cm,
+    isActive: row.is_active,
+    sortOrder: row.sort_order,
+    imageCount,
+    updatedAt: row.updated_at,
+  }
+}
+
+export function toAdminImage(row: ProductImageRow, supabaseUrl: string, fallbackAlt: string): AdminImage {
+  return {
+    id: row.id,
+    url: publicImageUrl(supabaseUrl, { bucket: row.bucket, object_path: row.object_path }),
+    alt: row.alt_text && row.alt_text.trim() !== '' ? row.alt_text : fallbackAlt,
+    fit: asFit(row.fit),
+    sortOrder: row.sort_order,
+    isPrimary: row.is_primary,
+    width: row.width_px,
+    height: row.height_px,
+    updatedAt: row.updated_at,
+  }
+}
+
+export function toAdminLogo(row: SiteImageRow, supabaseUrl: string, storeName: string): AdminImage {
+  return {
+    id: row.id,
+    url: publicImageUrl(supabaseUrl, { bucket: row.bucket, object_path: row.object_path }),
+    alt: row.alt_text && row.alt_text.trim() !== '' ? row.alt_text : storeName,
+    fit: 'contain',
+    sortOrder: 0,
+    isPrimary: true,
+    width: row.width_px,
+    height: row.height_px,
+    updatedAt: row.updated_at,
+  }
+}
+
+export function toAdminOrder(row: OrderRow, itemCount: number): AdminOrder {
+  return {
+    id: row.id,
+    orderNumber: row.order_number,
+    status: asStatus(row.status),
+    customerName: row.customer_name,
+    customerPhone: row.customer_phone,
+    governorate: row.governorate,
+    itemCount,
+    totalPiastres: row.total_piastres,
+    notifiedAt: row.notified_at,
+    notifyError: row.notify_error,
+    createdAt: row.created_at,
+  }
+}
+
+export function toAdminOrderItem(row: OrderItemRow): AdminOrderItem {
+  return {
+    productNameAr: row.product_name_ar,
+    lengthCm: row.length_cm,
+    widthCm: row.width_cm,
+    unitPricePiastres: row.unit_price_piastres,
+    lineTotalPiastres: row.line_total_piastres,
+  }
+}
+
+// ── الإعدادات المهيكلة ──────────────────────────────────────
+export function settingsMap(rows: SettingRow[]): Map<string, unknown> {
+  const map = new Map<string, unknown>()
+  for (const row of rows) map.set(row.key, row.value)
+  return map
+}
+
+export function readString(map: Map<string, unknown>, key: string, fallback = ''): string {
+  const value = map.get(key)
+  if (typeof value === 'string') return value
+  if (typeof value === 'number') return String(value)
+  return fallback
+}
+
+export function readNumber(map: Map<string, unknown>, key: string, fallback = 0): number {
+  const value = map.get(key)
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value)
+  return fallback
+}
+
+export function readRates(map: Map<string, unknown>, key: string): Record<string, number> {
+  const value = map.get(key)
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const out: Record<string, number> = {}
+  for (const [name, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) out[name] = raw
+    else if (typeof raw === 'string' && Number.isFinite(Number(raw)) && Number(raw) >= 0) out[name] = Number(raw)
+  }
+  return out
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+}
+
+function text(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
+
+export function readHero(map: Map<string, unknown>): HeroContent {
+  const raw = record(map.get('hero'))
+  return {
+    title: text(raw['title']),
+    accent: text(raw['accent']),
+    subtitle: text(raw['subtitle']),
+    ctaLabel: text(raw['ctaLabel'], text(raw['cta_label'])),
+  }
+}
+
+export function readOrderSteps(map: Map<string, unknown>): OrderStep[] {
+  const raw = map.get('order_steps')
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((item) => {
+      const row = record(item)
+      return { title: text(row['title']), description: text(row['description']) }
+    })
+    .filter((step) => step.title !== '')
+}
+
+export function readFaqs(map: Map<string, unknown>): FaqItem[] {
+  const raw = map.get('faqs')
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((item) => {
+      const row = record(item)
+      return { question: text(row['question']), answer: text(row['answer']) }
+    })
+    .filter((faq) => faq.question !== '')
+}
+
+export function readSections(map: Map<string, unknown>): StoreSection[] {
+  const raw = map.get('sections')
+  if (!Array.isArray(raw)) return []
+  const out: StoreSection[] = []
+  for (const item of raw) {
+    const row = record(item)
+    const key = text(row['key'])
+    if (!(SECTION_KEYS as readonly string[]).includes(key)) continue
+    const section: StoreSection = {
+      key: key as SectionKey,
+      visible: row['visible'] !== false,
+      sortOrder: typeof row['sortOrder'] === 'number' ? row['sortOrder'] : Number(row['sort_order'] ?? 0),
+    }
+    const title = text(row['title'])
+    const subtitle = text(row['subtitle'])
+    if (title !== '') section.title = title
+    if (subtitle !== '') section.subtitle = subtitle
+    out.push(section)
+  }
+  return out.sort((a, b) => a.sortOrder - b.sortOrder)
+}
+
+/** المسار الداخلي لازم يبدأ بـ / والخارجي بـ https:// — أي حاجة تانية بتبقى نص. */
+export function readFooterLinks(map: Map<string, unknown>): FooterLink[] {
+  const raw = map.get('footer_links')
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((item) => {
+      const row = record(item)
+      const href = text(row['href'])
+      const safe = href === '' || href.startsWith('/') || href.startsWith('https://')
+      return { label: text(row['label']), href: safe ? href : '' }
+    })
+    .filter((link) => link.label !== '')
+}
