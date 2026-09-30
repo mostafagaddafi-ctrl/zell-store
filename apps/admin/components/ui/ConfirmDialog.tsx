@@ -19,6 +19,7 @@ export function ConfirmDialog({
   onCancel,
   onConfirm,
   disabledReason = 'التعديلات موقوفة دلوقتي — مفيش أي حاجة هتتغيّر.',
+  notImplementedReason = 'الإجراء ده لسه ما اتعملش — مفيش أي حاجة هتتغيّر.',
 }: {
   open: boolean
   title: string
