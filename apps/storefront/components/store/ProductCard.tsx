@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { formatPiastres, type StoreProduct } from '@zell/core'
+import { formatPiastres, primaryImage, type StoreProduct } from '@zell/core'
 import { shortBenefit } from '../../lib/productCopy'
 import { buttonClasses } from '../ui/Button'
 import { ImageSlot } from '../ui/ImageSlot'
@@ -7,20 +7,22 @@ import { Num } from './Num'
 
 /**
  * كارت بسيط: صورة، اسم، فائدة واحدة، سعر، زر واحد.
- * الكارت كله رابط — الزرار عنصر شكلي جواه مش زرار حقيقي
- * (ممنوع رابط جوه رابط).
+ * الصورة هي الرئيسية (preview) — مشهد الشباك، فبتتعرض بـ cover.
  */
 export function ProductCard({ product }: { product: StoreProduct }) {
+  const preview = primaryImage(product)
+
   return (
     <Link
       href={'/product/' + String(product.id)}
       className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-card transition-shadow hover:shadow-md"
     >
       <ImageSlot
-        ratio="4/3"
-        src={product.image_url}
-        alt={product.name_ar}
-        sizes="(min-width: 768px) 33vw, 100vw"
+        ratio="1/1"
+        fit="cover"
+        src={preview?.url ?? null}
+        alt={preview?.alt ?? product.name_ar}
+        sizes="(min-width: 1024px) 380px, (min-width: 640px) 45vw, 100vw"
         label="صورة المنتج"
         className="rounded-none"
       />
