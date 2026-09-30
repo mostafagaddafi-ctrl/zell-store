@@ -14,6 +14,9 @@ import { flag, invalid, optionalText, requiredText, wholeNumber, type Validation
 
 export type ProductInput = Partial<AdminProduct> & { id?: number; expectedUpdatedAt?: string }
 
+/** الإنشاء والتعديل مش نفس القواعد — الإظهار بالتحديد. */
+export type ProductMode = 'create' | 'update'
+
 /**
  * الأعمدة اللي اللوحة مسموح لها تكتبها — **ولا عمود غيرها**.
  *
@@ -58,7 +61,10 @@ function validateBenefits(value: unknown): { ok: true; value: string[] } | Valid
   return { ok: true, value: out }
 }
 
-export function validateProduct(input: ProductInput): { ok: true; columns: ProductColumns } | ValidationFailure {
+export function validateProduct(
+  input: ProductInput,
+  mode: ProductMode,
+): { ok: true; columns: ProductColumns } | ValidationFailure {
   const nameAr = requiredText(input.nameAr, 'اسم المنتج', 2, 120)
   if (!nameAr.ok) return nameAr
 
@@ -95,8 +101,20 @@ export function validateProduct(input: ProductInput): { ok: true; columns: Produ
   const sortOrder = wholeNumber(input.sortOrder, 'الترتيب')
   if (!sortOrder.ok) return sortOrder
 
-  const isActive = flag(input.isActive, 'الإظهار')
-  if (!isActive.ok) return isActive
+  /**
+   * ⚠️ المنتج الجديد بيتولد **مخفي** دايمًا.
+   *
+   * قيمة isActive الجاية من الواجهة **بتتجاهل تمامًا** وقت الإنشاء.
+   * السبب: المنتج وقت الإنشاء مالوش صور ولا وصف مكتمل بالضرورة،
+   * ولو اتنشر فورًا الزبون بيشوف منتج ناقص في المتجر. التفعيل عملية
+   * منفصلة بشروط جاهزية (شوف activationReadiness).
+   */
+  let isActiveValue = false
+  if (mode === 'update') {
+    const isActive = flag(input.isActive, 'الإظهار')
+    if (!isActive.ok) return isActive
+    isActiveValue = isActive.value
+  }
 
   if (price.value <= 0) return invalid('سعر المتر لازم يكون أكبر من صفر')
   if (width.value <= 0) return invalid('عرض الرول لازم يكون أكبر من صفر')
@@ -117,7 +135,7 @@ export function validateProduct(input: ProductInput): { ok: true; columns: Produ
     min_length_cm: minLength.value,
     step_cm: step.value,
     max_length_cm: maxLength.value,
-    is_active: isActive.value,
+    is_active: isActiveValue,
     sort_order: sortOrder.value,
   }
 
