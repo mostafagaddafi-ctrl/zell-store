@@ -1,10 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { computeSubtotalPiastres, validateRules } from '@zell/core'
-import type { AdminProductDetail, SaveState } from '../../lib/adminData'
+import { saveProductAction } from '../../lib/actions'
+import type { AdminProductDetail } from '../../lib/adminData'
+import { useSaveAction } from '../../lib/client/useSaveAction'
 import { formatLength, formatPiastres, piastresToPounds, poundsToPiastres } from '../../lib/format'
 import { cn } from '../../lib/cn'
+import { FailureBanner } from '../ui/FailureBanner'
 import { Card, Field, inputClasses, textareaClasses } from '../ui/Field'
 import { SaveBar } from '../ui/SaveBar'
 import { ImageManager } from './ImageManager'
@@ -31,8 +35,9 @@ const EMPTY = {
 }
 
 export function ProductEditor({ product }: { product: AdminProductDetail | null }) {
+  const router = useRouter()
+  const { state: saveState, failure, run, retry, markDirty } = useSaveAction()
   const [tab, setTab] = useState<Tab>('details')
-  const [saveState, setSaveState] = useState<SaveState>('idle')
 
   const [form, setForm] = useState(
     product
@@ -53,7 +58,90 @@ export function ProductEditor({ product }: { product: AdminProductDetail | null 
 
   const set = (patch: Partial<typeof form>) => {
     setForm({ ...form, ...patch })
-    setSaveState('dirty')
+    markDirty()
+  }
+
+  /**
+   * ⚠️ الـ refs دي هي اللي بتخلي «حاول تاني» تبعت **أحدث** بيانات.
+   * أي thunk بيقرا من متغيّر الـ render مباشرة كان هيبعت نسخة قديمة
+   * لو المستخدم عدّل بعد الفشل.
+   */
+  const formRef = useRef(form)
+  formRef.current = form
+  const stampRef = useRef(product?.updatedAt ?? '')
+  stampRef.current = product?.updatedAt ?? ''
+  const productRef = useRef(product)
+  productRef.current = product
+
+  // بعد نجاح الحفظ الـ props بتتغيّر فالفورم بيتزامن من السيرفر.
+  // لو الحفظ فشل مفيش حاجة بتتغيّر والتعديلات بتفضل زي ما هي.
+  const [syncedAt, setSyncedAt] = useState(product?.updatedAt ?? '')
+  useEffect(() => {
+    const latest = product?.updatedAt ?? ''
+    if (latest === syncedAt) return
+    setSyncedAt(latest)
+    if (!product) return
+    setForm({
+      nameAr: product.nameAr,
+      nameEn: product.nameEn,
+      descriptionAr: product.descriptionAr,
+      shortBenefit: product.shortBenefit,
+      benefits: product.benefits,
+      pricePounds: piastresToPounds(product.pricePerMeterPiastres),
+      widthCm: String(product.widthCm),
+      minLengthCm: String(product.minLengthCm),
+      stepCm: String(product.stepCm),
+      maxLengthCm: String(product.maxLengthCm),
+    })
+  }, [product, syncedAt])
+
+  /**
+   * ⚠️ **كل** قيمة في الـ payload بتتقرا من ref، ولا حاجة من closure
+   * الـ render.
+   *
+   * الحقول من formRef، والنسخة من stampRef، والقيم المشتقة من المنتج
+   * (id · sortOrder · isActive) من productRef.
+   *
+   * السبب: الـ thunk اللي «حاول تاني» بتعيده اتعمل في render قديم.
+   * الحقول كانت مضمونة من formRef، لكن sortOrder و isActive كانوا
+   * بيتقروا من prop الـ render القديم — ولو الـ props اتغيّرت بين
+   * الفشل والإعادة (وده وارد: ImageManager جوه نفس الصفحة بيعمل
+   * router.refresh بعد أي عملية صورة)، الإعادة كانت هتكتب isActive
+   * قديم وترجّع إظهار المنتج لحالة عدّاها.
+   *
+   * الإظهار **مش** بيتغيّر من هنا: الإنشاء بيتولد مخفي من السيرفر،
+   * والتعديل بيبعت القيمة الحالية زي ما هي. التفعيل عملية منفصلة
+   * بشروط جاهزية في جدول المنتجات.
+   */
+  function buildInput() {
+    const draft = formRef.current
+    const current = productRef.current
+    const base = {
+      nameAr: draft.nameAr,
+      nameEn: draft.nameEn,
+      descriptionAr: draft.descriptionAr,
+      shortBenefit: draft.shortBenefit,
+      benefits: draft.benefits,
+      pricePerMeterPiastres: poundsToPiastres(draft.pricePounds),
+      widthCm: Number(draft.widthCm),
+      minLengthCm: Number(draft.minLengthCm),
+      stepCm: Number(draft.stepCm),
+      maxLengthCm: Number(draft.maxLengthCm),
+      sortOrder: current?.sortOrder ?? 0,
+      isActive: current?.isActive ?? false,
+    }
+    if (!current) return base
+    return { ...base, id: current.id, expectedUpdatedAt: stampRef.current }
+  }
+
+  function save() {
+    void run(() => saveProductAction(buildInput()), {
+      onSuccess: (saved) => {
+        // إنشاء: replace مش push عشان زرار Back مايرجعش لفورم إنشاء قديم
+        if (!productRef.current) router.replace('/products/' + String(saved.id))
+        else router.refresh()
+      },
+    })
   }
 
   const rules = {
@@ -179,9 +267,25 @@ export function ProductEditor({ product }: { product: AdminProductDetail | null 
         </div>
       ) : null}
 
-      {tab === 'images' ? <ImageManager images={product?.images ?? []} /> : null}
+      {tab === 'images' && product ? <ImageManager productId={product.id} images={product.images} /> : null}
+      {tab === 'images' && !product ? (
+        <p className="rounded-lg border border-border bg-surface p-4 text-xs text-muted">
+          احفظ المنتج الأول، وبعدين ارفع صوره وحدّد الرئيسية.
+        </p>
+      ) : null}
 
-      <SaveBar state={saveState} />
+      {!product ? (
+        <p className="mt-4 text-xs text-muted">
+          المنتج الجديد بيتحفظ <span className="font-semibold text-fg">مخفي</span> دايمًا. بعد ما تكمّل الوصف
+          والفايدة المختصرة وتحدّد صورة رئيسية، فعّله من جدول المنتجات.
+        </p>
+      ) : null}
+
+      <div className="mt-4">
+        <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
+      </div>
+
+      <SaveBar state={saveState} onSave={save} />
     </div>
   )
 }

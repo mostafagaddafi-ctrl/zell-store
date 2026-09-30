@@ -3,12 +3,13 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight, MessageCircle, Phone } from 'lucide-react'
 import { PageHeader } from '../../../../components/shell/PageHeader'
+import { OrderNotes, OrderStatusControls } from '../../../../components/orders/OrderActions'
 import { StatusBadge } from '../../../../components/orders/StatusBadge'
 import { Button, buttonClasses } from '../../../../components/ui/Button'
-import { Card, textareaClasses } from '../../../../components/ui/Field'
+import { Card } from '../../../../components/ui/Field'
 import { PreviewNotice } from '../../../../components/ui/PreviewNotice'
 import { Table, TD, TH, THead, TR } from '../../../../components/ui/Table'
-import { ORDER_STATUSES, ORDER_STATUS_LABELS, adminData } from '../../../../lib/adminData'
+import { adminData } from '../../../../lib/adminData'
 import { formatDateTime, formatLength, formatPiastres } from '../../../../lib/format'
 import { requireAdminPage } from '../../../../lib/auth/guards'
 
@@ -79,15 +80,11 @@ export default async function OrderDetailPage({ params }: PageProps) {
             </dl>
           </Card>
 
-          <Card title="ملاحظات داخلية">
-            <textarea
-              defaultValue={order.internalNotes ?? ''}
-              placeholder="ملاحظات للفريق — ما بتظهرش للعميل"
-              className={textareaClasses}
-              disabled
-            />
-            <p className="mt-2 text-xs text-muted">الحفظ معطّل في مرحلة المعاينة.</p>
-          </Card>
+          <OrderNotes
+            orderId={order.id}
+            notes={order.internalNotes ?? ''}
+            expectedUpdatedAt={order.updatedAt}
+          />
         </div>
 
         <div className="space-y-5">
@@ -114,15 +111,11 @@ export default async function OrderDetailPage({ params }: PageProps) {
             </div>
           </Card>
 
-          <Card title="الحالة">
-            <div className="grid grid-cols-2 gap-1.5">
-              {ORDER_STATUSES.map((status) => (
-                <Button key={status} variant={status === order.status ? 'primary' : 'secondary'} size="sm" disabled>
-                  {ORDER_STATUS_LABELS[status]}
-                </Button>
-              ))}
-            </div>
-          </Card>
+          <OrderStatusControls
+            orderId={order.id}
+            status={order.status}
+            expectedUpdatedAt={order.updatedAt}
+          />
 
           <Card title="الإشعار">
             {order.notifiedAt ? (
