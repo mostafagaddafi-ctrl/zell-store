@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react'
-import type { StoreProduct } from '@zell/core'
+import { galleryImages, type StoreProduct } from '@zell/core'
 import { cn } from '../../lib/cn'
 import { ImageSlot, type ImageFit } from '../ui/ImageSlot'
 
@@ -11,23 +11,18 @@ type Shot = { src: string | null; fit: ImageFit; alt: string }
 /**
  * معرض مضغوط — الإطار مربع ثابت فمفيش layout shift وقت التبديل.
  *
- * الصورة الرئيسية معتدلة (٥٦٠px أقصى عرض على الديسكتوب، و٣٨٠px أقصى
- * ارتفاع على الموبايل) — مش صورة بملء الشاشة.
- *
- * preview  -> cover   (مشهد الشباك مصمّم مربع)
- * الرول    -> contain (الخامة تبان كاملة من غير قص)
+ * الصورة الأولى (is_primary) هي مشهد الشباك ← cover.
+ * باقي صور الرول ← contain عشان الخامة ما تتقصّش.
  */
 export function ProductGallery({ product }: { product: StoreProduct }) {
   const shots = useMemo<Shot[]>(() => {
-    const list: Shot[] = []
-    if (product.image_url) {
-      list.push({ src: product.image_url, fit: 'cover', alt: product.name_ar + ' — على الشباك' })
-    }
-    for (const src of product.images) {
-      list.push({ src, fit: 'contain', alt: product.name_ar + ' — الخامة' })
-    }
-    if (list.length === 0) list.push({ src: null, fit: 'cover', alt: product.name_ar })
-    return list
+    const images = galleryImages(product)
+    if (images.length === 0) return [{ src: null, fit: 'cover', alt: product.name_ar }]
+    return images.map((image, index) => ({
+      src: image.url,
+      fit: index === 0 ? 'cover' : 'contain',
+      alt: image.alt || product.name_ar,
+    }))
   }, [product])
 
   const [index, setIndex] = useState(0)
@@ -119,6 +114,7 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
                   alt=""
                   sizes="80px"
                   className="rounded-none"
+                  imageClassName={shot.fit === 'contain' ? 'p-1' : ''}
                 />
               </button>
             </li>
