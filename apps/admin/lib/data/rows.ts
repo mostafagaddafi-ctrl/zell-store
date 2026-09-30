@@ -75,6 +75,7 @@ export type OrderRow = {
   notified_at: string | null
   notify_error: string | null
   created_at: string
+  updated_at: string
 }
 
 export type OrderItemRow = {

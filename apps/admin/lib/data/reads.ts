@@ -90,6 +90,7 @@ const ORDER_COLUMNS = [
   'notified_at',
   'notify_error',
   'created_at',
+  'updated_at',
 ].join(',')
 
 const CONTENT_KEYS = ['hero', 'order_steps', 'faqs', 'sections', 'footer_links', 'trust_line'] as const
@@ -181,6 +182,7 @@ export const supabaseAdminData: AdminDataSource = {
       address: row.address,
       notes: row.notes,
       internalNotes: row.internal_notes,
+      updatedAt: row.updated_at,
       subtotalPiastres: row.subtotal_piastres,
       shippingPiastres: row.shipping_piastres,
       items: items.rows.map(toAdminOrderItem),
