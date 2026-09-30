@@ -1,9 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
+import { saveContentAction } from '../../lib/actions'
 import type { StoreContent } from '../../lib/adminData'
-import { SECTION_LABELS, type SaveState } from '../../lib/enums'
+import { useSaveAction } from '../../lib/client/useSaveAction'
+import { SECTION_LABELS } from '../../lib/enums'
+import { FailureBanner } from '../ui/FailureBanner'
 import { Card, Field, inputClasses, textareaClasses } from '../ui/Field'
 import { SaveBar } from '../ui/SaveBar'
 import { Switch } from '../ui/Switch'
@@ -16,12 +20,32 @@ function hrefState(href: string): { ok: boolean; note: string } {
 }
 
 export function ContentEditor({ content }: { content: StoreContent }) {
-  const [state, setState] = useState<SaveState>('idle')
+  const router = useRouter()
+  const { state, failure, run, retry, markDirty } = useSaveAction()
   const [draft, setDraft] = useState(content)
 
   const touch = (next: StoreContent) => {
     setDraft(next)
-    setState('dirty')
+    markDirty()
+  }
+
+  /** «حاول تاني» لازم تبعت أحدث draft مش نسخة من وقت الضغط الأول. */
+  const draftRef = useRef(draft)
+  draftRef.current = draft
+
+  // الطابع بييجي من السيرفر. بعد النجاح بيتغيّر فالمحتوى بيتزامن،
+  // وبعد الفشل مابيتغيرش فالتعديلات بتفضل.
+  const [syncedAt, setSyncedAt] = useState(content.updatedAt)
+  useEffect(() => {
+    if (content.updatedAt === syncedAt) return
+    setSyncedAt(content.updatedAt)
+    setDraft(content)
+  }, [content, syncedAt])
+
+  function save() {
+    void run(() => saveContentAction(draftRef.current, draftRef.current.updatedAt), {
+      onSuccess: () => router.refresh(),
+    })
   }
 
   const sorted = [...draft.sections].sort((a, b) => a.sortOrder - b.sortOrder)
@@ -235,7 +259,9 @@ export function ContentEditor({ content }: { content: StoreContent }) {
         شوف المتجر
       </a>
 
-      <SaveBar state={state} />
+      <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
+
+      <SaveBar state={state} onSave={save} />
     </div>
   )
 }

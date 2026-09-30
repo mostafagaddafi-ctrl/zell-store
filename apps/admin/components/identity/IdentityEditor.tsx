@@ -1,19 +1,43 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Upload } from 'lucide-react'
-import type { SaveState, StoreIdentity } from '../../lib/adminData'
+import { saveIdentityAction } from '../../lib/actions'
+import type { StoreIdentity } from '../../lib/adminData'
+import { useSaveAction } from '../../lib/client/useSaveAction'
 import { Button } from '../ui/Button'
+import { FailureBanner } from '../ui/FailureBanner'
 import { Card, Field, inputClasses } from '../ui/Field'
 import { SaveBar } from '../ui/SaveBar'
 
 export function IdentityEditor({ identity }: { identity: StoreIdentity }) {
-  const [state, setState] = useState<SaveState>('idle')
+  const router = useRouter()
+  const { state, failure, run, retry, markDirty } = useSaveAction()
   const [draft, setDraft] = useState(identity)
 
   const touch = (patch: Partial<StoreIdentity>) => {
     setDraft({ ...draft, ...patch })
-    setState('dirty')
+    markDirty()
+  }
+
+  /** «حاول تاني» لازم تبعت أحدث draft مش نسخة من وقت الضغط الأول. */
+  const draftRef = useRef(draft)
+  draftRef.current = draft
+
+  // اللوجو **مش** داخل في الحفظ ولا في الطابع — zell_save_identity
+  // بتقفل أربعة مفاتيح بس ومابتلمسش logo_url.
+  const [syncedAt, setSyncedAt] = useState(identity.updatedAt)
+  useEffect(() => {
+    if (identity.updatedAt === syncedAt) return
+    setSyncedAt(identity.updatedAt)
+    setDraft(identity)
+  }, [identity, syncedAt])
+
+  function save() {
+    void run(() => saveIdentityAction(draftRef.current, draftRef.current.updatedAt), {
+      onSuccess: () => router.refresh(),
+    })
   }
 
   return (
@@ -64,7 +88,9 @@ export function IdentityEditor({ identity }: { identity: StoreIdentity }) {
         </div>
       </Card>
 
-      <SaveBar state={state} />
+      <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
+
+      <SaveBar state={state} onSave={save} />
     </div>
   )
 }
