@@ -2,12 +2,13 @@
 
 import { useEffect } from 'react'
 import { AlertTriangle, Lock } from 'lucide-react'
+import { useMutationsEnabled } from '../../lib/readiness'
 import { Button } from './Button'
 
 /**
  * كل إجراء هدّام لازم يعدّي من هنا.
  *
- * لما يكون التأكيد معطّل، السبب بيتكتب **جوه الحوار نفسه** مش في tooltip —
+ * لما التعديلات موقوفة، السبب بيتكتب **جوه الحوار نفسه** مش في tooltip —
  * زرار معطّل من غير سبب ظاهر بيحيّر اللي بيجرّب.
  */
 export function ConfirmDialog({
@@ -17,8 +18,7 @@ export function ConfirmDialog({
   confirmLabel = 'تأكيد',
   onCancel,
   onConfirm,
-  confirmDisabled = true,
-  disabledReason = 'الإجراء ده معطّل في وضع معاينة التصميم.',
+  disabledReason = 'التعديلات موقوفة دلوقتي — مفيش أي حاجة هتتغيّر.',
 }: {
   open: boolean
   title: string
@@ -26,9 +26,10 @@ export function ConfirmDialog({
   confirmLabel?: string
   onCancel: () => void
   onConfirm?: () => void
-  confirmDisabled?: boolean
   disabledReason?: string
 }) {
+  const enabled = useMutationsEnabled()
+
   useEffect(() => {
     if (!open) return
     const onKey = (event: KeyboardEvent) => {
@@ -60,7 +61,7 @@ export function ConfirmDialog({
           </div>
         </div>
 
-        {confirmDisabled ? (
+        {!enabled ? (
           <p className="mt-3 flex items-start gap-2 rounded border-s-2 border-gold bg-bg p-2.5 text-xs font-semibold text-fg">
             <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold" />
             {disabledReason}
@@ -68,11 +69,11 @@ export function ConfirmDialog({
         ) : null}
 
         <div className="mt-5 flex justify-start gap-2">
-          <Button variant="danger" onClick={onConfirm} disabled={confirmDisabled}>
+          <Button variant="danger" onClick={onConfirm} disabled={!enabled}>
             {confirmLabel}
           </Button>
           <Button variant="secondary" onClick={onCancel}>
-            {confirmDisabled ? 'اقفل' : 'إلغاء'}
+            {enabled ? 'إلغاء' : 'اقفل'}
           </Button>
         </div>
       </div>
