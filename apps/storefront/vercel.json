@@ -2,10 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "build": {
     "env": {
-      "STOREFRONT_DATA_SOURCE": "fallback"
+      "STOREFRONT_DATA_SOURCE": "supabase"
     }
   },
   "env": {
-    "STOREFRONT_DATA_SOURCE": "fallback"
+    "STOREFRONT_DATA_SOURCE": "supabase"
   }
 }
