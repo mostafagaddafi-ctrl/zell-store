@@ -42,7 +42,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <CartProvider>
           <SiteHeader
             storeName={settings.storeName}
-            logoUrl={settings.logoUrl}
+            logo={settings.logo}
             whatsappNumber={settings.whatsappNumber}
             whatsappMessage={settings.whatsappMessage}
           />
