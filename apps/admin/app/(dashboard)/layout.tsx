@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { AdminShell } from '../../components/shell/AdminShell'
+import { AdminShell, type AdminShellIdentity } from '../../components/shell/AdminShell'
 import { adminData } from '../../lib/adminData'
 import { requireAdminPage } from '../../lib/auth/guards'
 import { mutationsEnabled } from '../../lib/mutations'
@@ -21,9 +21,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const summary = await adminData.getOrdersSummary()
   const enabled = mutationsEnabled()
 
+  const shellIdentity: AdminShellIdentity = { email: identity.email, role: identity.role }
+
   return (
     <ReadinessProvider enabled={enabled}>
-      <AdminShell newOrders={summary.newCount} identity=undefined>
+      <AdminShell newOrders={summary.newCount} identity={shellIdentity}>
         {children}
       </AdminShell>
     </ReadinessProvider>
