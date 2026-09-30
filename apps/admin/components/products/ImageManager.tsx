@@ -16,10 +16,12 @@ const FITS: Array<{ value: ImageFit; label: string; hint: string }> = [
 /**
  * الرفع بيمر على راوت سيرفر في اللوحة، والسيرفر هو اللي بيبني المسار
  * ويتحقق من النوع والحجم — المتصفح مايلمسش Storage بمفتاح قوي.
- * المرحلة أ: كله معطّل.
+ *
+ * معرّفات الصور **نصوص** (bigint في Postgres).
+ * المرحلة ب: كل التعديلات موقوفة بعلم الجاهزية.
  */
 export function ImageManager({ images }: { images: AdminImage[] }) {
-  const [confirmId, setConfirmId] = useState<number | null>(null)
+  const [confirmId, setConfirmId] = useState<string | null>(null)
 
   if (images.length === 0) {
     return (
@@ -59,7 +61,7 @@ export function ImageManager({ images }: { images: AdminImage[] }) {
                 />
               ) : (
                 <div className="flex h-full items-center justify-center px-3 text-center text-xs text-muted">
-                  خانة صورة — الرابط بيتبني من Storage
+                  مفيش رابط للصورة
                 </div>
               )}
 
@@ -82,7 +84,7 @@ export function ImageManager({ images }: { images: AdminImage[] }) {
                     key={fit.value}
                     type="button"
                     disabled
-                    title={fit.hint + ' — معطّل في المعاينة'}
+                    title={fit.hint + ' — التعديلات موقوفة'}
                     className={cn(
                       'flex-1 rounded border px-1.5 py-1 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed',
                       image.fit === fit.value ? 'border-brand bg-brand/10 text-brand' : 'border-border text-muted',
@@ -135,7 +137,7 @@ export function ImageManager({ images }: { images: AdminImage[] }) {
         title="حذف الصورة؟"
         message="لو الحذف كان مفعّل، الصورة كانت هتتشال من المنتج ومن Storage، والإجراء ده ما ينفعش يترجع."
         confirmLabel="احذف"
-        disabledReason="الحذف معطّل في وضع معاينة التصميم — مفيش أي صورة هتتمسح."
+        disabledReason="الحذف موقوف دلوقتي — مفيش أي صورة هتتمسح."
         onCancel={() => setConfirmId(null)}
       />
     </div>
