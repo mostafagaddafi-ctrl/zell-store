@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { AlertTriangle, ExternalLink, Lock, RefreshCw, RotateCcw, ShieldAlert } from 'lucide-react'
 import { loginLink } from '../../lib/client/loginLink'
 import type { SaveFailure } from '../../lib/client/useSaveAction'
@@ -28,7 +28,16 @@ export function FailureBanner({
   onDiscardAndRefresh?: () => void
 }) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [confirming, setConfirming] = useState(false)
+
+  /**
+   * المسار **مع** الـ query. بعض الصفحات حالتها في الـ URL (فلاتر
+   * الطلبات مثلًا)، ومن غير الـ query الرجوع بعد الدخول بيروح لصفحة
+   * مختلفة عن اللي المستخدم كان فيها. loginLink بتعقّم النتيجة.
+   */
+  const query = searchParams.toString()
+  const here = query === '' ? pathname : pathname + '?' + query
 
   if (!failure) return null
 
@@ -45,7 +54,7 @@ export function FailureBanner({
         </p>
         <div className="flex flex-wrap items-center gap-2 pt-0.5">
           <a
-            href={loginLink(pathname)}
+            href={loginLink(here)}
             target="_blank"
             rel="noopener noreferrer"
             className={buttonClasses('secondary', 'sm')}

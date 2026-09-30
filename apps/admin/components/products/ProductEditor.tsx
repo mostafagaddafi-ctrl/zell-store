@@ -70,6 +70,8 @@ export function ProductEditor({ product }: { product: AdminProductDetail | null 
   formRef.current = form
   const stampRef = useRef(product?.updatedAt ?? '')
   stampRef.current = product?.updatedAt ?? ''
+  const productRef = useRef(product)
+  productRef.current = product
 
   // بعد نجاح الحفظ الـ props بتتغيّر فالفورم بيتزامن من السيرفر.
   // لو الحفظ فشل مفيش حاجة بتتغيّر والتعديلات بتفضل زي ما هي.
@@ -94,12 +96,26 @@ export function ProductEditor({ product }: { product: AdminProductDetail | null 
   }, [product, syncedAt])
 
   /**
-   * الإظهار **مش** بيتغيّر من هنا.
-   * الإنشاء بيتولد مخفي من السيرفر، والتعديل بيبعت القيمة الحالية زي
-   * ما هي — التفعيل عملية منفصلة بشروط جاهزية في جدول المنتجات.
+   * ⚠️ **كل** قيمة في الـ payload بتتقرا من ref، ولا حاجة من closure
+   * الـ render.
+   *
+   * الحقول من formRef، والنسخة من stampRef، والقيم المشتقة من المنتج
+   * (id · sortOrder · isActive) من productRef.
+   *
+   * السبب: الـ thunk اللي «حاول تاني» بتعيده اتعمل في render قديم.
+   * الحقول كانت مضمونة من formRef، لكن sortOrder و isActive كانوا
+   * بيتقروا من prop الـ render القديم — ولو الـ props اتغيّرت بين
+   * الفشل والإعادة (وده وارد: ImageManager جوه نفس الصفحة بيعمل
+   * router.refresh بعد أي عملية صورة)، الإعادة كانت هتكتب isActive
+   * قديم وترجّع إظهار المنتج لحالة عدّاها.
+   *
+   * الإظهار **مش** بيتغيّر من هنا: الإنشاء بيتولد مخفي من السيرفر،
+   * والتعديل بيبعت القيمة الحالية زي ما هي. التفعيل عملية منفصلة
+   * بشروط جاهزية في جدول المنتجات.
    */
   function buildInput() {
     const draft = formRef.current
+    const current = productRef.current
     const base = {
       nameAr: draft.nameAr,
       nameEn: draft.nameEn,
@@ -111,18 +127,18 @@ export function ProductEditor({ product }: { product: AdminProductDetail | null 
       minLengthCm: Number(draft.minLengthCm),
       stepCm: Number(draft.stepCm),
       maxLengthCm: Number(draft.maxLengthCm),
-      sortOrder: product?.sortOrder ?? 0,
-      isActive: product?.isActive ?? false,
+      sortOrder: current?.sortOrder ?? 0,
+      isActive: current?.isActive ?? false,
     }
-    if (!product) return base
-    return { ...base, id: product.id, expectedUpdatedAt: stampRef.current }
+    if (!current) return base
+    return { ...base, id: current.id, expectedUpdatedAt: stampRef.current }
   }
 
   function save() {
     void run(() => saveProductAction(buildInput()), {
       onSuccess: (saved) => {
         // إنشاء: replace مش push عشان زرار Back مايرجعش لفورم إنشاء قديم
-        if (!product) router.replace('/products/' + String(saved.id))
+        if (!productRef.current) router.replace('/products/' + String(saved.id))
         else router.refresh()
       },
     })
