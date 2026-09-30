@@ -1,12 +1,15 @@
 import type { Metadata } from 'next'
-import { PageHeader } from '../../components/shell/PageHeader'
-import { SettingsEditor } from '../../components/settings/SettingsEditor'
-import { PreviewNotice } from '../../components/ui/PreviewNotice'
-import { adminData } from '../../lib/adminData'
+import { PageHeader } from '../../../components/shell/PageHeader'
+import { SettingsEditor } from '../../../components/settings/SettingsEditor'
+import { PreviewNotice } from '../../../components/ui/PreviewNotice'
+import { adminData } from '../../../lib/adminData'
+import { requireAdminPage } from '../../../lib/auth/guards'
 
 export const metadata: Metadata = { title: 'الإعدادات' }
 
 export default async function SettingsPage() {
+  await requireAdminPage()
+
   const settings = await adminData.getOperationalSettings()
 
   return (

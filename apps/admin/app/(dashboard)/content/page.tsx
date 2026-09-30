@@ -1,12 +1,15 @@
 import type { Metadata } from 'next'
-import { PageHeader } from '../../components/shell/PageHeader'
-import { ContentEditor } from '../../components/content/ContentEditor'
-import { PreviewNotice } from '../../components/ui/PreviewNotice'
-import { adminData } from '../../lib/adminData'
+import { PageHeader } from '../../../components/shell/PageHeader'
+import { ContentEditor } from '../../../components/content/ContentEditor'
+import { PreviewNotice } from '../../../components/ui/PreviewNotice'
+import { adminData } from '../../../lib/adminData'
+import { requireAdminPage } from '../../../lib/auth/guards'
 
 export const metadata: Metadata = { title: 'محتوى المتجر' }
 
 export default async function ContentPage() {
+  await requireAdminPage()
+
   const content = await adminData.getContent()
 
   return (

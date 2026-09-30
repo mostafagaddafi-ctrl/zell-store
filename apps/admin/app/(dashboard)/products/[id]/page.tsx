@@ -2,12 +2,13 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
-import { PageHeader } from '../../../components/shell/PageHeader'
-import { ProductEditor } from '../../../components/products/ProductEditor'
-import { Badge } from '../../../components/ui/Badge'
-import { PreviewNotice } from '../../../components/ui/PreviewNotice'
-import { adminData } from '../../../lib/adminData'
-import { formatDateTime } from '../../../lib/format'
+import { PageHeader } from '../../../../components/shell/PageHeader'
+import { ProductEditor } from '../../../../components/products/ProductEditor'
+import { Badge } from '../../../../components/ui/Badge'
+import { PreviewNotice } from '../../../../components/ui/PreviewNotice'
+import { adminData } from '../../../../lib/adminData'
+import { formatDateTime } from '../../../../lib/format'
+import { requireAdminPage } from '../../../../lib/auth/guards'
 
 type PageProps = { params: Promise<{ id: string }> }
 
@@ -18,6 +19,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ProductPage({ params }: PageProps) {
+  await requireAdminPage()
+
   const { id } = await params
   const product = await adminData.getProduct(Number(id))
   if (!product) notFound()

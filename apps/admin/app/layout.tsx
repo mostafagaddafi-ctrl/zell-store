@@ -1,19 +1,16 @@
 import type { Metadata, Viewport } from 'next'
 import { Cairo } from 'next/font/google'
 import type { ReactNode } from 'react'
-import { AdminShell } from '../components/shell/AdminShell'
-import { adminData } from '../lib/adminData'
-import { mutationsEnabled } from '../lib/mutations'
-import { ReadinessProvider } from '../lib/readiness'
 import './globals.css'
 
 /**
- * اللوحة كلها ديناميكية.
+ * الـ layout الجذري بقى **هيكل HTML وبس**.
  *
- * السبب الأول: بتعرض حالة تشغيل لحظية — الطلبات والمخزون والجاهزية —
- * وأي prerender بيعرض بيانات قديمة.
- * السبب التاني: من غير كده البناء بيحاول يقرا من الداتابيز وقت البناء،
- * فالـ CI (اللي مالوش مفاتيح وما المفروض يكون ليه) كان هيفشل.
+ * قبل المرحلة ج كان بيقرا من الداتابيز ويرسم AdminShell، وده كان
+ * بيخلي /login و/403 يحتاجوا مفاتيح وجلسة عشان يتعرضوا أصلًا.
+ * دلوقتي:
+ *   (auth)      -> صفحات عامة، من غير أي قراءة
+ *   (dashboard) -> requireAdminPage + الشِل + قراءة الملخّص
  */
 export const dynamic = 'force-dynamic'
 
@@ -27,17 +24,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#FAF7F2' }
 
-export default async function RootLayout({ children }: { children: ReactNode }) {
-  const summary = await adminData.getOrdersSummary()
-  const enabled = mutationsEnabled()
-
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ar" dir="rtl" className={cairo.variable}>
-      <body className="bg-bg font-sans text-fg antialiased">
-        <ReadinessProvider enabled={enabled}>
-          <AdminShell newOrders={summary.newCount}>{children}</AdminShell>
-        </ReadinessProvider>
-      </body>
+      <body className="bg-bg font-sans text-fg antialiased">{children}</body>
     </html>
   )
 }
