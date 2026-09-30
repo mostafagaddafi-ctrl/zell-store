@@ -4,10 +4,14 @@ import 'server-only'
  * نتيجة التعديل الموحّدة.
  *
  * CONFLICT **نتيجة متوقعة** مش استثناء — بتحصل لما optimistic concurrency
- * يلاقي إن السجل اتغيّر. أي استثناء غير متوقع بيتحول INTERNAL من غير أي
- * تفاصيل تقنية تخرج للعميل.
+ * يلاقي إن السجل اتغيّر.
+ *
+ * DISABLED كذلك **حالة تشغيلية متوقعة** — التعديلات موقوفة بعلم الجاهزية،
+ * وده مش خطأ داخلي.
+ *
+ * أي استثناء غير متوقع بيتحول INTERNAL من غير أي تفاصيل تقنية تخرج للعميل.
  */
-export type MutationErrorCode = 'VALIDATION' | 'NOT_FOUND' | 'CONFLICT' | 'STORAGE_ERROR' | 'INTERNAL'
+export type MutationErrorCode = 'VALIDATION' | 'NOT_FOUND' | 'CONFLICT' | 'DISABLED' | 'STORAGE_ERROR' | 'INTERNAL'
 
 export type MutationResult<T> = { ok: true; data: T } | { ok: false; code: MutationErrorCode; message: string }
 
@@ -24,14 +28,11 @@ const DISABLED_MESSAGE =
   'التعديلات موقوفة دلوقتي. هتتفتح بعد ربط محتوى المتجر وتشغيل تسجيل الدخول والتحقق من الحفظ.'
 
 /**
- * حارس كل Server Action.
- *
- * ملاحظة على العقد: مفيش كود مخصص لحالة «موقوف» في قائمة الأكواد،
- * فالحالة دي بترجع INTERNAL برسالة صريحة. الواجهة **مش بتعتمد** على ده —
- * هي بتعطّل الأزرار من العلم قبل أي نداء، والحارس طبقة دفاع تانية.
- * لو حبيتوا نضيف كود DISABLED للقائمة، أنا موافق وبفضّله.
+ * حارس كل Server Action — طبقة دفاع تانية.
+ * الواجهة بتعطّل الأزرار من العلم قبل أي نداء، فالحارس ده مايفترضش
+ * إنه هو خط الدفاع الأول.
  */
 export function guardMutations(): MutationResult<never> | null {
   if (mutationsEnabled()) return null
-  return { ok: false, code: 'INTERNAL', message: DISABLED_MESSAGE }
+  return { ok: false, code: 'DISABLED', message: DISABLED_MESSAGE }
 }
