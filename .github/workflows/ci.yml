@@ -1,10 +1,10 @@
 name: CI
 
-# التحقق من البناء على الفرع. مفيش نشر ولا دمج ولا أي وصول لقاعدة بيانات.
+# التحقق من البناء. مفيش نشر ولا دمج ولا أي وصول لقاعدة بيانات.
 on:
   push:
     branches:
-      - feat/storefront-admin-split
+      - main
   pull_request:
   workflow_dispatch:
 
@@ -16,6 +16,11 @@ jobs:
     # قراءة فقط — الـ workflow مالوش أي صلاحية كتابة على الريبو
     permissions:
       contents: read
+
+    # مصدر بيانات صريح: الـ CI بيبني بالكتالوج المؤقت ومابيلمسش Supabase.
+    # مفيش استنتاج ولا fallback ضمني — القيمة لازم تتحدد هنا.
+    env:
+      STOREFRONT_DATA_SOURCE: fallback
 
     steps:
       - name: Checkout
