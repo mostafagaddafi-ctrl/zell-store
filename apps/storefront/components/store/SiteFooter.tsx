@@ -23,8 +23,7 @@ export function SiteFooter({
 
   return (
     <footer className="mt-20 border-t border-border bg-card">
-      {/* مساحة تحت عشان الأشرطة اللاصقة في صفحات المنتج والسلة ما تغطّيش الفوتر */}
-      <Container className="grid gap-8 py-10 pb-28 sm:grid-cols-2 md:pb-10">
+      <Container className="grid gap-8 py-10 sm:grid-cols-2">
         <div className="space-y-3">
           <p className="text-sm font-semibold text-fg">{storeName}</p>
           {whatsappHref ? (
