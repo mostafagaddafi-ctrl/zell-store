@@ -26,6 +26,7 @@ import {
   readRates,
   readSections,
   readString,
+  readStringList,
   settingsMap,
   toAdminImage,
   toAdminLogo,
@@ -82,6 +83,7 @@ const ORDER_COLUMNS = [
   'governorate',
   'address',
   'notes',
+  'internal_notes',
   'subtotal_piastres',
   'shipping_piastres',
   'total_piastres',
@@ -91,7 +93,12 @@ const ORDER_COLUMNS = [
 ].join(',')
 
 const CONTENT_KEYS = ['hero', 'order_steps', 'faqs', 'sections', 'footer_links', 'trust_line'] as const
-const SHIPPING_KEYS = ['shipping_rates', 'shipping_default_piastres', 'free_shipping_threshold_piastres'] as const
+const SHIPPING_KEYS = [
+  'shipping_rates',
+  'shipping_default_piastres',
+  'free_shipping_threshold_piastres',
+  'shipping_disabled_governorates',
+] as const
 const IDENTITY_KEYS = ['store_name', 'logo_url', 'offer_text', 'whatsapp_number', 'whatsapp_message'] as const
 const OPERATIONAL_KEYS = ['notify_email', 'telegram_bot_token', 'whatsapp_number'] as const
 
@@ -173,8 +180,7 @@ export const supabaseAdminData: AdminDataSource = {
       ...toAdminOrder(row, items.rows.length),
       address: row.address,
       notes: row.notes,
-      // مفيش عمود internal_notes في الداتابيز لسه — migration منفصلة
-      internalNotes: null,
+      internalNotes: row.internal_notes,
       subtotalPiastres: row.subtotal_piastres,
       shippingPiastres: row.shipping_piastres,
       items: items.rows.map(toAdminOrderItem),
@@ -278,8 +284,7 @@ export const supabaseAdminData: AdminDataSource = {
       rates: readRates(map, 'shipping_rates'),
       defaultPiastres: readNumber(map, 'shipping_default_piastres'),
       freeThresholdPiastres: readNumber(map, 'free_shipping_threshold_piastres'),
-      // مفيش مفتاح shipping_disabled_governorates لسه — migration منفصلة
-      disabled: [],
+      disabled: readStringList(map, 'shipping_disabled_governorates'),
     }
   },
 
