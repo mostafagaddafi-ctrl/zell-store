@@ -1,20 +1,15 @@
 /**
  * ⚠️⚠️ FALLBACK مؤقت — **مش مصدر بيانات**. ⚠️⚠️
  *
- * الملف ده نسخة مجمّدة باليد من صفوف Production وقت كتابة المرحلة الأولى،
- * موجود لسبب واحد بس: إن الواجهة تتبني وتتراجع بأرقام حقيقية من غير ما
- * نحط أي مفتاح Supabase في الريبو.
+ * نسخة مجمّدة باليد من صفوف Production وقت كتابة المرحلة الأولى، عشان
+ * الواجهة تتبني وتتراجع بأرقام حقيقية من غير أي مفتاح Supabase في الريبو.
  *
- * اللي لازم يكون واضح:
- *   • الأرقام دي **بتقدم** كل ما حد يعدّل منتج أو سعر من الداشبورد.
- *   • أي سعر هنا مالوش أي صفة رسمية — الرقم المعتمد بيتحسب في الداتابيز.
- *   • ممنوع تمامًا إن أي منطق أعمال يعتمد على الملف ده.
- *   • مصيره الحذف في المرحلة الجاية، مش التوسعة.
+ *   • الأرقام بتقدم كل ما حد يعدّل منتج أو سعر من الداشبورد.
+ *   • ممنوع أي منطق أعمال يعتمد على الملف ده.
+ *   • مصيره الحذف، مش التوسعة.
  *
- * المرحلة الجاية: قراءة server-side من Supabase (anon + policies محدودة)
- * بترجّع نفس الأنواع من @zell/core، فالمكوّنات ما تتغيّرش.
- *
- * آخر مزامنة يدوية مع Production: بداية المرحلة الأولى.
+ * 🚫 **مفيش أي مسار صور من Production هنا.** المعارض فاضية عن قصد —
+ * الروابط الحقيقية بتتبنى في طبقة القراءة المعتمدة على السيرفر.
  */
 import type { StoreProduct, StoreSettings } from '@zell/core'
 
@@ -26,6 +21,7 @@ export const FALLBACK_PRODUCTS: StoreProduct[] = [
     brand: null,
     description_ar:
       'الصالة أو الأوضة اللي الشمس بتضربها طول النهار: بيقلل الحرارة والوهج، والتكييف يتعب أقل، والفرش ما يبهتش. الرؤية من جوه تفضل واضحة.',
+    gallery: [],
     image_url: null,
     images: [],
     before_image: null,
@@ -43,6 +39,7 @@ export const FALLBACK_PRODUCTS: StoreProduct[] = [
     brand: null,
     description_ar:
       'زجاج مطفي زي السنفرة — محدش يشوف من بره والنور بيدخل عادي. الأنسب للحمام والمطبخ والأبواب الزجاجية الداخلية.',
+    gallery: [],
     image_url: null,
     images: [],
     before_image: null,
@@ -60,6 +57,7 @@ export const FALLBACK_PRODUCTS: StoreProduct[] = [
     brand: null,
     description_ar:
       'تعتيم قوي وخصوصية كاملة من بره، وبيقلل الشمس والوهج كمان. مناسب للبلكونة والشبابيك المطلة على الشارع.',
+    gallery: [],
     image_url: null,
     images: [],
     before_image: null,
@@ -106,6 +104,7 @@ const FALLBACK_SHIPPING_RATES: Record<string, number> = {
 
 export const FALLBACK_SETTINGS: StoreSettings = {
   storeName: 'ZELL',
+  logo: null,
   logoUrl: '',
   offerText: 'أدوات التركيب مرفقة مجاناً',
   whatsappNumber: '201000000000',
@@ -116,7 +115,7 @@ export const FALLBACK_SETTINGS: StoreSettings = {
   governorates: Object.keys(FALLBACK_SHIPPING_RATES),
 }
 
-/** الأسماء مكتوبة بـ Fallback عن قصد — عشان مكان الاستدعاء نفسه يفضح إنها مؤقتة. */
+/** الأسماء مكتوبة بـ Fallback عن قصد — عشان مكان الاستدعاء يفضح إنها مؤقتة. */
 export function getFallbackProducts(): StoreProduct[] {
   return FALLBACK_PRODUCTS
 }
