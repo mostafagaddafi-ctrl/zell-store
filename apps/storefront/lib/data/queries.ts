@@ -46,7 +46,28 @@ const PRODUCT_IMAGE_COLUMNS = [
   'height_px',
 ].join(',')
 
-const SITE_IMAGE_COLUMNS = ['id', 'bucket', 'object_path', 'kind', 'alt_text', 'is_active', 'width_px', 'height_px'].join(',')
+const SITE_IMAGE_COLUMNS = [
+  'id',
+  'bucket',
+  'object_path',
+  'kind',
+  'alt_text',
+  'is_active',
+  'width_px',
+  'height_px',
+].join(',')
+
+/**
+ * فلتر PostgREST من نوع in.(...).
+ *
+ * كل قيمة بتتحاط بين علامتي تنصيص وبتتشفّر — عشان لو اتضاف مفتاح فيه
+ * فاصلة أو قوس أو مسافة لاحقًا، الاستعلام ما يتكسرش بصمت. الأقواس
+ * والفواصل الفاصلة بين العناصر بتفضل حرفية لأنها جزء من صيغة PostgREST.
+ */
+function inFilter(values: readonly string[]): string {
+  const quoted = values.map((value) => '"' + encodeURIComponent(value) + '"').join(',')
+  return 'in.(' + quoted + ')'
+}
 
 /**
  * أربع طلبات متوازية (مش رحلة شبكة واحدة) — بينتهوا في وقت أبطأ واحد فيهم.
@@ -71,12 +92,14 @@ export async function fetchStorefrontFromSupabase(): Promise<{
     ),
     restGet<SettingRow>(
       'settings',
-      'select=key,value&key=in.(' + PUBLIC_SETTING_KEYS.join(',') + ')',
+      'select=key,value&key=' + inFilter(PUBLIC_SETTING_KEYS),
       REVALIDATE_SECONDS,
     ),
+    // المفروض لوجو نشط واحد بس. id.desc دفاعيًا: لو القيد اتكسر يومًا
+    // ما، بناخد الأحدث مش الأقدم.
     restGet<SiteImageRow>(
       'site_images',
-      'select=' + SITE_IMAGE_COLUMNS + '&kind=eq.logo&is_active=eq.true&order=id.asc&limit=1',
+      'select=' + SITE_IMAGE_COLUMNS + '&kind=eq.logo&is_active=eq.true&order=id.desc&limit=1',
       REVALIDATE_SECONDS,
     ),
   ])
