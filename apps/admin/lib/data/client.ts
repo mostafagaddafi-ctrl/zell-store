@@ -145,9 +145,91 @@ export function sentinelOf(error: unknown): DbSentinel | null {
   return error instanceof DbCallError ? error.sentinel : null
 }
 
+/** سقف قراءة جسم الخطأ. ماينفعش نقرا رد ضخم عشان رمز واحد. */
+const MAX_ERROR_BODY_BYTES = 8192
+
+/**
+ * بيقرا جسم الخطأ بحد أقصى 8 كيلوبايت.
+ * بيرجّع null لو مفيش جسم، أو أكبر من السقف، أو القراءة فشلت —
+ * والتلات حالات بتنتهي INTERNAL.
+ */
+async function readCappedBody(response: Response): Promise<string | null> {
+  const stream = response.body
+  if (!stream) return null
+
+  const reader = stream.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+
+  try {
+    for (;;) {
+      const step = await reader.read()
+      if (step.done) break
+      const chunk = step.value
+      if (!chunk) continue
+      total += chunk.byteLength
+      if (total > MAX_ERROR_BODY_BYTES) return null
+      chunks.push(chunk)
+    }
+  } catch {
+    return null
+  } finally {
+    try {
+      await reader.cancel()
+    } catch {
+      // الرد اتقفل بالفعل — مش مشكلة
+    }
+  }
+
+  const merged = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    merged.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return new TextDecoder('utf-8').decode(merged)
+}
+
+/** الحقول الوحيدة اللي بنبصّ فيها من رد PostgREST. */
+type PostgrestErrorBody = {
+  message?: unknown
+  details?: unknown
+}
+
+/**
+ * مطابقة **منظّمة** مش بحث حر في النص.
+ *
+ * البحث الحر (body.includes) كان ممكن يصنّف خطأ مالوش علاقة كـ
+ * VALIDATION لو الرمز ظهر بالصدفة جوه تفاصيل أو سياق تاني. عشان كده
+ * بنقرا حقل message أو details **بس**، وبنقبل تطابق تام أو بادئة
+ * CODE: معروفة.
+ *
+ * أي جسم مش JSON، أو مش كائن، أو مفيهوش حقل نصي، أو فيه نص مش
+ * مطابق — كله بيرجع null ويبقى INTERNAL.
+ *
+ * الكائن المفكوك بيتسيب هنا وماينتقلش لأي طبقة تانية.
+ */
 function matchSentinel(body: string): DbSentinel | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(body)
+  } catch {
+    return null
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
+
+  const payload = parsed as PostgrestErrorBody
+  const candidate =
+    typeof payload.message === 'string'
+      ? payload.message
+      : typeof payload.details === 'string'
+        ? payload.details
+        : ''
+  if (candidate === '') return null
+
   for (const code of KNOWN_SENTINELS) {
-    if (body.includes(code)) return code
+    if (candidate === code) return code
+    if (candidate.startsWith(code + ':')) return code
   }
   return null
 }
@@ -184,7 +266,8 @@ async function sendWrite<T>(args: {
     // رسالة الاستثناء فيها الحالة بس — ولا حرف من رد Supabase.
     let sentinel: DbSentinel | null = null
     try {
-      sentinel = matchSentinel(await response.text())
+      const body = await readCappedBody(response)
+      if (body !== null) sentinel = matchSentinel(body)
     } catch {
       sentinel = null
     }
