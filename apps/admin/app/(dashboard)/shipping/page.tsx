@@ -1,12 +1,15 @@
 import type { Metadata } from 'next'
-import { PageHeader } from '../../components/shell/PageHeader'
-import { ShippingEditor } from '../../components/shipping/ShippingEditor'
-import { PreviewNotice } from '../../components/ui/PreviewNotice'
-import { adminData } from '../../lib/adminData'
+import { PageHeader } from '../../../components/shell/PageHeader'
+import { ShippingEditor } from '../../../components/shipping/ShippingEditor'
+import { PreviewNotice } from '../../../components/ui/PreviewNotice'
+import { adminData } from '../../../lib/adminData'
+import { requireAdminPage } from '../../../lib/auth/guards'
 
 export const metadata: Metadata = { title: 'الشحن' }
 
 export default async function ShippingPage() {
+  await requireAdminPage()
+
   const shipping = await adminData.getShipping()
 
   return (

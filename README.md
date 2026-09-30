@@ -180,3 +180,4 @@ RLS مفعّل على كل الجداول.
 | `docs/BUILD.md` | نتيجة البناء ومخرجات Next.js |
 | `docs/IMAGE-MANAGEMENT.md` | تصميم نظام الصور |
 | `docs/DATA-ACCESS.md` | مين بيقرا إيه وبأي صلاحية |
+| `docs/ADMIN-AUTH.md` | مصادقة اللوحة: الكوكيز والحراس وأكواد الأخطاء |

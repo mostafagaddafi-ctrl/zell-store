@@ -1,14 +1,15 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { PageHeader } from '../../components/shell/PageHeader'
-import { OrdersFilters } from '../../components/orders/OrdersFilters'
-import { Pagination } from '../../components/orders/Pagination'
-import { StatusBadge } from '../../components/orders/StatusBadge'
-import { Badge } from '../../components/ui/Badge'
-import { EmptyState } from '../../components/ui/EmptyState'
-import { Table, TD, TH, THead, TR } from '../../components/ui/Table'
-import { ORDER_STATUSES, adminData, type OrderStatus } from '../../lib/adminData'
-import { formatDateTime, formatPiastres } from '../../lib/format'
+import { PageHeader } from '../../../components/shell/PageHeader'
+import { OrdersFilters } from '../../../components/orders/OrdersFilters'
+import { Pagination } from '../../../components/orders/Pagination'
+import { StatusBadge } from '../../../components/orders/StatusBadge'
+import { Badge } from '../../../components/ui/Badge'
+import { EmptyState } from '../../../components/ui/EmptyState'
+import { Table, TD, TH, THead, TR } from '../../../components/ui/Table'
+import { ORDER_STATUSES, adminData, type OrderStatus } from '../../../lib/adminData'
+import { formatDateTime, formatPiastres } from '../../../lib/format'
+import { requireAdminPage } from '../../../lib/auth/guards'
 
 export const metadata: Metadata = { title: 'الطلبات' }
 
@@ -22,6 +23,8 @@ function readStatus(value: string | string[] | undefined): OrderStatus | 'all' {
 }
 
 export default async function OrdersPage({ searchParams }: PageProps) {
+  await requireAdminPage()
+
   const params = await searchParams
   const pageRaw = typeof params['page'] === 'string' ? Number(params['page']) : 1
   const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1

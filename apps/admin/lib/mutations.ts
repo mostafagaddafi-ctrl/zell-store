@@ -3,15 +3,28 @@ import 'server-only'
 /**
  * نتيجة التعديل الموحّدة.
  *
- * CONFLICT **نتيجة متوقعة** مش استثناء — بتحصل لما optimistic concurrency
+ * UNAUTHENTICATED و FORBIDDEN **نتايج متوقعة** برضه:
+ * الأولى يعني مفيش جلسة، والتانية يعني في جلسة بس الحساب مش في
+ * admin_users أو موقوف. الاتنين بيرجعوا من requireAdminAction
+ * **قبل** أي فحص تاني.
+ *
+ * CONFLICT نتيجة متوقعة مش استثناء — بتحصل لما optimistic concurrency
  * يلاقي إن السجل اتغيّر.
  *
- * DISABLED كذلك **حالة تشغيلية متوقعة** — التعديلات موقوفة بعلم الجاهزية،
+ * DISABLED كذلك حالة تشغيلية متوقعة — التعديلات موقوفة بعلم الجاهزية،
  * وده مش خطأ داخلي.
  *
  * أي استثناء غير متوقع بيتحول INTERNAL من غير أي تفاصيل تقنية تخرج للعميل.
  */
-export type MutationErrorCode = 'VALIDATION' | 'NOT_FOUND' | 'CONFLICT' | 'DISABLED' | 'STORAGE_ERROR' | 'INTERNAL'
+export type MutationErrorCode =
+  | 'UNAUTHENTICATED'
+  | 'FORBIDDEN'
+  | 'VALIDATION'
+  | 'NOT_FOUND'
+  | 'CONFLICT'
+  | 'DISABLED'
+  | 'STORAGE_ERROR'
+  | 'INTERNAL'
 
 export type MutationResult<T> = { ok: true; data: T } | { ok: false; code: MutationErrorCode; message: string }
 
@@ -31,6 +44,10 @@ const DISABLED_MESSAGE =
  * حارس كل Server Action — طبقة دفاع تانية.
  * الواجهة بتعطّل الأزرار من العلم قبل أي نداء، فالحارس ده مايفترضش
  * إنه هو خط الدفاع الأول.
+ *
+ * ⚠️ الترتيب مهم: الصلاحية الأول (requireAdminAction) وبعدين العلم.
+ * العكس بيقول لمستخدم مش مسجّل إن "التعديلات موقوفة"، وده تسريب
+ * معلومة عن حالة النظام لمجهول.
  */
 export function guardMutations(): MutationResult<never> | null {
   if (mutationsEnabled()) return null

@@ -1,15 +1,18 @@
 import Link from 'next/link'
 import { AlertTriangle, Check, ShoppingCart } from 'lucide-react'
-import { PageHeader } from '../components/shell/PageHeader'
-import { StatusBadge } from '../components/orders/StatusBadge'
-import { Badge } from '../components/ui/Badge'
-import { buttonClasses } from '../components/ui/Button'
-import { Card } from '../components/ui/Field'
-import { Table, TD, TH, THead, TR } from '../components/ui/Table'
-import { adminData } from '../lib/adminData'
-import { formatDateTime, formatPiastres } from '../lib/format'
+import { PageHeader } from '../../components/shell/PageHeader'
+import { StatusBadge } from '../../components/orders/StatusBadge'
+import { Badge } from '../../components/ui/Badge'
+import { buttonClasses } from '../../components/ui/Button'
+import { Card } from '../../components/ui/Field'
+import { Table, TD, TH, THead, TR } from '../../components/ui/Table'
+import { adminData } from '../../lib/adminData'
+import { formatDateTime, formatPiastres } from '../../lib/format'
+import { requireAdminPage } from '../../lib/auth/guards'
 
 export default async function OverviewPage() {
+  await requireAdminPage()
+
   const [summary, latest, operational] = await Promise.all([
     adminData.getOrdersSummary(),
     adminData.listOrders({ page: 1, pageSize: 5, status: 'all' }),

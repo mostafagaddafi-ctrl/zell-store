@@ -16,11 +16,22 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
+import { SignOutButton } from './SignOutButton'
 
 type Item = { href: string; label: string; icon: typeof Package; badge?: number }
 type Group = { title?: string; items: Item[] }
 
-export function AdminShell({ children, newOrders }: { children: ReactNode; newOrders: number }) {
+export type AdminShellIdentity = { email: string; role: 'owner' | 'admin' }
+
+export function AdminShell({
+  children,
+  newOrders,
+  identity,
+}: {
+  children: ReactNode
+  newOrders: number
+  identity: AdminShellIdentity
+}) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
@@ -89,6 +100,16 @@ export function AdminShell({ children, newOrders }: { children: ReactNode; newOr
         <ExternalLink className="h-3.5 w-3.5" />
         معاينة المتجر
       </a>
+
+      <div className="space-y-2 border-t border-border px-2 pt-3">
+        <div className="min-w-0">
+          <p className="truncate text-xs font-semibold text-fg" dir="ltr" title={identity.email}>
+            {identity.email}
+          </p>
+          <p className="text-[11px] text-muted">{identity.role === 'owner' ? 'مالك' : 'أدمن'}</p>
+        </div>
+        <SignOutButton />
+      </div>
     </nav>
   )
 

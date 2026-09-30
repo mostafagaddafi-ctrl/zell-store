@@ -1,15 +1,18 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
-import { PageHeader } from '../../components/shell/PageHeader'
-import { ProductsTable } from '../../components/products/ProductsTable'
-import { buttonClasses } from '../../components/ui/Button'
-import { PreviewNotice } from '../../components/ui/PreviewNotice'
-import { adminData } from '../../lib/adminData'
+import { PageHeader } from '../../../components/shell/PageHeader'
+import { ProductsTable } from '../../../components/products/ProductsTable'
+import { buttonClasses } from '../../../components/ui/Button'
+import { PreviewNotice } from '../../../components/ui/PreviewNotice'
+import { adminData } from '../../../lib/adminData'
+import { requireAdminPage } from '../../../lib/auth/guards'
 
 export const metadata: Metadata = { title: 'المنتجات' }
 
 export default async function ProductsPage() {
+  await requireAdminPage()
+
   const products = await adminData.listProducts()
 
   return (

@@ -1,13 +1,16 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { PageHeader } from '../../../components/shell/PageHeader'
-import { ProductEditor } from '../../../components/products/ProductEditor'
-import { PreviewNotice } from '../../../components/ui/PreviewNotice'
+import { PageHeader } from '../../../../components/shell/PageHeader'
+import { ProductEditor } from '../../../../components/products/ProductEditor'
+import { PreviewNotice } from '../../../../components/ui/PreviewNotice'
+import { requireAdminPage } from '../../../../lib/auth/guards'
 
 export const metadata: Metadata = { title: 'منتج جديد' }
 
-export default function NewProductPage() {
+export default async function NewProductPage() {
+  await requireAdminPage()
+
   return (
     <>
       <Link href="/products" className="mb-3 inline-flex items-center gap-1 text-xs font-semibold text-accent">

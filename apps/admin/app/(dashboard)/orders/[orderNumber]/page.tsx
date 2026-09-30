@@ -2,14 +2,15 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight, MessageCircle, Phone } from 'lucide-react'
-import { PageHeader } from '../../../components/shell/PageHeader'
-import { StatusBadge } from '../../../components/orders/StatusBadge'
-import { Button, buttonClasses } from '../../../components/ui/Button'
-import { Card, textareaClasses } from '../../../components/ui/Field'
-import { PreviewNotice } from '../../../components/ui/PreviewNotice'
-import { Table, TD, TH, THead, TR } from '../../../components/ui/Table'
-import { ORDER_STATUSES, ORDER_STATUS_LABELS, adminData } from '../../../lib/adminData'
-import { formatDateTime, formatLength, formatPiastres } from '../../../lib/format'
+import { PageHeader } from '../../../../components/shell/PageHeader'
+import { StatusBadge } from '../../../../components/orders/StatusBadge'
+import { Button, buttonClasses } from '../../../../components/ui/Button'
+import { Card, textareaClasses } from '../../../../components/ui/Field'
+import { PreviewNotice } from '../../../../components/ui/PreviewNotice'
+import { Table, TD, TH, THead, TR } from '../../../../components/ui/Table'
+import { ORDER_STATUSES, ORDER_STATUS_LABELS, adminData } from '../../../../lib/adminData'
+import { formatDateTime, formatLength, formatPiastres } from '../../../../lib/format'
+import { requireAdminPage } from '../../../../lib/auth/guards'
 
 type PageProps = { params: Promise<{ orderNumber: string }> }
 
@@ -19,6 +20,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function OrderDetailPage({ params }: PageProps) {
+  await requireAdminPage()
+
   const { orderNumber } = await params
   const order = await adminData.getOrder(orderNumber)
   if (!order) notFound()
