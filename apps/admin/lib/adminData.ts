@@ -69,7 +69,12 @@ export type OrdersSummary = {
 
 // ── المنتجات والصور ──────────────────────────────────────────
 export type AdminImage = {
-  id: number
+  /**
+   * نص مش رقم. أعمدة bigint في Postgres بتترجع strings في JSON عشان
+   * ما تتكسرش دقة Number.MAX_SAFE_INTEGER — فالمعرّف بيتعامل كنص
+   * من أول القراءة لحد التعديل.
+   */
+  id: string
   url: string
   alt: string
   fit: ImageFit
@@ -123,6 +128,12 @@ export type StoreContent = {
   sections: StoreSection[]
   footerLinks: FooterLink[]
   trustLine: string
+  /**
+   * أحدث updated_at بين الستة مفاتيح — رمز التعارض للحفظ.
+   * نص فاضي = الطابع مش متاح، والحفظ لازم يترفض VALIDATION بدل
+   * ما يكتب من غير تحقق.
+   */
+  updatedAt: string
 }
 
 // ── الشحن والهوية والتشغيل ───────────────────────────────────
