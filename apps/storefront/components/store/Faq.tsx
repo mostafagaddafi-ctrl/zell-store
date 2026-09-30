@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react'
+import { Plus } from 'lucide-react'
 
 const QUESTIONS = [
   {
@@ -7,7 +7,7 @@ const QUESTIONS = [
   },
   {
     q: 'التركيب بيتم إزاي؟',
-    a: 'أدوات التركيب بتيجي مع الطلب مجاناً مع شرح بالخطوات. الفيلم بيتركب بالمياه والصابون ومحتاجش فني.',
+    a: 'أدوات التركيب بتيجي مع الطلب مع شرح بالخطوات. الفيلم بيتركب بالمياه والصابون ومحتاجش فني.',
   },
   {
     q: 'الدفع إزاي؟',
@@ -21,14 +21,14 @@ const QUESTIONS = [
 
 export function Faq() {
   return (
-    <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+    <div className="divide-y divide-border border-y border-border">
       {QUESTIONS.map((item) => (
         <details key={item.q} className="group">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-sm font-semibold text-fg">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-sm font-semibold text-fg">
             {item.q}
-            <ChevronDown className="h-4 w-4 shrink-0 text-muted transition-transform group-open:rotate-180" />
+            <Plus className="h-4 w-4 shrink-0 text-muted transition-transform group-open:rotate-45" />
           </summary>
-          <p className="px-4 pb-4 text-sm leading-relaxed text-muted">{item.a}</p>
+          <p className="max-w-2xl pb-4 text-sm leading-relaxed text-muted">{item.a}</p>
         </details>
       ))}
     </div>
