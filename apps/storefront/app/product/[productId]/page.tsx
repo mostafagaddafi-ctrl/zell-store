@@ -8,16 +8,17 @@ import { ProductBuy } from '../../../components/store/ProductBuy'
 import { ProductGallery } from '../../../components/store/ProductGallery'
 import { Container } from '../../../components/ui/Container'
 import { keyPoints } from '../../../lib/productCopy'
-import { getStorefrontData, getStorefrontProductById } from '../../../lib/data/source'
+import { getStorefrontProductById } from '../../../lib/data/source'
 
-// FilmArt وقف استخدامه هنا — الحذف في كوميت تنظيف منفصل.
+/**
+ * مفيش generateStaticParams عن قصد.
+ *
+ * كانت بتقرا من الداتابيز **وقت البناء**، فأي خلل في مفتاح أو شبكة كان
+ * بيفشّل النشر كله. من غيرها الصفحة بتتولّد عند أول طلب وبتتكاش حسب
+ * revalidate، وكمان أي منتج جديد بيظهر من غير إعادة نشر.
+ */
 
 type PageProps = { params: Promise<{ productId: string }> }
-
-export async function generateStaticParams() {
-  const { products } = await getStorefrontData()
-  return products.map((product) => ({ productId: String(product.id) }))
-}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { productId } = await params
