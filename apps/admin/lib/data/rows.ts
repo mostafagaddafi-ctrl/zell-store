@@ -68,6 +68,7 @@ export type OrderRow = {
   governorate: string
   address: string
   notes: string | null
+  internal_notes: string | null
   subtotal_piastres: number
   shipping_piastres: number
   total_piastres: number
@@ -215,6 +216,19 @@ export function readNumber(map: Map<string, unknown>, key: string, fallback = 0)
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value)
   return fallback
+}
+
+/** قائمة نصوص من jsonb — بتتنضّف من الفاضي والمكرر. */
+export function readStringList(map: Map<string, unknown>, key: string): string[] {
+  const value = map.get(key)
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  for (const item of value) {
+    if (typeof item !== 'string') continue
+    const trimmed = item.trim()
+    if (trimmed !== '') seen.add(trimmed)
+  }
+  return Array.from(seen)
 }
 
 export function readRates(map: Map<string, unknown>, key: string): Record<string, number> {
