@@ -1,10 +1,15 @@
 'use client'
 
 import { useEffect } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Lock } from 'lucide-react'
 import { Button } from './Button'
 
-/** كل إجراء هدّام لازم يعدّي من هنا. */
+/**
+ * كل إجراء هدّام لازم يعدّي من هنا.
+ *
+ * لما يكون التأكيد معطّل، السبب بيتكتب **جوه الحوار نفسه** مش في tooltip —
+ * زرار معطّل من غير سبب ظاهر بيحيّر اللي بيجرّب.
+ */
 export function ConfirmDialog({
   open,
   title,
@@ -13,6 +18,7 @@ export function ConfirmDialog({
   onCancel,
   onConfirm,
   confirmDisabled = true,
+  disabledReason = 'الإجراء ده معطّل في وضع معاينة التصميم.',
 }: {
   open: boolean
   title: string
@@ -21,6 +27,7 @@ export function ConfirmDialog({
   onCancel: () => void
   onConfirm?: () => void
   confirmDisabled?: boolean
+  disabledReason?: string
 }) {
   useEffect(() => {
     if (!open) return
@@ -53,17 +60,19 @@ export function ConfirmDialog({
           </div>
         </div>
 
+        {confirmDisabled ? (
+          <p className="mt-3 flex items-start gap-2 rounded border-s-2 border-gold bg-bg p-2.5 text-xs font-semibold text-fg">
+            <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold" />
+            {disabledReason}
+          </p>
+        ) : null}
+
         <div className="mt-5 flex justify-start gap-2">
-          <Button
-            variant="danger"
-            onClick={onConfirm}
-            disabled={confirmDisabled}
-            title={confirmDisabled ? 'معطّل في مرحلة المعاينة' : undefined}
-          >
+          <Button variant="danger" onClick={onConfirm} disabled={confirmDisabled}>
             {confirmLabel}
           </Button>
           <Button variant="secondary" onClick={onCancel}>
-            إلغاء
+            {confirmDisabled ? 'اقفل' : 'إلغاء'}
           </Button>
         </div>
       </div>
