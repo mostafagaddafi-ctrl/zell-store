@@ -1,6 +1,5 @@
 import 'server-only'
 
-import { cache } from 'react'
 import { restGet } from '../data/client'
 import { createAuthClient } from './supabaseServer'
 
@@ -15,7 +14,15 @@ import { createAuthClient } from './supabaseServer'
  * getUser() بس — مفيش getSession() في أي قرار صلاحية. getSession
  * بيقرا الكوكي من غير تحقق من السيرفر، يعني قابل للتزوير.
  *
- * cache() بتخلي كل ده نداء واحد لكل request مهما اتنادى كام مرة.
+ * ⚠️ **ممنوع تلفّ الدالة دي في cache() من React.**
+ *
+ * cache() بتعمل memoization على مستوى الـ render — ده ضمان أداء
+ * مش ضمان أمان. نطاقها بيتحدد بسياق React مش بحدود الطلب، وأي
+ * تغيير في السياق ده بيبقى تغيير صامت في نطاق قرار صلاحية.
+ *
+ * كل Server Action لازم تعمل getUser() وقراءة دور **جديدين**
+ * للنداء بتاعها هي. نداءين زيادة أرخص بكتير من أي شك في
+ * مشاركة هوية بين نداءات.
  */
 
 export type AdminRole = 'owner' | 'admin'
@@ -46,7 +53,7 @@ export async function readAdminRole(userId: string): Promise<AdminRole | null> {
   return row.role
 }
 
-export const resolveAdminIdentity = cache(async (): Promise<AuthOutcome> => {
+export async function resolveAdminIdentity(): Promise<AuthOutcome> {
   let userId: string
   let email: string
 
@@ -68,4 +75,4 @@ export const resolveAdminIdentity = cache(async (): Promise<AuthOutcome> => {
   } catch {
     return { state: 'unavailable' }
   }
-})
+}
