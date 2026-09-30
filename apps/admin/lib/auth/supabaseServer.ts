@@ -1,9 +1,13 @@
 import 'server-only'
 
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { authCredentials } from './env'
+
+/** شكل الكوكيز اللي Supabase بيطلب كتابتها. متكتوب صريح لأن
+ *  الاستنتاج التلقائي بيفشل مع اتحاد أنواع cookies في @supabase/ssr. */
+type CookieToSet = { name: string; value: string; options?: CookieOptions }
 
 /**
  * عميل المصادقة للسيرفر — **بالمفتاح المجهول بس**.
@@ -25,7 +29,7 @@ export async function createAuthClient(): Promise<SupabaseClient> {
       getAll() {
         return store.getAll()
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet: CookieToSet[]) {
         try {
           for (const cookie of cookiesToSet) {
             store.set(cookie.name, cookie.value, cookie.options)

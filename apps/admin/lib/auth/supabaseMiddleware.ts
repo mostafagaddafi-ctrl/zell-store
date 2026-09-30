@@ -1,7 +1,10 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 import { authCredentials } from './env'
+
+/** نفس السبب اللي في supabaseServer.ts: الاستنتاج بيفشل، فالنوع صريح. */
+type CookieToSet = { name: string; value: string; options?: CookieOptions }
 
 /**
  * عميل المصادقة جوه الـ middleware.
@@ -25,7 +28,7 @@ export function createMiddlewareClient(
       getAll() {
         return request.cookies.getAll()
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet: CookieToSet[]) {
         for (const cookie of cookiesToSet) {
           request.cookies.set(cookie.name, cookie.value)
         }
