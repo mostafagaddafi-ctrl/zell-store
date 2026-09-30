@@ -1,38 +1,45 @@
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
-import { formatLength, formatPiastres, type StoreProduct } from '@zell/core'
-import { FilmArt, variantForProduct } from './FilmArt'
+import { formatPiastres, type StoreProduct } from '@zell/core'
+import { shortBenefit } from '../../lib/productCopy'
+import { buttonClasses } from '../ui/Button'
+import { ImageSlot } from '../ui/ImageSlot'
 import { Num } from './Num'
 
+/**
+ * كارت بسيط: صورة، اسم، فائدة واحدة، سعر، زر واحد.
+ * الكارت كله رابط — الزرار عنصر شكلي جواه مش زرار حقيقي
+ * (ممنوع رابط جوه رابط).
+ */
 export function ProductCard({ product }: { product: StoreProduct }) {
-  const variant = variantForProduct(product.name_ar, product.name_en)
-
   return (
     <Link
       href={'/product/' + String(product.id)}
-      className="block overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-brand/50"
+      className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-card transition-shadow hover:shadow-md"
     >
-      <FilmArt variant={variant} className="aspect-[4/3] w-full rounded-none border-0 border-b border-border" />
+      <ImageSlot
+        ratio="4/3"
+        src={product.image_url}
+        alt={product.name_ar}
+        sizes="(min-width: 768px) 33vw, 100vw"
+        label="صورة المنتج"
+        className="rounded-none"
+      />
 
-      <div className="space-y-2 p-4">
-        <h3 className="text-base font-bold text-fg">{product.name_ar}</h3>
-        {product.description_ar ? (
-          <p className="line-clamp-2 text-sm leading-relaxed text-muted">{product.description_ar}</p>
-        ) : null}
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        <div className="space-y-1">
+          <h3 className="text-base font-bold text-fg">{product.name_ar}</h3>
+          <p className="text-sm leading-relaxed text-muted">{shortBenefit(product)}</p>
+        </div>
 
-        <div className="flex items-end justify-between gap-2 pt-1">
+        <div className="mt-auto space-y-3">
           <div>
-            <p className="text-lg font-extrabold text-brand">
+            <p className="inline-block border-b-2 border-gold pb-0.5 text-lg font-extrabold text-fg">
               <Num>{formatPiastres(product.price_per_meter_piastres)}</Num>
             </p>
-            <p className="text-xs text-muted">
-              للمتر · أقل طلب <Num>{formatLength(product.min_length_cm)}</Num>
-            </p>
+            <span className="ms-1.5 text-xs text-muted">للمتر</span>
           </div>
-          <span className="flex items-center gap-1 text-sm font-semibold text-brand">
-            اختار المقاس
-            <ArrowLeft className="h-4 w-4" />
-          </span>
+
+          <span className={buttonClasses('primary', 'md', 'w-full')}>شوف التفاصيل واختار المقاس</span>
         </div>
       </div>
     </Link>
