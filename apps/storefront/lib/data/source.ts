@@ -1,18 +1,18 @@
+import type { StoreProduct, StoreSettings } from '@zell/core'
+import { getFallbackProducts, getFallbackSettings } from '../catalog'
+import { fetchStorefrontFromSupabase } from './queries'
+
 /**
  * مصدر بيانات المتجر — نقطة الدخول الوحيدة للصفحات.
  *
- * الهدف من الملف ده إن الصفحات ما تعرفش من فين البيانات جاية.
- * النهارده كلها fallback؛ بعد الموافقة بنبدّل التنفيذ هنا بس
- * والصفحات ما تتغيّرش ولا سطر.
+ * المصدر بيتحدد من متغير بيئة **صريح**، مفيش استنتاج ولا fallback ضمني:
  *
- * 🔒 المفتاح مقفول على 'fallback' عمدًا.
- * تبديله دلوقتي هيرجّع صفر منتجات، لأن RLS شغّال على Production
- * و anon/authenticated مالهمش أي صلاحية قراءة. لازم سياسات القراءة
- * تتراجع وتتوافق عليها الأول — التفاصيل في docs/PHASE-2-PLAN.md.
+ *   STOREFRONT_DATA_SOURCE=fallback   ← GitHub Actions والتطوير المحلي
+ *   STOREFRONT_DATA_SOURCE=supabase   ← Vercel بعد ضبط المتغيرات
+ *
+ * قيمة ناقصة أو غير معروفة = خطأ صريح. خطأ إعداد صامت أسوأ بكتير من
+ * بناء فاشل، لأنه بيوصل للزباين بأسعار قديمة من غير ما حد ياخد باله.
  */
-import type { StoreProduct, StoreSettings } from '@zell/core'
-import { getFallbackProducts, getFallbackSettings } from '../catalog'
-
 export type DataSource = 'fallback' | 'supabase'
 
 export type StorefrontData = {
@@ -21,25 +21,31 @@ export type StorefrontData = {
   settings: StoreSettings
 }
 
-/**
- * ⚠️ ما تغيّرش القيمة دي من غير موافقة صريحة.
- * الشرط: سياسات RLS للقراءة العامة اتنفّذت واتراجعت على staging.
- */
-const DATA_SOURCE: DataSource = 'fallback'
+function resolveDataSource(): DataSource {
+  const raw = (process.env['STOREFRONT_DATA_SOURCE'] ?? '').trim()
+
+  if (raw === 'fallback') return 'fallback'
+  if (raw === 'supabase') return 'supabase'
+
+  if (raw === '') {
+    throw new Error('STOREFRONT_DATA_SOURCE مش متظبط. القيم المسموحة: fallback أو supabase')
+  }
+  throw new Error('STOREFRONT_DATA_SOURCE فيه قيمة غير معروفة. المسموح: fallback أو supabase')
+}
 
 export async function getStorefrontData(): Promise<StorefrontData> {
-  if (DATA_SOURCE === 'fallback') {
+  const source = resolveDataSource()
+
+  if (source === 'fallback') {
     return {
-      source: 'fallback',
+      source,
       products: getFallbackProducts(),
       settings: getFallbackSettings(),
     }
   }
 
-  // القراءة من Supabase هتتكتب في الكوميت اللي بعد الموافقة.
-  // متعمّد إنها ترمي خطأ بدل ما ترجّع مصفوفة فاضية: فشل صريح
-  // أحسن من متجر بيعرض صفر منتجات من غير ما حد ياخد باله.
-  throw new Error('مصدر Supabase لسه مش مربوط — راجع docs/PHASE-2-PLAN.md')
+  const { products, settings } = await fetchStorefrontFromSupabase()
+  return { source, products, settings }
 }
 
 export async function getStorefrontProducts(): Promise<StoreProduct[]> {
