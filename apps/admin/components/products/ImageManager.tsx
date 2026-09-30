@@ -39,9 +39,7 @@ export function ImageManager({ images }: { images: AdminImage[] }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted">
-          {images.length} صورة · الرئيسية هي اللي بتظهر في كارت المتجر
-        </p>
+        <p className="text-xs text-muted">{images.length} صورة · الرئيسية هي اللي بتظهر في كارت المتجر</p>
         <Button disabled>
           <Upload className="h-4 w-4" />
           ارفع صورة
@@ -119,7 +117,7 @@ export function ImageManager({ images }: { images: AdminImage[] }) {
                   <Button
                     variant="danger"
                     size="sm"
-                    aria-label="حذ�� الصورة"
+                    aria-label="حذف الصورة"
                     className="w-8 px-0"
                     onClick={() => setConfirmId(image.id)}
                   >
@@ -135,8 +133,9 @@ export function ImageManager({ images }: { images: AdminImage[] }) {
       <ConfirmDialog
         open={confirmId !== null}
         title="حذف الصورة؟"
-        message="الصورة هتتشال من المنتج ومن Storage. الإجراء ده ما ينفعش يترجع."
+        message="لو الحذف كان مفعّل، الصورة كانت هتتشال من المنتج ومن Storage، والإجراء ده ما ينفعش يترجع."
         confirmLabel="احذف"
+        disabledReason="الحذف معطّل في وضع معاينة التصميم — مفيش أي صورة هتتمسح."
         onCancel={() => setConfirmId(null)}
       />
     </div>
