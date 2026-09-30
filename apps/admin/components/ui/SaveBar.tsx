@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Check, Loader2, Lock } from 'lucide-react'
 import type { SaveState } from '../../lib/adminData'
+import { useMutationsEnabled } from '../../lib/readiness'
 import { Button } from './Button'
 
 const LABELS: Record<SaveState, { text: string; tone: string }> = {
@@ -15,9 +16,10 @@ const LABELS: Record<SaveState, { text: string; tone: string }> = {
 
 /**
  * شريط الحفظ — حالة واحدة صريحة دايمًا ظاهرة.
- * المرحلة أ: الزرار معطّل ومكتوب سببه.
+ * الزرار بيتفعّل من علم الجاهزية، مش من قيمة ثابتة في الكود.
  */
-export function SaveBar({ state, disabled = true }: { state: SaveState; disabled?: boolean }) {
+export function SaveBar({ state, onSave }: { state: SaveState; onSave?: () => void }) {
+  const enabled = useMutationsEnabled()
   const label = LABELS[state]
 
   return (
@@ -29,10 +31,13 @@ export function SaveBar({ state, disabled = true }: { state: SaveState; disabled
         {label.text}
       </p>
 
-      <Button disabled={disabled} title={disabled ? 'الحفظ معطّل في مرحلة المعاينة' : undefined}>
-        {disabled ? <Lock className="h-3.5 w-3.5" /> : null}
-        حفظ
-      </Button>
+      <div className="flex items-center gap-2">
+        {!enabled ? <span className="text-xs text-muted">التعديلات موقوفة</span> : null}
+        <Button disabled={!enabled} onClick={onSave}>
+          {!enabled ? <Lock className="h-3.5 w-3.5" /> : null}
+          حفظ
+        </Button>
+      </div>
     </div>
   )
 }
