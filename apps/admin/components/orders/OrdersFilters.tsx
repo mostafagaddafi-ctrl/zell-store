@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Search } from 'lucide-react'
-import { ORDER_STATUSES, ORDER_STATUS_LABELS } from '../../lib/adminData'
+import { ORDER_STATUSES, ORDER_STATUS_LABELS } from '../../lib/enums'
 import { Button } from '../ui/Button'
 import { inputClasses } from '../ui/Field'
 
