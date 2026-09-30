@@ -6,6 +6,7 @@ import { Info } from 'lucide-react'
 import {
   computeShippingPiastres,
   computeSubtotalPiastres,
+  formatLength,
   formatPiastres,
   hasErrors,
   validateCheckout,
@@ -14,9 +15,10 @@ import {
   type StoreSettings,
 } from '@zell/core'
 import { useCart } from '../../lib/cart'
-import { buttonClasses } from '../ui/Button'
+import { Button, buttonClasses } from '../ui/Button'
 import { Field, inputClasses, textareaClasses } from '../ui/Field'
 import { Num } from './Num'
+import { OrderSummary } from './OrderSummary'
 
 const EMPTY: CheckoutValues = {
   customerName: '',
@@ -55,9 +57,8 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
         settings.shippingDefaultPiastres,
         settings.freeShippingThresholdPiastres,
       )
-    : 0
+    : null
 
-  const total = subtotal + shipping
   const errors = validateCheckout(values, settings.governorates)
   const invalid = hasErrors(errors)
 
@@ -66,9 +67,9 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
 
   if (cart.ready && entries.length === 0) {
     return (
-      <div className="rounded-2xl border border-border bg-card py-12 text-center">
+      <div className="rounded-lg border border-border bg-card px-6 py-16 text-center">
         <p className="text-sm text-muted">السلة فاضية.</p>
-        <Link href="/" className={buttonClasses('primary', 'md', 'mt-4 inline-flex')}>
+        <Link href="/" className={buttonClasses('primary', 'md', 'mt-5 inline-flex')}>
           شوف الأنواع
         </Link>
       </div>
@@ -77,132 +78,134 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
 
   return (
     <form
-      className="space-y-5"
+      className="grid gap-6 lg:grid-cols-12 lg:gap-10"
       onSubmit={(event) => {
         event.preventDefault()
         setTouched(true)
       }}
     >
-      <div className="space-y-4">
-        <Field htmlFor="name" label="الاسم بالكامل" error={show('customerName')}>
-          <input
-            id="name"
-            name="name"
-            autoComplete="name"
-            placeholder="مثال: أحمد محمود"
-            value={values.customerName}
-            onChange={(event) => set({ customerName: event.target.value })}
-            className={inputClasses}
-          />
-        </Field>
+      <div className="space-y-6 lg:col-span-7">
+        <div className="space-y-5 rounded-lg border border-border bg-card p-4 sm:p-6">
+          <Field htmlFor="name" label="الاسم بالكامل" error={show('customerName')}>
+            <input
+              id="name"
+              name="name"
+              autoComplete="name"
+              placeholder="مثال: أحمد محمود"
+              value={values.customerName}
+              onChange={(event) => set({ customerName: event.target.value })}
+              className={inputClasses}
+            />
+          </Field>
 
-        <Field htmlFor="phone" label="رقم الموبايل" error={show('customerPhone')} hint="هنكلمك عليه لتأكيد الطلب">
-          <input
-            id="phone"
-            name="phone"
-            type="tel"
-            inputMode="numeric"
-            autoComplete="tel"
-            dir="ltr"
-            placeholder="01xxxxxxxxx"
-            value={values.customerPhone}
-            onChange={(event) => set({ customerPhone: event.target.value })}
-            className={inputClasses + ' text-right'}
-          />
-        </Field>
+          <Field htmlFor="phone" label="رقم الموبايل" error={show('customerPhone')} hint="هنكلمك عليه لتأكيد الطلب">
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel"
+              dir="ltr"
+              placeholder="01xxxxxxxxx"
+              value={values.customerPhone}
+              onChange={(event) => set({ customerPhone: event.target.value })}
+              className={inputClasses + ' text-right'}
+            />
+          </Field>
 
-        <Field htmlFor="governorate" label="المحافظة" error={show('governorate')}>
-          <select
-            id="governorate"
-            name="governorate"
-            autoComplete="address-level1"
-            value={values.governorate}
-            onChange={(event) => set({ governorate: event.target.value })}
-            className={inputClasses}
-          >
-            <option value="">اختار المحافظة</option>
-            {settings.governorates.map((governorate) => (
-              <option key={governorate} value={governorate}>
-                {governorate}
-              </option>
-            ))}
-          </select>
-        </Field>
+          <Field htmlFor="governorate" label="المحافظة" error={show('governorate')}>
+            <select
+              id="governorate"
+              name="governorate"
+              autoComplete="address-level1"
+              value={values.governorate}
+              onChange={(event) => set({ governorate: event.target.value })}
+              className={inputClasses}
+            >
+              <option value="">اختار المحافظة</option>
+              {settings.governorates.map((governorate) => (
+                <option key={governorate} value={governorate}>
+                  {governorate}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        <Field htmlFor="address" label="عنوان التوصيل" error={show('address')}>
-          <textarea
-            id="address"
-            name="address"
-            autoComplete="street-address"
-            placeholder="المدينة، الشارع، رقم العمارة والدور، وأقرب علامة مميزة"
-            value={values.address}
-            onChange={(event) => set({ address: event.target.value })}
-            className={textareaClasses}
-          />
-        </Field>
-
-        {showNotes ? (
-          <Field htmlFor="notes" label="ملاحظات (اختياري)">
+          <Field htmlFor="address" label="عنوان التوصيل" error={show('address')}>
             <textarea
-              id="notes"
-              name="notes"
-              value={values.notes}
-              onChange={(event) => set({ notes: event.target.value })}
+              id="address"
+              name="address"
+              autoComplete="street-address"
+              placeholder="المدينة، الشارع، رقم العمارة والدور، وأقرب علامة مميزة"
+              value={values.address}
+              onChange={(event) => set({ address: event.target.value })}
               className={textareaClasses}
             />
           </Field>
-        ) : (
-          <button type="button" onClick={() => setShowNotes(true)} className="text-sm font-semibold text-brand">
-            + ضيف ملاحظة للطلب
-          </button>
-        )}
-      </div>
 
-      <div className="space-y-2 rounded-2xl border border-border bg-card p-4 text-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-muted">الأصناف</span>
-          <span className="font-semibold text-fg">
-            <Num>{formatPiastres(subtotal)}</Num>
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-muted">الشحن</span>
-          <span className="font-semibold text-fg">
-            {values.governorate ? <Num>{formatPiastres(shipping)}</Num> : 'اختار المحافظة'}
-          </span>
-        </div>
-        <div className="flex items-center justify-between border-t border-border pt-2 text-base">
-          <span className="font-bold text-fg">الإجمالي</span>
-          <span className="font-extrabold text-brand">
-            <Num>{formatPiastres(total)}</Num>
-          </span>
-        </div>
-        <p className="pt-1 text-xs text-muted">الدفع عند الاستلام.</p>
-      </div>
-
-      {/*
-        مرحلة ١: إنشاء الطلب مش مربوط — بقرار صريح.
-        ومفيش أي مسار بديل لإرسال الطلب من الصفحة دي (واتساب اتشال عن قصد)
-        عشان ما يتفهمش إنه إنشاء طلب. واتساب للاستفسار بس ومكانه الصفحة الرئيسية.
-      */}
-      <div className="flex gap-3 rounded-2xl border border-gold/50 bg-card p-4">
-        <Info className="mt-0.5 h-5 w-5 shrink-0 text-gold" />
-        <div className="space-y-1 text-sm">
-          <p className="font-semibold text-fg">تأكيد الطلب لسه مش مفعّل في النسخة دي</p>
-          <p className="text-xs leading-relaxed text-muted">
-            المتجر الجديد لسه في مرحلة البناء. إنشاء الطلب هيتربط بـ Server API مع تحقق وحد
-            للمحاولات ومفتاح تكرار في المرحلة الجاية.
-          </p>
+          {showNotes ? (
+            <Field htmlFor="notes" label="ملاحظات (اختياري)">
+              <textarea
+                id="notes"
+                name="notes"
+                value={values.notes}
+                onChange={(event) => set({ notes: event.target.value })}
+                className={textareaClasses}
+              />
+            </Field>
+          ) : (
+            <button type="button" onClick={() => setShowNotes(true)} className="text-sm font-semibold text-accent">
+              + ضيف ملاحظة للطلب
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 px-4 pt-3 backdrop-blur">
-        <div className="mx-auto max-w-app space-y-2">
-          <button type="submit" disabled className={buttonClasses('primary', 'lg')}>
+      <div className="lg:col-span-5">
+        <div className="space-y-4 lg:sticky lg:top-24">
+          {/* الأصناف */}
+          <ul className="divide-y divide-border rounded-lg border border-border bg-card px-4">
+            {entries.map((entry) => (
+              <li key={entry.line.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-fg">{entry.product.name_ar}</p>
+                  <p className="text-xs text-muted">
+                    <Num>{formatLength(entry.line.lengthCm)}</Num>
+                  </p>
+                </div>
+                <span className="shrink-0 font-semibold text-fg">
+                  <Num>
+                    {formatPiastres(
+                      computeSubtotalPiastres(entry.product.price_per_meter_piastres, entry.line.lengthCm),
+                    )}
+                  </Num>
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <OrderSummary subtotalPiastres={subtotal} shippingPiastres={shipping} />
+
+          {/*
+            مرحلة البناء: إنشاء الطلب مش مربوط بقرار صريح.
+            شريط جانبي خفيف مش صندوق جوه صندوق.
+          */}
+          <div className="flex gap-3 border-s-2 border-gold bg-card p-4">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-fg">تأكيد الطلب لسه مش مفعّل</p>
+              <p className="text-xs leading-relaxed text-muted">
+                المتجر في مرحلة التجهيز. لأي استفسار أو طلب دلوقتي كلّمنا على واتساب من فوق.
+              </p>
+            </div>
+          </div>
+
+          <Button type="submit" size="lg" disabled>
             تأكيد الطلب (قريباً)
-          </button>
+          </Button>
+
           {touched && invalid ? (
-            <p className="text-center text-xs font-medium text-danger">راجع البيانات المطلوبة فوق</p>
+            <p className="text-center text-xs font-medium text-danger">راجع البيانات المطلوبة</p>
           ) : null}
         </div>
       </div>
