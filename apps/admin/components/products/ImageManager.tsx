@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight, Star, Trash2, Upload } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Star, Trash2 } from 'lucide-react'
 import { reorderImagesAction, setImageFitAction, setPrimaryImageAction } from '../../lib/actions'
 import type { AdminImage, ImageFit } from '../../lib/adminData'
 import { useSaveAction } from '../../lib/client/useSaveAction'
@@ -12,6 +12,7 @@ import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { EmptyState } from '../ui/EmptyState'
 import { FailureBanner } from '../ui/FailureBanner'
+import { ImageUploader } from './ImageUploader'
 
 const FITS: Array<{ value: ImageFit; label: string; hint: string }> = [
   { value: 'cover', label: 'ملء الإطار', hint: 'مشهد الشباك' },
@@ -84,12 +85,7 @@ export function ImageManager({ productId, images }: { productId: number; images:
         <EmptyState
           title="مفيش صور للمنتج ده"
           description="الصورة الرئيسية بتظهر في كارت المتجر، والباقي في معرض صفحة المنتج."
-          action={
-            <Button disabled>
-              <Upload className="h-4 w-4" />
-              ارفع صورة
-            </Button>
-          }
+          action={<ImageUploader productId={productId} />}
         />
       </div>
     )
@@ -104,10 +100,7 @@ export function ImageManager({ productId, images }: { productId: number; images:
           {ordered.length} صورة · الرئيسية هي اللي بتظهر في كارت المتجر
           {busy ? <span className="ms-1">· بيحفظ…</span> : null}
         </p>
-        <Button disabled>
-          <Upload className="h-4 w-4" />
-          ارفع صورة
-        </Button>
+        <ImageUploader productId={productId} />
       </div>
 
       <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
