@@ -69,7 +69,7 @@ export async function POST(
     return NextResponse.json({ ok: false, code: 'VALIDATION', message: 'مفيش ملف مرفوع.' }, { status: 400 })
   }
 
-  let bytes: Uint8Array
+  let bytes: Uint8Array<ArrayBuffer>
   try {
     bytes = new Uint8Array(await file.arrayBuffer())
   } catch {

@@ -41,7 +41,7 @@ function isKind(value: unknown): value is ImageKind {
   return value === 'gallery' || value === 'before' || value === 'after'
 }
 
-async function sha256Hex(bytes: Uint8Array): Promise<string> {
+async function sha256Hex(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytes)
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, '0'))
@@ -74,7 +74,7 @@ export async function uploadProductImage(args: {
   productId: number
   kind: unknown
   altText: unknown
-  bytes: Uint8Array
+  bytes: Uint8Array<ArrayBuffer>
 }): Promise<UploadOutcome> {
   if (!isKind(args.kind)) return fail(400, 'VALIDATION', 'نوع الصورة غير معروف.')
   const kind: ImageKind = args.kind

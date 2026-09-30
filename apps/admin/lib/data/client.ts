@@ -354,7 +354,19 @@ function storageUrl(url: string, objectPath: string): string {
 }
 
 /** x-upsert: false — الكتابة فوق ملف موجود ممنوعة. */
-export async function storageUpload(objectPath: string, bytes: Uint8Array, contentType: string): Promise<void> {
+/**
+ * ⚠️ Uint8Array<ArrayBuffer> مش Uint8Array العادي.
+ *
+ * من TypeScript 5.7 النوع بقى generic، و BodyInit و BufferSource
+ * بيرفضوا أي view مبني على SharedArrayBuffer. تثبيت المعامل على
+ * ArrayBuffer هو اللي بيخلي البايتات تعدّي على fetch و crypto.subtle
+ * من غير أي نسخ زيادة.
+ */
+export async function storageUpload(
+  objectPath: string,
+  bytes: Uint8Array<ArrayBuffer>,
+  contentType: string,
+): Promise<void> {
   const { url, key } = credentials()
 
   let response: Response
