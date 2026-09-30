@@ -6,8 +6,9 @@ import { Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react'
 import { computeSubtotalPiastres, formatLength, formatPiastres, type StoreProduct } from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { buttonClasses } from '../ui/Button'
-import { FilmArt, variantForProduct } from './FilmArt'
+import { ImageSlot } from '../ui/ImageSlot'
 import { Num } from './Num'
+import { OrderSummary } from './OrderSummary'
 
 export function CartView({ products }: { products: StoreProduct[] }) {
   const cart = useCart()
@@ -29,7 +30,7 @@ export function CartView({ products }: { products: StoreProduct[] }) {
   }, [cart, byId, pruned])
 
   if (!cart.ready) {
-    return <div className="h-32 animate-pulse rounded-xl border border-border bg-card" />
+    return <div className="h-40 animate-pulse rounded-lg border border-border bg-card" />
   }
 
   const entries = cart.lines
@@ -38,10 +39,10 @@ export function CartView({ products }: { products: StoreProduct[] }) {
 
   if (entries.length === 0) {
     return (
-      <div className="rounded-2xl border border-border bg-card py-12 text-center">
-        <ShoppingBag className="mx-auto h-10 w-10 text-muted" />
-        <p className="mt-3 text-sm text-muted">السلة فاضية — اختار نوع الفيلم وحدد المقاس.</p>
-        <Link href="/" className={buttonClasses('primary', 'md', 'mt-4 inline-flex')}>
+      <div className="rounded-lg border border-border bg-card px-6 py-16 text-center">
+        <ShoppingBag className="mx-auto h-8 w-8 text-muted" />
+        <p className="mt-4 text-sm text-muted">السلة فاضية — اختار نوع الفيلم وحدد المقاس.</p>
+        <Link href="/" className={buttonClasses('primary', 'md', 'mt-5 inline-flex')}>
           شوف الأنواع
         </Link>
       </div>
@@ -54,8 +55,8 @@ export function CartView({ products }: { products: StoreProduct[] }) {
   )
 
   return (
-    <div className="space-y-4">
-      <ul className="space-y-3">
+    <div className="grid gap-6 lg:grid-cols-12 lg:gap-10">
+      <ul className="space-y-3 lg:col-span-7">
         {entries.map((entry) => {
           const lineTotal = computeSubtotalPiastres(entry.product.price_per_meter_piastres, entry.line.lengthCm)
           const stepBy = (delta: number) => {
@@ -65,79 +66,105 @@ export function CartView({ products }: { products: StoreProduct[] }) {
           }
 
           return (
-            <li key={entry.line.id} className="rounded-2xl border border-border bg-card p-3">
-              <div className="flex gap-3">
-                <FilmArt
-                  variant={variantForProduct(entry.product.name_ar, entry.product.name_en)}
-                  className="h-20 w-20 shrink-0"
+            <li key={entry.line.id} className="flex gap-4 rounded-lg border border-border bg-card p-3 sm:p-4">
+              <Link href={'/product/' + String(entry.product.id)} className="shrink-0">
+                <ImageSlot
+                  ratio="1/1"
+                  fit={entry.product.image_url ? 'cover' : 'cover'}
+                  src={entry.product.image_url}
+                  alt={entry.product.name_ar}
+                  sizes="96px"
+                  className="h-24 w-24"
                 />
+              </Link>
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="truncate text-sm font-bold text-fg">{entry.product.name_ar}</h3>
-                    <button
-                      type="button"
-                      onClick={() => cart.remove(entry.line.id)}
-                      aria-label="شيل الصنف"
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted hover:text-danger"
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link
+                      href={'/product/' + String(entry.product.id)}
+                      className="block truncate text-sm font-bold text-fg hover:text-accent"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                      {entry.product.name_ar}
+                    </Link>
+                    <p className="mt-0.5 text-xs text-muted">
+                      <Num>{formatPiastres(entry.product.price_per_meter_piastres)}</Num> للمتر
+                    </p>
                   </div>
 
-                  <p className="mt-0.5 text-xs text-muted">
-                    <Num>{formatPiastres(entry.product.price_per_meter_piastres)}</Num> للمتر
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => cart.remove(entry.line.id)}
+                    aria-label="شيل الصنف"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted transition-colors hover:text-danger"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
 
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => stepBy(-1)}
-                        aria-label="قلّل"
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-fg"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                      <span className="min-w-20 text-center text-sm font-semibold text-fg">
-                        <Num>{formatLength(entry.line.lengthCm)}</Num>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => stepBy(1)}
-                        aria-label="زوّد"
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-fg"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    <span className="text-sm font-extrabold text-brand">
-                      <Num>{formatPiastres(lineTotal)}</Num>
+                <div className="mt-auto flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-1">
+                    <StepButton onClick={() => stepBy(-1)} label="قلّل">
+                      <Minus className="h-4 w-4" />
+                    </StepButton>
+                    <span className="min-w-[5.5rem] text-center text-sm font-semibold text-fg">
+                      <Num>{formatLength(entry.line.lengthCm)}</Num>
                     </span>
+                    <StepButton onClick={() => stepBy(1)} label="زوّد">
+                      <Plus className="h-4 w-4" />
+                    </StepButton>
                   </div>
+
+                  <span className="text-base font-extrabold text-fg">
+                    <Num>{formatPiastres(lineTotal)}</Num>
+                  </span>
                 </div>
               </div>
             </li>
           )
         })}
+
+        <li>
+          <Link href="/" className="inline-block py-2 text-sm font-semibold text-accent">
+            + ضيف نوع تاني
+          </Link>
+        </li>
       </ul>
 
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted">إجمالي الأصناف</span>
-          <span className="font-bold text-fg">
-            <Num>{formatPiastres(subtotal)}</Num>
-          </span>
+      <div className="lg:col-span-5">
+        <div className="lg:sticky lg:top-24">
+          <OrderSummary
+            subtotalPiastres={subtotal}
+            shippingPiastres={null}
+            action={
+              <Link href="/checkout" className={buttonClasses('primary', 'lg')}>
+                كمّل بيانات التوصيل
+              </Link>
+            }
+          />
         </div>
-        <p className="mt-1 text-xs text-muted">الشحن بيتحسب بعد اختيار المحافظة.</p>
-      </div>
-
-      <div className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 px-4 pt-3 backdrop-blur">
-        <Link href="/checkout" className={buttonClasses('primary', 'lg', 'mx-auto max-w-app')}>
-          كمّل بيانات التوصيل
-        </Link>
       </div>
     </div>
+  )
+}
+
+function StepButton({
+  onClick,
+  label,
+  children,
+}: {
+  onClick: () => void
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="flex h-9 w-9 items-center justify-center rounded border border-border text-fg transition-colors hover:border-muted"
+    >
+      {children}
+    </button>
   )
 }
