@@ -2,17 +2,13 @@
  * تحويل صفوف الداتابيز لأنواع @zell/core — **عقد نوعي فقط**.
  *
  * الملف ده مالوش أي اتصال بقاعدة بيانات ومش بيتنادى من أي مكان دلوقتي.
- * وظيفته إنه يحدد الشكل اللي المتجر متوقعه، عشان الطرف اللي بيجهّز
- * طبقة البيانات يعرف يسلّم إيه بالظبط.
+ * وظيفته إنه يحدد الشكل اللي المتجر متوقعه من طبقة القراءة.
  *
- * ⚠️ مكتوب من أعمدة products و settings المعروفة، و**مش متحقق منه مقابل
- * السكيما الفعلية** — التحقق مسؤولية الطرف اللي بيشتغل على قاعدة البيانات.
- *
- * خارج نطاق الملف ده تمامًا: جداول الصور، Storage، RLS، أي كتابة.
+ * خارج نطاقه تمامًا: رفع أو حذف أو تعديل أي صورة، وأي SQL أو RLS.
  */
-import type { StoreProduct, StoreSettings } from '@zell/core'
+import { publicImageUrl, type StoreImage, type StoreProduct, type StoreSettings } from '@zell/core'
 
-/** صف جدول products زي ما هو. */
+/** صف جدول products. */
 export type ProductRow = {
   id: number
   name_ar: string
@@ -30,18 +26,78 @@ export type ProductRow = {
   max_length_cm: number
 }
 
+/**
+ * صف public.product_images.
+ * الترتيب المطلوب في الاستعلام: is_primary desc, sort_order asc, id asc
+ */
+export type ProductImageRow = {
+  id: number
+  product_id: number
+  bucket: string
+  object_path: string
+  kind: 'gallery' | 'before' | 'after'
+  alt_text: string | null
+  sort_order: number
+  is_primary: boolean
+  width_px: number | null
+  height_px: number | null
+}
+
+/** صف public.site_images — الفلتر: kind = 'logo' and is_active = true */
+export type SiteImageRow = {
+  id: number
+  bucket: string
+  object_path: string
+  alt_text: string | null
+  width_px: number | null
+  height_px: number | null
+}
+
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value.filter((item): item is string => typeof item === 'string' && item.trim() !== '')
 }
 
-export function toStoreProduct(row: ProductRow): StoreProduct {
+export function toStoreImage(row: ProductImageRow, supabaseUrl: string, fallbackAlt: string): StoreImage {
+  return {
+    id: row.id,
+    url: publicImageUrl(supabaseUrl, { bucket: row.bucket, object_path: row.object_path }),
+    alt: row.alt_text && row.alt_text.trim() !== '' ? row.alt_text : fallbackAlt,
+    width: row.width_px,
+    height: row.height_px,
+    kind: row.kind,
+    isPrimary: row.is_primary,
+  }
+}
+
+export function toStoreLogo(row: SiteImageRow, supabaseUrl: string, storeName: string): StoreImage {
+  return {
+    id: row.id,
+    url: publicImageUrl(supabaseUrl, { bucket: row.bucket, object_path: row.object_path }),
+    alt: row.alt_text && row.alt_text.trim() !== '' ? row.alt_text : storeName,
+    width: row.width_px,
+    height: row.height_px,
+    kind: 'gallery',
+    isPrimary: true,
+  }
+}
+
+export function toStoreProduct(
+  row: ProductRow,
+  imageRows: ProductImageRow[],
+  supabaseUrl: string,
+): StoreProduct {
+  const gallery = imageRows
+    .filter((image) => image.product_id === row.id)
+    .map((image) => toStoreImage(image, supabaseUrl, row.name_ar))
+
   return {
     id: row.id,
     name_ar: row.name_ar,
     name_en: row.name_en,
     brand: row.brand,
     description_ar: row.description_ar,
+    gallery,
     image_url: row.image_url,
     images: asStringArray(row.images),
     before_image: row.before_image,
@@ -54,16 +110,19 @@ export function toStoreProduct(row: ProductRow): StoreProduct {
   }
 }
 
-export function toStoreProducts(rows: ProductRow[]): StoreProduct[] {
-  return rows.map(toStoreProduct)
+export function toStoreProducts(
+  rows: ProductRow[],
+  imageRows: ProductImageRow[],
+  supabaseUrl: string,
+): StoreProduct[] {
+  return rows.map((row) => toStoreProduct(row, imageRows, supabaseUrl))
 }
 
 /** صف settings — مفتاح/قيمة. */
 export type SettingRow = { key: string; value: unknown }
 
 /**
- * ⚠️ المفاتيح العامة بس. المتجر **ما يستقبلش** notify_email ولا telegram_*
- * ولا أي مفتاح تشغيلي. الدالة بتتجاهل أي مفتاح بره القائمة دي.
+ * ⚠️ المفاتيح العامة بس. المتجر **ما يستقبلش** notify_email ولا telegram_*.
  */
 export const PUBLIC_SETTING_KEYS = [
   'store_name',
@@ -101,7 +160,7 @@ function settingRates(map: Map<string, unknown>, key: string): Record<string, nu
   return out
 }
 
-export function toStoreSettings(rows: SettingRow[]): StoreSettings {
+export function toStoreSettings(rows: SettingRow[], logo: StoreImage | null = null): StoreSettings {
   const allowed = new Set<string>(PUBLIC_SETTING_KEYS)
   const map = new Map<string, unknown>()
   for (const row of rows) {
@@ -112,6 +171,7 @@ export function toStoreSettings(rows: SettingRow[]): StoreSettings {
 
   return {
     storeName: settingString(map, 'store_name', 'ZELL'),
+    logo,
     logoUrl: settingString(map, 'logo_url'),
     offerText: settingString(map, 'offer_text'),
     whatsappNumber: settingString(map, 'whatsapp_number'),

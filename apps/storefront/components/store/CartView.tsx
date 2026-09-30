@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react'
-import { computeSubtotalPiastres, formatLength, formatPiastres, type StoreProduct } from '@zell/core'
+import {
+  computeSubtotalPiastres,
+  formatLength,
+  formatPiastres,
+  primaryImage,
+  type StoreProduct,
+} from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { buttonClasses } from '../ui/Button'
 import { ImageSlot } from '../ui/ImageSlot'
@@ -59,6 +65,7 @@ export function CartView({ products }: { products: StoreProduct[] }) {
       <ul className="space-y-3 lg:col-span-7">
         {entries.map((entry) => {
           const lineTotal = computeSubtotalPiastres(entry.product.price_per_meter_piastres, entry.line.lengthCm)
+          const preview = primaryImage(entry.product)
           const stepBy = (delta: number) => {
             const next = entry.line.lengthCm + delta * entry.product.step_cm
             if (next < entry.product.min_length_cm || next > entry.product.max_length_cm) return
@@ -70,9 +77,9 @@ export function CartView({ products }: { products: StoreProduct[] }) {
               <Link href={'/product/' + String(entry.product.id)} className="shrink-0">
                 <ImageSlot
                   ratio="1/1"
-                  fit={entry.product.image_url ? 'cover' : 'cover'}
-                  src={entry.product.image_url}
-                  alt={entry.product.name_ar}
+                  fit="cover"
+                  src={preview?.url ?? null}
+                  alt={preview?.alt ?? entry.product.name_ar}
                   sizes="96px"
                   className="h-24 w-24"
                 />
