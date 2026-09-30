@@ -323,3 +323,111 @@ export async function restRpc<T>(fn: string, args: Record<string, unknown>): Pro
     what: 'نداء ' + name,
   })
 }
+
+// ── Storage ──────────────────────────────────────────────────
+/**
+ * ⚠️ الدوال دي **مش** بروكسي عام لـ Storage.
+ *
+ * اسم الـ bucket ثابت هنا، والمسار بيتبنى في السيرفر من UUID.
+ * مفيش دالة واحدة بتاخد bucket ولا path من العميل، وبالتالي مفيش
+ * طريقة يوصل بيها نداء لمسار مش إحنا اللي بنيناه.
+ */
+const IMAGE_BUCKET = 'product-images'
+
+/** الرفع أبطأ من الاستعلام — مهلة أطول. */
+const STORAGE_TIMEOUT_MS = 30000
+
+export function imageBucket(): string {
+  return IMAGE_BUCKET
+}
+
+function encodeObjectPath(objectPath: string): string {
+  return objectPath
+    .split('/')
+    .filter((part) => part !== '')
+    .map(encodeURIComponent)
+    .join('/')
+}
+
+function storageUrl(url: string, objectPath: string): string {
+  return url + '/storage/v1/object/' + IMAGE_BUCKET + '/' + encodeObjectPath(objectPath)
+}
+
+/** x-upsert: false — الكتابة فوق ملف موجود ممنوعة. */
+export async function storageUpload(objectPath: string, bytes: Uint8Array, contentType: string): Promise<void> {
+  const { url, key } = credentials()
+
+  let response: Response
+  try {
+    response = await fetch(storageUrl(url, objectPath), {
+      method: 'POST',
+      headers: {
+        apikey: key,
+        Authorization: 'Bearer ' + key,
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'x-upsert': 'false',
+      },
+      body: bytes,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(STORAGE_TIMEOUT_MS),
+    })
+  } catch (error) {
+    throw new Error('فشل رفع الملف: ' + describeFailure(error))
+  }
+
+  if (!response.ok) {
+    throw new Error('رفع الملف رجّع ' + String(response.status) + ' ' + response.statusText)
+  }
+}
+
+export async function storageDelete(objectPath: string): Promise<void> {
+  const { url, key } = credentials()
+
+  let response: Response
+  try {
+    response = await fetch(storageUrl(url, objectPath), {
+      method: 'DELETE',
+      headers: { apikey: key, Authorization: 'Bearer ' + key, Accept: 'application/json' },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(STORAGE_TIMEOUT_MS),
+    })
+  } catch (error) {
+    throw new Error('فشل حذف الملف: ' + describeFailure(error))
+  }
+
+  if (!response.ok) {
+    throw new Error('حذف الملف رجّع ' + String(response.status) + ' ' + response.statusText)
+  }
+}
+
+/**
+ * DELETE بفلتر صريح.
+ * ⚠️ الاستخدام الوحيد المسموح دلوقتي هو **التراجع** بعد فشل رفع صورة.
+ * حذف الصور كميزة لسه برّه النطاق.
+ */
+export async function restDelete(table: string, query: string): Promise<void> {
+  const name = safeIdentifier(table, 'الجدول')
+  const { url, key } = credentials()
+
+  let response: Response
+  try {
+    response = await fetch(url + '/rest/v1/' + name + '?' + query, {
+      method: 'DELETE',
+      headers: {
+        apikey: key,
+        Authorization: 'Bearer ' + key,
+        Accept: 'application/json',
+        Prefer: 'return=minimal',
+      },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+  } catch (error) {
+    throw new Error('فشل الحذف من ' + name + ': ' + describeFailure(error))
+  }
+
+  if (!response.ok) {
+    throw new Error('الحذف من ' + name + ' رجّع ' + String(response.status) + ' ' + response.statusText)
+  }
+}
