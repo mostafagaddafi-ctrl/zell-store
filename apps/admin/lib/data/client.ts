@@ -94,3 +94,102 @@ export async function restGet<T>(
 export function inFilter(values: readonly string[]): string {
   return 'in.(' + values.map((value) => '"' + encodeURIComponent(value) + '"').join(',') + ')'
 }
+
+// ── الكتابة ──────────────────────────────────────────────────
+/**
+ * ⚠️ الدوال دي **مش** CRUD عام.
+ *
+ * أسماء الجداول والدوال بتيجي من ثوابت مكتوبة في lib/mutations/* بس،
+ * وكل اسم بيتفحص بنمط صريح قبل ما يدخل في URL. مفيش أي مسار بياخد
+ * اسم جدول ولا اسم عمود من مدخلات المستخدم.
+ *
+ * ومفيش trigger على updated_at في أي جدول — فكل PATCH لازم يبعت
+ * updated_at بنفسه. ده مش تفصيلة تجميلية: من غيره التزامن التفاؤلي
+ * بيبقى بلا معنى لأن الطابع مابيتغيرش.
+ */
+
+const IDENTIFIER = /^[a-z][a-z0-9_]*$/
+
+function safeIdentifier(value: string, what: string): string {
+  if (!IDENTIFIER.test(value)) throw new Error('اسم ' + what + ' غير مسموح')
+  return value
+}
+
+async function sendWrite<T>(args: {
+  method: 'POST' | 'PATCH'
+  path: string
+  body: unknown
+  what: string
+}): Promise<T> {
+  const { url, key } = credentials()
+
+  let response: Response
+  try {
+    response = await fetch(url + args.path, {
+      method: args.method,
+      headers: {
+        apikey: key,
+        Authorization: 'Bearer ' + key,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(args.body),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+  } catch (error) {
+    throw new Error('فشل الاتصال أثناء ' + args.what + ': ' + describeFailure(error))
+  }
+
+  // الحالة بس — جسم رد Supabase مابيخرجش من هنا أبدًا
+  if (!response.ok) {
+    throw new Error(args.what + ' رجّع ' + String(response.status) + ' ' + response.statusText)
+  }
+
+  const text = await response.text()
+  if (text === '') return null as T
+  return JSON.parse(text) as T
+}
+
+/**
+ * PATCH بفلتر صريح.
+ * بيرجّع الصفوف المتأثرة — قائمة فاضية يعني **مفيش صف طابق الفلتر**،
+ * وده اللي التزامن التفاؤلي بيعتمد عليه.
+ */
+export async function restPatch<T>(table: string, query: string, changes: Record<string, unknown>): Promise<T[]> {
+  const name = safeIdentifier(table, 'الجدول')
+  const rows = await sendWrite<T[] | null>({
+    method: 'PATCH',
+    path: '/rest/v1/' + name + '?' + query,
+    body: changes,
+    what: 'تعديل ' + name,
+  })
+  return rows ?? []
+}
+
+export async function restInsert<T>(table: string, changes: Record<string, unknown>, select?: string): Promise<T[]> {
+  const name = safeIdentifier(table, 'الجدول')
+  const suffix = select === undefined ? '' : '?select=' + select
+  const rows = await sendWrite<T[] | null>({
+    method: 'POST',
+    path: '/rest/v1/' + name + suffix,
+    body: changes,
+    what: 'إضافة في ' + name,
+  })
+  return rows ?? []
+}
+
+/**
+ * نداء دالة داتابيز.
+ * الذرّية مسؤولية الدالة نفسها — الكود هنا مابيحاولش يقلّدها.
+ */
+export async function restRpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
+  const name = safeIdentifier(fn, 'الدالة')
+  return sendWrite<T>({
+    method: 'POST',
+    path: '/rest/v1/rpc/' + name,
+    body: args,
+    what: 'نداء ' + name,
+  })
+}

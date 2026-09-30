@@ -37,11 +37,13 @@ export type AdminOrderItem = {
 export type AdminOrderDetail = AdminOrder & {
   address: string
   notes: string | null
-  /** مفيش عمود internal_notes في الداتابيز لسه — بيرجع null */
+  /** ملاحظات الأدمن — مابتظهرش للزبون في أي مكان. */
   internalNotes: string | null
   subtotalPiastres: number
   shippingPiastres: number
   items: AdminOrderItem[]
+  /** رمز التعارض لتعديل الحالة والملاحظات الداخلية. */
+  updatedAt: string
 }
 
 export type OrdersQuery = {
@@ -141,7 +143,7 @@ export type ShippingSettings = {
   rates: Record<string, number>
   defaultPiastres: number
   freeThresholdPiastres: number
-  /** مفيش مفتاح للمحافظات الموقوفة لسه — بيرجع فاضي */
+  /** المحافظات الموقوفة — مفتاح shipping_disabled_governorates. */
   disabled: string[]
 }
 
