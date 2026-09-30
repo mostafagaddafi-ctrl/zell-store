@@ -5,7 +5,7 @@ import { MaterialsStrip } from '../components/store/MaterialsStrip'
 import { ProductCard } from '../components/store/ProductCard'
 import { StoreHeader } from '../components/store/StoreHeader'
 import { WhatsAppFab } from '../components/store/WhatsAppFab'
-import { getFallbackProducts, getFallbackSettings } from '../lib/catalog'
+import { getStorefrontData } from '../lib/data/source'
 
 const STEPS = [
   { icon: Ruler, title: 'اختار النوع والمقاس', note: 'بمقاس الشباك أو بالمتر' },
@@ -13,9 +13,8 @@ const STEPS = [
   { icon: ShieldCheck, title: 'ادفع عند الاستلام', note: 'تشوف الشحنة الأول' },
 ]
 
-export default function HomePage() {
-  const products = getFallbackProducts()
-  const settings = getFallbackSettings()
+export default async function HomePage() {
+  const { products, settings } = await getStorefrontData()
 
   return (
     <>

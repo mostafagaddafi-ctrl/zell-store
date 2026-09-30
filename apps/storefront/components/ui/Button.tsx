@@ -6,14 +6,16 @@ export type ButtonSize = 'md' | 'lg'
 
 const BASE =
   'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-opacity ' +
-  'disabled:cursor-not-allowed disabled:opacity-50 ' +
+  'disabled:cursor-not-allowed ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-bg'
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: 'bg-brand text-brand-fg hover:opacity-90 active:opacity-80',
-  secondary: 'border border-border bg-card text-fg hover:bg-bg',
-  ghost: 'text-brand hover:opacity-70',
-  whatsapp: 'bg-[#25D366] text-white hover:opacity-90',
+  // الزرار المعطّل بياخد سطح خافت بدل شفافية بسيطة — في الوضع الداكن
+  // الشفافية لوحدها كانت لسه شكلها قابل للضغط
+  primary: 'bg-brand text-brand-fg hover:opacity-90 active:opacity-80 disabled:bg-border disabled:text-muted',
+  secondary: 'border border-border bg-card text-fg hover:bg-bg disabled:opacity-50',
+  ghost: 'text-brand hover:opacity-70 disabled:opacity-50',
+  whatsapp: 'bg-[#25D366] text-white hover:opacity-90 disabled:opacity-50',
 }
 
 // أطوال مريحة للإبهام: ٤٤px الحد الأدنى، و٥٦px للأزرار الرئيسية
