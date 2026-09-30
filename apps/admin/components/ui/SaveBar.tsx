@@ -16,11 +16,24 @@ const LABELS: Record<SaveState, { text: string; tone: string }> = {
 
 /**
  * شريط الحفظ — حالة واحدة صريحة دايمًا ظاهرة.
- * الزرار بيتفعّل من علم الجاهزية، مش من قيمة ثابتة في الكود.
+ *
+ * الزرار بيتعطّل لسببين مختلفين، وكل سبب له نص مختلف:
+ *
+ *   ١. علم الجاهزية مقفول        -> «التعديلات موقوفة»
+ *   ٢. onSave مش متمرر           -> «الحفظ لسه ما اتعملش»
+ *
+ * ⚠️ الشرط التاني مهم. من غيره، أي شاشة لسه ما اتوصلتش كانت بتعرض
+ * زرار حفظ **شغّال** بـ onClick فاضي بعد ما العلم يتفتح: المستخدم
+ * يضغط، مايحصلش حاجة، ولا رسالة نجاح ولا فشل. الصمت ده أخطر من
+ * زرار معطّل بسبب مكتوب.
  */
 export function SaveBar({ state, onSave }: { state: SaveState; onSave?: () => void }) {
   const enabled = useMutationsEnabled()
   const label = LABELS[state]
+
+  const wired = typeof onSave === 'function'
+  const blocked = !enabled || !wired
+  const reason = !enabled ? 'التعديلات موقوفة' : !wired ? 'الحفظ لسه ما اتعملش' : null
 
   return (
     <div className="sticky bottom-0 z-20 -mx-4 mt-6 flex items-center justify-between gap-3 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
@@ -32,9 +45,9 @@ export function SaveBar({ state, onSave }: { state: SaveState; onSave?: () => vo
       </p>
 
       <div className="flex items-center gap-2">
-        {!enabled ? <span className="text-xs text-muted">التعديلات موقوفة</span> : null}
-        <Button disabled={!enabled} onClick={onSave}>
-          {!enabled ? <Lock className="h-3.5 w-3.5" /> : null}
+        {reason ? <span className="text-xs text-muted">{reason}</span> : null}
+        <Button disabled={blocked} onClick={onSave}>
+          {blocked ? <Lock className="h-3.5 w-3.5" /> : null}
           حفظ
         </Button>
       </div>

@@ -196,11 +196,19 @@ export function ImageManager({ productId, images }: { productId: number; images:
                     <Star className="h-3.5 w-3.5" />
                     رئيسية
                   </Button>
+                  {/*
+                    ⚠️ معطّل بـ disabled ثابت **مش** بالعلم.
+                    الحذف ما اتعملش أصلًا، فمفيش علاقة بالإذن: لو
+                    اتعلّق على العلم كان هيبقى شغّال بعد فتحه وبيفتح
+                    حوار تأكيده مالوش تنفيذ.
+                  */}
                   <Button
                     variant="danger"
                     size="sm"
                     aria-label="حذف الصورة"
                     className="w-8 px-0"
+                    disabled
+                    title="حذف الصور لسه ما اتعملش"
                     onClick={() => setConfirmId(image.id)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />

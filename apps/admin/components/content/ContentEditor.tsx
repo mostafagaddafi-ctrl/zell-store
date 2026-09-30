@@ -7,6 +7,7 @@ import { saveContentAction } from '../../lib/actions'
 import type { StoreContent } from '../../lib/adminData'
 import { useSaveAction } from '../../lib/client/useSaveAction'
 import { SECTION_LABELS } from '../../lib/enums'
+import { useMutationsEnabled } from '../../lib/readiness'
 import { FailureBanner } from '../ui/FailureBanner'
 import { Card, Field, inputClasses, textareaClasses } from '../ui/Field'
 import { SaveBar } from '../ui/SaveBar'
@@ -21,6 +22,7 @@ function hrefState(href: string): { ok: boolean; note: string } {
 
 export function ContentEditor({ content }: { content: StoreContent }) {
   const router = useRouter()
+  const mutationsOn = useMutationsEnabled()
   const { state, failure, run, retry, markDirty } = useSaveAction()
   const [draft, setDraft] = useState(content)
 
@@ -49,6 +51,31 @@ export function ContentEditor({ content }: { content: StoreContent }) {
   }
 
   const sorted = [...draft.sections].sort((a, b) => a.sortOrder - b.sortOrder)
+
+  /**
+   * كارت «ترتيب وإظهار الأقسام» كان **ميّت بالكامل**: الأسهم من غير
+   * onClick خالص، والمفتاح onChange فاضي مع disabled ثابت. يعني ترتيب
+   * الأقسام وإظهارها مكانوش قابلين للتعديل من اللوحة أصلًا — مع إن
+   * sortOrder و visible جزء من payload بتاع saveContentAction.
+   */
+  function moveSection(index: number, delta: number) {
+    const list = [...sorted]
+    const target = index + delta
+    const from = list[index]
+    const to = list[target]
+    if (from === undefined || to === undefined) return
+    list[index] = to
+    list[target] = from
+    // ترقيم صريح من ١ — نفس القيم الموجودة حاليًا في الإعدادات
+    touch({ ...draft, sections: list.map((item, position) => ({ ...item, sortOrder: position + 1 })) })
+  }
+
+  function setSectionVisible(key: string, visible: boolean) {
+    touch({
+      ...draft,
+      sections: draft.sections.map((item) => (item.key === key ? { ...item, visible } : item)),
+    })
+  }
 
   return (
     <div className="space-y-4">
@@ -172,13 +199,14 @@ export function ContentEditor({ content }: { content: StoreContent }) {
           {sorted.map((section, index) => (
             <li key={section.key} className="flex items-center gap-3 py-2.5">
               <div className="flex gap-1">
-                <Button variant="ghost" size="sm" disabled={index === 0} aria-label="تحريك لفوق" className="h-7 w-7 px-0">
+                <Button variant="ghost" size="sm" disabled={!mutationsOn || index === 0} onClick={() => moveSection(index, -1)} aria-label="تحريك لفوق" className="h-7 w-7 px-0">
                   <ChevronUp className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={index === sorted.length - 1}
+                  disabled={!mutationsOn || index === sorted.length - 1}
+                  onClick={() => moveSection(index, 1)}
                   aria-label="تحريك لتحت"
                   className="h-7 w-7 px-0"
                 >
@@ -193,8 +221,8 @@ export function ContentEditor({ content }: { content: StoreContent }) {
 
               <Switch
                 checked={section.visible}
-                onChange={() => undefined}
-                disabled
+                onChange={(next) => setSectionVisible(section.key, next)}
+                disabled={!mutationsOn}
                 label={'إظهار ' + SECTION_LABELS[section.key]}
               />
             </li>
