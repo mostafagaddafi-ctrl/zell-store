@@ -1,9 +1,7 @@
 /**
- * تحويل صفوف الداتابيز لأنواع @zell/core — **عقد نوعي فقط**.
+ * تحويل صفوف الداتابيز لأنواع @zell/core.
  *
- * الملف ده مالوش أي اتصال بقاعدة بيانات ومش بيتنادى من أي مكان دلوقتي.
- * وظيفته إنه يحدد الشكل اللي المتجر متوقعه من طبقة القراءة.
- *
+ * الملف ده مالوش أي اتصال بشبكة — تحويل خالص، قابل للاختبار لوحده.
  * خارج نطاقه تمامًا: رفع أو حذف أو تعديل أي صورة، وأي SQL أو RLS.
  */
 import { publicImageUrl, type StoreImage, type StoreProduct, type StoreSettings } from '@zell/core'
@@ -28,7 +26,7 @@ export type ProductRow = {
 
 /**
  * صف public.product_images.
- * الترتيب المطلوب في الاستعلام: is_primary desc, sort_order asc, id asc
+ * ترتيب الاستعلام: is_primary desc, sort_order asc, id asc
  */
 export type ProductImageRow = {
   id: number
@@ -48,7 +46,9 @@ export type SiteImageRow = {
   id: number
   bucket: string
   object_path: string
+  kind: string
   alt_text: string | null
+  is_active: boolean
   width_px: number | null
   height_px: number | null
 }
@@ -123,6 +123,7 @@ export type SettingRow = { key: string; value: unknown }
 
 /**
  * ⚠️ المفاتيح العامة بس. المتجر **ما يستقبلش** notify_email ولا telegram_*.
+ * القائمة دي بتتستخدم مرتين: في فلتر الاستعلام، وكحارس تاني وقت التحويل.
  */
 export const PUBLIC_SETTING_KEYS = [
   'store_name',
