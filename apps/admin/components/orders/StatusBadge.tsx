@@ -1,5 +1,5 @@
 import { Badge, type BadgeTone } from '../ui/Badge'
-import { ORDER_STATUS_LABELS, type OrderStatus } from '../../lib/adminData'
+import { ORDER_STATUS_LABELS, type OrderStatus } from '../../lib/enums'
 
 const TONES: Record<OrderStatus, BadgeTone> = {
   new: 'warn',

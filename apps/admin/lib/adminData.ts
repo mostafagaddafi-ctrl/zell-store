@@ -1,29 +1,17 @@
 /**
- * عقد بيانات اللوحة — **نقطة الاتصال الوحيدة**.
+ * أنواع اللوحة + مصدر البيانات.
  *
- * المرحلة أ بتنفّذ القراءة ببيانات ثابتة (fallback). لما الباك إند يجهز،
- * بنبدّل التنفيذ هنا بس والصفحات ما تتغيّرش.
- *
- * 🔒 المرحلة أ: **مفيش أي كتابة**. توقيعات التعديل معرّفة في AdminMutations
- * عشان الباك إند يعرف المطلوب، ومفيش لها تنفيذ — كل أزرار الحفظ معطّلة.
+ * ⚠️ الملف ده بيستورد طبقة قراءة **server-only**، فممنوع أي Client
+ * Component يستورد منه قيمة فعلية. الأنواع بس (import type) — دي بتتمسح
+ * وقت الترجمة فمابتجرّش حاجة للمتصفح.
+ * الثوابت المشتركة مكانها lib/enums.ts.
  */
-import { fallbackAdminData } from './fallback/data'
+import { supabaseAdminData } from './data/reads'
+import type { ImageFit, OrderStatus, SectionKey } from './enums'
 
-// ── حالة الحفظ ────────────────────────────────────────────────
-export type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'conflict' | 'error'
+export * from './enums'
 
 // ── الطلبات ──────────────────────────────────────────────────
-export const ORDER_STATUSES = ['new', 'confirmed', 'shipped', 'delivered', 'cancelled'] as const
-export type OrderStatus = (typeof ORDER_STATUSES)[number]
-
-export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  new: 'جديد',
-  confirmed: 'مؤكد',
-  shipped: 'اتشحن',
-  delivered: 'اتسلّم',
-  cancelled: 'ملغي',
-}
-
 export type AdminOrder = {
   id: number
   orderNumber: string
@@ -49,6 +37,7 @@ export type AdminOrderItem = {
 export type AdminOrderDetail = AdminOrder & {
   address: string
   notes: string | null
+  /** مفيش عمود internal_notes في الداتابيز لسه — بيرجع null */
   internalNotes: string | null
   subtotalPiastres: number
   shippingPiastres: number
@@ -79,10 +68,13 @@ export type OrdersSummary = {
 }
 
 // ── المنتجات والصور ──────────────────────────────────────────
-export type ImageFit = 'cover' | 'contain'
-
 export type AdminImage = {
-  id: number
+  /**
+   * نص مش رقم. أعمدة bigint في Postgres بتترجع strings في JSON عشان
+   * ما تتكسرش دقة Number.MAX_SAFE_INTEGER — فالمعرّف بيتعامل كنص
+   * من أول القراءة لحد التعديل.
+   */
+  id: string
   url: string
   alt: string
   fit: ImageFit
@@ -119,16 +111,6 @@ export type HeroContent = { title: string; accent: string; subtitle: string; cta
 export type OrderStep = { title: string; description: string }
 export type FaqItem = { question: string; answer: string }
 
-export const SECTION_KEYS = ['hero', 'products', 'how_it_works', 'faq'] as const
-export type SectionKey = (typeof SECTION_KEYS)[number]
-
-export const SECTION_LABELS: Record<SectionKey, string> = {
-  hero: 'الواجهة الرئيسية',
-  products: 'المنتجات',
-  how_it_works: 'خطوات الطلب',
-  faq: 'الأسئلة الشائعة',
-}
-
 export type StoreSection = {
   key: SectionKey
   visible: boolean
@@ -146,6 +128,12 @@ export type StoreContent = {
   sections: StoreSection[]
   footerLinks: FooterLink[]
   trustLine: string
+  /**
+   * أحدث updated_at بين الستة مفاتيح — رمز التعارض للحفظ.
+   * نص فاضي = الطابع مش متاح، والحفظ لازم يترفض VALIDATION بدل
+   * ما يكتب من غير تحقق.
+   */
+  updatedAt: string
 }
 
 // ── الشحن والهوية والتشغيل ───────────────────────────────────
@@ -153,7 +141,7 @@ export type ShippingSettings = {
   rates: Record<string, number>
   defaultPiastres: number
   freeThresholdPiastres: number
-  /** محافظات متوقفة مؤقتًا من غير حذف سعرها */
+  /** مفيش مفتاح للمحافظات الموقوفة لسه — بيرجع فاضي */
   disabled: string[]
 }
 
@@ -169,7 +157,7 @@ export type ReadinessCheck = { key: string; label: string; ok: boolean; detail: 
 
 export type OperationalSettings = {
   notifyEmail: string
-  /** 🔒 التوكن نفسه ما بيخرجش من السيرفر أبدًا — حالة بس */
+  /** التوكن نفسه ما بيخرجش من السيرفر أبدًا — حالة بس */
   telegramConfigured: boolean
   readiness: ReadinessCheck[]
 }
@@ -179,6 +167,7 @@ export interface AdminDataSource {
   listOrders(query: OrdersQuery): Promise<OrdersPage>
   getOrder(orderNumber: string): Promise<AdminOrderDetail | null>
   getOrdersSummary(): Promise<OrdersSummary>
+  /** بترجّع النشط وغير النشط — مفيش بارامتر includeInactive */
   listProducts(): Promise<AdminProduct[]>
   getProduct(id: number): Promise<AdminProductDetail | null>
   getContent(): Promise<StoreContent>
@@ -187,43 +176,5 @@ export interface AdminDataSource {
   getOperationalSettings(): Promise<OperationalSettings>
 }
 
-/**
- * ── واجهة الكتابة — **مش منفّذة في المرحلة أ** ──
- *
- * معرّفة هنا عشان الباك إند يعرف المطلوب بالظبط.
- * كل حفظ بيبعت expectedUpdatedAt؛ صفر صفوف متحدّثة = conflict.
- * actorUserId مسيوب مكانه لحد ما الـ auth تجهز — ومش بنزيّف هوية دلوقتي.
- */
-export type SaveResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; reason: 'conflict' | 'validation' | 'error'; message: string }
-
-export interface AdminMutations {
-  saveProduct(input: Partial<AdminProduct> & { id?: number; expectedUpdatedAt?: string }): Promise<SaveResult<AdminProduct>>
-  setProductVisibility(id: number, visible: boolean, expectedUpdatedAt: string): Promise<SaveResult<AdminProduct>>
-  reorderProducts(orderedIds: number[]): Promise<SaveResult<null>>
-
-  uploadProductImage(productId: number, file: File): Promise<SaveResult<AdminImage>>
-  setPrimaryImage(productId: number, imageId: number): Promise<SaveResult<null>>
-  setImageFit(imageId: number, fit: ImageFit): Promise<SaveResult<null>>
-  reorderImages(productId: number, orderedIds: number[]): Promise<SaveResult<null>>
-  deleteImage(imageId: number): Promise<SaveResult<null>>
-
-  updateOrderStatus(orderId: number, status: OrderStatus): Promise<SaveResult<null>>
-  addOrderNote(orderId: number, note: string): Promise<SaveResult<null>>
-  resendNotification(orderId: number): Promise<SaveResult<null>>
-
-  saveContent(patch: Partial<StoreContent>): Promise<SaveResult<StoreContent>>
-  saveShipping(patch: Partial<ShippingSettings>): Promise<SaveResult<ShippingSettings>>
-  saveIdentity(patch: Partial<StoreIdentity>): Promise<SaveResult<StoreIdentity>>
-  /** telegramToken مدخل فقط — ما بيترجعش أبدًا */
-  saveOperationalSettings(patch: { notifyEmail?: string; telegramToken?: string }): Promise<SaveResult<OperationalSettings>>
-
-  revalidateStorefront(): Promise<SaveResult<null>>
-}
-
-/** المصدر الحالي: بيانات ثابتة للمراجعة البصرية. */
-export const adminData: AdminDataSource = fallbackAdminData
-
-/** المرحلة أ: كل تعديل معطّل. الصفحات بتقرا ده عشان تعرض السبب. */
-export const MUTATIONS_ENABLED = false
+/** قراءة حقيقية من Production. التعديلات في lib/actions.ts وكلها موقوفة. */
+export const adminData: AdminDataSource = supabaseAdminData

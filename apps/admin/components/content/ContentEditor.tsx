@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
-import { SECTION_LABELS, type SaveState, type StoreContent } from '../../lib/adminData'
+import type { StoreContent } from '../../lib/adminData'
+import { SECTION_LABELS, type SaveState } from '../../lib/enums'
 import { Card, Field, inputClasses, textareaClasses } from '../ui/Field'
 import { SaveBar } from '../ui/SaveBar'
 import { Switch } from '../ui/Switch'
@@ -101,6 +102,7 @@ export function ContentEditor({ content }: { content: StoreContent }) {
               </Field>
             </div>
           ))}
+          {draft.orderSteps.length === 0 ? <p className="text-xs text-muted">مفيش خطوات مسجّلة.</p> : null}
         </div>
       </Card>
 
@@ -134,6 +136,7 @@ export function ContentEditor({ content }: { content: StoreContent }) {
               </Field>
             </div>
           ))}
+          {draft.faqs.length === 0 ? <p className="text-xs text-muted">مفيش أسئلة مسجّلة.</p> : null}
         </div>
         <p className="mt-3 text-xs text-muted">
           تجنّب كتابة أرقام زي عرض الرول أو أقل طول هنا — لو اتغيّرت من صفحة المنتج، الإجابة تبقى غلط.
