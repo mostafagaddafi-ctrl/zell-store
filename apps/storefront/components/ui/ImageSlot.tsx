@@ -4,16 +4,17 @@ import { cn } from '../../lib/cn'
 /**
  * خانة صورة بنسبة ثابتة.
  *
- * دلوقتي: بتعرض سطح هادي (والصور الحقيقية لسه مش متوصلة).
- * بعدين: بتمرر src وبس — من غير أي تعديل في التصميم ومن غير layout shift،
- * لأن المساحة محجوزة بالنسبة من دلوقتي.
+ * الملفات الأصلية كلها **قريبة من المربع** (اللوجو والـ preview 1:1،
+ * وصور الرول بين 1170×1280 و 1280×1160)، فالإطار الافتراضي مربع.
+ * ممنوع إطار 3:2 — كان هيقص الـ preview المربعة من غير داعي.
  *
- * بتدعم شكلين من next/image:
- *   • fill  (الافتراضي) — مع sizes، للصور المتجاوبة
- *   • width/height       — للصور ذات المقاس الثابت زي اللوجو
+ * fit:
+ *   cover   — مشهد الشباك (preview) يملا الإطار
+ *   contain — صورة الرول/الخامة كاملة على خلفية دافية، من غير قص
  */
 
 export type ImageRatio = '1/1' | '4/3' | '3/2' | '16/9' | '4/5' | 'auto'
+export type ImageFit = 'cover' | 'contain'
 
 const RATIO_CLASS: Record<ImageRatio, string> = {
   '1/1': 'aspect-square',
@@ -26,6 +27,7 @@ const RATIO_CLASS: Record<ImageRatio, string> = {
 
 export type ImageSlotProps = {
   ratio?: ImageRatio
+  fit?: ImageFit
   src?: string | null
   alt?: string
   width?: number
@@ -40,7 +42,8 @@ export type ImageSlotProps = {
 }
 
 export function ImageSlot({
-  ratio = '4/3',
+  ratio = '1/1',
+  fit = 'cover',
   src,
   alt = '',
   width,
@@ -52,10 +55,14 @@ export function ImageSlot({
   className,
   imageClassName,
 }: ImageSlotProps) {
+  const fitClass = fit === 'contain' ? 'object-contain' : 'object-cover'
+
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded bg-border/50',
+        'relative overflow-hidden rounded',
+        // الخامة المعروضة كاملة محتاجة خلفية دافية هادية حواليها
+        fit === 'contain' ? 'bg-bg' : 'bg-border/50',
         RATIO_CLASS[ratio],
         className,
       )}
@@ -67,7 +74,7 @@ export function ImageSlot({
           width={width}
           height={height}
           priority={priority}
-          className={cn('h-full w-full object-contain', imageClassName)}
+          className={cn('h-full w-full', fitClass, imageClassName)}
         />
       ) : src ? (
         <Image
@@ -76,7 +83,7 @@ export function ImageSlot({
           fill
           sizes={sizes}
           priority={priority}
-          className={cn('object-cover', imageClassName)}
+          className={cn(fitClass, fit === 'contain' ? 'p-3' : '', imageClassName)}
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center">
