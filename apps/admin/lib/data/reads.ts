@@ -17,6 +17,7 @@ import type {
 } from '../adminData'
 import { inFilter, projectUrl, restGet } from './client'
 import {
+  latestUpdatedAt,
   readFaqs,
   readFooterLinks,
   readHero,
@@ -172,7 +173,7 @@ export const supabaseAdminData: AdminDataSource = {
       ...toAdminOrder(row, items.rows.length),
       address: row.address,
       notes: row.notes,
-      // مفيش عمود internal_notes في الداتابيز لسه — محتاج migration
+      // مفيش عمود internal_notes في الداتابيز لسه — migration منفصلة
       internalNotes: null,
       subtotalPiastres: row.subtotal_piastres,
       shippingPiastres: row.shipping_piastres,
@@ -193,7 +194,7 @@ export const supabaseAdminData: AdminDataSource = {
         'select=id&created_at=gte.' + encodeURIComponent(startOfDay.toISOString()) + '&limit=1',
         { exactCount: true },
       ),
-      // مؤقت: التجميع على الواجهة. محتاج view أو RPC للمجاميع قبل ما البيانات تكبر.
+      // مؤقت بموافقة: التجميع على الواجهة بحد صفوف. محتاج view أو RPC قبل النمو.
       restGet<{ total_piastres: number; created_at: string }>(
         'orders',
         'select=total_piastres,created_at&status=neq.cancelled&limit=' + String(SUMMARY_ROW_CAP),
@@ -250,8 +251,12 @@ export const supabaseAdminData: AdminDataSource = {
     return { ...toAdminProduct(row, mapped.length), images: mapped }
   },
 
+  /**
+   * الستة مفاتيح بتتقرا مع طوابعها، وأحدث طابع بيبقى رمز التعارض
+   * للحفظ (expectedUpdatedAt إلزامي في saveContentAction).
+   */
   async getContent(): Promise<StoreContent> {
-    const rows = await restGet<SettingRow>('settings', 'select=key,value&key=' + inFilter(CONTENT_KEYS))
+    const rows = await restGet<SettingRow>('settings', 'select=key,value,updated_at&key=' + inFilter(CONTENT_KEYS))
     const map = settingsMap(rows.rows)
 
     return {
@@ -261,6 +266,7 @@ export const supabaseAdminData: AdminDataSource = {
       sections: readSections(map),
       footerLinks: readFooterLinks(map),
       trustLine: readString(map, 'trust_line'),
+      updatedAt: latestUpdatedAt(rows.rows, CONTENT_KEYS),
     }
   },
 
@@ -272,7 +278,7 @@ export const supabaseAdminData: AdminDataSource = {
       rates: readRates(map, 'shipping_rates'),
       defaultPiastres: readNumber(map, 'shipping_default_piastres'),
       freeThresholdPiastres: readNumber(map, 'free_shipping_threshold_piastres'),
-      // مفيش مفتاح للمحافظات الموقوفة لسه — محتاج قرار وmigration
+      // مفيش مفتاح shipping_disabled_governorates لسه — migration منفصلة
       disabled: [],
     }
   },
