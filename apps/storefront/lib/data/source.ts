@@ -13,6 +13,11 @@ import { fetchStorefrontFromSupabase } from './queries'
  * قيمة ناقصة أو غير معروفة = خطأ صريح. خطأ إعداد صامت أسوأ بكتير من
  * بناء فاشل، لأنه بيوصل للزباين بأسعار قديمة من غير ما حد ياخد باله.
  */
+/*
+ * تذكير للإعداد: المتغير ده لازم يكون متظبط في كل بيئة بتبني المشروع —
+ * Vercel (Production و Preview) و GitHub Actions. مفيش قيمة افتراضية
+ * عن قصد: بناء فاشل أوضح بكتير من متجر شغّال بأسعار قديمة.
+ */
 export type DataSource = 'fallback' | 'supabase'
 
 export type StorefrontData = {
