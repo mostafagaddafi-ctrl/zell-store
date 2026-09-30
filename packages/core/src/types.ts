@@ -10,21 +10,46 @@ export type ProductRules = {
   max_length_cm: number
 }
 
+/**
+ * صورة جاهزة للعرض. الرابط بيتركّب في طبقة السيرفر من bucket + object_path،
+ * فالواجهة ما بتعرفش حاجة عن تخزين الملفات.
+ */
+export type StoreImage = {
+  id: number
+  url: string
+  alt: string
+  width: number | null
+  height: number | null
+  kind: 'gallery' | 'before' | 'after'
+  isPrimary: boolean
+}
+
 export type StoreProduct = ProductRules & {
   id: number
   name_ar: string
   name_en: string | null
   brand: string | null
   description_ar: string | null
+  width_cm: number
+
+  /** مصدر الصور المعتمد — مرتّب: الرئيسية الأول. */
+  gallery: StoreImage[]
+
+  /**
+   * أعمدة قديمة — بتفضل للقراءة المزدوجة لحد ما الترحيل يكتمل.
+   * ممنوع الاعتماد عليها في كود جديد؛ استخدم galleryImages/primaryImage.
+   */
   image_url: string | null
   images: string[]
   before_image: string | null
   after_image: string | null
-  width_cm: number
 }
 
 export type StoreSettings = {
   storeName: string
+  /** اللوجو النشط من site_images. */
+  logo: StoreImage | null
+  /** عمود قديم — احتياطي لحد ما الترحيل يكتمل. */
   logoUrl: string
   offerText: string
   whatsappNumber: string
