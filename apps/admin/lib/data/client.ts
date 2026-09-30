@@ -418,7 +418,21 @@ export async function storageDelete(objectPath: string): Promise<void> {
  * ⚠️ الاستخدام الوحيد المسموح دلوقتي هو **التراجع** بعد فشل رفع صورة.
  * حذف الصور كميزة لسه برّه النطاق.
  */
-export async function restDelete(table: string, query: string): Promise<void> {
+/**
+ * DELETE بفلتر صريح. بيرجّع **الصفوف المحذوفة فعلًا**.
+ *
+ * ⚠️ return=representation مش return=minimal عن قصد.
+ *
+ * DELETE ناجح على مستوى HTTP ممكن يحذف **صفر صفوف** — فلتر مش مطابق،
+ * أو صف اتمسح بالتوازي. لو اعتبرنا 200 معناها «اتمسح»، التنظيف بعده
+ * بيمسح ملف Storage لصف **لسه حيّ** — يعني صف بيشاور على ملف مش موجود.
+ *
+ * فالمُنادي لازم يتأكد من العدد بنفسه، مش من كود الحالة.
+ *
+ * ⚠️ الاستخدام الوحيد المسموح دلوقتي هو **التراجع** بعد فشل رفع صورة.
+ * حذف الصور كميزة لسه برّه النطاق.
+ */
+export async function restDelete<T>(table: string, query: string): Promise<T[]> {
   const name = safeIdentifier(table, 'الجدول')
   const { url, key } = credentials()
 
@@ -430,7 +444,7 @@ export async function restDelete(table: string, query: string): Promise<void> {
         apikey: key,
         Authorization: 'Bearer ' + key,
         Accept: 'application/json',
-        Prefer: 'return=minimal',
+        Prefer: 'return=representation',
       },
       cache: 'no-store',
       signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -442,4 +456,13 @@ export async function restDelete(table: string, query: string): Promise<void> {
   if (!response.ok) {
     throw new Error('الحذف من ' + name + ' رجّع ' + String(response.status) + ' ' + response.statusText)
   }
+
+  const text = await response.text()
+  if (text === '') return []
+
+  const payload: unknown = JSON.parse(text)
+  if (!Array.isArray(payload)) {
+    throw new Error('الحذف من ' + name + ' رجّع شكل غير متوقع')
+  }
+  return payload as T[]
 }
