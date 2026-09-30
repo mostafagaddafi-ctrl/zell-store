@@ -15,11 +15,15 @@ export default function NewProductPage() {
         المنتجات
       </Link>
 
-      <PageHeader title="منتج جديد" />
-
+      {/* التنبيه فوق قبل الفورم — مش في شريط الحفظ تحت بس */}
       <div className="mb-4">
-        <PreviewNotice what="إنشاء منتج" />
+        <PreviewNotice
+          what="إنشاء منتج"
+          note="مش هيتعمل أي منتج جديد، ومش هيتسجّل أي صف في قاعدة البيانات. الشاشة دي لمراجعة الشكل بس."
+        />
       </div>
+
+      <PageHeader title="منتج جديد" />
 
       <ProductEditor product={null} />
     </>
