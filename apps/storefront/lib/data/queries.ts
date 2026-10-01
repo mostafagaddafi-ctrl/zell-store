@@ -1,11 +1,14 @@
 import 'server-only'
 
-import type { StoreProduct, StoreSettings } from '@zell/core'
+import type { StoreCollection, StoreProduct, StoreSettings } from '@zell/core'
 import {
   PUBLIC_SETTING_KEYS,
+  toStoreCollections,
   toStoreProducts,
   toStoreSiteImage,
   toStoreSettings,
+  type CollectionRow,
+  type ProductCollectionRow,
   type ProductImageRow,
   type ProductRow,
   type SettingRow,
@@ -46,6 +49,8 @@ const PRODUCT_IMAGE_COLUMNS = [
   'height_px',
 ].join(',')
 
+const COLLECTION_COLUMNS = ['id', 'slug', 'title_ar', 'subtitle_ar', 'is_visible', 'sort_order'].join(',')
+
 const SITE_IMAGE_COLUMNS = [
   'id',
   'bucket',
@@ -76,10 +81,11 @@ function inFilter(values: readonly string[]): string {
 export async function fetchStorefrontFromSupabase(): Promise<{
   products: StoreProduct[]
   settings: StoreSettings
+  collections: StoreCollection[]
 }> {
   const supabaseUrl = supabaseProjectUrl()
 
-  const [productRows, imageRows, settingRows, siteImageRows] = await Promise.all([
+  const [productRows, imageRows, settingRows, siteImageRows, collectionRows, linkRows] = await Promise.all([
     restGet<ProductRow>(
       'products',
       'select=' + PRODUCT_COLUMNS + '&is_active=eq.true&order=sort_order.asc,id.asc',
@@ -102,6 +108,19 @@ export async function fetchStorefrontFromSupabase(): Promise<{
       'select=' + SITE_IMAGE_COLUMNS + '&kind=in.(logo,hero)&is_active=eq.true&order=id.desc',
       REVALIDATE_SECONDS,
     ),
+    // المجموعات الظاهرة بس. الترتيب من sort_order ثم id لثبات العرض.
+    restGet<CollectionRow>(
+      'collections',
+      'select=' + COLLECTION_COLUMNS + '&is_visible=eq.true&order=sort_order.asc,id.asc',
+      REVALIDATE_SECONDS,
+    ),
+    // كل الروابط. الجدول صغير (مجموعات × منتجات)، فطلب واحد أرخص
+    // من طلب لكل مجموعة — ولا بيكبر مع عدد المجموعات.
+    restGet<ProductCollectionRow>(
+      'product_collections',
+      'select=collection_id,product_id,sort_order&order=sort_order.asc',
+      REVALIDATE_SECONDS,
+    ),
   ])
 
   // متجر بصفر منتجات عطل مش حالة طبيعية — نفشل بوضوح بدل ما نعرض صفحة فاضية
@@ -119,5 +138,12 @@ export async function fetchStorefrontFromSupabase(): Promise<{
   const logo = logoRow ? toStoreSiteImage(logoRow, supabaseUrl, baseSettings.storeName) : null
   const heroImage = heroRow ? toStoreSiteImage(heroRow, supabaseUrl, 'صورة الواجهة') : null
 
-  return { products, settings: { ...baseSettings, logo, heroImage } }
+  // المنتجات الظاهرة بس — منتج متوقّف لازم يختفي من المجموعة كمان
+  const collections = toStoreCollections(
+    collectionRows,
+    linkRows,
+    products.map((product) => product.id),
+  )
+
+  return { products, settings: { ...baseSettings, logo, heroImage }, collections }
 }
