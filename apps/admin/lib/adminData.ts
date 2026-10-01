@@ -176,6 +176,26 @@ export type Announcement = {
   ctaLabel: string
 }
 
+/**
+ * مجموعة منتجات (0010).
+ *
+ * productIds مرتّبة بـ sort_order من جدول الربط.
+ * productCount موجود في القائمة عشان نتجنّب جلب الروابط كلها
+ * في صفحة القائمة.
+ */
+export type AdminCollection = {
+  id: string
+  slug: string
+  title: string
+  subtitle: string
+  isVisible: boolean
+  sortOrder: number
+  productCount: number
+  updatedAt: string
+}
+
+export type AdminCollectionDetail = AdminCollection & { productIds: number[] }
+
 export type ReadinessState = 'ok' | 'warn' | 'unknown'
 
 export type ReadinessCheck = {
@@ -228,6 +248,8 @@ export interface AdminDataSource {
   getContent(): Promise<StoreContent>
   getShipping(): Promise<ShippingSettings>
   getIdentity(): Promise<StoreIdentity>
+  listCollections(): Promise<AdminCollection[]>
+  getCollection(id: string): Promise<AdminCollectionDetail | null>
   getOperationalSettings(): Promise<OperationalSettings>
 }
 
