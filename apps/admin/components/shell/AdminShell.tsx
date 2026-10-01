@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   ExternalLink,
   Image as ImageIcon,
+  Layers,
   LayoutDashboard,
   Menu,
   Package,
@@ -38,7 +39,13 @@ export function AdminShell({
   const groups: Group[] = [
     { items: [{ href: '/', label: 'نظرة عامة', icon: LayoutDashboard }] },
     { title: 'التشغيل', items: [{ href: '/orders', label: 'الطلبات', icon: ShoppingCart, badge: newOrders }] },
-    { title: 'الكتالوج', items: [{ href: '/products', label: 'المنتجات', icon: Package }] },
+    {
+      title: 'الكتالوج',
+      items: [
+        { href: '/products', label: 'المنتجات', icon: Package },
+        { href: '/collections', label: 'المجموعات', icon: Layers },
+      ],
+    },
     {
       title: 'المتجر',
       items: [
