@@ -49,6 +49,11 @@ export type StoreSettings = {
   storeName: string
   /** اللوجو النشط من site_images. */
   logo: StoreImage | null
+  /**
+   * صورة الواجهة النشطة من site_images (kind = 'hero').
+   * null = مفيش صورة مرفوعة، والواجهة بتعرض الخانة البديلة.
+   */
+  heroImage: StoreImage | null
   /** عمود قديم — احتياطي لحد ما الترحيل يكتمل. */
   logoUrl: string
   offerText: string
