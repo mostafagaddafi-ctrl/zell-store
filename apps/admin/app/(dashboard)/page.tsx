@@ -76,10 +76,16 @@ export default async function OverviewPage() {
           <ul className="space-y-2.5">
             {operational.readiness.map((check) => (
               <li key={check.key} className="flex items-start gap-2">
-                {check.ok ? (
+                {/* تلات حالات: سليم · تحذير · «مش عارفين». مفيش أيقونة جديدة — */}
+                {/* نفس AlertTriangle بلون باهت للمحايدة، عشان ما تتخلطش بالسليم. */}
+                {check.state === 'ok' ? (
                   <Check className="mt-0.5 h-4 w-4 shrink-0 text-ok" />
                 ) : (
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+                  <AlertTriangle
+                    className={
+                      'mt-0.5 h-4 w-4 shrink-0 ' + (check.state === 'unknown' ? 'text-muted' : 'text-danger')
+                    }
+                  />
                 )}
                 <div>
                   <p className="text-xs font-semibold text-fg">{check.label}</p>

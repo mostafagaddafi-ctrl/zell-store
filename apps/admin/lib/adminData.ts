@@ -162,12 +162,48 @@ export type StoreIdentity = {
   updatedAt: string
 }
 
-export type ReadinessCheck = { key: string; label: string; ok: boolean; detail: string }
+/**
+ * تلات حالات مش اتنين. `unknown` ضرورية: «مش عارفين» **مش** نفس «سليم» ولا
+ * «فيه مشكلة»، وخلطها بأي واحدة فيهم بيدّي مؤشر كذّاب.
+ */
+export type ReadinessState = 'ok' | 'warn' | 'unknown'
+
+export type ReadinessCheck = {
+  key: string
+  label: string
+  /** مشتق من state: `state === 'ok'` بالظبط. باقي للتوافق مع أي عرض قديم. */
+  ok: boolean
+  state: ReadinessState
+  detail: string
+}
+
+/**
+ * صحة **تسليم** الإشعارات — مش «تليجرام متظبط».
+ *
+ * ⚠️ اللوحة ما بتقراش أي سر، و**مستحيل** تعرف متغيرات بيئة المتجر: الاتنين
+ *    مشروعين Vercel منفصلين بمتغيرات منفصلة. فالمؤشر بيتقاس من **الأثر**
+ *    (نتيجة التسليم في `orders`) مش من الإعداد.
+ */
+export type NotifyDeliveryHealth = {
+  state: ReadinessState
+  /** طول النافذة بالساعات — موثّق في reads.ts مع مصدر الرقم. */
+  windowHours: number
+  /**
+   * أعداد **دقيقة** من هيدر Content-Range، مش طول مصفوفة.
+   * ⚠️ لو countsExact = false الأرقام دي مش موثوقة وممنوع تتعرض كحقيقة.
+   */
+  recentOrders: number
+  failedOrders: number
+  /**
+   * هل العدّ الدقيق وصل فعلاً؟ `false` = fail-closed: الحالة بتبقى `unknown`
+   * وممنوع تبقى `ok` مهما كانت الأرقام.
+   */
+  countsExact: boolean
+}
 
 export type OperationalSettings = {
   notifyEmail: string
-  /** التوكن نفسه ما بيخرجش من السيرفر أبدًا — حالة بس */
-  telegramConfigured: boolean
+  notifyDelivery: NotifyDeliveryHealth
   readiness: ReadinessCheck[]
 }
 

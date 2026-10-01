@@ -11,6 +11,7 @@ import type {
   OrdersQuery,
   OrdersSummary,
   ReadinessCheck,
+  ReadinessState,
   ShippingSettings,
   StoreContent,
   StoreIdentity,
@@ -108,7 +109,22 @@ const IDENTITY_KEYS = ['store_name', 'logo_url', 'offer_text', 'whatsapp_number'
  * CONFLICT وهمي لكل حفظ هوية.
  */
 const IDENTITY_SAVE_KEYS = ['store_name', 'offer_text', 'whatsapp_number', 'whatsapp_message'] as const
-const OPERATIONAL_KEYS = ['notify_email', 'telegram_bot_token', 'whatsapp_number'] as const
+/**
+ * ⚠️ `telegram_bot_token` **اتشال من هنا** عن قصد (ب١٩). الأسرار بقت في
+ *    متغيرات بيئة المتجر على Vercel، واللوحة مالهاش أي داعي تقرا سر —
+ *    ولا تقدر أصلاً تشوف متغيرات مشروع تاني.
+ */
+const OPERATIONAL_KEYS = ['notify_email', 'whatsapp_number'] as const
+
+/**
+ * نافذة «الطلبات الحديثة» لقياس صحة التسليم.
+ *
+ * ٢٤ ساعة **مش رقم مختار عشوائي**: هي نفس النافذة المستخدمة فعلاً في
+ * `zell_create_order` لحد الطلبات لكل رقم موبايل (`interval '24 hours'`)،
+ * والموثّقة في ORDER-FLOW-PLAN.md §5.2. استخدام نفس النافذة بيخلّي معنى
+ * «حديث» واحد في النظام كله.
+ */
+const NOTIFY_WINDOW_HOURS = 24
 
 /** حد أعلى للمجاميع لحد ما ييجي view أو RPC للتجميع. */
 const SUMMARY_ROW_CAP = 2000
@@ -322,11 +338,40 @@ export const supabaseAdminData: AdminDataSource = {
   },
 
   async getOperationalSettings(): Promise<OperationalSettings> {
-    const [rows, products, images, shipping] = await Promise.all([
+    const since = new Date(Date.now() - NOTIFY_WINDOW_HOURS * 60 * 60 * 1000).toISOString()
+
+    const [rows, products, images, shipping, recentAll, recentFailed] = await Promise.all([
       restGet<SettingRow>('settings', 'select=key,value&key=' + inFilter(OPERATIONAL_KEYS)),
       restGet<{ id: number; is_active: boolean }>('products', 'select=id,is_active&order=id.asc'),
       restGet<{ product_id: number }>('product_images', 'select=product_id&kind=eq.gallery'),
       restGet<SettingRow>('settings', 'select=key,value&key=' + inFilter(SHIPPING_KEYS)),
+      /**
+       * ⚠️ عدّ **دقيق ومحدود**، مش سحب صفوف وعدّها في التطبيق (ب٢٠).
+       *
+       * PostgREST/Supabase بيحدّدوا أقصى عدد صفوف للرد (شائع ١٠٠٠). لو
+       * الطلبات الحديثة عدّت الحد، `rows.length` بيبقى ناقص — **والأخطر** إن
+       * أخطاء موجودة بره الصفحة الأولى ما بتتشافش والمؤشر يطلع `ok` كذب.
+       *
+       * الحل: `limit=1` + `count=exact`، والعدّ بييجي من هيدر Content-Range
+       * (`result.total`) مش من طول المصفوفة. صف واحد بيرجع، والعدّ دقيق.
+       *
+       * `select=id` عن قصد: مفتاح صناعي، **مفيش أي بيانات عميل** في الرد.
+       */
+      restGet<{ id: number }>(
+        'orders',
+        'select=id&limit=1&created_at=gte.' + encodeURIComponent(since),
+        { exactCount: true },
+      ),
+      /**
+       * `notify_error=not.is.null` بيغطي **كل** قيمة غير null — فالفشل الحقيقي
+       * و`NOTIFY_IN_PROGRESS` (حجز اتعلّق) داخلين **تلقائياً**، من غير أي قايمة
+       * أكواد لازم تتحدّث كل مرة يضاف كود جديد.
+       */
+      restGet<{ id: number }>(
+        'orders',
+        'select=id&limit=1&notify_error=not.is.null&created_at=gte.' + encodeURIComponent(since),
+        { exactCount: true },
+      ),
     ])
 
     const map = settingsMap(rows.rows)
@@ -334,10 +379,43 @@ export const supabaseAdminData: AdminDataSource = {
     const whatsapp = readString(map, 'whatsapp_number')
 
     /**
-     * التوكن بيتقرا على السيرفر بس ويتحول لـ boolean فورًا.
-     * القيمة نفسها ما بتخرجش من الدالة دي أبدًا.
+     * صحة تسليم الإشعارات من **الأثر** مش من الإعداد (ب١٩).
+     *
+     * `notify_error is not null` بيغطي الفشل الحقيقي **و** `NOTIFY_IN_PROGRESS`
+     * (حجز اتعلّق) — الاتنين حالات تستاهل مراجعة، فالاتنين تحذير.
+     *
+     * ⚠️ صفر طلبات حديثة = `unknown` **مش** `ok`. مفيش تسليم اتم، فمفيش أي دليل
+     *    على إن الإشعار شغّال. الادعاء بالسليم هنا هو بالظبط الكذب اللي
+     *    المؤشر القديم كان بيعمله.
      */
-    const telegramConfigured = readString(map, 'telegram_bot_token').trim() !== ''
+    /**
+     * الأعداد من `total` (هيدر Content-Range) **مش** من `rows.length`.
+     *
+     * fail-closed: لو أي عدّ رجع null (الهيدر ناقص أو مش مفهوم)، الحالة بتبقى
+     * `unknown` و**ممنوع** تبقى `ok`. مؤشر صامت أخطر من مؤشر بيقول «مش عارف».
+     */
+    const recentTotal = recentAll.total
+    const failedTotal = recentFailed.total
+    const countsExact = recentTotal !== null && failedTotal !== null
+
+    const recentOrders = recentTotal ?? 0
+    const failedOrders = failedTotal ?? 0
+
+    const notifyState: ReadinessState = !countsExact
+      ? 'unknown'
+      : recentOrders === 0
+        ? 'unknown'
+        : failedOrders > 0
+          ? 'warn'
+          : 'ok'
+
+    const notifyDetail = !countsExact
+      ? 'ما قدرناش نجيب عدّ دقيق للطلبات — المؤشر مش موثوق دلوقتي'
+      : recentOrders === 0
+        ? 'مفيش طلبات في آخر ' + String(NOTIFY_WINDOW_HOURS) + ' ساعة — صحة التسليم لسه ما اتأكدتش'
+        : failedOrders > 0
+          ? String(failedOrders) + ' من ' + String(recentOrders) + ' طلب فيهم فشل إشعار أو إشعار معلّق'
+          : 'كل الـ' + String(recentOrders) + ' طلب في آخر ' + String(NOTIFY_WINDOW_HOURS) + ' ساعة وصل إشعارهم'
 
     const shippingMap = settingsMap(shipping.rows)
     const governorates = Object.keys(readRates(shippingMap, 'shipping_rates')).length
@@ -349,22 +427,41 @@ export const supabaseAdminData: AdminDataSource = {
 
     const readiness: ReadinessCheck[] = [
       {
-        key: 'notifications',
-        label: 'إشعارات الطلبات',
-        ok: notifyEmail !== '',
-        detail: notifyEmail !== '' ? 'الإشعارات بتروح على ' + notifyEmail : 'مفيش إيميل إشعارات متظبط',
+        key: 'notify_delivery',
+        label: 'تسليم إشعارات الطلبات',
+        ok: notifyState === 'ok',
+        state: notifyState,
+        detail: notifyDetail,
       },
-      { key: 'orders_api', label: 'استقبال الطلبات', ok: false, detail: 'إنشاء الطلب لسه معطّل في المتجر' },
+      {
+        key: 'notify_email',
+        label: 'بريد الإشعارات',
+        ok: notifyEmail !== '',
+        state: notifyEmail !== '' ? 'ok' : 'warn',
+        detail:
+          notifyEmail !== ''
+            ? 'متظبط على ' + notifyEmail + ' — بس مفيش ناقل إيميل في المرحلة الأولى'
+            : 'مفيش إيميل إشعارات متظبط',
+      },
+      {
+        key: 'orders_api',
+        label: 'استقبال الطلبات',
+        ok: false,
+        state: 'warn',
+        detail: 'الراوت موجود و ORDERS_ENABLED مقفولة — الزباين لسه ما يقدروش يبعتوا',
+      },
       {
         key: 'products',
         label: 'المنتجات النشطة',
         ok: active.length > 0,
+        state: active.length > 0 ? 'ok' : 'warn',
         detail: active.length > 0 ? String(active.length) + ' منتج نشط' : 'مفيش منتجات نشطة',
       },
       {
         key: 'images',
         label: 'صور المنتجات',
         ok: active.length > 0 && activeWithoutImages === 0,
+        state: active.length > 0 && activeWithoutImages === 0 ? 'ok' : 'warn',
         detail:
           active.length === 0
             ? 'مفيش منتجات نشطة'
@@ -376,16 +473,28 @@ export const supabaseAdminData: AdminDataSource = {
         key: 'shipping',
         label: 'جدول الشحن',
         ok: governorates > 0 && shippingDefault > 0,
+        state: governorates > 0 && shippingDefault > 0 ? 'ok' : 'warn',
         detail: governorates > 0 ? String(governorates) + ' محافظة مضبوطة' : 'مفيش محافظات',
       },
       {
         key: 'whatsapp',
         label: 'رقم واتساب',
         ok: /^[0-9]{10,15}$/.test(whatsapp),
+        state: /^[0-9]{10,15}$/.test(whatsapp) ? 'ok' : 'warn',
         detail: whatsapp !== '' ? whatsapp : 'مفيش رقم واتساب',
       },
     ]
 
-    return { notifyEmail, telegramConfigured, readiness }
+    return {
+      notifyEmail,
+      notifyDelivery: {
+        state: notifyState,
+        windowHours: NOTIFY_WINDOW_HOURS,
+        recentOrders,
+        failedOrders,
+        countsExact,
+      },
+      readiness,
+    }
   },
 }
