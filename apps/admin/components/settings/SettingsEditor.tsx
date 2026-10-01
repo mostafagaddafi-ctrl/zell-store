@@ -72,11 +72,19 @@ export function SettingsEditor({ settings }: { settings: OperationalSettings }) 
           من بيانات الطلبات، مش الإعداد.
         </p>
 
-        <ul className="mt-3 space-y-1 text-xs text-muted">
-          <li>النافذة: آخر {String(settings.notifyDelivery.windowHours)} ساعة</li>
-          <li>طلبات في النافذة: {String(settings.notifyDelivery.recentOrders)}</li>
-          <li>فيهم فشل أو إشعار معلّق: {String(settings.notifyDelivery.failedOrders)}</li>
-        </ul>
+        {settings.notifyDelivery.countsExact ? (
+          <ul className="mt-3 space-y-1 text-xs text-muted">
+            <li>النافذة: آخر {String(settings.notifyDelivery.windowHours)} ساعة</li>
+            <li>طلبات في النافذة: {String(settings.notifyDelivery.recentOrders)}</li>
+            <li>فيهم فشل أو إشعار معلّق: {String(settings.notifyDelivery.failedOrders)}</li>
+          </ul>
+        ) : (
+          <p className="mt-3 text-xs leading-relaxed text-muted">
+            العدّ الدقيق مش متاح دلوقتي، فالأرقام مش معروضة عن قصد. المؤشر فوق
+            <b className="font-semibold text-fg"> مش «سليم» </b>
+            لحد ما العدّ يرجع.
+          </p>
+        )}
 
         {settings.notifyDelivery.state === 'unknown' ? (
           <p className="mt-3 text-xs leading-relaxed text-muted">
