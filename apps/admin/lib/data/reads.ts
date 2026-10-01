@@ -94,7 +94,15 @@ const ORDER_COLUMNS = [
   'updated_at',
 ].join(',')
 
-const CONTENT_KEYS = ['hero', 'order_steps', 'faqs', 'sections', 'footer_links', 'trust_line'] as const
+const CONTENT_KEYS = [
+  'hero',
+  'order_steps',
+  'faqs',
+  'sections',
+  'footer_links',
+  'trust_line',
+  'announcement',
+] as const
 const SHIPPING_KEYS = [
   'shipping_rates',
   'shipping_default_piastres',
@@ -290,7 +298,18 @@ export const supabaseAdminData: AdminDataSource = {
     const rows = await restGet<SettingRow>('settings', 'select=key,value,updated_at&key=' + inFilter(CONTENT_KEYS))
     const map = settingsMap(rows.rows)
 
+    const rawBar = map.get('announcement')
+    const bar = typeof rawBar === 'object' && rawBar !== null && !Array.isArray(rawBar)
+      ? (rawBar as Record<string, unknown>)
+      : {}
+
     return {
+      announcement: {
+        enabled: bar['enabled'] === true,
+        text: typeof bar['text'] === 'string' ? bar['text'] : '',
+        href: typeof bar['href'] === 'string' ? bar['href'] : '',
+        ctaLabel: typeof bar['ctaLabel'] === 'string' ? bar['ctaLabel'] : '',
+      },
       hero: readHero(map),
       orderSteps: readOrderSteps(map),
       faqs: readFaqs(map),
