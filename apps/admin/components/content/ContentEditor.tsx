@@ -230,6 +230,60 @@ export function ContentEditor({ content }: { content: StoreContent }) {
         </ul>
       </Card>
 
+      {/*
+        الشريط العلوي. مفيش زرار إغلاق للزائر في النسخة دي — التحكم من هنا
+        بـ«مفعّل» بس. ونص فاضي بيقفل الشريط مهما كانت قيمة «مفعّل».
+      */}
+      <Card title="الشريط العلوي">
+        <label className="mb-4 flex items-center gap-2 text-sm font-semibold text-fg">
+          <input
+            type="checkbox"
+            checked={draft.announcement.enabled}
+            onChange={(e) =>
+              touch({ ...draft, announcement: { ...draft.announcement, enabled: e.target.checked } })
+            }
+          />
+          مفعّل
+        </label>
+
+        <Field htmlFor="ann-text" label="النص" hint="فاضي = الشريط مقفول حتى لو مفعّل">
+          <input
+            id="ann-text"
+            value={draft.announcement.text}
+            onChange={(e) =>
+              touch({ ...draft, announcement: { ...draft.announcement, text: e.target.value } })
+            }
+            className={inputClasses}
+            placeholder="شحن مجاني للطلبات فوق ٥٠٠ جنيه"
+          />
+        </Field>
+
+        <Field htmlFor="ann-href" label="الرابط (اختياري)" hint="يبدأ بشرطة واحدة للداخلي أو https">
+          <input
+            id="ann-href"
+            value={draft.announcement.href}
+            onChange={(e) =>
+              touch({ ...draft, announcement: { ...draft.announcement, href: e.target.value } })
+            }
+            className={inputClasses}
+            dir="ltr"
+            placeholder="/product/1"
+          />
+        </Field>
+
+        <Field htmlFor="ann-cta" label="نص الزرار (اختياري)" hint="بيظهر جنب النص لما يكون في رابط">
+          <input
+            id="ann-cta"
+            value={draft.announcement.ctaLabel}
+            onChange={(e) =>
+              touch({ ...draft, announcement: { ...draft.announcement, ctaLabel: e.target.value } })
+            }
+            className={inputClasses}
+            placeholder="اعرف أكتر"
+          />
+        </Field>
+      </Card>
+
       <Card title="الفوتر">
         <div className="space-y-3">
           {draft.footerLinks.map((link, index) => {

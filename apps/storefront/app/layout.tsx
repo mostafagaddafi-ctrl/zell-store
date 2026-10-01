@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Cairo } from 'next/font/google'
 import type { ReactNode } from 'react'
+import { AnnouncementBar } from '../components/store/AnnouncementBar'
 import { SiteFooter } from '../components/store/SiteFooter'
 import { SiteHeader } from '../components/store/SiteHeader'
 import { CartProvider } from '../lib/cart'
@@ -40,6 +41,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="ar" dir="rtl" className={cairo.variable}>
       <body className="flex min-h-dvh flex-col bg-bg font-sans text-fg antialiased">
         <CartProvider>
+          {/* فوق الهيدر — settings متاحة هنا أصلاً، فمفيش fetch زيادة */}
+          <AnnouncementBar announcement={settings.announcement} />
           <SiteHeader
             storeName={settings.storeName}
             logo={settings.logo}

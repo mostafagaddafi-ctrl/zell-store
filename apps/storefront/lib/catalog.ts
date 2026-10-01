@@ -113,6 +113,8 @@ export const FALLBACK_SETTINGS: StoreSettings = {
   shippingDefaultPiastres: 8000,
   freeShippingThresholdPiastres: 0,
   governorates: Object.keys(FALLBACK_SHIPPING_RATES),
+  // الكتالوج المؤقت مابيعرضش شريط — الشريط بيانات حقيقية من settings بس
+  announcement: { enabled: false, text: '', href: '', ctaLabel: '' },
 }
 
 /** الأسماء مكتوبة بـ Fallback عن قصد — عشان مكان الاستدعاء يفضح إنها مؤقتة. */

@@ -58,6 +58,16 @@ export type StoreSettings = {
   shippingDefaultPiastres: number
   freeShippingThresholdPiastres: number
   governorates: string[]
+  announcement: Announcement
+}
+
+/** شريط الإعلان العلوي — مفتاح settings واحد (0008). */
+export type Announcement = {
+  enabled: boolean
+  text: string
+  /** داخلي يبدأ بـ/ أو https:// — وأي حاجة غير كده بتتحوّل لفاضي. */
+  href: string
+  ctaLabel: string
 }
 
 export type CartLine = {

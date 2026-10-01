@@ -47,3 +47,21 @@ export function validateCheckout(values: CheckoutValues, governorates: string[])
 export function hasErrors(errors: CheckoutErrors): boolean {
   return Object.keys(errors).length > 0
 }
+
+/**
+ * رابط الشريط — **مشترك بين اللوحة والمتجر عن قصد**.
+ *
+ * بيتفلتر في المكانين: اللوحة عند الحفظ، والمتجر عند العرض. المتجر
+ * مابيثقش في الداتابيز، لأن الصف ممكن يتعدّل من أي مكان تاني.
+ *
+ * المسموح: مسار داخلي يبدأ بـ/ ، أو https:// . أي حاجة غير كده → ''.
+ * javascript: و data: و http: كلهم بيتحوّلوا لفاضي.
+ */
+export function sanitizeAnnouncementHref(raw: string): string {
+  const value = raw.trim()
+  if (value === '') return ''
+  if (value.startsWith('//')) return ''
+  if (value.startsWith('/')) return value
+  if (value.toLowerCase().startsWith('https://')) return value
+  return ''
+}

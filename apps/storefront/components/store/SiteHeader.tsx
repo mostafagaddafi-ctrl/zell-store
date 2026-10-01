@@ -1,16 +1,20 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { MessageCircle, ShoppingBag } from 'lucide-react'
 import type { StoreImage } from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { Container } from '../ui/Container'
-import { ImageSlot } from '../ui/ImageSlot'
 import { Num } from './Num'
 
 /**
  * اللوجو بيتقرا من site_images (kind = 'logo' and is_active = true).
- * الملف الأصلي مربع 1024×1024، فبيتعرض في خانة مربعة بـ contain.
+ *
+ * ⚠️ الخانة **مش مربعة ثابتة**: ارتفاع ثابت وعرض حر بحد أقصى. الخانة
+ *    المربعة القديمة (44×44) كانت بتحشر أي لوجو أفقي في مربع فيطلع صغير
+ *    جدًا. دلوقتي المربع يفضل مربع (40×40) والأفقي ياخد عرضه لحد 160،
+ *    و object-contain بيمنع أي تشويه في الحالتين.
  * لو مفيش لوجو نشط: اسم المتجر كنص عادي — احتياطي مش wordmark مصمّم.
  */
 export function SiteHeader({
@@ -34,15 +38,13 @@ export function SiteHeader({
       <Container className="flex h-16 items-center justify-between gap-4">
         <Link href="/" aria-label={storeName} className="flex shrink-0 items-center">
           {logo ? (
-            <ImageSlot
-              ratio="1/1"
-              fit="contain"
+            <Image
               src={logo.url}
               alt={logo.alt || storeName}
-              sizes="44px"
+              width={160}
+              height={40}
               priority
-              className="h-11 w-11 bg-transparent"
-              imageClassName="p-0"
+              className="h-10 w-auto max-w-[160px] object-contain"
             />
           ) : (
             <span className="text-base font-semibold text-brand">{storeName}</span>

@@ -136,6 +136,7 @@ export type StoreContent = {
    * ما يكتب من غير تحقق.
    */
   updatedAt: string
+  announcement: Announcement
 }
 
 // ── الشحن والهوية والتشغيل ───────────────────────────────────
@@ -166,6 +167,13 @@ export type StoreIdentity = {
  * تلات حالات مش اتنين. `unknown` ضرورية: «مش عارفين» **مش** نفس «سليم» ولا
  * «فيه مشكلة»، وخلطها بأي واحدة فيهم بيدّي مؤشر كذّاب.
  */
+export type Announcement = {
+  enabled: boolean
+  text: string
+  href: string
+  ctaLabel: string
+}
+
 export type ReadinessState = 'ok' | 'warn' | 'unknown'
 
 export type ReadinessCheck = {

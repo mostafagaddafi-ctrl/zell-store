@@ -37,6 +37,7 @@ export async function saveContent(input: ContentInput, rawStamp: unknown): Promi
       p_sections: payload.sections,
       p_footer_links: payload.footerLinks,
       p_trust_line: payload.trustLine,
+      p_announcement: payload.announcement,
     })
 
     if (changedAt === null) return { ok: false, code: 'CONFLICT', message: CONFLICT_MESSAGE }
