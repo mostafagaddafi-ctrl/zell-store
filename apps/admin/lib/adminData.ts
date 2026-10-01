@@ -188,8 +188,17 @@ export type NotifyDeliveryHealth = {
   state: ReadinessState
   /** طول النافذة بالساعات — موثّق في reads.ts مع مصدر الرقم. */
   windowHours: number
+  /**
+   * أعداد **دقيقة** من هيدر Content-Range، مش طول مصفوفة.
+   * ⚠️ لو countsExact = false الأرقام دي مش موثوقة وممنوع تتعرض كحقيقة.
+   */
   recentOrders: number
   failedOrders: number
+  /**
+   * هل العدّ الدقيق وصل فعلاً؟ `false` = fail-closed: الحالة بتبقى `unknown`
+   * وممنوع تبقى `ok` مهما كانت الأرقام.
+   */
+  countsExact: boolean
 }
 
 export type OperationalSettings = {
