@@ -66,6 +66,21 @@ export type StoreSettings = {
   announcement: Announcement
 }
 
+/**
+ * مجموعة منتجات (0010).
+ *
+ * productIds مرتّبة بـ sort_order من جدول الربط. المنتجات نفسها
+ * **مش** متضمّنة: الصفحة بتوصّلها من قائمة المنتجات اللي عندها أصلاً،
+ * فمفيش تكرار للبيانات ولا طلب زيادة.
+ */
+export type StoreCollection = {
+  id: number
+  slug: string
+  title: string
+  subtitle: string
+  productIds: number[]
+}
+
 /** شريط الإعلان العلوي — مفتاح settings واحد (0008). */
 export type Announcement = {
   enabled: boolean
