@@ -51,8 +51,8 @@
 
 > ### ✅ حالة التنفيذ — مُحدَّثة
 >
-> `0006a_order_columns.sql` و`0006b_order_functions.sql` **اتنفّذوا على Supabase
-> Production** بتاريخ 2026-10-01 **واتختبروا بنجاح**.
+> `0006a_order_columns.sql` و`0006b_order_functions.sql` و`0006c_order_receipt_expiry.sql`
+> **اتنفّذوا كلهم على Supabase Production** بتاريخ 2026-10-01 **واتختبروا بنجاح**.
 >
 > متحقَّق منه مباشرةً من المحرّك **قراءة فقط**:
 >
@@ -992,7 +992,7 @@ Vercel Hobby بدون Redis/KV كل نسخة دالة منفصلة، فالعد�
 
 | الجزء | الحالة |
 |---|---|
-| `0006c_order_receipt_expiry.sql` | **مكتوبة للمراجعة — لم تُنفّذ على أي محرّك** |
+| `0006c_order_receipt_expiry.sql` | ✅ **مُنفّذة على Production** (2026-10-01) ومختبرة |
 | `CreateOrderResult.receipt_expires_at` | مضاف ومتحقَّق منه في الراوت |
 | حساب `Max-Age` | `min(604800, max(0, floor(receipt_expires_at - now)))` |
 | قيمة غير قابلة للتحليل | عقد `INTERNAL` الثابت، ومفيش كوكي |
@@ -1004,10 +1004,23 @@ Vercel Hobby بدون Redis/KV كل نسخة دالة منفصلة، فالعد�
 فالعقد يفضل ناجح من غير كوكي، وصفحة الإيصال بتقول «غير متاح» وهي الحقيقة.
 لو احتجنا تمييز للعميل بعدين، ده بيستلزم كود جديد في جدول §1.3.
 
-🔴 **شرط قبل تفعيل `ORDERS_ENABLED`:** `0006c` لازم تتنفّذ **قبل** نشر الراوت
-الجديد. الراوت بيتوقّع `receipt_expires_at` في الإسقاط، ومن غيرها
-`isCreateOrderResult` بترفض والرد يبقى `INTERNAL` — يعني **كل** الطلبات تفشل.
-الكود والداتابيز لازم يتزامنوا.
+✅ **الشرط اتحقق.** `0006c` اتنفّذت على Production **قبل** نشر الراوت، فالكود
+والداتابيز متزامنين. متحقَّق منه قراءة فقط:
+
+| الفحص | النتيجة |
+|---|---|
+| الإسقاط بيذكر `receipt_expires_at` | أيوه |
+| `update` الـreplay بيلمس `receipt_expires_at` | **لأ** — مفيش تمديد |
+| القيمة في الإنشاء vs الـreplay | **نفس القيمة حرفياً** `2026-10-08T13:16:52.500255+00:00` |
+| `provolatile` | `v` (VOLATILE) — اعتمادية §3.4 سليمة |
+| `prosecdef` · `search_path` | `true` · `""` |
+| المالك | `postgres` = مالك `orders` |
+| `execute` | `service_role` و`zell_order_writer` بس · `PUBLIC`/`anon`/`authenticated` **صفر** |
+| بيانات الاختبار | محذوفة — `orders = 0` و`order_items = 0` |
+
+وكمان اتحقق إن **ربط أخطاء PostgREST صح**: مسار المحافظة غير المتاحة وصل
+بالاسم `ZELL_GOVERNORATE_NOT_SERVED` زي ما `codeFromSqlError` متوقّع — وده كان
+أخطر افتراض غير متحقَّق منه في طبقة التطبيق.
 
 ### 6.5 صفحة الإيصال
 
