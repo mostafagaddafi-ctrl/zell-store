@@ -30,6 +30,45 @@ export const metadata = {
 // توقيت ثابت مناسب للزبون — مش توقيت السيرفر (UTC على Vercel).
 const TIME_ZONE = 'Africa/Cairo'
 
+function isFiniteInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value)
+}
+
+/**
+ * حارس كامل لشكل إسقاط الإيصال.
+ *
+ * ⚠️ لازم يعدّي **قبل** أي عرض: أي شكل غير متوقع لو وصل الـrender بيرمي جوه
+ *    الـrender (مثلاً items.map على حاجة مش مصفوفة) فيطلع صفحة خطأ من Next —
+ *    وده بيكسر قاعدة «حالة غير متاح واحدة لكل الأسباب» ويكشف إن في حاجة
+ *    مختلفة حصلت. الشكل مضمون من دالة منشورة، والحارس ده للانحراف المستقبلي.
+ */
+function isReceipt(value: unknown): value is Receipt {
+  if (typeof value !== 'object' || value === null) return false
+  const candidate = value as Record<string, unknown>
+
+  if (typeof candidate['order_number'] !== 'string') return false
+  if (typeof candidate['created_at'] !== 'string') return false
+  if (typeof candidate['governorate'] !== 'string') return false
+  if (typeof candidate['first_name'] !== 'string') return false
+  if (typeof candidate['phone_last4'] !== 'string') return false
+  if (!isFiniteInteger(candidate['subtotal_piastres'])) return false
+  if (!isFiniteInteger(candidate['shipping_piastres'])) return false
+  if (!isFiniteInteger(candidate['total_piastres'])) return false
+
+  const items = candidate['items']
+  if (!Array.isArray(items)) return false
+  for (const entry of items) {
+    if (typeof entry !== 'object' || entry === null) return false
+    const item = entry as Record<string, unknown>
+    if (typeof item['product_name_ar'] !== 'string') return false
+    if (!isFiniteInteger(item['length_cm'])) return false
+    if (!isFiniteInteger(item['width_cm'])) return false
+    if (!isFiniteInteger(item['line_total_piastres'])) return false
+  }
+
+  return true
+}
+
 function Unavailable() {
   return (
     <Container className="py-16">
@@ -84,7 +123,11 @@ export default async function OrderReceiptPage({
     console.error('[receipt] lookup failed :: ' + result.sqlMessage)
     return <Unavailable />
   }
-  if (result.data === null || typeof result.data !== 'object') return <Unavailable />
+  if (!isReceipt(result.data)) {
+    // null = مش موجود / رمز غلط / النافذة خلصت — ومفيش تمييز بينهم عن قصد.
+    if (result.data !== null) console.error('[receipt] unexpected projection shape')
+    return <Unavailable />
+  }
 
   const receipt = result.data
 
