@@ -86,4 +86,4 @@ STOREFRONT_DATA_SOURCE=supabase    # Vercel بعد ضبط المتغيرات
 | `lib/data/queries.ts` | الأربع استعلامات والتجميع |
 | `lib/data/mappers.ts` | تحويل خالص، من غير شبكة |
 | `lib/data/source.ts` | اختيار المصدر |
-| `lib/catalog.ts` | الكتالوج المؤقت — بيتحذف بعد التبديل |
+| `lib/catalog.ts` | fallback للـ CI والتطوير المحلي — **بيفضل عن قصد**، مش مؤقت |

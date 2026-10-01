@@ -115,7 +115,8 @@ HttpOnly و Secure و SameSite=Lax و Path=/. المتصفح مايشوفش ال
 
     requireAdminAction()  ->  UNAUTHENTICATED | FORBIDDEN
     guardMutations()      ->  DISABLED
-    التنفيذ                ->  لسه ما اتعملش
+    تحقق المدخلات          ->  VALIDATION
+    الكتابة
 
 العكس كان هيقول لمجهول "التعديلات موقوفة"، وده تسريب معلومة عن
 حالة النظام لحد مش مفروض يعرف حاجة أصلًا.
