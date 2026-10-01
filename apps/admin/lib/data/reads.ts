@@ -340,15 +340,37 @@ export const supabaseAdminData: AdminDataSource = {
   async getOperationalSettings(): Promise<OperationalSettings> {
     const since = new Date(Date.now() - NOTIFY_WINDOW_HOURS * 60 * 60 * 1000).toISOString()
 
-    const [rows, products, images, shipping, recent] = await Promise.all([
+    const [rows, products, images, shipping, recentAll, recentFailed] = await Promise.all([
       restGet<SettingRow>('settings', 'select=key,value&key=' + inFilter(OPERATIONAL_KEYS)),
       restGet<{ id: number; is_active: boolean }>('products', 'select=id,is_active&order=id.asc'),
       restGet<{ product_id: number }>('product_images', 'select=product_id&kind=eq.gallery'),
       restGet<SettingRow>('settings', 'select=key,value&key=' + inFilter(SHIPPING_KEYS)),
-      // notify_error بس — مفيش أي بيانات عميل في الاستعلام ده
-      restGet<{ notify_error: string | null }>(
+      /**
+       * ⚠️ عدّ **دقيق ومحدود**، مش سحب صفوف وعدّها في التطبيق (ب٢٠).
+       *
+       * PostgREST/Supabase بيحدّدوا أقصى عدد صفوف للرد (شائع ١٠٠٠). لو
+       * الطلبات الحديثة عدّت الحد، `rows.length` بيبقى ناقص — **والأخطر** إن
+       * أخطاء موجودة بره الصفحة الأولى ما بتتشافش والمؤشر يطلع `ok` كذب.
+       *
+       * الحل: `limit=1` + `count=exact`، والعدّ بييجي من هيدر Content-Range
+       * (`result.total`) مش من طول المصفوفة. صف واحد بيرجع، والعدّ دقيق.
+       *
+       * `select=id` عن قصد: مفتاح صناعي، **مفيش أي بيانات عميل** في الرد.
+       */
+      restGet<{ id: number }>(
         'orders',
-        'select=notify_error&created_at=gte.' + encodeURIComponent(since),
+        'select=id&limit=1&created_at=gte.' + encodeURIComponent(since),
+        { exactCount: true },
+      ),
+      /**
+       * `notify_error=not.is.null` بيغطي **كل** قيمة غير null — فالفشل الحقيقي
+       * و`NOTIFY_IN_PROGRESS` (حجز اتعلّق) داخلين **تلقائياً**، من غير أي قايمة
+       * أكواد لازم تتحدّث كل مرة يضاف كود جديد.
+       */
+      restGet<{ id: number }>(
+        'orders',
+        'select=id&limit=1&notify_error=not.is.null&created_at=gte.' + encodeURIComponent(since),
+        { exactCount: true },
       ),
     ])
 
@@ -366,14 +388,30 @@ export const supabaseAdminData: AdminDataSource = {
      *    على إن الإشعار شغّال. الادعاء بالسليم هنا هو بالظبط الكذب اللي
      *    المؤشر القديم كان بيعمله.
      */
-    const recentOrders = recent.rows.length
-    const failedOrders = recent.rows.filter((row) => (row.notify_error ?? '').trim() !== '').length
+    /**
+     * الأعداد من `total` (هيدر Content-Range) **مش** من `rows.length`.
+     *
+     * fail-closed: لو أي عدّ رجع null (الهيدر ناقص أو مش مفهوم)، الحالة بتبقى
+     * `unknown` و**ممنوع** تبقى `ok`. مؤشر صامت أخطر من مؤشر بيقول «مش عارف».
+     */
+    const recentTotal = recentAll.total
+    const failedTotal = recentFailed.total
+    const countsExact = recentTotal !== null && failedTotal !== null
 
-    const notifyState: ReadinessState =
-      recentOrders === 0 ? 'unknown' : failedOrders > 0 ? 'warn' : 'ok'
+    const recentOrders = recentTotal ?? 0
+    const failedOrders = failedTotal ?? 0
 
-    const notifyDetail =
-      recentOrders === 0
+    const notifyState: ReadinessState = !countsExact
+      ? 'unknown'
+      : recentOrders === 0
+        ? 'unknown'
+        : failedOrders > 0
+          ? 'warn'
+          : 'ok'
+
+    const notifyDetail = !countsExact
+      ? 'ما قدرناش نجيب عدّ دقيق للطلبات — المؤشر مش موثوق دلوقتي'
+      : recentOrders === 0
         ? 'مفيش طلبات في آخر ' + String(NOTIFY_WINDOW_HOURS) + ' ساعة — صحة التسليم لسه ما اتأكدتش'
         : failedOrders > 0
           ? String(failedOrders) + ' من ' + String(recentOrders) + ' طلب فيهم فشل إشعار أو إشعار معلّق'
@@ -454,6 +492,7 @@ export const supabaseAdminData: AdminDataSource = {
         windowHours: NOTIFY_WINDOW_HOURS,
         recentOrders,
         failedOrders,
+        countsExact,
       },
       readiness,
     }
