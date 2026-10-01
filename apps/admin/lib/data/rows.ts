@@ -2,6 +2,7 @@ import 'server-only'
 
 import { publicImageUrl } from '@zell/core'
 import type {
+  AdminCollection,
   AdminImage,
   AdminOrder,
   AdminOrderItem,
@@ -58,6 +59,24 @@ export type SiteImageRow = {
   width_px: number | null
   height_px: number | null
   updated_at: string
+}
+
+/** صف public.collections — id بيترجع نص لأنه bigint. */
+export type CollectionRow = {
+  id: string
+  slug: string
+  title_ar: string
+  subtitle_ar: string | null
+  is_visible: boolean
+  sort_order: number
+  updated_at: string
+}
+
+/** صف public.product_collections */
+export type ProductCollectionRow = {
+  collection_id: string
+  product_id: number
+  sort_order: number
 }
 
 export type OrderRow = {
@@ -167,6 +186,19 @@ export function toAdminSiteImage(
 /** اسم محفوظ للتوافق. */
 export function toAdminLogo(row: SiteImageRow, supabaseUrl: string, storeName: string): AdminImage {
   return toAdminSiteImage(row, supabaseUrl, storeName, 'contain')
+}
+
+export function toAdminCollection(row: CollectionRow, productCount: number): AdminCollection {
+  return {
+    id: String(row.id),
+    slug: row.slug,
+    title: row.title_ar,
+    subtitle: row.subtitle_ar ?? '',
+    isVisible: row.is_visible,
+    sortOrder: row.sort_order,
+    productCount,
+    updatedAt: row.updated_at,
+  }
 }
 
 export function toAdminOrder(row: OrderRow, itemCount: number): AdminOrder {
