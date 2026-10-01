@@ -43,6 +43,18 @@
 --    • gen_random_uuid موجودة في pg_catalog في PG13+ (ومكرّرة في extensions).
 --      بنستخدم pg_catalog عن قصد عشان ما نعتمدش على schema الإضافات.
 --
+--  ⚠ اعتمادية مستوى العزل — **إلزامية** (ب١٤):
+--    zell_create_order لازم تفضل **VOLATILE** (الافتراضي — مفيش marker)،
+--    والنداء لازم يكون تحت **READ COMMITTED** (افتراضي بوستجريس).
+--    السبب: حسم الـidempotency في (د) بيعتمد إنه يشوف صف اتعمل له commit
+--    بعد ما القفل في (ج) اتحرر. وده بيشتغل لأن كل عبارة جوه دالة VOLATILE
+--    تحت READ COMMITTED بتاخد snapshot جديد.
+--    • تحويلها لـSTABLE **ممنوع**: بتاخد snapshot النداء، فالـreplay ما
+--      بيتحسمش أبداً وكل إعادة إرسال بتبقى ZELL_CONCURRENT_SUBMIT.
+--    • تحت REPEATABLE READ أو SERIALIZABLE: (د) ما بتشوفش الصف، فالمسار
+--      بينزل على on conflict → صفر صفوف → ZELL_CONCURRENT_SUBMIT
+--      (retryable). تدهور آمن — مفيش فساد بيانات — بس مش السلوك المقصود.
+--
 --  ⚠ اعتمادية موثّقة (متحقَّق منها على Production):
 --    order_items عليها CHECK بـ unit_price_piastres > 0 و width_cm > 0.
 --    القيود دي مستحيل تتخرق من إعداد منتج، لأن products عليها
@@ -297,6 +309,12 @@ begin
   ------------------------------------------------------------------
   -- (ز) نافذة الموبايل — **مُتغيّرة، ومحمية بالقفل من (ج)**
   --     بتعدّ الطلبات المكتملة، فالتراجع ما يأثّرش عليها.
+  --
+  --     ⚠ **مفيش فلتر على status عن قصد** — الطلبات الملغية ('cancelled')
+  --       **بتتحسب** في الحد. القرار المعتمد: الحد حماية من الإساءة، ولو
+  --       الإلغاء بيصفّر العدّاد يبقى أي مهاجم يقدر يلف عليه. الأثر المقبول:
+  --       زبون اتلغى له ٥ طلبات بالغلط بيستنى أقدم واحد يخرج من النافذة.
+  --       ممنوع تغيير ده بصمت — أي تعديل يعدّل السطر ده و§5.2 في الخطة.
   ------------------------------------------------------------------
   select pg_catalog.count(*)::integer into v_phone_count
   from public.orders o
@@ -391,7 +409,7 @@ begin
         -- حارس نطاق int4 (ب١٣-٣): المقارنة على numeric، فمفيش overflow
         -- وقت الفحص نفسه. لو اتخرق، صفر صفوف، و(ط) بترجّع الكود الدقيق.
           and s.subtotal >= 0
-          and (s.subtotal + s.shipping) <= 2147483647
+          and (s.subtotal + s.shipping) <= c_int4_max
         on conflict (idempotency_key) where idempotency_key is not null do nothing
         returning id, order_number, subtotal_piastres, shipping_piastres, total_piastres
       ),
@@ -473,7 +491,7 @@ begin
   --        **ورقم موبايل مختلف** (قفل مختلف، فما استنتهاش). حالة عدائية
   --        بالأساس. إعادة المحاولة هتمر على (د) وهتتعامل معاها صح وبأمان
   --        (فحص request_hash والجلسة)، فالكود هنا retryable عن قصد.
-  raise exception 'ZELL_CONCURRENT' using errcode = '45060';
+  raise exception 'ZELL_CONCURRENT_SUBMIT' using errcode = '45060';
 end;
 $create_order$;
 
@@ -550,6 +568,26 @@ begin
     ));
 end;
 $get_receipt$;
+
+-- ---------------------------------------------------------------------
+-- (3.5) الأدوار المطلوبة لازم تكون موجودة — فشل واضح جوه المعاملة (ب١٤)
+--
+--  revoke/grant على دور مش موجود بيرمي خطأ محرّك عام. الفحص ده بيحوّله
+--  لرسالة صريحة، وجوه begin/commit فالتراجع كامل وبدون أي أثر.
+-- ---------------------------------------------------------------------
+do $roles_exist$
+declare
+  v_missing text;
+begin
+  select pg_catalog.string_agg(r.name, ', ' order by r.name) into v_missing
+  from (values ('anon'), ('authenticated'), ('service_role')) as r(name)
+  where not exists (select 1 from pg_catalog.pg_roles g where g.rolname = r.name);
+
+  if v_missing is not null then
+    raise exception 'ZELL_MIGRATION_0006B_MISSING_ROLE: %', v_missing;
+  end if;
+end
+$roles_exist$;
 
 -- ---------------------------------------------------------------------
 -- (4) الصلاحيات — PUBLIC أولاً (بيتمنح تلقائياً من المحرّك)
@@ -631,6 +669,59 @@ begin
              where rolname = 'zell_order_writer' and (rolbypassrls or rolcanlogin)) then
     raise exception 'ZELL_MIGRATION_0006B_ROLE_ATTRS';
   end if;
+
+  -- (5-هـ) FORCE ROW LEVEL SECURITY مقفولة على كل جدول الدالتين بيلمسوه (ب١٤).
+  --        نموذج الأمان كله قايم على إن مالك الجدول بيتخطى RLS، وده صحيح
+  --        **بس** لما relforcerowsecurity = false. من غير التأكيد ده، تفعيل
+  --        العلم لاحقاً بيفضّي الدالتين **بصمت** والـmigration مش هتشتكي.
+  select pg_catalog.count(*)::text into v_bad
+  from pg_catalog.pg_class c
+  join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public'
+    and c.relkind = 'r'
+    and c.relname in ('orders', 'order_items', 'products', 'settings');
+  if v_bad <> '4' then
+    raise exception 'ZELL_MIGRATION_0006B_TABLES: expected 4, found %', v_bad;
+  end if;
+
+  select pg_catalog.string_agg(c.relname, ', ' order by c.relname) into v_bad
+  from pg_catalog.pg_class c
+  join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public'
+    and c.relname in ('orders', 'order_items', 'products', 'settings')
+    and c.relforcerowsecurity;
+  if v_bad is not null then
+    raise exception 'ZELL_MIGRATION_0006B_FORCE_RLS: %', v_bad;
+  end if;
+
+  -- (5-و) PUBLIC و anon و authenticated **ماعندهمش** execute على الدالتين (ب١٤).
+  --        proacl = null معناها «الصلاحيات الافتراضية»، والافتراضي للدوال هو
+  --        execute لـPUBLIC — فالـnull لازم تبقى **فشل**، مش نجاح.
+  --        grantee = 0 في aclexplode هو الدور الوهمي PUBLIC.
+  select pg_catalog.string_agg(p.proname, ', ' order by p.proname) into v_bad
+  from pg_catalog.pg_proc p
+  join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and p.proname in ('zell_create_order', 'zell_get_order_receipt')
+    and (p.proacl is null
+      or exists (select 1 from pg_catalog.aclexplode(p.proacl) ae
+                 where ae.grantee = 0 and ae.privilege_type = 'EXECUTE'));
+  if v_bad is not null then
+    raise exception 'ZELL_MIGRATION_0006B_PUBLIC_EXECUTE: %', v_bad;
+  end if;
+
+  if pg_catalog.has_function_privilege('anon',
+       'public.zell_create_order(jsonb, text, text, text, text, text, text, text, text, text)',
+       'execute')
+     or pg_catalog.has_function_privilege('anon',
+       'public.zell_get_order_receipt(text, text)', 'execute')
+     or pg_catalog.has_function_privilege('authenticated',
+       'public.zell_create_order(jsonb, text, text, text, text, text, text, text, text, text)',
+       'execute')
+     or pg_catalog.has_function_privilege('authenticated',
+       'public.zell_get_order_receipt(text, text)', 'execute') then
+    raise exception 'ZELL_MIGRATION_0006B_ANON_EXECUTE';
+  end if;
 end
 $verify$;
 
@@ -648,7 +739,11 @@ commit;
 --  45026 ZELL_NOTES_TOO_LONG            45027 ZELL_PRICE_OUT_OF_RANGE
 --  45030 ZELL_SETTINGS_MISSING          45031 ZELL_GOVERNORATE_NOT_SERVED
 --  45040 ZELL_ITEM_UNAVAILABLE          45041 ZELL_PHONE_DAILY_LIMIT
---  45050 ZELL_ORDER_NUMBER_EXHAUSTED    45060 ZELL_CONCURRENT
+--  45050 ZELL_ORDER_NUMBER_EXHAUSTED    45060 ZELL_CONCURRENT_SUBMIT
+--
+--  ⚠ 45004 · 45005 · 45006 أكواد **داخلية**: التلات هاشات بيحسبهم الباك إند
+--    نفسه ومش جايين من الـbody، فظهور أي واحد منهم = باگ في الباك إند.
+--    بيتحوّلوا كلهم لرد INTERNAL ثابت بدون أي تفصيلة للعميل (الخطة §1.3).
 --
 -- =====================================================================
 -- التراجع (للمرجع — مش بيتنفّذ تلقائياً)
