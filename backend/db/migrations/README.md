@@ -16,10 +16,13 @@
 | `0005c_create_order_function.sql` | **مسودة — لم تُنفّذ** | `create_order` بـ `search_path = ''`، تحقق JSON آمن، إعادة محاولة عند تصادم الرقم |
 | `0005_role_model.md` | ملاحظات | نموذج الأدوار وحدود حماية `zell_definer` |
 | `0006_site_images.sql` | **مقترحة — لم تُنفّذ** | `site_images` (logo/gallery/material) + `storage_orphans` + قيود الترتيب والتفرّد |
-| `0006a_order_columns.sql` | **مسودة — لم تُنفّذ** | أعمدة الطلب الستة (idempotency · الجلسة · الإيصال) + الفهرس الفريد الجزئي + تحقق ذاتي |
-| `0006b_order_functions.sql` | **مسودة — لم تُنفّذ** | `zell_order_writer` (صفر صلاحيات جداول) + `zell_create_order` + `zell_get_order_receipt` + تحقق ذاتي |
+| `0006a_order_columns.sql` | **مطبّقة على production** بتاريخ 2026-10-01 | أعمدة الطلب الستة (idempotency · الجلسة · الإيصال) + الفهرس الفريد الجزئي + تحقق ذاتي |
+| `0006b_order_functions.sql` | **مطبّقة على production** بتاريخ 2026-10-01 | `zell_order_writer` (صفر صلاحيات جداول) + `zell_create_order` + `zell_get_order_receipt` + تحقق ذاتي |
 
 > ترتيب ملزم: **0004 ← 0005a ← 0005b ← 0005c**.
+>
+> ✅ **0006a و0006b اتنفّذوا على Production بتاريخ 2026-10-01 واتختبروا بنجاح.**
+> التحقق الذاتي في الاتنين عدّى، وبيانات الاختبار اتحذفت (`orders = 0`).
 >
 > **ترتيب ملزم لمسار الطلب: 0006a ← 0006b.** و`0005a/0005b/0005c` **مرفوضة للتنفيذ**
 > واستُبدلت بالاتنين دول (الخطة §2.1). و`0006_site_images.sql` ميزة **مستقلة تماماً** —
