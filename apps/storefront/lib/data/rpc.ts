@@ -89,3 +89,85 @@ export async function restRpc<T>(fn: string, args: Record<string, unknown>): Pro
 
   return { ok: true, data: payload as T }
 }
+
+/**
+ * قراءة PostgREST بمفتاح الخدمة، **بدون كاش**.
+ *
+ * مستخدمة في مسار الإشعار بس — لازم تشوف الصف اللي لسه اتعمله commit.
+ */
+export async function restSelect<T>(table: string, query: string): Promise<RpcResult<T[]>> {
+  const { url, key } = readCredentials()
+
+  let response: Response
+  try {
+    response = await fetch(url + '/rest/v1/' + table + '?' + query, {
+      method: 'GET',
+      headers: { apikey: key, Authorization: 'Bearer ' + key, Accept: 'application/json' },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+  } catch (error) {
+    return { ok: false, status: 0, sqlMessage: 'فشل قراءة ' + table + ': ' + describeFailure(error) }
+  }
+
+  if (!response.ok) {
+    return { ok: false, status: response.status, sqlMessage: 'قراءة ' + table + ' رجّعت ' + String(response.status) }
+  }
+
+  const payload: unknown = await response.json().catch(() => null)
+  if (!Array.isArray(payload)) {
+    return { ok: false, status: response.status, sqlMessage: 'قراءة ' + table + ' رجّعت شكل غير متوقع' }
+  }
+  return { ok: true, data: payload as T[] }
+}
+
+/**
+ * تعديل PostgREST بمفتاح الخدمة.
+ *
+ * ⚠️ ده **خارج** سطح الدالتين عن قصد وموثّق في §7.5: تسجيل الإشعار
+ *    (`notified_at` / `notify_error`) كتابة على `orders`، و`zell_order_writer`
+ *    **مالوش `update`** — فبتتم بمفتاح الباك إند.
+ *
+ * 🔴 ممنوع أي نداء هنا يلمس `receipt_expires_at` (ب١٠). النافذة بتتكتب مرة
+ *    واحدة في `zell_create_order` وما بتتمدّش من أي مسار تاني.
+ */
+export async function restPatch(
+  table: string,
+  query: string,
+  patch: Record<string, unknown>,
+): Promise<RpcResult<unknown[]>> {
+  const { url, key } = readCredentials()
+
+  let response: Response
+  try {
+    response = await fetch(url + '/rest/v1/' + table + '?' + query, {
+      method: 'PATCH',
+      headers: {
+        apikey: key,
+        Authorization: 'Bearer ' + key,
+        'Content-Type': 'application/json',
+        // representation عشان نعرف **عدد الصفوف المتأثرة** — ده أساس الحجز الذرّي.
+        // ⚠️ الهيدر ده **إلزامي**: من غيره PostgREST بيرجّع body فاضي، فـ
+        //    response.json() بترجع null و restPatch بترجع ok:false رغم نجاح
+        //    التحديث — والحجز الذرّي بيتبطّل بالكامل.
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(patch),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+  } catch (error) {
+    return { ok: false, status: 0, sqlMessage: 'فشل تعديل ' + table + ': ' + describeFailure(error) }
+  }
+
+  if (!response.ok) {
+    return { ok: false, status: response.status, sqlMessage: 'تعديل ' + table + ' رجّع ' + String(response.status) }
+  }
+
+  const payload: unknown = await response.json().catch(() => null)
+  if (!Array.isArray(payload)) {
+    // نجح التعديل بس مش عارفين كام صف — المنادي لازم يتعامل مع الغموض ده صريح
+    return { ok: false, status: response.status, sqlMessage: 'تعديل ' + table + ' رجّع شكل غير متوقع' }
+  }
+  return { ok: true, data: payload }
+}
