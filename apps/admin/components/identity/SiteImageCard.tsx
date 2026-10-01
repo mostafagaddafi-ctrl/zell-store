@@ -104,7 +104,7 @@ export function SiteImageCard({
               </p>
             ) : null}
             {squareWarning ? (
-              <p className="text-xs font-semibold text-warn">
+              <p className="text-xs font-semibold text-danger">
                 الملف الحالي قريب من المربع، فالشعار بيبان صغير في الهيدر. ارفع نسخة أفقية مقصوصة.
               </p>
             ) : null}
