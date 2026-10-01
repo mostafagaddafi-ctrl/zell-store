@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { AnnouncementBar } from '../components/store/AnnouncementBar'
 import { SiteFooter } from '../components/store/SiteFooter'
 import { SiteHeader } from '../components/store/SiteHeader'
+import { WhatsAppFab } from '../components/store/WhatsAppFab'
 import { CartProvider } from '../lib/cart'
 import { getStorefrontData } from '../lib/data/source'
 import './globals.css'
@@ -35,7 +36,7 @@ export const viewport: Viewport = {
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const { settings } = await getStorefrontData()
+  const { settings, collections } = await getStorefrontData()
 
   return (
     <html lang="ar" dir="rtl" className={cairo.variable}>
@@ -46,10 +47,17 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <SiteHeader
             storeName={settings.storeName}
             logo={settings.logo}
+            collections={collections}
             whatsappNumber={settings.whatsappNumber}
             whatsappMessage={settings.whatsappMessage}
           />
-          <div className="flex-1">{children}</div>
+          {/*
+            ⚠️ الحشو السفلي على الموبايل مش تزيين: الزرار العائم fixed،
+               فمن غير الحشو ده بيقعد فوق آخر عنصر في الصفحة. على
+               الديسكتوب الزرار مخفي فالحشو بيتشال.
+          */}
+          <div className="flex-1 pb-20 md:pb-0">{children}</div>
+          <WhatsAppFab number={settings.whatsappNumber} message={settings.whatsappMessage} />
           <SiteFooter
             storeName={settings.storeName}
             whatsappNumber={settings.whatsappNumber}
