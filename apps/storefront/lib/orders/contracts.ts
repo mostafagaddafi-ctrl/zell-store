@@ -47,6 +47,11 @@ export type CreateOrderResult = {
   subtotal_piastres: number
   shipping_piastres: number
   total_piastres: number
+  /**
+   * بيتكتب مرة واحدة عند الإنشاء و**ما بيتمدّش** — لا على replay ولا غيره.
+   * الراوت بيحسب منه Max-Age المتبقي للكوكي (§6.4ب). مضاف في 0006c.
+   */
+  receipt_expires_at: string
 }
 
 /** إسقاط الإيصال المقنّع — zell_get_order_receipt. */
