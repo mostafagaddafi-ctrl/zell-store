@@ -4,6 +4,9 @@
 --  الحالة: مسودة للمراجعة — **لم تُنفّذ على Production**
 --  الخطة:  docs/plans/ORDER-FLOW-PLAN.md §2.2
 --  الترتيب: 0006a ثم 0006b. ممنوع تنفيذ 0006b قبل ده.
+--  ⚠ الترقيم مش تسلسل: 0006_site_images.sql ميزة مختلفة تماماً (مسودة لم
+--    تُنفّذ) و**مش** شرط مسبق ولا لاحق للملفين دول. تشابه الرقم تنظيمي بحت،
+--    واتقرر عدم إعادة الترقيم دلوقتي. الشرط المسبق الوحيد لـ0006b = نجاح 0006a.
 --
 --  بيضيف: idempotency_key · request_hash · checkout_session_hash ·
 --          receipt_token_hash · receipt_token_hash_prev · receipt_expires_at
