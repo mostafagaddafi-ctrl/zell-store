@@ -49,7 +49,33 @@
 
 ## 0. حالة البداية والقرارات
 
-### 0.1 مفيش أي migration للطلب على Production
+> ### ✅ حالة التنفيذ — مُحدَّثة
+>
+> `0006a_order_columns.sql` و`0006b_order_functions.sql` **اتنفّذوا على Supabase
+> Production** بتاريخ 2026-10-01 **واتختبروا بنجاح**.
+>
+> متحقَّق منه مباشرةً من المحرّك **قراءة فقط**:
+>
+> | البند | الحالة |
+> |---|---|
+> | الأعمدة الستة على `orders` | موجودة |
+> | القيود الخمسة + `orders_idempotency_key_uidx` | موجودة |
+> | `zell_create_order` · `zell_get_order_receipt` | موجودتين · `security definer` · `search_path=""` · مملوكتين لـ`postgres` = مالك `orders` |
+> | volatility | `zell_create_order` = **`VOLATILE`** (اعتمادية §3.4 محفوظة) · `zell_get_order_receipt` = `STABLE` |
+> | `zell_order_writer` | موجود · `nologin` · `nobypassrls` · **صفر صلاحيات جداول** |
+> | `execute` لـ`PUBLIC`/`anon`/`authenticated` | **صفر**. `service_role` و`zell_order_writer` بس |
+> | `relforcerowsecurity` | `false` على `orders` · `order_items` · `products` · `settings` |
+>
+> **Smoke test فعلي نجح:** إنشاء طلب · التسعير والشحن صح · replay من غير تكرار
+> الطلب · الرمز الحالي **والسابق** فتحوا الإيصال · الرمز الغلط رجّع `null`.
+>
+> **بيانات الاختبار اتحذفت بالكامل:** `orders = 0` و `order_items = 0`.
+> و Supabase Storage **ما اتلمسش**.
+>
+> ⚠️ §0.1 تحت بقت **أرشيف تاريخي** — بتوصف الحالة **قبل** التنفيذ. ما تتقراش
+> كحالة حالية.
+
+### 0.1 مفيش أي migration للطلب على Production — **أرشيف: الحالة قبل التنفيذ**
 
 | الملف | المفروض يعمل إيه | موجود في Production؟ |
 |---|---|---|
@@ -1125,7 +1151,7 @@ Vercel Hobby بدون Redis/KV كل نسخة دالة منفصلة، فالعد�
 |---|---|---|
 | 1 | **دمج الوثيقة دي** | ٠ |
 | 2 | كتابة `0006a` و`0006b` من الصفر كـPR مستقل ومراجعتهم (ت٤) | ٠ |
-| 3 | تنفيذ `0006a` ثم `0006b` يدوي على Production، والتحقق إن الدالتين موجودتين، وإن `zell_order_writer` **مالوش أي صلاحية جدول**، وإن مفيش أي `update` بيلمس `receipt_expires_at` | ٠ |
+| 3 | ✅ **تم (2026-10-01)** — تنفيذ `0006a` ثم `0006b` يدوي على Production، والتحقق إن الدالتين موجودتين، وإن `zell_order_writer` **مالوش أي صلاحية جدول**، وإن مفيش أي `update` بيلمس `receipt_expires_at` | ٠ |
 | 4 | نقل مسوّدات Retool لـ`docs/legacy/` (ب٥) — يقدر يبقى جوه PR الكود | ٠ |
 | 5 | PR كود واحد. CI أخضر. الـSHA يُبعت للمراجعة. **مفيش دمج بدون موافقة صريحة.** | ٠ |
 | 6 | دمج squash. المتجر **ما بيتغيّرش** (`ORDERS_ENABLED` غير مظبوط) | ١ |
