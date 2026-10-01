@@ -169,6 +169,8 @@ function validateAnnouncement(value: unknown): { ok: true; value: Announcement }
   if (!href.ok) return href
   const ctaLabel = optionalText(value['ctaLabel'], 'نص زرار الشريط', 40)
   if (!ctaLabel.ok) return ctaLabel
+  const enabled = flag(value['enabled'], 'تفعيل الشريط')
+  if (!enabled.ok) return enabled
 
   const target = href.value ?? ''
   if (!validHref(target)) return invalid('رابط الشريط لازم يبدأ بشرطة واحدة أو https')
@@ -177,7 +179,7 @@ function validateAnnouncement(value: unknown): { ok: true; value: Announcement }
   return {
     ok: true,
     value: {
-      enabled: flag(value['enabled']) && body !== '',
+      enabled: enabled.value && body !== '',
       text: body,
       href: target,
       ctaLabel: ctaLabel.value ?? '',
