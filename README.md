@@ -150,6 +150,10 @@ Supabase (PostgreSQL). الجداول:
 
 RLS مفعّل على كل الجداول، ومفيش policies.
 
+⚠️ `0006c_order_receipt_expiry.sql` **مكتوبة ولم تُنفّذ** — `create or replace`
+لـ`zell_create_order` ترجّع `receipt_expires_at` في الإسقاط. **شرط قبل تفعيل
+استقبال الطلبات**، لأن الراوت بيتوقّعها.
+
 دوال مسار الطلب **منفّذة على Production** (2026-10-01): `zell_create_order` و
 `zell_get_order_receipt`، الاتنين `security definer` بـ`search_path=''`. ومعاهم
 الدور `zell_order_writer` — `nologin`، `nobypassrls`، و**صفر صلاحيات على أي
