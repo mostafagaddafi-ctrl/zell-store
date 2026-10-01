@@ -7,7 +7,8 @@
 --  بتعمل تلات حاجات:
 --    (1) توسيع قيد kind في site_images ليشمل 'hero'.
 --    (2) فهرس فريد: صورة نشطة **واحدة** لكل نوع فردي (logo/hero).
---    (3) zell_activate_site_image — تبديل ذرّي للصورة النشطة.
+--    (3) zell_activate_site_image — تبديل ذرّي للصورة النشطة،
+--        متسلسل بـ advisory transaction lock لكل نوع.
 --
 --  ✅ **idempotent**: القيد بيتشال ويترجع، الفهرس if not exists،
 --     والدالة create or replace (توقيع جديد، مفيش قديم يتشال).
@@ -83,6 +84,8 @@ create unique index if not exists site_images_one_active_singleton
 -- ---------------------------------------------------------------------
 -- (4) التبديل الذرّي
 --     بترجّع id الصورة اللي بقت نشطة، أو null لو الهدف مش موجود.
+--     التسلسل بين الرفعات المتزامنة بيعتمد على advisory lock لكل نوع
+--     — شوف التعليق جوه الدالة.
 -- ---------------------------------------------------------------------
 create or replace function public.zell_activate_site_image(
   p_kind     text,
@@ -96,7 +99,28 @@ begin
     raise exception 'ZELL_SITE_IMAGE_KIND_INVALID';
   end if;
 
-  -- قفل كل صفوف النوع — يمنع رفعتين متزامنتين من التداخل
+  -- ⚠️ القفل الحقيقي هو advisory lock، **مش** FOR UPDATE.
+  --
+  --    FOR UPDATE بيقفل **صفوف موجودة**. في أول رفعة لنوع — وأوضح
+  --    حالة هي hero قبل أي صورة — المجموعة فاضية، فمفيش حاجة تتقفل
+  --    ومنفّذين متزامنين بيعدّوا الاتنين. بعدها واحد منهم بيصطدم
+  --    بالفهرس الفريد وقت التفعيل: الكود بيعامله كفشل وبينضّف صفه
+  --    وملفه، فمفيش فقد للصورة القديمة — لكن وصف «تبديل ذرّي بأقفال
+  --    تمنع رفعتين» مايكونش صحيح لأول رفعة.
+  --
+  --    advisory lock مربوط **بالنوع نفسه** مش بالصفوف، فبيغطي
+  --    المجموعة الفاضية كمان. بيتسيب آخر المعاملة تلقائيًا، وPostgREST
+  --    بيشغّل كل RPC في معاملة واحدة — فمفيش قفل سايب.
+  --
+  --    التوقيعات متحقَّق منها على production (PostgreSQL 17.6):
+  --      pg_catalog.hashtextextended(text, bigint) -> bigint، IMMUTABLE
+  --      pg_catalog.pg_advisory_xact_lock(bigint)  -> void
+  --    فالناتج مطابق للتوقيع من غير أي cast صريح.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('zell_activate_site_image:' || p_kind, 0)
+  );
+
+  -- دفاع إضافي للحالة اللي فيها صفوف أصلاً. مش بديل عن اللي فوق.
   perform 1 from public.site_images where kind = p_kind for update;
 
   if not exists (
