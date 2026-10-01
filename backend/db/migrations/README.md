@@ -23,9 +23,11 @@
 >
 | `0006c_order_receipt_expiry.sql` | **مطبّقة على production** بتاريخ 2026-10-01 | `create or replace` لـ`zell_create_order` ترجّع `receipt_expires_at` في الإسقاط (إنشاء و replay) بدون أي تمديد — عشان الراوت يحسب `Max-Age` الحقيقي لكوكي الإيصال |
 
-| `0007_cleanup_notify_secrets.sql` | **مسودة — لم تُنفّذ** | حذف صفّي `telegram_bot_token` و`telegram_chat_id` من `settings` — الأسرار بقت في متغيرات بيئة المتجر |
+| `0007_cleanup_notify_secrets.sql` | **مطبّقة على production** بتاريخ 2026-10-01 | حذف صفّي `telegram_bot_token` و`telegram_chat_id` من `settings` — الأسرار بقت في متغيرات بيئة المتجر |
 
-> ✅ **0006a و0006b و0006c اتنفّذوا على Production بتاريخ 2026-10-01 واتختبروا بنجاح.**
+| `0008_announcement_bar.sql` | **مسودة — لم تُنفّذ** | مفتاح `announcement` + `zell_save_content` بمعامل سابع. **drop ثم create** لأن `create or replace` مابيغيّرش التوقيع |
+
+> ✅ **0006a و0006b و0006c و0007 اتنفّذوا على Production بتاريخ 2026-10-01.**
 > التحقق الذاتي في الاتنين عدّى، وبيانات الاختبار اتحذفت (`orders = 0`).
 >
 > **ترتيب ملزم لمسار الطلب: 0006a ← 0006b ← 0006c.** التلاتة **منفّذين**.
