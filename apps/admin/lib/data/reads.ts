@@ -1,6 +1,8 @@
 import 'server-only'
 
 import type {
+  AdminCollection,
+  AdminCollectionDetail,
   AdminDataSource,
   AdminImage,
   AdminOrderDetail,
@@ -29,18 +31,25 @@ import {
   readString,
   readStringList,
   settingsMap,
+  toAdminCollection,
   toAdminImage,
   toAdminSiteImage,
   toAdminOrder,
   toAdminOrderItem,
   toAdminProduct,
+  type CollectionRow,
   type OrderItemRow,
+  type ProductCollectionRow,
   type OrderRow,
   type ProductImageRow,
   type ProductRow,
   type SettingRow,
   type SiteImageRow,
 } from './rows'
+
+const COLLECTION_COLUMNS = ['id', 'slug', 'title_ar', 'subtitle_ar', 'is_visible', 'sort_order', 'updated_at'].join(
+  ',',
+)
 
 const PRODUCT_COLUMNS = [
   'id',
@@ -331,6 +340,48 @@ export const supabaseAdminData: AdminDataSource = {
       disabled: readStringList(map, 'shipping_disabled_governorates'),
       updatedAt: latestUpdatedAt(rows.rows, SHIPPING_KEYS),
     }
+  },
+
+  /**
+   * قائمة المجموعات + عدد منتجات كل واحدة.
+   *
+   * ⚠️ طلبين بس: المجموعات، وكل الروابط. العدّ بيتعمل في الذاكرة.
+   *    ممكن كان embedded count من PostgREST، بس ده بيربط القراءة بشكل
+   *    علاقة بيستنتجها PostgREST — وطلب واحد على جدول صغير أوضح وأثبت.
+   */
+  async listCollections(): Promise<AdminCollection[]> {
+    const [rows, links] = await Promise.all([
+      restGet<CollectionRow>('collections', 'select=' + COLLECTION_COLUMNS + '&order=sort_order.asc,id.asc'),
+      restGet<{ collection_id: string }>('product_collections', 'select=collection_id'),
+    ])
+
+    const counts = new Map<string, number>()
+    for (const link of links.rows) {
+      const key = String(link.collection_id)
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+
+    return rows.rows.map((row) => toAdminCollection(row, counts.get(String(row.id)) ?? 0))
+  },
+
+  async getCollection(id: string): Promise<AdminCollectionDetail | null> {
+    const filter = 'collection_id=eq.' + encodeURIComponent(id)
+    const [rows, links] = await Promise.all([
+      restGet<CollectionRow>(
+        'collections',
+        'select=' + COLLECTION_COLUMNS + '&id=eq.' + encodeURIComponent(id) + '&limit=1',
+      ),
+      restGet<ProductCollectionRow>(
+        'product_collections',
+        'select=collection_id,product_id,sort_order&' + filter + '&order=sort_order.asc,product_id.asc',
+      ),
+    ])
+
+    const row = rows.rows[0]
+    if (!row) return null
+
+    const productIds = links.rows.map((link) => link.product_id)
+    return { ...toAdminCollection(row, productIds.length), productIds }
   },
 
   async getIdentity(): Promise<StoreIdentity> {
