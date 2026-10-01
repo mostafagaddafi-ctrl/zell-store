@@ -21,7 +21,13 @@ Vercel و Supabase والمتغيرات والكاش وإدارة الأدمن.
 | Build / Install | افتراضي | افتراضي |
 | Node.js | **20.x** (نفس `ci.yml`) | **20.x** |
 | Ignored Build Step | `bash scripts/vercel-ignore-build.sh storefront` | `bash scripts/vercel-ignore-build.sh admin` |
-| الرابط | `zell-store-nine.vercel.app` | ⚠️ **TODO: املا الرابط هنا** |
+| الرابط | `zell-store-nine.vercel.app` | مضبوط في Vercel — مش مكرر هنا |
+
+🔒 **رابط لوحة الإدارة مضبوط داخل Vercel ولا يُكرر عمدًا داخل مستودع**
+**الكود.** هذا إجراء تنظيمي وليس حدًا أمنيًا؛ Supabase Auth وفحص الدور
+على السيرفر هما الحماية الفعلية.
+
+فايدة عملية كمان: الرابط لو اتغيّر، الوثيقة مابتقدمش ومابتضلّلش حد.
 
 **"Include files outside root" إجبارية** — التطبيقين بيعتمدوا على
 `@zell/core` بـ `workspace:*` وعلى `pnpm-lock.yaml` في الجذر.
