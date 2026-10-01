@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { CheckCircle2 } from 'lucide-react'
 import { formatLength, formatPiastres, isValidOrderNumber } from '@zell/core'
-import { restRpc } from '../../../lib/data/rpc'
+import { restRpc, type RpcResult } from '../../../lib/data/rpc'
 import type { Receipt } from '../../../lib/orders/contracts'
 import { receiptCookieName, receiptTokenHash } from '../../../lib/orders/receiptToken'
 import { Container } from '../../../components/ui/Container'
@@ -21,6 +21,14 @@ import { Num } from '../../../components/store/Num'
  */
 
 export const dynamic = 'force-dynamic'
+
+// الصفحة دي عمرها ما تتفهرس: محتواها شخصي ومربوط بكوكي متصفح واحد.
+export const metadata = {
+  robots: { index: false, follow: false },
+}
+
+// توقيت ثابت مناسب للزبون — مش توقيت السيرفر (UTC على Vercel).
+const TIME_ZONE = 'Africa/Cairo'
 
 function Unavailable() {
   return (
@@ -58,10 +66,19 @@ export default async function OrderReceiptPage({
     return <Unavailable />
   }
 
-  const result = await restRpc<Receipt | null>('zell_get_order_receipt', {
-    p_order_number: orderNumber,
-    p_receipt_token_hash: hash,
-  })
+  // ⚠️ restRpc بترمي لو الـcredentials ناقصة. أي استثناء لازم ينزل على **نفس**
+  //    حالة «غير متاح» العامة — مش صفحة خطأ من Next، ومن غير أي تمييز يقول
+  //    هل الطلب موجود ولا لأ.
+  let result: RpcResult<Receipt | null>
+  try {
+    result = await restRpc<Receipt | null>('zell_get_order_receipt', {
+      p_order_number: orderNumber,
+      p_receipt_token_hash: hash,
+    })
+  } catch (error) {
+    console.error('[receipt] rpc threw :: ' + (error instanceof Error ? error.name : 'unknown'))
+    return <Unavailable />
+  }
 
   if (!result.ok) {
     console.error('[receipt] lookup failed :: ' + result.sqlMessage)
@@ -101,7 +118,7 @@ export default async function OrderReceiptPage({
           <div className="bg-card p-4">
             <dt className="text-xs text-muted">تاريخ الطلب</dt>
             <dd className="mt-1 text-sm font-semibold text-fg">
-              <Num>{new Date(receipt.created_at).toLocaleDateString('ar-EG')}</Num>
+              <Num>{new Date(receipt.created_at).toLocaleDateString('ar-EG', { timeZone: TIME_ZONE })}</Num>
             </dd>
           </div>
         </dl>
