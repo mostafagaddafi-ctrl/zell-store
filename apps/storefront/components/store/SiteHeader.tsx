@@ -1,11 +1,11 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { MessageCircle, ShoppingBag } from 'lucide-react'
 import type { StoreImage } from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { Container } from '../ui/Container'
-import { ImageSlot } from '../ui/ImageSlot'
 import { Num } from './Num'
 
 /**
@@ -38,10 +38,12 @@ export function SiteHeader({
       <Container className="flex h-16 items-center justify-between gap-4">
         <Link href="/" aria-label={storeName} className="flex shrink-0 items-center">
           {logo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={logo.url}
               alt={logo.alt || storeName}
+              width={160}
+              height={40}
+              priority
               className="h-10 w-auto max-w-[160px] object-contain"
             />
           ) : (
