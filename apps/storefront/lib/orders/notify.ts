@@ -254,15 +254,33 @@ export async function notifyNewOrder(orderNumber: string): Promise<void> {
     if (emailCode !== null) codes.push(emailCode)
 
     const notifyError = codes.join(';').slice(0, MAX_NOTIFY_ERROR)
-    const recordFailure = await restPatch('orders', 'id=eq.' + String(order.id), {
-      notify_error: notifyError,
-      updated_at: new Date().toISOString(),
-    })
+
+    // ⚠️ شرط `notified_at is null` **إلزامي** هنا كمان (ب١٨).
+    //
+    //    مع سياسة CLAIM_UNKNOWN_SENDING_ANYWAY ممكن يبقى في منفّذين: واحد
+    //    بينجح ويسجّل notified_at، والتاني بيفشل بعديه. من غير الشرط ده التاني
+    //    بيكتب notify_error فوق نجاح مسجّل، فالصف يبقى notified_at مظبوط **و**
+    //    notify_error فيه فشل في نفس الوقت = **تحذير كاذب في اللوحة** على إشعار
+    //    وصل فعلاً. الشرط بيخلّي الكتابة دي مستحيلة.
+    const recordFailure = await restPatch(
+      'orders',
+      'id=eq.' + String(order.id) + '&notified_at=is.null',
+      { notify_error: notifyError, updated_at: new Date().toISOString() },
+    )
 
     if (!recordFailure.ok) {
-      // ⚠️ فشل مزدوج: الإشعار ما وصلش **والسبب مش محفوظ**. الصف بيفضل على
-      //    علامة الحجز، فاللوحة لسه بتبان حالة تحتاج مراجعة — مش نجاح وهمي.
+      // فشل مزدوج: الإشعار ما وصلش **والسبب مش محفوظ**. الصف بيفضل على علامة
+      // الحجز، فاللوحة لسه بتبان حالة تحتاج مراجعة — مش نجاح وهمي.
       console.error('[notify] ' + orderNumber + ' :: ' + notifyError + ' :: RECORD_FAILED :: ' + elapsed())
+      return
+    }
+
+    if (recordFailure.data.length === 0) {
+      // صفر صفوف = محاولة تانية سجّلت النجاح قبلنا. الإشعار **وصل**، فممنوع
+      // نكتب فشل فوقه وممنوع نلوجه كأنه اتحفظ. الكود ده حالة صحية مش خطأ.
+      console.info(
+        '[notify] ' + orderNumber + ' :: FAILURE_ALREADY_RESOLVED :: ' + notifyError + ' :: ' + elapsed(),
+      )
       return
     }
 
