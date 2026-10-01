@@ -215,6 +215,12 @@ export function toStoreSettings(rows: SettingRow[], logo: StoreImage | null = nu
   return {
     storeName: settingString(map, 'store_name', 'ZELL'),
     logo,
+    /**
+     * القيمة الحقيقية بتتحط في fetchStorefrontFromSupabase بعد ما
+     * يتقرا صف site_images. هنا null كقيمة أساسية عشان الدالة دي
+     * بتاخد الإعدادات بس — مابتعرفش حاجة عن الصور.
+     */
+    heroImage: null,
     logoUrl: settingString(map, 'logo_url'),
     offerText: settingString(map, 'offer_text'),
     whatsappNumber: settingString(map, 'whatsapp_number'),
