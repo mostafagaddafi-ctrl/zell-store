@@ -8,6 +8,7 @@ import {
   publicImageUrl,
   sanitizeAnnouncementHref,
   type Announcement,
+  type StoreCollection,
   type StoreImage,
   type StoreProduct,
   type StoreSettings,
@@ -58,6 +59,68 @@ export type SiteImageRow = {
   is_active: boolean
   width_px: number | null
   height_px: number | null
+}
+
+/** صف public.collections */
+export type CollectionRow = {
+  id: number
+  slug: string
+  title_ar: string
+  subtitle_ar: string | null
+  is_visible: boolean
+  sort_order: number
+}
+
+/** صف public.product_collections */
+export type ProductCollectionRow = {
+  collection_id: number
+  product_id: number
+  sort_order: number
+}
+
+/**
+ * المجموعات + ربطها بالمنتجات.
+ *
+ * ⚠️ المنتجات اللي **مش** في قائمة المعروضة بتتشال من الربط. الربط
+ *    بيتعمل على كل المنتجات في الداتابيز، لكن الاستعلام بيجيب
+ *    is_active = true بس — فمنتج متوقّف لازم يختفي من المجموعة كمان،
+ *    مش يبان كفراغ.
+ *
+ * ⚠️ المجموعة اللي بقيت فاضية بعد التصفية **بتتشال**. مجموعة بعنوان
+ *    وصفر منتجات على الصفحة الرئيسية تبان كعطل.
+ */
+export function toStoreCollections(
+  collectionRows: CollectionRow[],
+  linkRows: ProductCollectionRow[],
+  visibleProductIds: readonly number[],
+): StoreCollection[] {
+  const allowed = new Set<number>(visibleProductIds)
+
+  const byCollection = new Map<number, ProductCollectionRow[]>()
+  for (const link of linkRows) {
+    if (!allowed.has(link.product_id)) continue
+    const bucket = byCollection.get(link.collection_id)
+    if (bucket) bucket.push(link)
+    else byCollection.set(link.collection_id, [link])
+  }
+
+  const out: StoreCollection[] = []
+  for (const row of collectionRows) {
+    if (!row.is_visible) continue
+    const links = byCollection.get(row.id) ?? []
+    if (links.length === 0) continue
+
+    links.sort((a, b) => (a.sort_order - b.sort_order) || (a.product_id - b.product_id))
+
+    out.push({
+      id: row.id,
+      slug: row.slug,
+      title: row.title_ar,
+      subtitle: row.subtitle_ar ?? '',
+      productIds: links.map((link) => link.product_id),
+    })
+  }
+  return out
 }
 
 function asStringArray(value: unknown): string[] {
