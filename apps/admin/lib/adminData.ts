@@ -153,6 +153,8 @@ export type ShippingSettings = {
 export type StoreIdentity = {
   storeName: string
   logo: AdminImage | null
+  /** صورة الواجهة النشطة (site_images kind = 'hero'). */
+  heroImage: AdminImage | null
   offerText: string
   whatsappNumber: string
   whatsappMessage: string
