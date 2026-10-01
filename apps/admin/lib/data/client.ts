@@ -126,7 +126,15 @@ function safeIdentifier(value: string, what: string): string {
  * المبعوتة مش مساوية للموجود. من غير التمييز ده كان الفشل المتوقع
  * ده بيبان INTERNAL، وده بيخفي خطأ مدخلات ورا رسالة "خطأ غير متوقع".
  */
-const KNOWN_SENTINELS = ['ZELL_INVALID_ORDER', 'ZELL_INVALID_SHIPPING', 'ZELL_INVALID_IDENTITY'] as const
+const KNOWN_SENTINELS = [
+  'ZELL_INVALID_ORDER',
+  'ZELL_INVALID_SHIPPING',
+  'ZELL_INVALID_IDENTITY',
+  'ZELL_INVALID_COLLECTION',
+  // ⚠️ بادئة ZELL_INVALID_COLLECTION، ومفيش تعارض: المطابقة إما تامة
+  //    وإما بالبادئة 'CODE:' — والنقطتين بتفصلوا الحالتين.
+  'ZELL_INVALID_COLLECTION_PRODUCTS',
+] as const
 
 export type DbSentinel = (typeof KNOWN_SENTINELS)[number]
 
