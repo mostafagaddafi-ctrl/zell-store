@@ -135,7 +135,7 @@ export async function restPatch(
   table: string,
   query: string,
   patch: Record<string, unknown>,
-): Promise<RpcResult<null>> {
+): Promise<RpcResult<unknown[]>> {
   const { url, key } = readCredentials()
 
   let response: Response
@@ -146,7 +146,7 @@ export async function restPatch(
         apikey: key,
         Authorization: 'Bearer ' + key,
         'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
+        // representation عشان نعرف **عدد الصفوف المتأثرة** — ده أساس الحجز الذرّي
       },
       body: JSON.stringify(patch),
       cache: 'no-store',
@@ -159,5 +159,11 @@ export async function restPatch(
   if (!response.ok) {
     return { ok: false, status: response.status, sqlMessage: 'تعديل ' + table + ' رجّع ' + String(response.status) }
   }
-  return { ok: true, data: null }
+
+  const payload: unknown = await response.json().catch(() => null)
+  if (!Array.isArray(payload)) {
+    // نجح التعديل بس مش عارفين كام صف — المنادي لازم يتعامل مع الغموض ده صريح
+    return { ok: false, status: response.status, sqlMessage: 'تعديل ' + table + ' رجّع شكل غير متوقع' }
+  }
+  return { ok: true, data: payload }
 }
