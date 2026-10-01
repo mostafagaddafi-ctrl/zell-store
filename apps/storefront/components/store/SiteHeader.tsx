@@ -3,28 +3,36 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { MessageCircle, ShoppingBag } from 'lucide-react'
-import type { StoreImage } from '@zell/core'
+import type { StoreCollection, StoreImage } from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { Container } from '../ui/Container'
+import { MobileMenu } from './MobileMenu'
 import { Num } from './Num'
 
 /**
- * اللوجو بيتقرا من site_images (kind = 'logo' and is_active = true).
+ * هيدر المتجر — **موبايل أولًا**.
  *
- * ⚠️ الخانة **مش مربعة ثابتة**: ارتفاع ثابت وعرض حر بحد أقصى. الخانة
- *    المربعة القديمة (44×44) كانت بتحشر أي لوجو أفقي في مربع فيطلع صغير
- *    جدًا. دلوقتي المربع يفضل مربع (40×40) والأفقي ياخد عرضه لحد 160،
- *    و object-contain بيمنع أي تشويه في الحالتين.
- * لو مفيش لوجو نشط: اسم المتجر كنص عادي — احتياطي مش wordmark مصمّم.
+ * الموبايل: لوجو · [سلة] · [همبرجر]
+ * الديسكتوب: لوجو · روابط المجموعات · استفسار بنصّه · سلة
+ *
+ * ⚠️ رابط «استفسار» **مخفي تمامًا** على الموبايل (hidden md:flex)، مش
+ *    النص بس. الأيقونة لوحدها جنب السلة كانت لغز: أيقونتين متجاورتين
+ *    من غير نص، وواحدة بتخرج من الموقع. التواصل على الموبايل مكانه
+ *    الزرار العائم وآخر قائمة الموبايل، والاتنين بنصّهم الكامل.
+ *
+ * اللوجو من site_images (kind = 'logo' and is_active = true). الخانة
+ * ارتفاع ثابت وعرض حر بحد أقصى، و object-contain يمنع أي تشويه.
  */
 export function SiteHeader({
   storeName,
   logo,
+  collections,
   whatsappNumber,
   whatsappMessage,
 }: {
   storeName: string
   logo: StoreImage | null
+  collections: StoreCollection[]
   whatsappNumber: string
   whatsappMessage: string
 }) {
@@ -35,7 +43,7 @@ export function SiteHeader({
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-bg/85 backdrop-blur">
-      <Container className="flex h-16 items-center justify-between gap-4">
+      <Container className="flex h-16 items-center gap-2">
         <Link href="/" aria-label={storeName} className="flex shrink-0 items-center">
           {logo ? (
             <Image
@@ -51,16 +59,35 @@ export function SiteHeader({
           )}
         </Link>
 
-        <div className="flex items-center gap-1">
+        {/* روابط الديسكتوب — أول أربع مجموعات، والباقي من الرئيسية */}
+        <nav aria-label="أقسام المتجر" className="hidden min-w-0 flex-1 md:flex md:items-center md:gap-1">
+          <Link
+            href="/#products"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-fg transition-colors hover:text-accent"
+          >
+            كل الأفلام
+          </Link>
+          {collections.slice(0, 4).map((collection) => (
+            <Link
+              key={collection.slug}
+              href={'/collection/' + collection.slug}
+              className="truncate rounded-lg px-3 py-2 text-sm font-medium text-fg transition-colors hover:text-accent"
+            >
+              {collection.title}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="ms-auto flex items-center gap-1">
           {whatsappHref ? (
             <a
               href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-fg transition-colors hover:text-accent"
+              className="hidden h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-fg transition-colors hover:text-accent md:flex"
             >
               <MessageCircle className="h-5 w-5" />
-              <span className="hidden sm:inline">استفسار</span>
+              استفسار
             </a>
           ) : null}
 
@@ -76,6 +103,8 @@ export function SiteHeader({
               </span>
             ) : null}
           </Link>
+
+          <MobileMenu collections={collections} whatsappHref={whatsappHref} />
         </div>
       </Container>
     </header>
