@@ -1,6 +1,6 @@
 import 'server-only'
 
-import type { FaqItem, FooterLink, HeroContent, OrderStep, StoreContent, StoreSection } from '../adminData'
+import type { Announcement, FaqItem, FooterLink, HeroContent, OrderStep, StoreContent, StoreSection } from '../adminData'
 import { SECTION_KEYS, type SectionKey } from '../enums'
 import { flag, invalid, optionalText, requiredText, wholeNumber, type ValidationFailure } from './shared'
 
@@ -25,6 +25,7 @@ export type ContentPayload = {
   sections: StoreSection[]
   footerLinks: FooterLink[]
   trustLine: string
+  announcement: Announcement
 }
 
 const MAX_STEPS = 8
@@ -155,6 +156,35 @@ function validateFooterLinks(value: unknown): { ok: true; value: FooterLink[] } 
   return { ok: true, value: out }
 }
 
+/**
+ * الشريط. نفس validHref المستخدم للفوتر — قاعدة رابط واحدة في اللوحة كلها.
+ * النص فاضي = الشريط مقفول، مهما كانت قيمة enabled.
+ */
+function validateAnnouncement(value: unknown): { ok: true; value: Announcement } | ValidationFailure {
+  if (!isRecord(value)) return invalid('بيانات الشريط ناقصة')
+
+  const text = optionalText(value['text'], 'نص الشريط', 200)
+  if (!text.ok) return text
+  const href = optionalText(value['href'], 'رابط الشريط', 300)
+  if (!href.ok) return href
+  const ctaLabel = optionalText(value['ctaLabel'], 'نص زرار الشريط', 40)
+  if (!ctaLabel.ok) return ctaLabel
+
+  const target = href.value ?? ''
+  if (!validHref(target)) return invalid('رابط الشريط لازم يبدأ بشرطة واحدة أو https')
+
+  const body = text.value ?? ''
+  return {
+    ok: true,
+    value: {
+      enabled: flag(value['enabled']) && body !== '',
+      text: body,
+      href: target,
+      ctaLabel: ctaLabel.value ?? '',
+    },
+  }
+}
+
 export function validateContent(input: ContentInput): { ok: true; payload: ContentPayload } | ValidationFailure {
   const hero = validateHero(input.hero)
   if (!hero.ok) return hero
@@ -174,6 +204,9 @@ export function validateContent(input: ContentInput): { ok: true; payload: Conte
   const trustLine = optionalText(input.trustLine, 'سطر الطمأنة', 200)
   if (!trustLine.ok) return trustLine
 
+  const announcement = validateAnnouncement(input.announcement)
+  if (!announcement.ok) return announcement
+
   const payload: ContentPayload = {
     hero: hero.value,
     orderSteps: orderSteps.value,
@@ -181,6 +214,7 @@ export function validateContent(input: ContentInput): { ok: true; payload: Conte
     sections: sections.value,
     footerLinks: footerLinks.value,
     trustLine: trustLine.value ?? '',
+    announcement: announcement.value,
   }
   return { ok: true, payload }
 }
