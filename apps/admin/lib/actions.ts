@@ -30,16 +30,25 @@
  * رفع الصور مش Server Action — بيمر على راوت multipart لسه ما اتعملش.
  */
 
-import type { AdminImage, AdminProduct, ImageFit, OrderStatus } from './adminData'
+import type { AdminCollection, AdminImage, AdminProduct, ImageFit, OrderStatus } from './adminData'
 import { requireAdminAction } from './auth/guards'
 import { guardMutations, type MutationResult } from './mutations'
 import type { SaveVersion } from './mutations/concurrency'
+import {
+  createCollection,
+  deleteCollection,
+  reorderCollections,
+  setCollectionProducts,
+  setCollectionVisibility,
+  updateCollection,
+} from './mutations/collections'
 import { saveContent } from './mutations/content'
 import { setImageFit, setPrimaryImage } from './mutations/images'
 import { saveInternalNote, updateOrderStatus } from './mutations/orders'
 import { saveProduct, setProductVisibility } from './mutations/products'
 import { reorderProductImages, reorderProducts } from './mutations/reorder'
 import { saveIdentity, saveShipping } from './mutations/settings'
+import type { CollectionInput } from './validation/collection'
 import type { ContentInput } from './validation/content'
 import type { ProductInput } from './validation/product'
 import type { IdentityInput, ShippingInput } from './validation/settings'
@@ -210,6 +219,69 @@ export async function saveOperationalSettingsAction(_patch: {
 }
 
 /** برّه نطاق المرحلة. */
+// ── المجموعات ────────────────────────────────────────────────
+export async function createCollectionAction(input: CollectionInput): Promise<MutationResult<AdminCollection>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const gate = guardMutations()
+  if (gate) return gate
+  return createCollection(input)
+}
+
+export async function updateCollectionAction(
+  id: string,
+  input: CollectionInput,
+  expectedUpdatedAt: string,
+): Promise<MutationResult<AdminCollection>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const gate = guardMutations()
+  if (gate) return gate
+  return updateCollection(id, input, expectedUpdatedAt)
+}
+
+export async function setCollectionVisibilityAction(
+  id: string,
+  visible: boolean,
+  expectedUpdatedAt: string,
+): Promise<MutationResult<AdminCollection>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const gate = guardMutations()
+  if (gate) return gate
+  return setCollectionVisibility(id, visible, expectedUpdatedAt)
+}
+
+export async function deleteCollectionAction(
+  id: string,
+  expectedUpdatedAt: string,
+): Promise<MutationResult<null>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const gate = guardMutations()
+  if (gate) return gate
+  return deleteCollection(id, expectedUpdatedAt)
+}
+
+export async function setCollectionProductsAction(
+  id: string,
+  productIds: number[],
+): Promise<MutationResult<null>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const gate = guardMutations()
+  if (gate) return gate
+  return setCollectionProducts(id, productIds)
+}
+
+export async function reorderCollectionsAction(orderedIds: string[]): Promise<MutationResult<null>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const gate = guardMutations()
+  if (gate) return gate
+  return reorderCollections(orderedIds)
+}
+
 export async function revalidateStorefrontAction(): Promise<MutationResult<null>> {
   const auth = await requireAdminAction()
   if (!auth.ok) return auth
