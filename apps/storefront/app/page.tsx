@@ -1,6 +1,7 @@
 import { Faq } from '../components/store/Faq'
 import { Hero } from '../components/store/Hero'
 import { HowItWorks } from '../components/store/HowItWorks'
+import { CollectionStrip } from '../components/store/CollectionStrip'
 import { ProductCard } from '../components/store/ProductCard'
 import { Container } from '../components/ui/Container'
 import { getStorefrontData } from '../lib/data/source'
@@ -8,7 +9,7 @@ import { getStorefrontData } from '../lib/data/source'
 // MaterialsStrip وقف استخدامه هنا — الحذف في كوميت تنظيف منفصل.
 
 export default async function HomePage() {
-  const { products, settings } = await getStorefrontData()
+  const { products, settings, collections } = await getStorefrontData()
 
   return (
     <Container className="pb-8">
@@ -24,6 +25,15 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      {/*
+        المجموعات بعد كل الأفلام: الزائر الجديد بيشوف الكتالوج كله
+        الأول، وبعدين التجميعات. مجموعة فاضية أو مخفية مابتوصلش هنا
+        أصلاً — التصفية في toStoreCollections.
+      */}
+      {collections.map((collection) => (
+        <CollectionStrip key={collection.slug} collection={collection} products={products} />
+      ))}
 
       <HowItWorks />
 
