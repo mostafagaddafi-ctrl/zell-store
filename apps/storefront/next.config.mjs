@@ -15,6 +15,20 @@ const nextConfig = {
       },
     ],
   },
+  async headers() {
+    return [
+      {
+        // صفحة الإيصال محتواها شخصي ومربوط بكوكي متصفح واحد.
+        // force-dynamic بيمنع كاش Next، والهيدرز دي بتمنع أي وسيط أو CDN،
+        // وبتمنع رقم الطلب إنه يسافر في Referer لأي طرف تالت.
+        source: '/order/:orderNumber',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+        ],
+      },
+    ]
+  },
 }
 
 export default nextConfig
