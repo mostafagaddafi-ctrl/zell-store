@@ -14,6 +14,28 @@
 --  الدالتين security definer مملوكتين لمالك الجداول (postgres)، ومالك
 --  الجدول بيتخطى RLS لأن relforcerowsecurity = false على الجداول كلها.
 --
+--  ---------------------------------------------------------------------
+--  ⚠ تصحيحات مراجعة ب١٣ — مطبّقة في الملف ده:
+--
+--   (١) **ترتيب الحسم.** أي replay موجود ومُصرَّح له بيُحسم **قبل** أي فحص
+--       مُتغيّر وقبل حد المعدّل. قبل التصحيح، الطلب الخامس الناجح اللي ضاع
+--       رده كان بيترفض بـZELL_PHONE_DAILY_LIMIT وما يوصلش للـreplay أبداً
+--       = خسارة إيصال نهائية لعميل مُصرَّح له.
+--
+--   (٢) **تسلسل لكل رقم موبايل.** count(*) ثم insert **مش** حد ذرّي بين
+--       معاملات متزامنة: ٦ طلبات متوازية كانت تقدر كلها تشوف count = 4
+--       وتنجح. دلوقتي pg_advisory_xact_lock لكل موبايل، وإعادة حسم
+--       الـidempotency **بعد** القفل، وبعدها العد والإدخال.
+--
+--   (٣) **منع overflow التسعير.** price_per_meter_piastres * length_cm
+--       الاتنين integer. مثال حقيقي متحقَّق منه: 100000 × 30000 بيرمي
+--       "integer out of range" **قبل** القسمة على 100، رغم إن الناتج
+--       النهائي (30,000,000 قرش) بيدخل في integer عادي. دلوقتي الضرب على
+--       numeric، وفيه حارس صريح لنطاق int4 على الإجماليات.
+--
+--   (٤) **item_count اتشال** من نتيجة zell_create_order — مش في العقد النهائي.
+--  ---------------------------------------------------------------------
+--
 --  ⚠ ملاحظات search_path = '' (متحقَّق منها على PostgreSQL 17.6):
 --    • كل دالة مدمجة لازم pg_catalog. صريح.
 --    • coalesce / nullif / case / cast / between / in هي **بناءات لغوية**
@@ -21,7 +43,7 @@
 --    • gen_random_uuid موجودة في pg_catalog في PG13+ (ومكرّرة في extensions).
 --      بنستخدم pg_catalog عن قصد عشان ما نعتمدش على schema الإضافات.
 --
---  ⚠ اعتمادية موثّقة (متحقّق منها على Production):
+--  ⚠ اعتمادية موثّقة (متحقَّق منها على Production):
 --    order_items عليها CHECK بـ unit_price_piastres > 0 و width_cm > 0.
 --    القيود دي مستحيل تتخرق من إعداد منتج، لأن products عليها
 --    products_price_per_meter_piastres_check و products_width_cm_check
@@ -82,21 +104,31 @@ declare
   c_max_per_phone_day constant integer := 5;
   c_number_tries      constant integer := 5;
   c_receipt_days      constant integer := 7;
+  c_int4_max          constant numeric := 2147483647;
+  -- فضاء أسماء الأقفال الاستشارية لـzell. رقم ثابت عشان ما يتصادمش مع أي
+  -- استخدام تاني لـpg_advisory_* في نفس الداتابيز.
+  c_lock_ns           constant integer := 1951;
 
+  v_lock_key    integer;
   v_req_count   integer;
   v_rates       jsonb;
   v_free        jsonb;
   v_disabled    jsonb;
+  v_num         numeric;
+  v_base        integer;
+  v_threshold   integer;
   v_phone_count integer;
   v_order_no    text;
   v_order       record;
   v_existing    record;
   v_constraint  text;
   v_valid_count integer;
+  v_subtotal    numeric;
+  v_shipping    numeric;
   v_attempt     integer;
 begin
   ------------------------------------------------------------------
-  -- (أ) المفتاح والهاشات التلاتة
+  -- (أ) فحوصات ثابتة بلا داتابيز: المفتاح والهاشات التلاتة
   ------------------------------------------------------------------
   if p_idempotency_key is null
      or pg_catalog.length(pg_catalog.btrim(p_idempotency_key)) not between 16 and 128 then
@@ -113,13 +145,82 @@ begin
   end if;
 
   ------------------------------------------------------------------
-  -- (ب) التحقق النصّي
+  -- (ب) الموبايل — الفحص الثابت الوحيد اللي **لازم** يسبق الحسم،
+  --     لأنه مفتاح التسلسل في (ج).
+  ------------------------------------------------------------------
+  if coalesce(p_customer_phone, '') !~ '^01[0125][0-9]{8}$' then
+    raise exception 'ZELL_INVALID_PHONE' using errcode = '45021';
+  end if;
+
+  ------------------------------------------------------------------
+  -- (ج) تسلسل لكل رقم موبايل — تصحيح ب١٣-٢
+  --
+  --     قفل على مستوى المعاملة: بيتحرر تلقائياً عند commit أو rollback،
+  --     فمفيش احتمال قفل متروك. قفل واحد بس في الدالة كلها = مفيش deadlock.
+  --     الأقفال بين أرقام مختلفة ما بتتعارضش.
+  --
+  --     من غير القفل ده، count(*) ثم insert مش حد ذرّي: ٦ معاملات متوازية
+  --     تقدر كلها تقرا count = 4 وتدخل، فيبقى ٦ طلبات لرقم واحد في اليوم.
+  ------------------------------------------------------------------
+  v_lock_key := ('x' || pg_catalog.substr(pg_catalog.md5(p_customer_phone), 1, 8))::bit(32)::integer;
+  perform pg_catalog.pg_advisory_xact_lock(c_lock_ns, v_lock_key);
+
+  ------------------------------------------------------------------
+  -- (د) حسم الـidempotency — تصحيح ب١٣-١
+  --
+  --     بعد القفل، و**قبل أي فحص مُتغيّر**: مفيش إعدادات، مفيش محافظة،
+  --     مفيش نافذة موبايل. طلب موجود ومُصرَّح له بياخد إيصاله مهما كانت
+  --     حالة الإعدادات أو العدّاد.
+  ------------------------------------------------------------------
+  select o.order_number, o.request_hash, o.checkout_session_hash,
+         o.subtotal_piastres, o.shipping_piastres, o.total_piastres
+    into v_existing
+  from public.orders o
+  where o.idempotency_key = p_idempotency_key;
+
+  if v_existing.order_number is not null then
+
+    -- (د-1) نفس المفتاح، محتوى مختلف
+    if v_existing.request_hash is distinct from p_request_hash then
+      raise exception 'ZELL_IDEMPOTENCY_MISMATCH' using errcode = '45003';
+    end if;
+
+    -- (د-2) نفس المفتاح ونفس المحتوى، بس **متصفح تاني**.
+    --       الحاجز الأساسي: المفتاح + الـbody لوحدهم ما يقدروش يصدروا ولا
+    --       يدوّروا أي وصول للإيصال.
+    if v_existing.checkout_session_hash is distinct from p_checkout_session_hash then
+      raise exception 'ZELL_REPLAY_NOT_AUTHORIZED' using errcode = '45007';
+    end if;
+
+    -- (د-3) replay مُصرَّح: تدوير بخانتين.
+    --       ⚠ receipt_expires_at **غير مذكور عن قصد** — النافذة مربوطة بلحظة
+    --         إنشاء الطلب ومفيش أي طرف يقدر يمدّها.
+    --       ⚠ الرمز السابق يفضل صالح، فترتيب وصول الردود مش مهم.
+    update public.orders
+       set receipt_token_hash_prev = receipt_token_hash,
+           receipt_token_hash      = p_receipt_token_hash,
+           updated_at              = pg_catalog.now()
+     where idempotency_key = p_idempotency_key;
+
+    return pg_catalog.jsonb_build_object(
+      'ok', true,
+      'replayed', true,
+      'order_number', v_existing.order_number,
+      'subtotal_piastres', v_existing.subtotal_piastres,
+      'shipping_piastres', v_existing.shipping_piastres,
+      'total_piastres', v_existing.total_piastres);
+  end if;
+
+  ------------------------------------------------------------------
+  -- (هـ) باقي الفحوصات الثابتة
+  --
+  --      كلها دوال خالصة على المدخلات. مفيش حاجة منها بتعتمد على حالة
+  --      الداتابيز، فترتيبها بعد الحسم آمن: الـreplay بيبقى بنفس الـbody
+  --      بالبايت (وإلا request_hash مختلف = MISMATCH)، فما ينفعش يفشل هنا
+  --      وهو نجح أول مرة.
   ------------------------------------------------------------------
   if pg_catalog.length(pg_catalog.btrim(coalesce(p_customer_name, ''))) < 3 then
     raise exception 'ZELL_INVALID_NAME' using errcode = '45020';
-  end if;
-  if coalesce(p_customer_phone, '') !~ '^01[0125][0-9]{8}$' then
-    raise exception 'ZELL_INVALID_PHONE' using errcode = '45021';
   end if;
   if pg_catalog.length(pg_catalog.btrim(coalesce(p_address, ''))) < 8 then
     raise exception 'ZELL_INVALID_ADDRESS' using errcode = '45022';
@@ -128,9 +229,7 @@ begin
     raise exception 'ZELL_NOTES_TOO_LONG' using errcode = '45026';
   end if;
 
-  ------------------------------------------------------------------
-  -- (ج) تحقق آمن من شكل السلة **قبل** أي cast
-  ------------------------------------------------------------------
+  -- تحقق آمن من شكل السلة **قبل** أي cast
   if p_items is null or pg_catalog.jsonb_typeof(p_items) <> 'array' then
     raise exception 'ZELL_CART_INVALID' using errcode = '45023';
   end if;
@@ -158,7 +257,8 @@ begin
   end if;
 
   ------------------------------------------------------------------
-  -- (د) إعدادات الشحن — shipping_default_piastres **مش مقروء** عن قصد
+  -- (و) إعدادات الشحن + المحافظة — **فحوصات مُتغيّرة، بعد الحسم**
+  --     shipping_default_piastres مش مقروء عن قصد (ت٦).
   ------------------------------------------------------------------
   select s.value into v_rates    from public.settings s where s.key = 'shipping_rates';
   select s.value into v_free     from public.settings s where s.key = 'free_shipping_threshold_piastres';
@@ -171,9 +271,7 @@ begin
     raise exception 'ZELL_SETTINGS_MISSING' using errcode = '45030';
   end if;
 
-  ------------------------------------------------------------------
-  -- (هـ) المحافظة: موجودة في rates **و** مش في disabled
-  ------------------------------------------------------------------
+  -- المحافظة: موجودة في rates **و** مش في disabled
   if not (v_rates ? coalesce(p_governorate, ''))
      or v_disabled ? coalesce(p_governorate, '') then
     raise exception 'ZELL_GOVERNORATE_NOT_SERVED' using errcode = '45031';
@@ -182,8 +280,23 @@ begin
     raise exception 'ZELL_SETTINGS_MISSING' using errcode = '45030';
   end if;
 
+  -- سعر الشحن والعتبة: numeric أولاً، وحارس نطاق + صحّة عددية قبل الـcast.
+  -- قيمة إعداد زي 1e12 كانت هتفشل بـ"integer out of range" غامض.
+  v_num := (v_rates ->> p_governorate)::numeric;
+  if v_num < 0 or v_num > c_int4_max or v_num <> pg_catalog.trunc(v_num) then
+    raise exception 'ZELL_SETTINGS_MISSING' using errcode = '45030';
+  end if;
+  v_base := v_num::integer;
+
+  v_num := (v_free #>> '{}')::numeric;
+  if v_num < 0 or v_num > c_int4_max or v_num <> pg_catalog.trunc(v_num) then
+    raise exception 'ZELL_SETTINGS_MISSING' using errcode = '45030';
+  end if;
+  v_threshold := v_num::integer;
+
   ------------------------------------------------------------------
-  -- (و) نافذة الموبايل — بتعدّ الطلبات المكتملة، فالتراجع ما يأثّرش عليها
+  -- (ز) نافذة الموبايل — **مُتغيّرة، ومحمية بالقفل من (ج)**
+  --     بتعدّ الطلبات المكتملة، فالتراجع ما يأثّرش عليها.
   ------------------------------------------------------------------
   select pg_catalog.count(*)::integer into v_phone_count
   from public.orders o
@@ -195,7 +308,7 @@ begin
   end if;
 
   ------------------------------------------------------------------
-  -- (ز) الإدخال — عبارة CTE واحدة، مع إعادة المحاولة على تصادم الرقم
+  -- (ح) الإدخال — عبارة CTE واحدة، مع إعادة المحاولة على تصادم الرقم
   ------------------------------------------------------------------
   for v_attempt in 1..c_number_tries loop
     begin
@@ -225,7 +338,11 @@ begin
                p.price_per_meter_piastres,
                p.width_cm,
                r.length_cm,
-               pg_catalog.round((p.price_per_meter_piastres * r.length_cm) / 100.0)::integer as line_total
+               -- تصحيح ب١٣-٣: الضرب على numeric **قبل** القسمة.
+               -- integer × integer كان بيفيض قبل /100 حتى لما الناتج
+               -- النهائي يدخل في integer عادي.
+               pg_catalog.round((p.price_per_meter_piastres::numeric
+                                 * r.length_cm::numeric) / 100.0) as line_total
         from req r
         join public.products p
           on p.id = r.product_id
@@ -234,13 +351,16 @@ begin
          and ((r.length_cm - p.min_length_cm) % p.step_cm) = 0
       ),
       totals as (
-        select coalesce(pg_catalog.sum(line_total), 0)::integer as subtotal,
+        select coalesce(pg_catalog.sum(line_total), 0)::numeric as subtotal,
                pg_catalog.count(*)::integer                     as ok_count
         from priced
       ),
       ship as (
-        select (v_rates ->> p_governorate)::integer as base_piastres,
-               (v_free  #>> '{}')::integer          as free_threshold
+        select t.subtotal,
+               t.ok_count,
+               case when v_threshold > 0 and t.subtotal >= v_threshold
+                    then 0::numeric else v_base::numeric end as shipping
+        from totals t
       ),
       new_order as (
         insert into public.orders (
@@ -256,19 +376,22 @@ begin
           p_governorate,
           pg_catalog.btrim(p_address),
           nullif(pg_catalog.btrim(coalesce(p_notes, '')), ''),
-          t.subtotal,
-          case when sh.free_threshold > 0 and t.subtotal >= sh.free_threshold
-               then 0 else sh.base_piastres end,
-          t.subtotal + case when sh.free_threshold > 0 and t.subtotal >= sh.free_threshold
-               then 0 else sh.base_piastres end,
+          s.subtotal::integer,
+          s.shipping::integer,
+          (s.subtotal + s.shipping)::integer,
           p_idempotency_key,
           p_request_hash,
           p_checkout_session_hash,
           p_receipt_token_hash,
           pg_catalog.now() + (c_receipt_days || ' days')::interval
-        from totals t, ship sh
+        from ship s
         -- قلب الذرّية: أي صنف مرفوض = صفر صفوف = مفيش طلب أصلاً.
-        where t.ok_count > 0 and t.ok_count = v_req_count
+        where s.ok_count > 0
+          and s.ok_count = v_req_count
+        -- حارس نطاق int4 (ب١٣-٣): المقارنة على numeric، فمفيش overflow
+        -- وقت الفحص نفسه. لو اتخرق، صفر صفوف، و(ط) بترجّع الكود الدقيق.
+          and s.subtotal >= 0
+          and (s.subtotal + s.shipping) <= 2147483647
         on conflict (idempotency_key) where idempotency_key is not null do nothing
         returning id, order_number, subtotal_piastres, shipping_piastres, total_piastres
       ),
@@ -278,12 +401,15 @@ begin
           unit_price_piastres, length_cm, width_cm, line_total_piastres
         )
         select o.id, pr.product_id, pr.name_ar, pr.image_url, pr.price_per_meter_piastres,
-               pr.length_cm, pr.width_cm, pr.line_total
+               pr.length_cm, pr.width_cm, pr.line_total::integer
         from new_order o cross join priced pr
         returning order_id
       )
-      select o.order_number, o.subtotal_piastres, o.shipping_piastres, o.total_piastres,
-             (select pg_catalog.count(*)::integer from items_ins) as item_count
+      -- ⚠ items_ins مش مُشار إليه في الـselect النهائي عن قصد (item_count
+      --   اتشال من العقد — ب١٣-٤). ده **مش** كود ميّت: في بوستجريس، عبارات
+      --   التعديل جوه WITH بتتنفّذ مرة واحدة وبالكامل، بغضّ النظر عن قراءة
+      --   مخرجاتها من الاستعلام الرئيسي.
+      select o.order_number, o.subtotal_piastres, o.shipping_piastres, o.total_piastres
         into v_order
       from new_order o;
 
@@ -302,7 +428,7 @@ begin
   end loop;
 
   ------------------------------------------------------------------
-  -- (ح) طلب جديد
+  -- (ط) النتيجة
   ------------------------------------------------------------------
   if v_order.order_number is not null then
     return pg_catalog.jsonb_build_object(
@@ -311,56 +437,15 @@ begin
       'order_number', v_order.order_number,
       'subtotal_piastres', v_order.subtotal_piastres,
       'shipping_piastres', v_order.shipping_piastres,
-      'total_piastres', v_order.total_piastres,
-      'item_count', v_order.item_count);
+      'total_piastres', v_order.total_piastres);
   end if;
 
-  ------------------------------------------------------------------
-  -- (ط) صفر صفوف — تمييز رباعي
-  ------------------------------------------------------------------
-  select o.order_number, o.request_hash, o.checkout_session_hash,
-         o.subtotal_piastres, o.shipping_piastres, o.total_piastres
-    into v_existing
-  from public.orders o
-  where o.idempotency_key = p_idempotency_key;
-
-  if v_existing.order_number is not null then
-
-    -- (ط-1) نفس المفتاح، محتوى مختلف
-    if v_existing.request_hash is distinct from p_request_hash then
-      raise exception 'ZELL_IDEMPOTENCY_MISMATCH' using errcode = '45003';
-    end if;
-
-    -- (ط-2) نفس المفتاح ونفس المحتوى، بس **متصفح تاني**.
-    --       ده الحاجز الأساسي: المفتاح + الـbody لوحدهم ما يقدروش يصدروا
-    --       ولا يدوّروا أي وصول للإيصال.
-    if v_existing.checkout_session_hash is distinct from p_checkout_session_hash then
-      raise exception 'ZELL_REPLAY_NOT_AUTHORIZED' using errcode = '45007';
-    end if;
-
-    -- (ط-3) replay مُصرَّح: تدوير بخانتين.
-    --       ⚠ receipt_expires_at **غير مذكور عن قصد** — النافذة مربوطة بلحظة
-    --         إنشاء الطلب ومفيش أي طرف يقدر يمدّها.
-    --       ⚠ الرمز السابق يفضل صالح، فترتيب وصول الردود مش مهم.
-    update public.orders
-       set receipt_token_hash_prev = receipt_token_hash,
-           receipt_token_hash      = p_receipt_token_hash,
-           updated_at              = pg_catalog.now()
-     where idempotency_key = p_idempotency_key;
-
-    return pg_catalog.jsonb_build_object(
-      'ok', true,
-      'replayed', true,
-      'order_number', v_existing.order_number,
-      'subtotal_piastres', v_existing.subtotal_piastres,
-      'shipping_piastres', v_existing.shipping_piastres,
-      'total_piastres', v_existing.total_piastres);
-  end if;
-
-  -- (ط-4) مفيش صف بالمفتاح. نفرّق بين «سلة مرفوضة» و«تسابق»:
-  --        نعيد تقييم صلاحية السلة. لو كلها سليمة، فالصفر صفوف جاي من
-  --        on conflict ومعناه تسابق — مش صنف غير متاح.
-  select pg_catalog.count(*)::integer into v_valid_count
+  -- صفر صفوف. الحسم في (د) حصل قبل القفل... لأ: **بعد** القفل. فمفيش احتمال
+  -- إن الصف كان موجود وقتها. يبقى السبب واحد من تلاتة، نحدّده بدقة:
+  select pg_catalog.count(*)::integer,
+         coalesce(pg_catalog.sum(pg_catalog.round((p.price_per_meter_piastres::numeric
+                                                   * r.length_cm::numeric) / 100.0)), 0)
+    into v_valid_count, v_subtotal
   from (
     select (e ->> 'productId')::integer as product_id,
            (e ->> 'lengthCm')::integer  as length_cm
@@ -372,11 +457,23 @@ begin
    and r.length_cm between p.min_length_cm and p.max_length_cm
    and ((r.length_cm - p.min_length_cm) % p.step_cm) = 0;
 
-  if v_valid_count = v_req_count then
-    raise exception 'ZELL_CONCURRENT' using errcode = '45060';
+  -- (ط-1) صنف مش متاح أو طول مخالف
+  if v_valid_count <> v_req_count then
+    raise exception 'ZELL_ITEM_UNAVAILABLE' using errcode = '45040';
   end if;
 
-  raise exception 'ZELL_ITEM_UNAVAILABLE' using errcode = '45040';
+  -- (ط-2) الإجمالي بره نطاق integer — إعداد سعر أو شحن غلط، مش غلطة العميل
+  v_shipping := case when v_threshold > 0 and v_subtotal >= v_threshold
+                     then 0::numeric else v_base::numeric end;
+  if (v_subtotal + v_shipping) > c_int4_max then
+    raise exception 'ZELL_PRICE_OUT_OF_RANGE' using errcode = '45027';
+  end if;
+
+  -- (ط-3) الباقي: on conflict اشتغل من معاملة بمفتاح idempotency مكرّر
+  --        **ورقم موبايل مختلف** (قفل مختلف، فما استنتهاش). حالة عدائية
+  --        بالأساس. إعادة المحاولة هتمر على (د) وهتتعامل معاها صح وبأمان
+  --        (فحص request_hash والجلسة)، فالكود هنا retryable عن قصد.
+  raise exception 'ZELL_CONCURRENT' using errcode = '45060';
 end;
 $create_order$;
 
@@ -548,10 +645,10 @@ commit;
 --  45020 ZELL_INVALID_NAME              45021 ZELL_INVALID_PHONE
 --  45022 ZELL_INVALID_ADDRESS           45023 ZELL_CART_INVALID
 --  45024 ZELL_CART_EMPTY                45025 ZELL_CART_TOO_LARGE
---  45026 ZELL_NOTES_TOO_LONG            45030 ZELL_SETTINGS_MISSING
---  45031 ZELL_GOVERNORATE_NOT_SERVED    45040 ZELL_ITEM_UNAVAILABLE
---  45041 ZELL_PHONE_DAILY_LIMIT         45050 ZELL_ORDER_NUMBER_EXHAUSTED
---  45060 ZELL_CONCURRENT
+--  45026 ZELL_NOTES_TOO_LONG            45027 ZELL_PRICE_OUT_OF_RANGE
+--  45030 ZELL_SETTINGS_MISSING          45031 ZELL_GOVERNORATE_NOT_SERVED
+--  45040 ZELL_ITEM_UNAVAILABLE          45041 ZELL_PHONE_DAILY_LIMIT
+--  45050 ZELL_ORDER_NUMBER_EXHAUSTED    45060 ZELL_CONCURRENT
 --
 -- =====================================================================
 -- التراجع (للمرجع — مش بيتنفّذ تلقائياً)
