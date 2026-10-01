@@ -146,7 +146,11 @@ export async function restPatch(
         apikey: key,
         Authorization: 'Bearer ' + key,
         'Content-Type': 'application/json',
-        // representation عشان نعرف **عدد الصفوف المتأثرة** — ده أساس الحجز الذرّي
+        // representation عشان نعرف **عدد الصفوف المتأثرة** — ده أساس الحجز الذرّي.
+        // ⚠️ الهيدر ده **إلزامي**: من غيره PostgREST بيرجّع body فاضي، فـ
+        //    response.json() بترجع null و restPatch بترجع ok:false رغم نجاح
+        //    التحديث — والحجز الذرّي بيتبطّل بالكامل.
+        Prefer: 'return=representation',
       },
       body: JSON.stringify(patch),
       cache: 'no-store',
