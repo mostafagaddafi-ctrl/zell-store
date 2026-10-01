@@ -4,7 +4,14 @@
  * الملف ده مالوش أي اتصال بشبكة — تحويل خالص، قابل للاختبار لوحده.
  * خارج نطاقه تمامًا: رفع أو حذف أو تعديل أي صورة، وأي SQL أو RLS.
  */
-import { publicImageUrl, type StoreImage, type StoreProduct, type StoreSettings } from '@zell/core'
+import {
+  publicImageUrl,
+  sanitizeAnnouncementHref,
+  type Announcement,
+  type StoreImage,
+  type StoreProduct,
+  type StoreSettings,
+} from '@zell/core'
 
 /** صف جدول products. */
 export type ProductRow = {
@@ -134,6 +141,7 @@ export const PUBLIC_SETTING_KEYS = [
   'shipping_rates',
   'shipping_default_piastres',
   'free_shipping_threshold_piastres',
+  'announcement',
 ] as const
 
 function settingString(map: Map<string, unknown>, key: string, fallback = ''): string {
@@ -161,6 +169,27 @@ function settingRates(map: Map<string, unknown>, key: string): Record<string, nu
   return out
 }
 
+/**
+ * الشريط — شكل دفاعي بالكامل. أي حقل ناقص أو بنوع غلط بيرجع لقيمته
+ * الافتراضية، والرابط بيتفلتر تاني هنا مهما كان المحفوظ.
+ */
+function settingAnnouncement(map: Map<string, unknown>): Announcement {
+  const empty: Announcement = { enabled: false, text: '', href: '', ctaLabel: '' }
+  const raw = map.get('announcement')
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return empty
+
+  const value = raw as Record<string, unknown>
+  const text = typeof value['text'] === 'string' ? value['text'].trim() : ''
+  if (value['enabled'] !== true || text === '') return empty
+
+  return {
+    enabled: true,
+    text,
+    href: sanitizeAnnouncementHref(typeof value['href'] === 'string' ? value['href'] : ''),
+    ctaLabel: typeof value['ctaLabel'] === 'string' ? value['ctaLabel'].trim() : '',
+  }
+}
+
 export function toStoreSettings(rows: SettingRow[], logo: StoreImage | null = null): StoreSettings {
   const allowed = new Set<string>(PUBLIC_SETTING_KEYS)
   const map = new Map<string, unknown>()
@@ -181,5 +210,6 @@ export function toStoreSettings(rows: SettingRow[], logo: StoreImage | null = nu
     shippingDefaultPiastres: settingNumber(map, 'shipping_default_piastres', 0),
     freeShippingThresholdPiastres: settingNumber(map, 'free_shipping_threshold_piastres', 0),
     governorates: Object.keys(shippingRates).sort((a, b) => a.localeCompare(b, 'ar')),
+    announcement: settingAnnouncement(map),
   }
 }
