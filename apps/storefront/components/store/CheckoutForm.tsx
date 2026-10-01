@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Info } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 import {
   computeShippingPiastres,
   computeSubtotalPiastres,
@@ -20,6 +21,66 @@ import { Field, inputClasses, textareaClasses } from '../ui/Field'
 import { Num } from './Num'
 import { OrderSummary } from './OrderSummary'
 
+/**
+ * مفتاح النية — ORDER-FLOW-PLAN.md §4.1.
+ *
+ * ⚠️ المفتاح ده **مش سر**: مقروء من JavaScript بحكم مكانه، ولوحده مع الـbody
+ *    ما يقدرش يصدر ولا يدوّر أي وصول للإيصال — ده دور كوكي الجلسة (ب١٠).
+ *
+ * بيتثبت لما النية تبقى نفسها (إعادة محاولة = replay على نفس الطلب)،
+ * وبيتجدد لما البيانات تتغير (نية جديدة = طلب جديد). من غير الربط بالـbody،
+ * أي تعديل في الفورم بعد فشل كان هيرجع IDEMPOTENCY_MISMATCH.
+ */
+const INTENT_KEY = 'zell-order-intent'
+
+function newIntentKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  return 'k-' + String(Date.now()) + '-' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
+}
+
+function resolveIdempotencyKey(body: string): string {
+  try {
+    const raw = window.sessionStorage.getItem(INTENT_KEY)
+    if (raw !== null) {
+      const parsed: unknown = JSON.parse(raw)
+      if (typeof parsed === 'object' && parsed !== null) {
+        const stored = parsed as { body?: unknown; key?: unknown }
+        if (stored.body === body && typeof stored.key === 'string' && stored.key.length >= 16) return stored.key
+      }
+    }
+  } catch {
+    // التخزين مقفول — نكمل بمفتاح جديد كل محاولة
+  }
+
+  const key = newIntentKey()
+  try {
+    window.sessionStorage.setItem(INTENT_KEY, JSON.stringify({ body, key }))
+  } catch {
+    // التخزين مقفول — المفتاح يفضل صالح للمحاولة الحالية
+  }
+  return key
+}
+
+function clearIntent(): void {
+  try {
+    window.sessionStorage.removeItem(INTENT_KEY)
+  } catch {
+    // مفيش حاجة نعملها
+  }
+}
+
+function isOrderSuccess(value: unknown): value is { ok: true; order: { orderNumber: string } } {
+  if (typeof value !== 'object' || value === null) return false
+  const candidate = value as { ok?: unknown; order?: { orderNumber?: unknown } }
+  return candidate.ok === true && typeof candidate.order?.orderNumber === 'string'
+}
+
+function isOrderFailure(value: unknown): value is { ok: false; code: string; message: string } {
+  if (typeof value !== 'object' || value === null) return false
+  const candidate = value as { ok?: unknown; code?: unknown; message?: unknown }
+  return candidate.ok === false && typeof candidate.code === 'string' && typeof candidate.message === 'string'
+}
+
 const EMPTY: CheckoutValues = {
   customerName: '',
   customerPhone: '',
@@ -33,6 +94,10 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   const [values, setValues] = useState<CheckoutValues>(EMPTY)
   const [touched, setTouched] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+  const router = useRouter()
+  const abortRef = useRef<AbortController | null>(null)
 
   const byId = useMemo(() => {
     const map = new Map<number, StoreProduct>()
@@ -65,6 +130,64 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   const set = (patch: Partial<CheckoutValues>) => setValues({ ...values, ...patch })
   const show = (key: keyof typeof errors) => (touched ? errors[key] : undefined)
 
+  const items = entries.map((entry) => ({ productId: entry.product.id, lengthCm: entry.line.lengthCm }))
+
+  async function submit(): Promise<void> {
+    setTouched(true)
+    setFailure(null)
+    if (invalid || submitting || items.length === 0) return
+
+    const body = JSON.stringify({
+      customerName: values.customerName,
+      customerPhone: values.customerPhone,
+      governorate: values.governorate,
+      address: values.address,
+      notes: values.notes.trim() === '' ? null : values.notes,
+      items,
+    })
+    const idempotencyKey = resolveIdempotencyKey(body)
+
+    // طلب واحد في اللحظة من التاب ده — تقليل احتمال التسابق (§4.4)
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    setSubmitting(true)
+
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+        body,
+        // لازم تتبعت الكوكيز: zell_ck إثبات المتصفح، ومن غيرها كل submit بيترفض
+        credentials: 'same-origin',
+        signal: controller.signal,
+      })
+
+      const result: unknown = await response.json().catch(() => null)
+
+      if (response.ok && isOrderSuccess(result)) {
+        // السلة تتنضّف **بعد** الرد الناجح بس
+        clearIntent()
+        cart.clear()
+        router.push('/order/' + result.order.orderNumber)
+        return
+      }
+
+      if (isOrderFailure(result)) {
+        // البيانات اتغيّرت على نفس المفتاح — النية الجاية تاخد مفتاح جديد
+        if (result.code === 'IDEMPOTENCY_MISMATCH') clearIntent()
+        setFailure(result.message)
+      } else {
+        setFailure('حصلت مشكلة غير متوقّعة. كلّمنا على واتساب.')
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return
+      setFailure('الشبكة وقعت. جرّب تاني — الطلب مش بيتكرر.')
+    }
+
+    setSubmitting(false)
+  }
+
   if (cart.ready && entries.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-card px-6 py-16 text-center">
@@ -81,7 +204,7 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
       className="grid gap-6 lg:grid-cols-12 lg:gap-10"
       onSubmit={(event) => {
         event.preventDefault()
-        setTouched(true)
+        void submit()
       }}
     >
       <div className="space-y-6 lg:col-span-7">
@@ -186,25 +309,24 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
 
           <OrderSummary subtotalPiastres={subtotal} shippingPiastres={shipping} />
 
-          {/*
-            مرحلة البناء: إنشاء الطلب مش مربوط بقرار صريح.
-            شريط جانبي خفيف مش صندوق جوه صندوق.
-          */}
-          <div className="flex gap-3 border-s-2 border-gold bg-card p-4">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-fg">تأكيد الطلب لسه مش مفعّل</p>
-              <p className="text-xs leading-relaxed text-muted">
-                المتجر في مرحلة التجهيز. لأي استفسار أو طلب دلوقتي كلّمنا على واتساب من فوق.
-              </p>
-            </div>
-          </div>
-
-          <Button type="submit" size="lg" disabled>
-            تأكيد الطلب (قريباً)
+          <Button type="submit" size="lg" disabled={submitting}>
+            {submitting ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                بنسجّل الطلب…
+              </span>
+            ) : (
+              'تأكيد الطلب · الدفع عند الاستلام'
+            )}
           </Button>
 
-          {touched && invalid ? (
+          {/*
+            الخطأ جنب الزر، والسلة والبيانات زي ما هي — ممنوع نضيّع شغل الزبون
+            على خطأ. الرسالة **دايماً** من السيرفر (جدول §1.3) مش من الاستثناء.
+          */}
+          {failure !== null ? (
+            <p className="text-center text-xs font-medium text-danger">{failure}</p>
+          ) : touched && invalid ? (
             <p className="text-center text-xs font-medium text-danger">راجع البيانات المطلوبة</p>
           ) : null}
         </div>
