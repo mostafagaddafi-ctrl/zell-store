@@ -117,7 +117,8 @@ function isCreateOrderResult(value: unknown): value is CreateOrderResult {
     typeof value['replayed'] === 'boolean' &&
     typeof value['subtotal_piastres'] === 'number' &&
     typeof value['shipping_piastres'] === 'number' &&
-    typeof value['total_piastres'] === 'number'
+    typeof value['total_piastres'] === 'number' &&
+    typeof value['receipt_expires_at'] === 'string'
   )
 }
 
@@ -220,6 +221,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const order = result.data
 
+  // (٨) عمر الكوكي من الداتابيز — مش ثابت (§6.4ب · 0006c).
+  //
+  // receipt_expires_at بيتكتب مرة واحدة عند الإنشاء و**ما بيتمدّش**، فالكوكي
+  // ممنوع تدّعي صلاحية أطول منه. الحد الأقصى برضه مفروض عشان قيمة غريبة من
+  // الداتابيز ما تطلعش كوكي أبدية.
+  const expiresAtMs = Date.parse(order.receipt_expires_at)
+  if (!Number.isFinite(expiresAtMs)) {
+    console.error('[orders] INTERNAL :: unparsable receipt_expires_at')
+    return fail('INTERNAL')
+  }
+  const remainingSeconds = Math.floor((expiresAtMs - Date.now()) / 1000)
+  const receiptMaxAge = Math.min(RECEIPT_MAX_AGE_SECONDS, Math.max(0, remainingSeconds))
+
   const response = NextResponse.json(
     {
       ok: true,
@@ -234,24 +248,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     { status: order.replayed ? 200 : 201 },
   )
 
-  // السر الخام بيسافر هنا وبس — HttpOnly ومقيّد بمسار الطلب (ب٨ + ب٩).
-  //
-  // 🔴 blocker قبل تفعيل ORDERS_ENABLED: على الـreplay الكوكي دي بتاخد ٧ أيام
-  //    **جديدة** بينما receipt_expires_at في الداتابيز بيتكتب مرة واحدة وما
-  //    بيتمدّش عن قصد. فالكوكي تقدر تعيش أطول من الصلاحية الحقيقية، والنتيجة
-  //    صفحة «الإيصال غير متاح» — **فاشل-مقفول، مش ثغرة وصول**.
-  //    أنظف حل: zell_create_order ترجّع receipt_expires_at في إسقاطها،
-  //    والراوت يحسب Max-Age المتبقي. ده بيستلزم create or replace للدالة
-  //    (migration 0006c) فمؤجّل بقرار صريح. التفاصيل في الخطة §6.4ب.
-  response.cookies.set({
-    name: receiptCookieName(order.order_number),
-    value: receiptSecret,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: receiptCookiePath(order.order_number),
-    maxAge: RECEIPT_MAX_AGE_SECONDS,
-  })
+  if (receiptMaxAge > 0) {
+    // السر الخام بيسافر هنا وبس — HttpOnly ومقيّد بمسار الطلب (ب٨ + ب٩).
+    response.cookies.set({
+      name: receiptCookieName(order.order_number),
+      value: receiptSecret,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: receiptCookiePath(order.order_number),
+      maxAge: receiptMaxAge,
+    })
+  } else {
+    // النافذة خلصت أصلاً — يعني replay لطلب أقدم من ٧ أيام. **ممنوع** نضبط
+    // كوكي بتدّعي صلاحية مش موجودة؛ zell_get_order_receipt هترفضها برضه.
+    //
+    // ⚠️ بنرجّع العقد الناجح من غير كوكي، **مش** INTERNAL: الطلب نفسه سليم
+    //    ومسجّل، و INTERNAL عنده retryable = true فكان هيعمل حلقة إعادة محاولة
+    //    لا نهائية على حالة ثابتة ما بتتغيّرش. صفحة الإيصال بتقول «غير متاح»
+    //    وهي الحقيقة بالظبط.
+    console.error('[orders] receipt window already closed on replay :: ' + order.order_number)
+  }
 
   return response
 }
