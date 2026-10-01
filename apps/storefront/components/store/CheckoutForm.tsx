@@ -15,6 +15,7 @@ import {
   type StoreProduct,
   type StoreSettings,
 } from '@zell/core'
+import { canonicalOrderJson, normalizeOrder } from '../../lib/orders/canonical'
 import { useCart } from '../../lib/cart'
 import { Button, buttonClasses } from '../ui/Button'
 import { Field, inputClasses, textareaClasses } from '../ui/Field'
@@ -28,8 +29,12 @@ import { OrderSummary } from './OrderSummary'
  *    ما يقدرش يصدر ولا يدوّر أي وصول للإيصال — ده دور كوكي الجلسة (ب١٠).
  *
  * بيتثبت لما النية تبقى نفسها (إعادة محاولة = replay على نفس الطلب)،
- * وبيتجدد لما البيانات تتغير (نية جديدة = طلب جديد). من غير الربط بالـbody،
- * أي تعديل في الفورم بعد فشل كان هيرجع IDEMPOTENCY_MISMATCH.
+ * وبيتجدد لما البيانات تتغير فعلاً (نية جديدة = طلب جديد).
+ *
+ * ⚠️ الربط على **الصيغة القانونية** اللي السيرفر بيهشها، مش على الـbody الخام:
+ *    تعديل شكلي (مسافة في الاسم، أو ترتيب أصناف مختلف) ما بيغيّرش النية، فلازم
+ *    يفضل نفس المفتاح. لو اتربط بالـbody الخام، أول إرسال نجح وضاع رده +
+ *    تعديل شكلي = **طلب تاني** بدل replay.
  */
 const INTENT_KEY = 'zell-order-intent'
 
@@ -38,14 +43,16 @@ function newIntentKey(): string {
   return 'k-' + String(Date.now()) + '-' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
 }
 
-function resolveIdempotencyKey(body: string): string {
+function resolveIdempotencyKey(canonical: string): string {
   try {
     const raw = window.sessionStorage.getItem(INTENT_KEY)
     if (raw !== null) {
       const parsed: unknown = JSON.parse(raw)
       if (typeof parsed === 'object' && parsed !== null) {
-        const stored = parsed as { body?: unknown; key?: unknown }
-        if (stored.body === body && typeof stored.key === 'string' && stored.key.length >= 16) return stored.key
+        const stored = parsed as { canonical?: unknown; key?: unknown }
+        if (stored.canonical === canonical && typeof stored.key === 'string' && stored.key.length >= 16) {
+          return stored.key
+        }
       }
     }
   } catch {
@@ -54,7 +61,7 @@ function resolveIdempotencyKey(body: string): string {
 
   const key = newIntentKey()
   try {
-    window.sessionStorage.setItem(INTENT_KEY, JSON.stringify({ body, key }))
+    window.sessionStorage.setItem(INTENT_KEY, JSON.stringify({ canonical, key }))
   } catch {
     // التخزين مقفول — المفتاح يفضل صالح للمحاولة الحالية
   }
@@ -137,15 +144,18 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
     setFailure(null)
     if (invalid || submitting || items.length === 0) return
 
-    const body = JSON.stringify({
+    const payload = {
       customerName: values.customerName,
       customerPhone: values.customerPhone,
       governorate: values.governorate,
       address: values.address,
       notes: values.notes.trim() === '' ? null : values.notes,
       items,
-    })
-    const idempotencyKey = resolveIdempotencyKey(body)
+    }
+    const body = JSON.stringify(payload)
+
+    // نفس منطق السيرفر بالحرف — من ./lib/orders/canonical
+    const idempotencyKey = resolveIdempotencyKey(canonicalOrderJson(normalizeOrder(payload)))
 
     // طلب واحد في اللحظة من التاب ده — تقليل احتمال التسابق (§4.4)
     abortRef.current?.abort()
