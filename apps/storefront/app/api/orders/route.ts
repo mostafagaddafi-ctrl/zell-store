@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { isValidEgyptianPhone } from '@zell/core'
-import { restRpc } from '../../../lib/data/rpc'
+import { restRpc, type RpcResult } from '../../../lib/data/rpc'
 import type { CreateOrderResult, OrderErrorCode, OrderItemInput, OrderRequest } from '../../../lib/orders/contracts'
 import { codeFromSqlError, orderFailure, statusFor } from '../../../lib/orders/errors'
 import { CHECKOUT_SESSION_COOKIE, checkoutSessionHash } from '../../../lib/orders/checkoutSession'
@@ -131,6 +131,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const contentType = (request.headers.get('content-type') ?? '').toLowerCase()
   if (!contentType.startsWith('application/json')) return fail('BAD_CONTENT_TYPE')
 
+  // فحص مبكر على Content-Length لو موجود — بيرفض قبل قراءة الـbody خالص.
+  // الهيدر **مش موثوق** وممكن يبقى غايب أو كذب، فالفحص الحقيقي بعد القراءة
+  // باقي زي ما هو. الاتنين مطلوبين: ده بيوفّر القراءة، وده بيضمن الحد.
+  const declaredLength = Number.parseInt(request.headers.get('content-length') ?? '', 10)
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) return fail('BODY_TOO_LARGE')
+
   let raw: string
   try {
     raw = await request.text()
@@ -176,18 +182,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   // (٧) المعاملة الذرّية
-  const result = await restRpc<unknown>('zell_create_order', {
-    p_items: normalized.items.map((item) => ({ productId: item.productId, lengthCm: item.lengthCm })),
-    p_customer_name: normalized.customerName,
-    p_customer_phone: normalized.customerPhone,
-    p_governorate: normalized.governorate,
-    p_address: normalized.address,
-    p_notes: normalized.notes,
-    p_idempotency_key: idempotencyKey,
-    p_request_hash: requestHashHex,
-    p_checkout_session_hash: sessionHashHex,
-    p_receipt_token_hash: receiptHashHex,
-  })
+  //
+  // ⚠️ restRpc بترمي لو الـcredentials ناقصة. الـtry هنا **إلزامي**: من غيره
+  //    إعداد ناقص بيطلع صفحة خطأ عامة من Next بدل عقد INTERNAL الثابت،
+  //    وده بيخرق قاعدة «الرسالة دايماً من جدول §1.3».
+  let result: RpcResult<unknown>
+  try {
+    result = await restRpc<unknown>('zell_create_order', {
+      p_items: normalized.items.map((item) => ({ productId: item.productId, lengthCm: item.lengthCm })),
+      p_customer_name: normalized.customerName,
+      p_customer_phone: normalized.customerPhone,
+      p_governorate: normalized.governorate,
+      p_address: normalized.address,
+      p_notes: normalized.notes,
+      p_idempotency_key: idempotencyKey,
+      p_request_hash: requestHashHex,
+      p_checkout_session_hash: sessionHashHex,
+      p_receipt_token_hash: receiptHashHex,
+    })
+  } catch (error) {
+    // اسم الاستثناء بس — مفيش مفتاح ولا رابط ولا بيانات عميل في اللوج
+    console.error('[orders] INTERNAL :: rpc threw ' + (error instanceof Error ? error.name : 'unknown'))
+    return fail('INTERNAL')
+  }
 
   if (!result.ok) {
     const code = codeFromSqlError(result.sqlMessage)
@@ -218,6 +235,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   )
 
   // السر الخام بيسافر هنا وبس — HttpOnly ومقيّد بمسار الطلب (ب٨ + ب٩).
+  //
+  // 🔴 blocker قبل تفعيل ORDERS_ENABLED: على الـreplay الكوكي دي بتاخد ٧ أيام
+  //    **جديدة** بينما receipt_expires_at في الداتابيز بيتكتب مرة واحدة وما
+  //    بيتمدّش عن قصد. فالكوكي تقدر تعيش أطول من الصلاحية الحقيقية، والنتيجة
+  //    صفحة «الإيصال غير متاح» — **فاشل-مقفول، مش ثغرة وصول**.
+  //    أنظف حل: zell_create_order ترجّع receipt_expires_at في إسقاطها،
+  //    والراوت يحسب Max-Age المتبقي. ده بيستلزم create or replace للدالة
+  //    (migration 0006c) فمؤجّل بقرار صريح. التفاصيل في الخطة §6.4ب.
   response.cookies.set({
     name: receiptCookieName(order.order_number),
     value: receiptSecret,
