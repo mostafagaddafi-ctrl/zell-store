@@ -77,16 +77,29 @@ export function toStoreImage(row: ProductImageRow, supabaseUrl: string, fallback
   }
 }
 
-export function toStoreLogo(row: SiteImageRow, supabaseUrl: string, storeName: string): StoreImage {
+/**
+ * صف site_images -> StoreImage.
+ *
+ * ⚠️ kind هنا بيتثبّت 'gallery' عن قصد: اتحاد StoreImage.kind بيوصف
+ * أنواع **صور المنتجات** (gallery/before/after)، وصور الموقع
+ * (logo/hero) مالهاش معنى في الاتحاد ده. توسيع الاتحاد كان هيجبر كل
+ * مستهلك لصور المنتجات يتعامل مع حالات مستحيلة عنده.
+ */
+export function toStoreSiteImage(row: SiteImageRow, supabaseUrl: string, fallbackAlt: string): StoreImage {
   return {
     id: row.id,
     url: publicImageUrl(supabaseUrl, { bucket: row.bucket, object_path: row.object_path }),
-    alt: row.alt_text && row.alt_text.trim() !== '' ? row.alt_text : storeName,
+    alt: row.alt_text && row.alt_text.trim() !== '' ? row.alt_text : fallbackAlt,
     width: row.width_px,
     height: row.height_px,
     kind: 'gallery',
     isPrimary: true,
   }
+}
+
+/** اسم محفوظ للتوافق — اللوجو حالة خاصة من صور الموقع. */
+export function toStoreLogo(row: SiteImageRow, supabaseUrl: string, storeName: string): StoreImage {
+  return toStoreSiteImage(row, supabaseUrl, storeName)
 }
 
 export function toStoreProduct(
