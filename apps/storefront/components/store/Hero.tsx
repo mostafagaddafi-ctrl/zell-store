@@ -1,12 +1,17 @@
 import Link from 'next/link'
+import type { StoreImage } from '@zell/core'
 import { buttonClasses } from '../ui/Button'
 import { ImageSlot } from '../ui/ImageSlot'
 
 /**
  * Hero مضغوط عن قصد: المنتجات لازم تبان بدري.
  * على الموبايل الصورة 4:3 ومحدودة بـ 360px ارتفاع، والنص قبلها.
+ *
+ * الصورة بتيجي من site_images (kind = 'hero' and is_active = true).
+ * لو مفيش صورة نشطة، ImageSlot بتعرض الخانة البديلة بنصّها — نفس
+ * السلوك القديم بالظبط، فغياب الصورة مش عطل.
  */
-export function Hero({ offerText }: { offerText: string }) {
+export function Hero({ offerText, image }: { offerText: string; image: StoreImage | null }) {
   return (
     <section className="grid items-center gap-6 py-8 md:grid-cols-2 md:gap-12 md:py-14">
       <div className="space-y-4">
@@ -28,9 +33,11 @@ export function Hero({ offerText }: { offerText: string }) {
 
       <ImageSlot
         ratio="4/3"
-        src={null}
-        alt=""
+        fit="cover"
+        src={image?.url ?? null}
+        alt={image?.alt ?? ''}
         sizes="(min-width: 768px) 50vw, 100vw"
+        priority
         label="صورة الخامة على الشباك"
         className="max-h-[360px] md:max-h-none"
       />

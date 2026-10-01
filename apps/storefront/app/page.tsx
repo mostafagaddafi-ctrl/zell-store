@@ -12,7 +12,7 @@ export default async function HomePage() {
 
   return (
     <Container className="pb-8">
-      <Hero offerText={settings.offerText} />
+      <Hero offerText={settings.offerText} image={settings.heroImage} />
 
       <section id="products" className="scroll-mt-20 py-10 md:py-14">
         <h2 className="text-xl font-bold text-fg md:text-2xl">اختار نوع الفيلم</h2>

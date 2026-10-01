@@ -2,14 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload } from 'lucide-react'
 import { saveIdentityAction } from '../../lib/actions'
 import type { StoreIdentity } from '../../lib/adminData'
 import { useSaveAction } from '../../lib/client/useSaveAction'
-import { Button } from '../ui/Button'
 import { FailureBanner } from '../ui/FailureBanner'
 import { Card, Field, inputClasses } from '../ui/Field'
 import { SaveBar } from '../ui/SaveBar'
+import { SiteImageCard } from './SiteImageCard'
 
 export function IdentityEditor({ identity }: { identity: StoreIdentity }) {
   const router = useRouter()
@@ -25,8 +24,8 @@ export function IdentityEditor({ identity }: { identity: StoreIdentity }) {
   const draftRef = useRef(draft)
   draftRef.current = draft
 
-  // اللوجو **مش** داخل في الحفظ ولا في الطابع — zell_save_identity
-  // بتقفل أربعة مفاتيح بس ومابتلمسش logo_url.
+  // الصور **مش** داخلة في الحفظ ولا في الطابع — zell_save_identity
+  // بتقفل أربعة مفاتيح بس ومابتلمسش site_images.
   const [syncedAt, setSyncedAt] = useState(identity.updatedAt)
   useEffect(() => {
     if (identity.updatedAt === syncedAt) return
@@ -43,39 +42,41 @@ export function IdentityEditor({ identity }: { identity: StoreIdentity }) {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="اللوجو">
-          <div className="flex items-center gap-4">
-            <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded border border-border bg-bg text-center text-xs text-muted">
-              {draft.logo?.url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={draft.logo.url} alt={draft.logo.alt} className="h-full w-full object-contain p-2" />
-              ) : (
-                'خانة اللوجو'
-              )}
-            </div>
-            <div className="space-y-2">
-              <p className="text-xs text-muted">
-                مربع، 1024×1024، خلفية شفافة. بيظهر في هيدر المتجر.
-              </p>
-              <Button variant="secondary" size="sm" disabled>
-                <Upload className="h-3.5 w-3.5" />
-                استبدال اللوجو
-              </Button>
-            </div>
-          </div>
-        </Card>
+        <SiteImageCard
+          kind="logo"
+          title="اللوجو"
+          image={identity.logo}
+          accept="image/png,image/webp"
+          emptyLabel="خانة اللوجو"
+          previewClassName="h-24 w-24"
+          requirements="PNG أو WebP بخلفية شفافة. يفضّل أفقي (مثلاً 600×160) من غير هوامش داخلية حوالين الشعار — الهوامش بتخلّيه يبان صغير في الهيدر. بيظهر في هيدر المتجر بارتفاع 40 بكسل."
+        />
 
         <Card title="المتجر">
           <div className="space-y-3">
             <Field htmlFor="store-name" label="اسم المتجر">
               <input id="store-name" value={draft.storeName} onChange={(e) => touch({ storeName: e.target.value })} className={inputClasses} />
             </Field>
-            <Field htmlFor="offer" label="نص العرض" hint="شريط صغير فوق عنوان الصفحة الرئيسية">
+            <Field
+              htmlFor="offer"
+              label="شارة الواجهة الرئيسية"
+              hint="سطر صغير يظهر جوه الواجهة (Hero) فوق العنوان مباشرة. ده مش الشريط العلوي — الشريط بيتظبط من صفحة المحتوى تحت «الشريط العلوي»."
+            >
               <input id="offer" value={draft.offerText} onChange={(e) => touch({ offerText: e.target.value })} className={inputClasses} />
             </Field>
           </div>
         </Card>
       </div>
+
+      <SiteImageCard
+        kind="hero"
+        title="صورة الواجهة"
+        image={identity.heroImage}
+        accept="image/jpeg,image/png,image/webp"
+        emptyLabel="خانة صورة الواجهة"
+        previewClassName="h-24 w-32"
+        requirements="JPEG أو PNG أو WebP. أقل مقاس 800×450، ويفضّل نسبة 4:3 أفقية. بتظهر جنب نص الواجهة في الصفحة الرئيسية. من غيرها بتفضل الخانة البديلة ظاهرة."
+      />
 
       <Card title="واتساب">
         <div className="grid gap-3 sm:grid-cols-2">

@@ -3,8 +3,8 @@ import 'server-only'
 import type { StoreProduct, StoreSettings } from '@zell/core'
 import {
   PUBLIC_SETTING_KEYS,
-  toStoreLogo,
   toStoreProducts,
+  toStoreSiteImage,
   toStoreSettings,
   type ProductImageRow,
   type ProductRow,
@@ -79,7 +79,7 @@ export async function fetchStorefrontFromSupabase(): Promise<{
 }> {
   const supabaseUrl = supabaseProjectUrl()
 
-  const [productRows, imageRows, settingRows, logoRows] = await Promise.all([
+  const [productRows, imageRows, settingRows, siteImageRows] = await Promise.all([
     restGet<ProductRow>(
       'products',
       'select=' + PRODUCT_COLUMNS + '&is_active=eq.true&order=sort_order.asc,id.asc',
@@ -95,11 +95,11 @@ export async function fetchStorefrontFromSupabase(): Promise<{
       'select=key,value&key=' + inFilter(PUBLIC_SETTING_KEYS),
       REVALIDATE_SECONDS,
     ),
-    // المفروض لوجو نشط واحد بس. id.desc دفاعيًا: لو القيد اتكسر يومًا
-    // ما، بناخد الأحدث مش الأقدم.
+    // اللوجو وصورة الواجهة في طلب واحد — 0009 بيضمن نشط واحد لكل نوع.
+    // id.desc دفاعيًا: لو الفهرس الفريد اتكسر يومًا ما، ناخد الأحدث.
     restGet<SiteImageRow>(
       'site_images',
-      'select=' + SITE_IMAGE_COLUMNS + '&kind=eq.logo&is_active=eq.true&order=id.desc&limit=1',
+      'select=' + SITE_IMAGE_COLUMNS + '&kind=in.(logo,hero)&is_active=eq.true&order=id.desc',
       REVALIDATE_SECONDS,
     ),
   ])
@@ -113,8 +113,11 @@ export async function fetchStorefrontFromSupabase(): Promise<{
 
   // الإعدادات الأول عشان نعرف اسم المتجر كبديل لنص اللوجو
   const baseSettings = toStoreSettings(settingRows, null)
-  const logoRow = logoRows[0]
-  const logo = logoRow ? toStoreLogo(logoRow, supabaseUrl, baseSettings.storeName) : null
+  const logoRow = siteImageRows.find((row) => row.kind === 'logo')
+  const heroRow = siteImageRows.find((row) => row.kind === 'hero')
 
-  return { products, settings: { ...baseSettings, logo } }
+  const logo = logoRow ? toStoreSiteImage(logoRow, supabaseUrl, baseSettings.storeName) : null
+  const heroImage = heroRow ? toStoreSiteImage(heroRow, supabaseUrl, 'صورة الواجهة') : null
+
+  return { products, settings: { ...baseSettings, logo, heroImage } }
 }

@@ -30,7 +30,7 @@ import {
   readStringList,
   settingsMap,
   toAdminImage,
-  toAdminLogo,
+  toAdminSiteImage,
   toAdminOrder,
   toAdminOrderItem,
   toAdminProduct,
@@ -334,21 +334,25 @@ export const supabaseAdminData: AdminDataSource = {
   },
 
   async getIdentity(): Promise<StoreIdentity> {
-    const [rows, logos] = await Promise.all([
+    const [rows, siteImages] = await Promise.all([
       restGet<SettingRow>('settings', 'select=key,value,updated_at&key=' + inFilter(IDENTITY_KEYS)),
+      // اللوجو وصورة الواجهة في طلب واحد. 0009 بيضمن نشط واحد لكل نوع،
+      // و id.desc دفاعي لو الفهرس الفريد اتكسر يومًا ما.
       restGet<SiteImageRow>(
         'site_images',
-        'select=id,bucket,object_path,alt_text,width_px,height_px,updated_at&kind=eq.logo&is_active=eq.true&order=id.desc&limit=1',
+        'select=id,bucket,object_path,kind,alt_text,width_px,height_px,updated_at&kind=in.(logo,hero)&is_active=eq.true&order=id.desc',
       ),
     ])
 
     const map = settingsMap(rows.rows)
     const storeName = readString(map, 'store_name', 'ZELL')
-    const logoRow = logos.rows[0]
+    const logoRow = siteImages.rows.find((row) => row.kind === 'logo')
+    const heroRow = siteImages.rows.find((row) => row.kind === 'hero')
 
     return {
       storeName,
-      logo: logoRow ? toAdminLogo(logoRow, projectUrl(), storeName) : null,
+      logo: logoRow ? toAdminSiteImage(logoRow, projectUrl(), storeName, 'contain') : null,
+      heroImage: heroRow ? toAdminSiteImage(heroRow, projectUrl(), 'صورة الواجهة', 'cover') : null,
       offerText: readString(map, 'offer_text'),
       whatsappNumber: readString(map, 'whatsapp_number'),
       whatsappMessage: readString(map, 'whatsapp_message'),

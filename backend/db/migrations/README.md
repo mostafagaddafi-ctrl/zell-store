@@ -25,7 +25,9 @@
 
 | `0007_cleanup_notify_secrets.sql` | **مطبّقة على production** بتاريخ 2026-10-01 | حذف صفّي `telegram_bot_token` و`telegram_chat_id` من `settings` — الأسرار بقت في متغيرات بيئة المتجر |
 
-| `0008_announcement_bar.sql` | **مسودة — لم تُنفّذ** | مفتاح `announcement` + `zell_save_content` بتاخد معامل تامن `p_announcement` (القديمة 7 معاملات، الجديدة 8). **drop للتوقيع القديم + create or replace للجديد** — `create or replace` لوحده مابيغيّرش التوقيع، والـdrop لوحده بيخلّي التشغيل التاني يقع بخطأ 42723. **idempotent**: الـdrop بيطابق 7 أنواع بس فمابيلمسش الدالة الجديدة أبداً. لازم تتنفّذ بدور `postgres` (في حارس بيوقفها قبل أي تعديل لو الدور غلط) |
+| `0008_announcement_bar.sql` | ✅ **مطبّقة على production** بتاريخ 2026-10-01 | مفتاح `announcement` + `zell_save_content` بتاخد معامل تامن `p_announcement` (القديمة 7 معاملات، الجديدة 8). **drop للتوقيع القديم + create or replace للجديد** — `create or replace` لوحده مابيغيّرش التوقيع، والـdrop لوحده بيخلّي التشغيل التاني يقع بخطأ 42723. **idempotent**: الـdrop بيطابق 7 أنواع بس فمابيلمسش الدالة الجديدة أبداً. لازم تتنفّذ بدور `postgres` (في حارس بيوقفها قبل أي تعديل لو الدور غلط) |
+| `0008a_align_announcement_version.sql` | ✅ **مطبّقة على production** بتاريخ 2026-10-01 | إرجاع `announcement.updated_at` لأحدث طابع محتوى. من غيرها `max` على السبعة ≠ `max` على الستة، فاللوحة المنشورة وقتها كانت بتاخد تعارض وهمي يمنع كل حفظ محتوى |
+| `0009_site_image_kinds.sql` | **مسودة — لم تُنفّذ** | `kind='hero'` في `site_images` + فهرس فريد لصورة نشطة واحدة لكل نوع فردي + `zell_activate_site_image` للتبديل الذرّي (بتسجّل القديم في `storage_orphans` بـ`replaced` وبتشيل صفّه، من غير ما تلمس Storage) |
 
 > ✅ **0006a و0006b و0006c و0007 اتنفّذوا على Production بتاريخ 2026-10-01.**
 > التحقق الذاتي في الاتنين عدّى، وبيانات الاختبار اتحذفت (`orders = 0`).

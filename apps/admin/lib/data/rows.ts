@@ -53,6 +53,7 @@ export type SiteImageRow = {
   id: string
   bucket: string
   object_path: string
+  kind: string
   alt_text: string | null
   width_px: number | null
   height_px: number | null
@@ -138,18 +139,34 @@ export function toAdminImage(row: ProductImageRow, supabaseUrl: string, fallback
   }
 }
 
-export function toAdminLogo(row: SiteImageRow, supabaseUrl: string, storeName: string): AdminImage {
+/**
+ * صف site_images -> AdminImage.
+ *
+ * fit بيتبعت من برّه لأنه بيختلف بالنوع: اللوجو contain (ممنوع قص
+ * أي جزء من الشعار)، وصورة الواجهة cover (بتملا الإطار).
+ */
+export function toAdminSiteImage(
+  row: SiteImageRow,
+  supabaseUrl: string,
+  fallbackAlt: string,
+  fit: ImageFit,
+): AdminImage {
   return {
     id: String(row.id),
     url: publicImageUrl(supabaseUrl, { bucket: row.bucket, object_path: row.object_path }),
-    alt: row.alt_text && row.alt_text.trim() !== '' ? row.alt_text : storeName,
-    fit: 'contain',
+    alt: row.alt_text && row.alt_text.trim() !== '' ? row.alt_text : fallbackAlt,
+    fit,
     sortOrder: 0,
     isPrimary: true,
     width: row.width_px,
     height: row.height_px,
     updatedAt: row.updated_at,
   }
+}
+
+/** اسم محفوظ للتوافق. */
+export function toAdminLogo(row: SiteImageRow, supabaseUrl: string, storeName: string): AdminImage {
+  return toAdminSiteImage(row, supabaseUrl, storeName, 'contain')
 }
 
 export function toAdminOrder(row: OrderRow, itemCount: number): AdminOrder {
