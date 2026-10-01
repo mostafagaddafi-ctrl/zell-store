@@ -13,6 +13,17 @@
 import { normalizePhone } from '@zell/core'
 import type { OrderRequest } from './contracts'
 
+/**
+ * تطبيع Unicode قبل أي مقارنة أو هاش.
+ *
+ * ⚠️ نص عربي ملزوق من مصدر بيستخدم NFD بيدّي بايتات مختلفة عن نفس النص في
+ *    NFC، فالهاش يختلف والمفتاح يتجدد لنفس النية. NFC الأول ثم trim — مش
+ *    العكس: التطبيع ممكن يغيّر محارف المسافات على الأطراف.
+ */
+function normalizeText(value: string): string {
+  return value.normalize('NFC').trim()
+}
+
 export type NormalizedOrder = {
   customerName: string
   customerPhone: string
@@ -27,16 +38,17 @@ export type NormalizedOrder = {
  * الستة كلهم بيتطبّعوا — ولا واحد بيفضل خام.
  */
 export function normalizeOrder(input: OrderRequest): NormalizedOrder {
-  const notes = (input.notes ?? '').trim()
+  const notes = normalizeText(input.notes ?? '')
   const items = input.items
     .map((item) => ({ productId: item.productId, lengthCm: item.lengthCm }))
     .sort((a, b) => a.productId - b.productId || a.lengthCm - b.lengthCm)
 
   return {
-    customerName: input.customerName.trim(),
+    customerName: normalizeText(input.customerName),
+    // الهاتف تحت normalizePhone بس — بيشيل كل حاجة مش رقم أصلاً
     customerPhone: normalizePhone(input.customerPhone),
-    governorate: input.governorate.trim(),
-    address: input.address.trim(),
+    governorate: normalizeText(input.governorate),
+    address: normalizeText(input.address),
     notes: notes === '' ? null : notes,
     items,
   }
