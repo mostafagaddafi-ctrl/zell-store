@@ -1,5 +1,5 @@
-import type { StoreProduct, StoreSettings } from '@zell/core'
-import { getFallbackProducts, getFallbackSettings } from '../catalog'
+import type { StoreCollection, StoreProduct, StoreSettings } from '@zell/core'
+import { getFallbackCollections, getFallbackProducts, getFallbackSettings } from '../catalog'
 import { fetchStorefrontFromSupabase } from './queries'
 
 /**
@@ -24,6 +24,7 @@ export type StorefrontData = {
   source: DataSource
   products: StoreProduct[]
   settings: StoreSettings
+  collections: StoreCollection[]
 }
 
 function resolveDataSource(): DataSource {
@@ -46,11 +47,12 @@ export async function getStorefrontData(): Promise<StorefrontData> {
       source,
       products: getFallbackProducts(),
       settings: getFallbackSettings(),
+      collections: getFallbackCollections(),
     }
   }
 
-  const { products, settings } = await fetchStorefrontFromSupabase()
-  return { source, products, settings }
+  const { products, settings, collections } = await fetchStorefrontFromSupabase()
+  return { source, products, settings, collections }
 }
 
 export async function getStorefrontProducts(): Promise<StoreProduct[]> {
@@ -61,6 +63,11 @@ export async function getStorefrontProducts(): Promise<StoreProduct[]> {
 export async function getStorefrontSettings(): Promise<StoreSettings> {
   const data = await getStorefrontData()
   return data.settings
+}
+
+export async function getStorefrontCollections(): Promise<StoreCollection[]> {
+  const data = await getStorefrontData()
+  return data.collections
 }
 
 export async function getStorefrontProductById(id: number): Promise<StoreProduct | undefined> {
