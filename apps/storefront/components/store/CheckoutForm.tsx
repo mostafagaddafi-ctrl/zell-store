@@ -38,42 +38,69 @@ import { OrderSummary } from './OrderSummary'
  */
 const INTENT_KEY = 'zell-order-intent'
 
+/**
+ * خريطة محدودة: آخر ٥ نوايا بس.
+ *
+ * خانة واحدة ما كانتش كفاية: لو الزبون عدّل البيانات ثم رجّعها لأصلها، النية
+ * الأصلية كانت بتفقد مفتاحها وتاخد واحد جديد — فلو أول إرسال نجح وضاع رده،
+ * الإرسال التاني كان بيعمل طلب تاني بدل replay.
+ *
+ * 🔒 المخزّن هنا `canonical` و`key` **وبس**. ممنوع أي رمز إيصال أو أي سر —
+ *    رمز الإيصال عمره ما يلمس JavaScript أصلاً (HttpOnly).
+ */
+const INTENT_LIMIT = 5
+
+type IntentEntry = { canonical: string; key: string }
+
 function newIntentKey(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
   return 'k-' + String(Date.now()) + '-' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
 }
 
-function resolveIdempotencyKey(canonical: string): string {
+function readIntents(): IntentEntry[] {
   try {
     const raw = window.sessionStorage.getItem(INTENT_KEY)
-    if (raw !== null) {
-      const parsed: unknown = JSON.parse(raw)
-      if (typeof parsed === 'object' && parsed !== null) {
-        const stored = parsed as { canonical?: unknown; key?: unknown }
-        if (stored.canonical === canonical && typeof stored.key === 'string' && stored.key.length >= 16) {
-          return stored.key
-        }
-      }
-    }
-  } catch {
-    // التخزين مقفول — نكمل بمفتاح جديد كل محاولة
-  }
+    if (raw === null) return []
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
 
-  const key = newIntentKey()
+    const entries: IntentEntry[] = []
+    for (const entry of parsed) {
+      if (typeof entry !== 'object' || entry === null) continue
+      const candidate = entry as { canonical?: unknown; key?: unknown }
+      if (typeof candidate.canonical !== 'string') continue
+      if (typeof candidate.key !== 'string' || candidate.key.length < 16) continue
+      entries.push({ canonical: candidate.canonical, key: candidate.key })
+    }
+    return entries
+  } catch {
+    return []
+  }
+}
+
+function writeIntents(entries: IntentEntry[]): void {
   try {
-    window.sessionStorage.setItem(INTENT_KEY, JSON.stringify({ canonical, key }))
+    // الأقدم بيتشال من الأول — آخر INTENT_LIMIT بس
+    window.sessionStorage.setItem(INTENT_KEY, JSON.stringify(entries.slice(-INTENT_LIMIT)))
   } catch {
     // التخزين مقفول — المفتاح يفضل صالح للمحاولة الحالية
   }
+}
+
+function resolveIdempotencyKey(canonical: string): string {
+  const entries = readIntents()
+  const existing = entries.find((entry) => entry.canonical === canonical)
+  if (existing !== undefined) return existing.key
+
+  const key = newIntentKey()
+  writeIntents([...entries, { canonical, key }])
   return key
 }
 
-function clearIntent(): void {
-  try {
-    window.sessionStorage.removeItem(INTENT_KEY)
-  } catch {
-    // مفيش حاجة نعملها
-  }
+/** بيشيل نية واحدة بس — باقي النوايا في التاب ده تفضل زي ما هي. */
+function forgetIntent(canonical: string): void {
+  const entries = readIntents().filter((entry) => entry.canonical !== canonical)
+  writeIntents(entries)
 }
 
 function isOrderSuccess(value: unknown): value is { ok: true; order: { orderNumber: string } } {
@@ -155,7 +182,8 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
     const body = JSON.stringify(payload)
 
     // نفس منطق السيرفر بالحرف — من ./lib/orders/canonical
-    const idempotencyKey = resolveIdempotencyKey(canonicalOrderJson(normalizeOrder(payload)))
+    const canonical = canonicalOrderJson(normalizeOrder(payload))
+    const idempotencyKey = resolveIdempotencyKey(canonical)
 
     // طلب واحد في اللحظة من التاب ده — تقليل احتمال التسابق (§4.4)
     abortRef.current?.abort()
@@ -177,7 +205,7 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
 
       if (response.ok && isOrderSuccess(result)) {
         // السلة تتنضّف **بعد** الرد الناجح بس
-        clearIntent()
+        forgetIntent(canonical)
         cart.clear()
         router.push('/order/' + result.order.orderNumber)
         return
@@ -185,7 +213,7 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
 
       if (isOrderFailure(result)) {
         // البيانات اتغيّرت على نفس المفتاح — النية الجاية تاخد مفتاح جديد
-        if (result.code === 'IDEMPOTENCY_MISMATCH') clearIntent()
+        if (result.code === 'IDEMPOTENCY_MISMATCH') forgetIntent(canonical)
         setFailure(result.message)
       } else {
         setFailure('حصلت مشكلة غير متوقّعة. كلّمنا على واتساب.')
