@@ -152,9 +152,49 @@ async function emailChannelCode(): Promise<string | null> {
   return value.trim() === '' ? 'NOTIFY_EMAIL_NOT_SET' : null
 }
 
+/** علامة الحجز — قيمة مؤقتة في notify_error لحد ما النتيجة تتحدد. */
+const CLAIM_MARKER = 'NOTIFY_IN_PROGRESS'
+
+type ClaimOutcome = 'claimed' | 'taken' | 'unknown'
+
 /**
- * المدخل الوحيد. بيتنادى من after() وبس، و**بس لما replayed === false**
- * (الحارس الأول من ب٦). الحارس التاني `notified_at is null` في تحديث النجاح.
+ * حجز ذرّي **قبل** الإرسال.
+ *
+ * الـPATCH ده عبارة UPDATE واحدة بشرط جوه الاستعلام، فهي ذرّية: في تنفيذين
+ * متزامنين واحد بس بياخد الصف، والتاني بيعيد تقييم الشرط بعد الـcommit
+ * ويلاقي صفر صفوف.
+ *
+ * الشرط `notified_at is null & notify_error is null` بسيط عن قصد: بيستخدم
+ * `is.null` بس، ومفيش اعتماد على عوامل PostgREST متقدمة.
+ *
+ * ⚠️ لو العملية ماتت بين الحجز والتسجيل، الصف بيفضل على CLAIM_MARKER —
+ *    وده **الصح**: معناه «مش عارفين هل وصل»، وبيظهر في اللوحة كحالة تحتاج
+ *    مراجعة بدل ما يتقال إنه نجح.
+ *
+ * ⚠️ لو الحجز رجع غموض (شكل رد غير متوقع)، بنكمل ونبعت. الاختيار مقصود:
+ *    رسالة مكرّرة إزعاج، أما طلب الأدمن ما يعرفش بيه فده **بيع ضايع**.
+ */
+async function claimNotification(orderId: number): Promise<ClaimOutcome> {
+  const claim = await restPatch(
+    'orders',
+    'id=eq.' + String(orderId) + '&notified_at=is.null&notify_error=is.null',
+    { notify_error: CLAIM_MARKER, updated_at: new Date().toISOString() },
+  )
+
+  if (!claim.ok) return 'unknown'
+  return claim.data.length > 0 ? 'claimed' : 'taken'
+}
+
+/**
+ * المدخل الوحيد. بيتنادى من after() وبس، و**بس لما replayed === false**.
+ *
+ * منع الإرسال المكرر طبقتين **مختلفتين**:
+ *   1. الراوت بينادي هنا مرة واحدة لكل طلب (الإدخال بينجح مرة واحدة).
+ *   2. `claimNotification` حجز ذرّي **قبل** الإرسال — ده اللي بيمنع الإرسال
+ *      المكرر فعلاً لو حصل نداء تاني لنفس الطلب.
+ *
+ * ⚠️ شرط `notified_at=is.null` في تحديث النجاح **مش** حارس إرسال — هو بيمنع
+ *    **التسجيل** المكرر بس. الحارس ضد الإرسال هو الحجز فوق.
  */
 export async function notifyNewOrder(orderNumber: string): Promise<void> {
   const startedAt = Date.now()
@@ -170,16 +210,41 @@ export async function notifyNewOrder(orderNumber: string): Promise<void> {
     }
     const order = read.data[0]
 
+    // الحجز **قبل** الإرسال — ده الحارس الحقيقي ضد الإرسال المكرر
+    const claim = await claimNotification(order.id)
+    if (claim === 'taken') {
+      console.info('[notify] ' + orderNumber + ' :: SKIPPED_ALREADY_CLAIMED')
+      return
+    }
+    if (claim === 'unknown') {
+      // بنكمل ونبعت عن قصد — الطلب الضايع أسوأ من الرسالة المكرّرة
+      console.error('[notify] ' + orderNumber + ' :: CLAIM_UNKNOWN_SENDING_ANYWAY')
+    }
+
     const telegramCode = await sendTelegram(buildMessage(order))
+    const elapsed = () => String(Date.now() - startedAt) + 'ms'
 
     if (telegramCode === null) {
-      // الحارس التاني ضد الإشعار المكرر: الشرط جزء من الاستعلام نفسه
-      await restPatch('orders', 'id=eq.' + String(order.id) + '&notified_at=is.null', {
+      // بيشيل علامة الحجز ويسجّل النجاح. الشرط بيمنع **التسجيل** المكرر بس.
+      const record = await restPatch('orders', 'id=eq.' + String(order.id) + '&notified_at=is.null', {
         notified_at: new Date().toISOString(),
         notify_error: null,
         updated_at: new Date().toISOString(),
       })
-      console.info('[notify] ' + orderNumber + ' :: SENT :: ' + String(Date.now() - startedAt) + 'ms')
+
+      if (!record.ok) {
+        // ⚠️ الرسالة **وصلت** بس التسجيل فشل. ممنوع نقول SENT: الصف لسه على
+        //    علامة الحجز، واللوحة هتبان كأن الإشعار معلّق. محتاج تدخل يدوي.
+        console.error('[notify] ' + orderNumber + ' :: SENT_BUT_RECORD_FAILED :: ' + elapsed())
+        return
+      }
+      if (record.data.length === 0) {
+        // حد تاني سجّل النجاح قبلنا — مش خطأ
+        console.info('[notify] ' + orderNumber + ' :: SENT_ALREADY_RECORDED :: ' + elapsed())
+        return
+      }
+
+      console.info('[notify] ' + orderNumber + ' :: SENT :: ' + elapsed())
       return
     }
 
@@ -189,11 +254,19 @@ export async function notifyNewOrder(orderNumber: string): Promise<void> {
     if (emailCode !== null) codes.push(emailCode)
 
     const notifyError = codes.join(';').slice(0, MAX_NOTIFY_ERROR)
-    await restPatch('orders', 'id=eq.' + String(order.id), {
+    const recordFailure = await restPatch('orders', 'id=eq.' + String(order.id), {
       notify_error: notifyError,
       updated_at: new Date().toISOString(),
     })
-    console.error('[notify] ' + orderNumber + ' :: ' + notifyError + ' :: ' + String(Date.now() - startedAt) + 'ms')
+
+    if (!recordFailure.ok) {
+      // ⚠️ فشل مزدوج: الإشعار ما وصلش **والسبب مش محفوظ**. الصف بيفضل على
+      //    علامة الحجز، فاللوحة لسه بتبان حالة تحتاج مراجعة — مش نجاح وهمي.
+      console.error('[notify] ' + orderNumber + ' :: ' + notifyError + ' :: RECORD_FAILED :: ' + elapsed())
+      return
+    }
+
+    console.error('[notify] ' + orderNumber + ' :: ' + notifyError + ' :: ' + elapsed())
   } catch (error) {
     // after() بيبلع الاستثناءات، فبنلوج الاسم بس ومنخلّيش الطلب يتأثر
     console.error('[notify] ' + orderNumber + ' :: THREW :: ' + (error instanceof Error ? error.name : 'unknown'))
