@@ -105,6 +105,7 @@ const FALLBACK_SHIPPING_RATES: Record<string, number> = {
 export const FALLBACK_SETTINGS: StoreSettings = {
   storeName: 'ZELL',
   logo: null,
+  heroImage: null,
   logoUrl: '',
   offerText: 'أدوات التركيب مرفقة مجاناً',
   whatsappNumber: '201000000000',
