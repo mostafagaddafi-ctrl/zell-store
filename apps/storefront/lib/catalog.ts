@@ -11,7 +11,7 @@
  * 🚫 **مفيش أي مسار صور من Production هنا.** المعارض فاضية عن قصد —
  * الروابط الحقيقية بتتبنى في طبقة القراءة المعتمدة على السيرفر.
  */
-import type { StoreProduct, StoreSettings } from '@zell/core'
+import type { StoreProduct, StoreCollection, StoreSettings } from '@zell/core'
 
 export const FALLBACK_PRODUCTS: StoreProduct[] = [
   {
@@ -116,6 +116,20 @@ export const FALLBACK_SETTINGS: StoreSettings = {
   governorates: Object.keys(FALLBACK_SHIPPING_RATES),
   // الكتالوج المؤقت مابيعرضش شريط — الشريط بيانات حقيقية من settings بس
   announcement: { enabled: false, text: '', href: '', ctaLabel: '' },
+}
+
+/**
+ * الكتالوج المؤقت **مالوش مجموعات**.
+ *
+ * المجموعات بيانات حقيقية بيدخّلها الأدمن، ومفيش معنى لاختراع
+ * مجموعات وهمية — الرئيسية ببساطة مابتعرضش قسم مجموعات في وضع
+ * fallback. ده هو الوضع اللي CI بيبني بيه، فالبناء بيغطي الحالة
+ * الفاضية فعليًا.
+ */
+export const FALLBACK_COLLECTIONS: StoreCollection[] = []
+
+export function getFallbackCollections(): StoreCollection[] {
+  return FALLBACK_COLLECTIONS
 }
 
 /** الأسماء مكتوبة بـ Fallback عن قصد — عشان مكان الاستدعاء يفضح إنها مؤقتة. */
