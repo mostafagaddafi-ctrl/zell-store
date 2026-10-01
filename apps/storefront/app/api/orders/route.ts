@@ -1,9 +1,10 @@
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse, after, type NextRequest } from 'next/server'
 import { isValidEgyptianPhone } from '@zell/core'
 import { restRpc, type RpcResult } from '../../../lib/data/rpc'
 import type { CreateOrderResult, OrderErrorCode, OrderItemInput, OrderRequest } from '../../../lib/orders/contracts'
 import { codeFromSqlError, orderFailure, statusFor } from '../../../lib/orders/errors'
 import { CHECKOUT_SESSION_COOKIE, checkoutSessionHash } from '../../../lib/orders/checkoutSession'
+import { notifyNewOrder } from '../../../lib/orders/notify'
 import { normalizeOrder, requestHash } from '../../../lib/orders/requestHash'
 import {
   RECEIPT_MAX_AGE_SECONDS,
@@ -23,10 +24,8 @@ import {
  *   • سر الإيصال بيترجع في Set-Cookie في **نفس الرد**، وعمره ما يدخل JSON.
  *   • الرسالة للعميل **دايماً** من جدول §1.3 — مفيش رسالة محرّك خام أبداً.
  *
- * TODO §7: الإشعار (تليجرام + notify_email) مش منفّذ في الـPR ده. مكانه بعد
- *   الالتزام وقبل الرد، والـreplay **ممنوع** يبعت إشعار تاني (ب٦).
- *   وبرضه: ORDERS_ENABLED تفضل مقفولة لحد ما الإشعار يتنفّذ ويتختبر، إلا
- *   بقرار تشغيلي صريح ومنفصل.
+ *   • الإشعار (§7) بيتنفّذ جوه after() **بعد** ما الرد يروح للعميل، فمستحيل
+ *     يأخّر الرد أو يفشّل الطلب. و**ممنوع** على الـreplay (ب٦).
  */
 
 export const runtime = 'nodejs'
@@ -268,6 +267,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     //    لا نهائية على حالة ثابتة ما بتتغيّرش. صفحة الإيصال بتقول «غير متاح»
     //    وهي الحقيقة بالظبط.
     console.error('[orders] receipt window already closed on replay :: ' + order.order_number)
+  }
+
+  // (٩) الإشعار — بعد الرد، و**بس** لما يكون طلب جديد فعلاً (§7.2 · ب٦).
+  //
+  // الحارس الأول ضد الإشعار المكرر هو الشرط ده. الحارس التاني
+  // `notified_at is null` جوه تحديث النجاح في notify.ts.
+  //
+  // after() بيأجّل التنفيذ لبعد ما الاستجابة تتبعت: زمن الرد مش معلّق على
+  // تليجرام، ومهلة الراوت مش مهدّدة، وأي فشل مستحيل يأثّر على الرد ولا على
+  // كوكي الإيصال (§7.1).
+  if (!order.replayed) {
+    after(async () => {
+      await notifyNewOrder(order.order_number)
+    })
   }
 
   return response
