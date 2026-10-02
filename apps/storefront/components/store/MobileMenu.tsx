@@ -3,25 +3,23 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, MessageCircle, X } from 'lucide-react'
+import { Menu, MessageCircle, ShoppingBag, X } from 'lucide-react'
 import type { StoreCollection } from '@zell/core'
 
 /**
- * قائمة الموبايل.
+ * قائمة الموبايل — Drawer كامل الارتفاع من يمين الشاشة.
  *
- * ⚠️ مبنية على `<dialog>` + showModal() عن قصد، مش على dropdown متعمول
- *    بالإيد. العنصر الأصلي بيجيب من المتصفح حاجات لو عملناها بإيدينا
- *    كانت هتبقى هشّة:
- *      · حصر التركيز جوه القائمة (focus trap)
- *      · Escape بيقفل
- *      · باقي الصفحة بيبقى inert — مفيش tab بيهرب لورا الحجاب
- *      · طبقة العرض العليا، فمفيش معركة z-index مع الهيدر أو CartBar
- *      · دلالة aria-modal جاهزة
- *    ومفيش أي مكتبة جديدة — والـlockfile مالوش دعوة.
+ * ⚠️ مبنية على `<dialog>` + showModal() عن قصد: حصر التركيز، Escape،
+ *    inert للخلفية، والطبقة العليا (فمفيش قص من الهيدر ولا معركة
+ *    z-index) — كلها من المتصفح. مفيش dropdown يدوي ومفيش مكتبة جديدة.
  *
- * ⚠️ الحالة في React **مش** هي مصدر الحقيقة للفتح: المتصفح بيقدر يقفل
- *    الحوار لوحده (Escape). عشان كده بنسمع onClose ونزامن منه، بدل ما
- *    نفترض إن الحالة عندنا دايمًا مطابقة.
+ * ⚠️ الموضع والمقاس والـoverlay في `.zell-drawer` في globals.css، **مش**
+ *    هنا. السبب مكتوب جمب القواعد: UA stylesheet بيفرض max-height
+ *    على أي dialog، وكلاس Tailwind للـheight مابيلغيهوش — فاللوحة
+ *    كانت بتتقص. ممنوع نرجّع الموضع لكلاسات هنا.
+ *
+ * ⚠️ الحالة في React **مش** مصدر الحقيقة للفتح: المتصفح بيقفل الحوار
+ *    لوحده بـEscape. عشان كده بنسمع onClose ونزامن منه.
  */
 export function MobileMenu({
   collections,
@@ -49,6 +47,13 @@ export function MobileMenu({
     if (dialogRef.current?.open) dialogRef.current.close()
   }, [pathname])
 
+  /**
+   * الروابط الثابتة أول حاجة.
+   *
+   * ⚠️ النسخة الأولى كانت رابطين بس (الرئيسية + كل الأفلام) لأن
+   *    المجموعات لسه فاضية — فالقائمة كانت تبان «ناقصة» بمعنى المحتوى
+   *    كمان، مش القص بس. الروابط الثابتة دي موجودة دايمًا.
+   */
   const links: { href: string; label: string }[] = [
     { href: '/', label: 'الرئيسية' },
     { href: '/#products', label: 'كل الأفلام' },
@@ -56,6 +61,8 @@ export function MobileMenu({
       href: '/collection/' + collection.slug,
       label: collection.title,
     })),
+    { href: '/#how', label: 'إزاي أطلب' },
+    { href: '/#faq', label: 'أسئلة متكررة' },
   ]
 
   return (
@@ -75,14 +82,15 @@ export function MobileMenu({
         ref={dialogRef}
         aria-labelledby={titleId}
         onClose={() => setOpen(false)}
-        // الضغط على الحجاب: الهدف بيكون العنصر نفسه مش أي حاجة جواه
+        // الضغط على الـbackdrop: الهدف بيكون العنصر نفسه مش أي حاجة جواه
         onClick={(event) => {
           if (event.target === dialogRef.current) closeMenu()
         }}
-        className="fixed inset-y-0 end-0 m-0 h-dvh w-[86vw] max-w-xs border-s border-border bg-bg p-0 text-fg shadow-card backdrop:bg-fg/50 md:hidden"
+        className="zell-drawer md:hidden"
       >
-        <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        {/* min-h-0 ضروري: من غيره الـflex child مابيصغرش والscroll مابيشتغلش */}
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
             <h2 id={titleId} className="text-sm font-bold">
               القائمة
             </h2>
@@ -90,13 +98,13 @@ export function MobileMenu({
               type="button"
               onClick={closeMenu}
               aria-label="اقفل القائمة"
-              className="flex h-10 w-10 items-center justify-center rounded-lg text-fg transition-colors hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="flex h-11 w-11 items-center justify-center rounded-lg border border-border text-fg transition-colors hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
-          <nav className="flex-1 overflow-y-auto p-2">
+          <nav aria-label="قائمة المتجر" className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
             <ul className="space-y-1">
               {links.map((link) => (
                 <li key={link.href}>
@@ -109,11 +117,22 @@ export function MobileMenu({
                   </Link>
                 </li>
               ))}
+
+              <li className="pt-1">
+                <Link
+                  href="/cart"
+                  onClick={closeMenu}
+                  className="flex items-center gap-2 rounded-lg px-3 py-3 text-base font-medium text-fg transition-colors hover:bg-border/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  <ShoppingBag className="h-5 w-5" />
+                  السلة
+                </Link>
+              </li>
             </ul>
           </nav>
 
           {whatsappHref ? (
-            <div className="safe-bottom border-t border-border p-3">
+            <div className="safe-bottom shrink-0 border-t border-border p-3">
               <a
                 href={whatsappHref}
                 target="_blank"

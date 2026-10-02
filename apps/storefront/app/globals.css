@@ -58,3 +58,55 @@
     padding-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
   }
 }
+
+/* =====================================================================
+   Drawer قائمة الموبايل
+   =====================================================================
+
+   ⚠️ **لازم CSS صريح، كلاسات Tailwind لوحدها ماكفتش.**
+
+   UA stylesheet بيحدد لأي <dialog> القيم دي:
+       max-width:  calc(100% - 6px - 2em)
+       max-height: calc(100% - 6px - 2em)
+       border: solid    padding: 1em
+   النسخة الأولى حدّدت height و max-width بس، فـ **max-height بتاع
+   المتصفح فضل شغّال** واللوحة كانت بتتقص من تحت — ومعاها آخر الروابط
+   وزرار واتساب. ده بالظبط سبب «القائمة تظهر ناقصة».
+
+   ⚠️ الفتح من **يمين** الشاشة في RTL = inset-inline-start.
+   النسخة الأولى استخدمت inset-inline-end، واللي في RTL = **الشمال** —
+   ده سبب «تفتح من الجهة الخطأ».
+
+   ⚠️ ::backdrop بلون حرفي مش hsl(var(--bg)): المتصفحات مابتورّثش
+   متغيّرات الصفحة لـ ::backdrop بشكل موثوق، فالمتغيّر كان ممكن يطلع
+   بلا قيمة والـ overlay يختفي خالص.
+
+   المقاسات: width = min(86vw, 20rem)
+       360×800 -> 309px    390×844 -> 320px
+   والارتفاع كامل الشاشة في الحالتين (top/bottom = 0 و max-height: none).
+   ===================================================================== */
+.zell-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  inset-inline-start: 0; /* RTL => يمين الشاشة */
+  inset-inline-end: auto;
+
+  width: min(86vw, 20rem);
+  max-width: none;
+  height: auto;
+  max-height: none;
+
+  margin: 0;
+  padding: 0;
+  padding-top: env(safe-area-inset-top);
+  border: 0;
+  overflow: hidden;
+
+  background-color: hsl(var(--bg));
+  color: hsl(var(--fg));
+}
+
+.zell-drawer::backdrop {
+  background-color: rgb(18 35 58 / 0.55);
+}

@@ -296,7 +296,34 @@ export function CollectionEditor({
               onRetry={links.retry}
               onDiscardAndRefresh={() => router.refresh()}
             />
-            <SaveBar state={links.state} onSave={saveLinks} />
+
+            {/*
+              ⚠️ زرار جوه البطاقة، **مش** SaveBar.
+                 SaveBar مبني sticky bottom-0، فاتنين منه على نفس
+                 الصفحة بيقعدوا فوق بعض في نفس المكان: الأدمن بيشوف
+                 شريط واحد ويضغط «حفظ» فيحفظ بيانات المجموعة بس،
+                 وحفظ المنتجات مابيتنادى أصلاً. البطاقة دي ليها زرارها
+                 الخاص وحالتها مكتوبة جنبه.
+            */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+              <p className="text-xs font-medium text-muted">
+                {links.state === 'dirty'
+                  ? 'فيه تغييرات مش محفوظة في قائمة المنتجات'
+                  : links.state === 'saving'
+                    ? 'بيحفظ…'
+                    : links.state === 'saved'
+                      ? 'قائمة المنتجات اتحفظت'
+                      : links.state === 'error' || links.state === 'conflict'
+                        ? 'حفظ قائمة المنتجات فشل'
+                        : 'مفيش تغييرات في قائمة المنتجات'}
+              </p>
+              <Button
+                disabled={!mutationsOn || linksBusy || links.state === 'idle' || links.state === 'saved'}
+                onClick={saveLinks}
+              >
+                احفظ قائمة المنتجات
+              </Button>
+            </div>
           </div>
         </Card>
       )}
