@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Gift } from 'lucide-react'
 import { formatPiastres } from '@zell/core'
 import { Num } from './Num'
 
@@ -9,6 +10,7 @@ export function OrderSummary({
   action,
   note,
   trustLine,
+  gift,
 }: {
   subtotalPiastres: number
   /** null = المحافظة لسه مش متحددة */
@@ -17,6 +19,8 @@ export function OrderSummary({
   note?: string
   /** «سطر الطمأنة» من «المحتوى» في اللوحة. فاضي = مايظهرش. */
   trustLine?: string
+  /** «نص العرض» لو ظاهر — سطر «هدية» في الحساب، مش بيأثر على الإجمالي. */
+  gift?: string
 }) {
   const line = trustLine ?? 'الدفع عند الاستلام · توصيل لكل محافظات مصر'
   const total = subtotalPiastres + (shippingPiastres ?? 0)
@@ -37,6 +41,15 @@ export function OrderSummary({
             )
           }
         />
+        {gift ? (
+          <div className="flex items-center justify-between gap-3">
+            <dt className="flex min-w-0 items-center gap-1.5 text-muted">
+              <Gift className="h-3.5 w-3.5 shrink-0 text-gold" aria-hidden="true" />
+              <span className="truncate">{gift}</span>
+            </dt>
+            <dd className="shrink-0 font-semibold text-accent">هدية</dd>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between border-t border-border pt-3">
           <dt className="text-base font-bold text-fg">الإجمالي</dt>
           <dd className="text-lg font-extrabold text-brand">

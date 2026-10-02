@@ -62,7 +62,7 @@ export function IdentityEditor({ identity }: { identity: StoreIdentity }) {
             <Field
               htmlFor="offer"
               label="نص العرض"
-              hint="بيظهر في شريط الهدية أعلى المتجر لما «الشريط العلوي» في صفحة المحتوى يكون مقفول أو فاضي."
+              hint="بيظهر كهدية في صفحة المنتج جنب زرار «ضيف للسلة»، وفي ملخص الطلب في السلة وبيانات التوصيل."
             >
               <input id="offer" value={draft.offerText} onChange={(e) => touch({ offerText: e.target.value })} className={inputClasses} />
             </Field>
@@ -115,7 +115,7 @@ function OfferToggle({ enabled }: { enabled: boolean }) {
         <div className="min-w-0">
           <p className="text-sm font-semibold text-fg">إظهار نص العرض في المتجر</p>
           <p className="text-xs text-muted">
-            بيتحفظ فورًا. مقفول = شريط الهدية مايظهرش، إلا لو «الشريط العلوي» في صفحة المحتوى مفعّل.
+            بيتحفظ فورًا. مقفول = الهدية ماتظهرش في صفحة المنتج ولا في ملخص الطلب. النص بيفضل محفوظ.
           </p>
         </div>
         <Switch

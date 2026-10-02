@@ -8,7 +8,7 @@ import { ProductBuy } from '../../../components/store/ProductBuy'
 import { ProductGallery } from '../../../components/store/ProductGallery'
 import { Container } from '../../../components/ui/Container'
 import { keyPoints } from '../../../lib/productCopy'
-import { getStorefrontProductById } from '../../../lib/data/source'
+import { getStorefrontProductById, getStorefrontData } from '../../../lib/data/source'
 
 /**
  * مفيش generateStaticParams عن قصد.
@@ -36,6 +36,9 @@ export default async function ProductPage({ params }: PageProps) {
   if (!product) notFound()
 
   const points = keyPoints(product)
+  // الهدية من «نص العرض» — نفس البيانات المكاشة، مفيش طلب زيادة
+  const { settings } = await getStorefrontData()
+  const gift = settings.offerEnabled ? settings.offerText : ''
 
   return (
     <Container className="py-6 md:py-10">
@@ -90,7 +93,7 @@ export default async function ProductPage({ params }: PageProps) {
           </section>
 
           {/* ٣ + ٤ — اختيار المقاس والإضافة للسلة */}
-          <ProductBuy product={product} />
+          <ProductBuy product={product} gift={gift} />
         </div>
       </div>
     </Container>
