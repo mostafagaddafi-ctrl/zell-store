@@ -97,6 +97,8 @@ export type AdminProduct = {
   benefits: string[]
   pricePerMeterPiastres: number
   widthCm: number
+  /** 0013 — الزبون مايكتبش عرض الشباك، والعرض بيظهر مقفول على widthCm. */
+  lockWidth: boolean
   minLengthCm: number
   stepCm: number
   maxLengthCm: number
