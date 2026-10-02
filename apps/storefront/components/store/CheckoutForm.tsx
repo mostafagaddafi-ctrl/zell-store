@@ -306,30 +306,40 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
               onClick={() => setInstallation((current) => !current)}
               aria-pressed={wantsInstallation}
               className={
-                'flex w-full items-start gap-3 rounded-lg border-2 p-4 text-right transition-colors ' +
-                (wantsInstallation ? 'border-accent bg-accent/10' : 'border-border bg-bg hover:border-accent/60')
+                'flex w-full items-center gap-3 rounded-lg border-2 p-4 text-right transition-colors ' +
+                (wantsInstallation ? 'border-brand bg-brand text-brand-fg shadow-card' : 'border-brand/40 bg-card hover:border-brand')
               }
             >
               <span
                 className={
                   'grid h-10 w-10 shrink-0 place-items-center rounded-full ' +
-                  (wantsInstallation ? 'bg-accent text-white' : 'bg-card text-brand')
+                  (wantsInstallation ? 'bg-brand-fg/15 text-brand-fg' : 'bg-brand/10 text-brand')
                 }
               >
                 {wantsInstallation ? <CheckCircle2 className="h-5 w-5" /> : <Wrench className="h-5 w-5" />}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-base font-bold text-fg">
+                <span className={'block text-base font-bold ' + (wantsInstallation ? 'text-brand-fg' : 'text-fg')}>
                   {wantsInstallation ? 'تمام، هنبعتلك فني تركيب' : 'محتاج فني تركيب؟'}
                 </span>
-                <span className="mt-0.5 block text-sm text-muted">
+                <span className={'mt-0.5 block text-sm ' + (wantsInstallation ? 'text-brand-fg/85' : 'text-muted')}>
                   {wantsInstallation
                     ? 'هنكلمك نتفق على معاد وسعر التركيب قبل الشحن'
                     : 'دوس هنا ونبعتلك فني يركّبهولك'}
                 </span>
                 {settings.installation.note ? (
-                  <span className="mt-2 block text-xs text-muted">{settings.installation.note}</span>
+                  <span className={'mt-2 block text-xs ' + (wantsInstallation ? 'text-brand-fg/75' : 'text-muted')}>
+                    {settings.installation.note}
+                  </span>
                 ) : null}
+              </span>
+              <span
+                className={
+                  'shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ' +
+                  (wantsInstallation ? 'bg-brand-fg text-brand' : 'bg-brand text-brand-fg')
+                }
+              >
+                {wantsInstallation ? 'مضاف ✓' : 'اطلب فني'}
               </span>
             </button>
           ) : null}
