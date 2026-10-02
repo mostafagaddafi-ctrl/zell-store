@@ -113,3 +113,116 @@
 .zell-drawer::backdrop {
   background-color: rgb(18 35 58 / 0.55);
 }
+
+/* =====================================================================
+   حركة الـ Drawer
+   =====================================================================
+   الفتح: اللوحة بتنزلق من الشمال (ناحية الزرار) والخلفية بتغمق
+   تدريجيًا، والروابط بتظهر ورا بعض بفرق صغير (--i من MobileMenu).
+   القفل: data-closing بيشغّل حركة الخروج، و MobileMenu بيقفل الحوار
+   بعد ما تخلص. منحنى ease-out طويل للدخول وقصير للخروج — الدخول
+   محتاج يتشاف، والخروج لازم مايعطّلش.
+   ===================================================================== */
+.zell-drawer {
+  box-shadow: 0 0 48px rgb(18 35 58 / 0.22);
+}
+
+.zell-drawer[open] {
+  animation: zell-drawer-in 340ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.zell-drawer[open]::backdrop {
+  animation: zell-fade-in 260ms ease-out;
+}
+
+.zell-drawer[data-closing] {
+  animation: zell-drawer-out 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.zell-drawer[data-closing]::backdrop {
+  animation: zell-fade-out 220ms ease-in forwards;
+}
+
+.zell-drawer[open] .zell-drawer-item {
+  animation: zell-item-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(90ms + var(--i, 0) * 35ms);
+}
+
+/* الصفحة تحت القائمة ماتتحركش مع السكرول */
+html:has(.zell-drawer[open]) {
+  overflow: hidden;
+}
+
+@keyframes zell-drawer-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes zell-drawer-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+@keyframes zell-item-in {
+  from { opacity: 0; transform: translateX(-14px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes zell-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes zell-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* =====================================================================
+   شريط العرض — «هدية نازلة من فوق»
+   =====================================================================
+   الشريط بيفتح بعد التحميل بلحظة (AnnouncementBar): المساحة بتتفتح
+   بـ grid-template-rows، واللوحة بتنزل من فوق، والأيقونة بتنط، ولمعة
+   ذهبي بتعدّي مرة واحدة بس. مفيش حركة متكررة — الشريط لازم مايلفتش
+   النظر بعد أول ثانيتين.
+   ===================================================================== */
+.zell-gift-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, hsl(var(--gold) / 0.24) 50%, transparent 70%);
+  transform: translateX(120%);
+}
+
+.zell-gift[data-shown] .zell-gift-panel::after {
+  animation: zell-gift-shine 1.6s 0.6s ease-out 1 both;
+}
+
+.zell-gift[data-shown] .zell-gift-icon {
+  animation: zell-gift-pop 620ms 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* RTL: اللمعة بتمشي من اليمين للشمال — نفس اتجاه القراية */
+@keyframes zell-gift-shine {
+  from { transform: translateX(120%); }
+  to { transform: translateX(-120%); }
+}
+
+@keyframes zell-gift-pop {
+  0% { opacity: 0; transform: scale(0.55) rotate(-14deg); }
+  100% { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zell-drawer[open],
+  .zell-drawer[open]::backdrop,
+  .zell-drawer[data-closing],
+  .zell-drawer[data-closing]::backdrop,
+  .zell-drawer[open] .zell-drawer-item,
+  .zell-gift[data-shown] .zell-gift-panel::after,
+  .zell-gift[data-shown] .zell-gift-icon {
+    animation: none;
+  }
+}
