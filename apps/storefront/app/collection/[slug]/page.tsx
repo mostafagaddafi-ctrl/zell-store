@@ -5,24 +5,22 @@ import type { Metadata } from 'next'
 import type { StoreProduct } from '@zell/core'
 import { ProductCard } from '../../../components/store/ProductCard'
 import { Container } from '../../../components/ui/Container'
+import { ImageSlot } from '../../../components/ui/ImageSlot'
 import { getStorefrontData } from '../../../lib/data/source'
 
 /**
- * صفحة مجموعة.
+ * صفحة قسم.
  *
- * ⚠️ مفيش redirects ولا slugs قديمة في v1 — قرار معتمد. تغيير الـslug
- *    بيكسر الروابط القديمة، فالأدمن المفروض يعرف كده. (القيد في 0010
- *    بيمنع الأشكال الغلط بس، مش التغيير.)
- *
- * ⚠️ generateStaticParams مش مستخدمة عن قصد: المجموعات بيتغيّروا من
- *    اللوحة، والصفحة بتتجدد بنفس REVALIDATE_SECONDS زي باقي المتجر.
- *    توليد ثابت وقت البناء كان هيخلّي مجموعة جديدة 404 لحد النشر الجاي.
+ * ⚠️ الصفحة موجودة بس للأقسام المفعّلة في القائمة (showInNav). قسم
+ *    مفعّل للرئيسية بس بيرجّع 404 هنا — والرئيسية مابتحطّلوش رابط
+ *    «شوف الكل» أصلًا، فمفيش رابط داخلي بيوصل لصفحة مش موجودة.
  */
+
 type Params = { slug: string }
 
 async function findCollection(slug: string) {
   const { collections, products } = await getStorefrontData()
-  const collection = collections.find((item) => item.slug === slug)
+  const collection = collections.find((item) => item.slug === slug && item.showInNav)
   if (!collection) return null
 
   const byId = new Map(products.map((product) => [product.id, product]))
@@ -36,7 +34,7 @@ async function findCollection(slug: string) {
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { slug } = await params
   const found = await findCollection(slug)
-  if (!found) return { title: 'المجموعة مش موجودة' }
+  if (!found) return { title: 'القسم مش موجود' }
 
   const metadata: Metadata = { title: found.collection.title }
   if (found.collection.subtitle !== '') metadata.description = found.collection.subtitle
@@ -46,16 +44,14 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 export default async function CollectionPage({ params }: { params: Promise<Params> }) {
   const { slug } = await params
   const found = await findCollection(slug)
-
-  // مجموعة مخفية أو فاضية = مش موجودة للزائر. تمييزها بصفحة فاضية
-  // كان هيكشف وجودها من غير فايدة.
   if (!found) notFound()
 
   const { collection, items } = found
+  const image = collection.image
 
   return (
     <Container className="pb-8">
-      <nav aria-label="مسار التنقل" className="pt-6">
+      <nav aria-label="مسار التنقل" className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-6">
         <Link
           href="/"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-accent"
@@ -63,12 +59,32 @@ export default async function CollectionPage({ params }: { params: Promise<Param
           <ArrowRight className="h-4 w-4" />
           الرئيسية
         </Link>
+        <Link
+          href="/collections"
+          className="text-sm font-medium text-muted transition-colors hover:text-accent"
+        >
+          كل الأقسام
+        </Link>
       </nav>
 
-      <header className="py-6 md:py-8">
-        <h1 className="text-display font-extrabold text-fg">{collection.title}</h1>
-        {collection.subtitle ? (
-          <p className="mt-2 max-w-md text-base leading-relaxed text-muted">{collection.subtitle}</p>
+      <header className="grid gap-5 py-6 md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] md:items-center md:gap-10 md:py-8">
+        <div className="min-w-0">
+          <h1 className="text-display font-extrabold text-fg">{collection.title}</h1>
+          {collection.subtitle ? (
+            <p className="mt-2 max-w-md text-base leading-relaxed text-muted">{collection.subtitle}</p>
+          ) : null}
+        </div>
+
+        {image ? (
+          <ImageSlot
+            ratio="16/9"
+            fit="cover"
+            src={image.url}
+            alt={collection.hasCover ? image.alt : ''}
+            sizes="(min-width: 768px) 352px, 100vw"
+            priority
+            className="rounded-lg border border-border"
+          />
         ) : null}
       </header>
 
