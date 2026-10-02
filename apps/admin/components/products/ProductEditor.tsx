@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Plus, Trash2 } from 'lucide-react'
 import { computeSubtotalPiastres, validateRules } from '@zell/core'
 import { saveProductAction } from '../../lib/actions'
 import type { AdminProductDetail } from '../../lib/adminData'
 import { useSaveAction } from '../../lib/client/useSaveAction'
 import { formatLength, formatPiastres, piastresToPounds, poundsToPiastres } from '../../lib/format'
 import { cn } from '../../lib/cn'
+import { Button } from '../ui/Button'
 import { FailureBanner } from '../ui/FailureBanner'
 import { Card, Field, inputClasses, textareaClasses } from '../ui/Field'
 import { SaveBar } from '../ui/SaveBar'
@@ -216,19 +218,41 @@ export function ProductEditor({
               <Field label="المميزات" hint="بتظهر في صفحة المنتج — ٦ كحد أقصى، كل واحدة ١٤٠ حرف">
                 <div className="space-y-2">
                   {form.benefits.map((point, index) => (
-                    <input
-                      key={index}
-                      value={point}
-                      onChange={(e) => {
-                        const next = [...form.benefits]
-                        next[index] = e.target.value
-                        set({ benefits: next })
-                      }}
-                      className={inputClasses}
-                      aria-label={'ميزة رقم ' + String(index + 1)}
-                    />
+                    <div key={index} className="flex items-center gap-1.5">
+                      <input
+                        value={point}
+                        onChange={(e) => {
+                          const next = [...form.benefits]
+                          next[index] = e.target.value
+                          set({ benefits: next })
+                        }}
+                        className={inputClasses}
+                        aria-label={'ميزة رقم ' + String(index + 1)}
+                        placeholder="مثال: بيقلل الحرارة جوه الأوضة"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={'احذف ميزة رقم ' + String(index + 1)}
+                        onClick={() => set({ benefits: form.benefits.filter((_, position) => position !== index) })}
+                      >
+                        <Trash2 className="h-4 w-4 text-danger" />
+                      </Button>
+                    </div>
                   ))}
                   {form.benefits.length === 0 ? <p className="text-xs text-muted">مفيش مميزات مسجّلة.</p> : null}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={form.benefits.length >= 6}
+                      onClick={() => set({ benefits: [...form.benefits, ''] })}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      ضيف ميزة
+                    </Button>
+                    <span className="text-xs text-muted">{String(form.benefits.length) + ' من 6'}</span>
+                  </div>
                 </div>
               </Field>
             </div>
