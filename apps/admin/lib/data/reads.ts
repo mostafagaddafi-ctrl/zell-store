@@ -45,11 +45,10 @@ import {
   type ProductRow,
   type SettingRow,
   type SiteImageRow,
+  COLLECTION_SELECT,
 } from './rows'
 
-const COLLECTION_COLUMNS = ['id', 'slug', 'title_ar', 'subtitle_ar', 'is_visible', 'sort_order', 'updated_at'].join(
-  ',',
-)
+const COLLECTION_COLUMNS = COLLECTION_SELECT
 
 const PRODUCT_COLUMNS = [
   'id',
@@ -350,23 +349,31 @@ export const supabaseAdminData: AdminDataSource = {
    *    علاقة بيستنتجها PostgREST — وطلب واحد على جدول صغير أوضح وأثبت.
    */
   async listCollections(): Promise<AdminCollection[]> {
-    const [rows, links] = await Promise.all([
+    const [rows, links, products] = await Promise.all([
       restGet<CollectionRow>('collections', 'select=' + COLLECTION_COLUMNS + '&order=sort_order.asc,id.asc'),
-      restGet<{ collection_id: string }>('product_collections', 'select=collection_id'),
+      restGet<{ collection_id: string; product_id: number }>('product_collections', 'select=collection_id,product_id'),
+      restGet<{ id: number; is_active: boolean }>('products', 'select=id,is_active'),
     ])
 
-    const counts = new Map<string, number>()
+    // العدّ الكلي والنشط — النشط هو اللي بيحدد القسم ظاهر للزباين ولا لأ
+    const active = new Set(products.rows.filter((product) => product.is_active).map((product) => product.id))
+    const counts = new Map<string, { total: number; active: number }>()
     for (const link of links.rows) {
       const key = String(link.collection_id)
-      counts.set(key, (counts.get(key) ?? 0) + 1)
+      const current = counts.get(key) ?? { total: 0, active: 0 }
+      current.total += 1
+      if (active.has(link.product_id)) current.active += 1
+      counts.set(key, current)
     }
 
-    return rows.rows.map((row) => toAdminCollection(row, counts.get(String(row.id)) ?? 0))
+    return rows.rows.map((row) =>
+      toAdminCollection(row, counts.get(String(row.id)) ?? { total: 0, active: 0 }, projectUrl()),
+    )
   },
 
   async getCollection(id: string): Promise<AdminCollectionDetail | null> {
     const filter = 'collection_id=eq.' + encodeURIComponent(id)
-    const [rows, links] = await Promise.all([
+    const [rows, links, products] = await Promise.all([
       restGet<CollectionRow>(
         'collections',
         'select=' + COLLECTION_COLUMNS + '&id=eq.' + encodeURIComponent(id) + '&limit=1',
@@ -375,13 +382,16 @@ export const supabaseAdminData: AdminDataSource = {
         'product_collections',
         'select=collection_id,product_id,sort_order&' + filter + '&order=sort_order.asc,product_id.asc',
       ),
+      restGet<{ id: number; is_active: boolean }>('products', 'select=id,is_active'),
     ])
 
     const row = rows.rows[0]
     if (!row) return null
 
+    const active = new Set(products.rows.filter((product) => product.is_active).map((product) => product.id))
     const productIds = links.rows.map((link) => link.product_id)
-    return { ...toAdminCollection(row, productIds.length), productIds }
+    const counts = { total: productIds.length, active: productIds.filter((productId) => active.has(productId)).length }
+    return { ...toAdminCollection(row, counts, projectUrl()), productIds }
   },
 
   async getIdentity(): Promise<StoreIdentity> {
