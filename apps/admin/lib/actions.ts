@@ -39,9 +39,10 @@ import {
   deleteCollection,
   reorderCollections,
   setCollectionProducts,
-  setCollectionVisibility,
+  setCollectionPlacement,
   updateCollection,
 } from './mutations/collections'
+import { removeCollectionCover } from './mutations/collectionCover'
 import { saveContent } from './mutations/content'
 import { setImageFit, setPrimaryImage } from './mutations/images'
 import { saveInternalNote, updateOrderStatus } from './mutations/orders'
@@ -247,16 +248,25 @@ export async function updateCollectionAction(
   return refreshAfter(await updateCollection(id, input, expectedUpdatedAt))
 }
 
-export async function setCollectionVisibilityAction(
+export async function setCollectionPlacementAction(
   id: string,
-  visible: boolean,
+  showOnHome: boolean,
+  showInNav: boolean,
   expectedUpdatedAt: string,
 ): Promise<MutationResult<AdminCollection>> {
   const auth = await requireAdminAction()
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return refreshAfter(await setCollectionVisibility(id, visible, expectedUpdatedAt))
+  return refreshAfter(await setCollectionPlacement(id, showOnHome, showInNav, expectedUpdatedAt))
+}
+
+export async function removeCollectionCoverAction(id: string): Promise<MutationResult<AdminCollection>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const gate = guardMutations()
+  if (gate) return gate
+  return refreshAfter(await removeCollectionCover(id))
 }
 
 export async function deleteCollectionAction(
