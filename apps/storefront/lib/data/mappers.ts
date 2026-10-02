@@ -258,6 +258,7 @@ export const PUBLIC_SETTING_KEYS = [
   'logo_url',
   'offer_text',
   'offer_enabled',
+  'installation',
   'whatsapp_number',
   'whatsapp_message',
   'shipping_rates',
@@ -340,6 +341,7 @@ export function toStoreSettings(rows: SettingRow[], logo: StoreImage | null = nu
     logoUrl: settingString(map, 'logo_url'),
     offerText: settingString(map, 'offer_text'),
     offerEnabled: map.get('offer_enabled') !== false,
+    installation: settingInstallation(map),
     whatsappNumber: settingString(map, 'whatsapp_number'),
     whatsappMessage: settingString(map, 'whatsapp_message'),
     shippingRates,
@@ -438,4 +440,14 @@ function settingContent(map: Map<string, unknown>): StoreContent {
   const trustLine = typeof trustRaw === 'string' ? trustRaw.trim() : defaults.trustLine
 
   return { hero, homeSections, orderSteps, faqs, footerLinks, trustLine }
+}
+
+/** settings.installation -> فني التركيب. مش موجود أو مش مقروء = مقفول. */
+function settingInstallation(map: Map<string, unknown>): StoreSettings['installation'] {
+  const raw = asObject(map.get('installation'))
+  if (!raw) return { enabled: false, note: '', governorates: [] }
+  const governorates = Array.isArray(raw['governorates'])
+    ? raw['governorates'].filter((item): item is string => typeof item === 'string' && item.trim() !== '')
+    : []
+  return { enabled: raw['enabled'] === true, note: cleanText(raw['note']), governorates }
 }

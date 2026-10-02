@@ -46,6 +46,18 @@ export default async function OrderDetailPage({ params }: PageProps) {
         <PreviewNotice what="تغيير الحالة والملاحظات وإعادة الإشعار" />
       </div>
 
+      {order.needsInstaller ? (
+        <div className="mb-4 flex items-start gap-3 rounded-lg border-2 border-accent bg-accent/10 p-3">
+          <span className="text-lg" aria-hidden="true">
+            🔧
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-fg">العميل طالب فني تركيب</p>
+            <p className="text-xs text-muted">كلّمه واتفق على معاد وسعر التركيب قبل الشحن. عنوانه وملاحظاته في كارت العميل.</p>
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid gap-5 xl:grid-cols-3">
         <div className="space-y-5 xl:col-span-2">
           <Card title="الأصناف">

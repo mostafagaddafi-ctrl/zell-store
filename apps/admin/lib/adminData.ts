@@ -24,6 +24,8 @@ export type AdminOrder = {
   notifiedAt: string | null
   notifyError: string | null
   createdAt: string
+  /** الزبون طلب فني تركيب (علامة أول سطر في الملاحظات). */
+  needsInstaller?: boolean
 }
 
 export type AdminOrderItem = {

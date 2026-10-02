@@ -3,8 +3,9 @@
 import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
+import { CheckCircle2, Loader2, Wrench } from 'lucide-react'
 import {
+  composeOrderNotes,
   computeShippingPiastres,
   computeSubtotalPiastres,
   formatLength,
@@ -126,6 +127,13 @@ const EMPTY: CheckoutValues = {
 export function CheckoutForm({ products, settings }: { products: StoreProduct[]; settings: StoreSettings }) {
   const cart = useCart()
   const [values, setValues] = useState<CheckoutValues>(EMPTY)
+  // فني التركيب بالتواصل: بيظهر بس لو مفعّل من اللوحة والمحافظة من ضمن قايمته.
+  // الطلب بيتبعت بالعلامة أول سطر في الملاحظات (composeOrderNotes) — فهي
+  // داخلة في نفس التطبيع والهاش ومفتاح الـidempotency زي أي ملاحظة.
+  const [installation, setInstallation] = useState(false)
+  const installationOffered =
+    settings.installation.enabled && values.governorate !== '' && settings.installation.governorates.includes(values.governorate)
+  const wantsInstallation = installation && installationOffered
   const [touched, setTouched] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -176,7 +184,7 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
       customerPhone: values.customerPhone,
       governorate: values.governorate,
       address: values.address,
-      notes: values.notes.trim() === '' ? null : values.notes,
+      notes: composeOrderNotes(values.notes, wantsInstallation),
       items,
     }
     const body = JSON.stringify(payload)
@@ -291,6 +299,40 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
               ))}
             </select>
           </Field>
+
+          {installationOffered ? (
+            <button
+              type="button"
+              onClick={() => setInstallation((current) => !current)}
+              aria-pressed={wantsInstallation}
+              className={
+                'flex w-full items-start gap-3 rounded-lg border-2 p-4 text-right transition-colors ' +
+                (wantsInstallation ? 'border-accent bg-accent/10' : 'border-border bg-bg hover:border-accent/60')
+              }
+            >
+              <span
+                className={
+                  'grid h-10 w-10 shrink-0 place-items-center rounded-full ' +
+                  (wantsInstallation ? 'bg-accent text-white' : 'bg-card text-brand')
+                }
+              >
+                {wantsInstallation ? <CheckCircle2 className="h-5 w-5" /> : <Wrench className="h-5 w-5" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-base font-bold text-fg">
+                  {wantsInstallation ? 'تمام، هنبعتلك فني تركيب' : 'محتاج فني تركيب؟'}
+                </span>
+                <span className="mt-0.5 block text-sm text-muted">
+                  {wantsInstallation
+                    ? 'هنكلمك نتفق على معاد وسعر التركيب قبل الشحن'
+                    : 'دوس هنا ونبعتلك فني يركّبهولك'}
+                </span>
+                {settings.installation.note ? (
+                  <span className="mt-2 block text-xs text-muted">{settings.installation.note}</span>
+                ) : null}
+              </span>
+            </button>
+          ) : null}
 
           <Field htmlFor="address" label="عنوان التوصيل" error={show('address')}>
             <textarea

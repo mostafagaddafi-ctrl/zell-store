@@ -14,6 +14,7 @@ import {
   ShoppingCart,
   Store,
   Truck,
+  Wrench,
   X,
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
@@ -67,6 +68,7 @@ export function AdminShell({
       items: [
         { href: '/content', label: 'المحتوى', icon: ImageIcon },
         { href: '/shipping', label: 'الشحن', icon: Truck },
+        { href: '/installation', label: 'فني التركيب', icon: Wrench },
         { href: '/identity', label: 'الهوية', icon: Store },
       ],
     },

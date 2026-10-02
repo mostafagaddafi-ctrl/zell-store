@@ -64,6 +64,8 @@ export type StoreSettings = {
   offerText: string
   /** مفتاح «إظهار نص العرض» في الهوية. المفتاح مش موجود = ظاهر. */
   offerEnabled: boolean
+  /** «فني التركيب» بالتواصل — من صفحة «فني التركيب» في اللوحة. */
+  installation: { enabled: boolean; note: string; governorates: string[] }
   whatsappNumber: string
   whatsappMessage: string
   shippingRates: Record<string, number>
@@ -193,4 +195,27 @@ export const DEFAULT_STORE_CONTENT: StoreContent = {
     { label: 'سياسة الخصوصية', href: '' },
   ],
   trustLine: 'الدفع عند الاستلام · توصيل لكل محافظات مصر',
+}
+
+// ── فني التركيب (بالتواصل) ─────────────────────────────────────
+/**
+ * أول سطر في ملاحظات الطلب لما الزبون يطلب فني تركيب.
+ *
+ * ⚠️ حل مرحلي مقصود: العلامة في الملاحظات بدل عمود، عشان zell_create_order
+ *    ماتتلمسش. الملاحظات داخلة في request_hash أصلًا، فالعلامة محمية بنفس
+ *    قواعد الطلب. اللوحة وتليجرام بيتعرفوا عليها من الثابت ده بالظبط —
+ *    ممنوع تغيير نصّه من غير ترحيل للطلبات القديمة.
+ *    لما الحساب التلقائي يتعمل: عمود مخصص + تحويل الطلبات اللي فيها العلامة.
+ */
+export const INSTALLATION_NOTE_MARKER = '🔧 محتاج فني تركيب'
+
+/** الملاحظات اللي بتتبعت مع الطلب — العلامة أول سطر لو الزبون طلب فني. */
+export function composeOrderNotes(userNotes: string, wantsInstaller: boolean): string | null {
+  const trimmed = userNotes.trim()
+  if (!wantsInstaller) return trimmed === '' ? null : userNotes
+  return trimmed === '' ? INSTALLATION_NOTE_MARKER : INSTALLATION_NOTE_MARKER + '\n' + trimmed
+}
+
+export function hasInstallerRequest(notes: string | null | undefined): boolean {
+  return (notes ?? '').trim().startsWith(INSTALLATION_NOTE_MARKER)
 }
