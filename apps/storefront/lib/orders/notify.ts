@@ -13,6 +13,7 @@ import 'server-only'
  *   • ممنوع أي كتابة هنا تلمس receipt_expires_at (ب١٠).
  */
 
+import { INSTALLATION_NOTE_MARKER, hasInstallerRequest } from '@zell/core'
 import { restPatch, restSelect } from '../data/rpc'
 
 const TELEGRAM_TIMEOUT_MS = 5000
@@ -100,10 +101,14 @@ function buildMessage(order: NotifyOrder): string {
     '<b>الإجمالي:</b> ' + escapeHtml(money(order.total_piastres)),
   )
 
-  const notes = (order.notes ?? '').trim()
+  // فني التركيب: سطر واضح أول الرسالة، والعلامة تتشال من الملاحظات
+  const wantsInstaller = hasInstallerRequest(order.notes)
+  const rawNotes = (order.notes ?? '').trim()
+  const notes = wantsInstaller ? rawNotes.slice(INSTALLATION_NOTE_MARKER.length).trim() : rawNotes
   if (notes !== '') lines.push('', '<b>ملاحظات:</b> ' + escapeHtml(notes))
 
   lines.push('', '<b>الوقت:</b> ' + escapeHtml(when), '', '💵 الدفع عند الاستلام')
+  if (wantsInstaller) lines.unshift('🔧 <b>الطلب ده محتاج فني تركيب</b> — كلّم العميل واتفق على المعاد والسعر', '')
   return lines.join('\n')
 }
 
