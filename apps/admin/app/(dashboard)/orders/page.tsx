@@ -63,6 +63,11 @@ export default async function OrdersPage({ searchParams }: PageProps) {
                         <span className="inline-block text-xs text-muted" dir="ltr">
                           {order.customerPhone}
                         </span>
+                        {order.needsInstaller ? (
+                          <span className="mt-1 block w-fit rounded bg-accent/10 px-1.5 py-0.5 text-[11px] font-bold text-accent">
+                            🔧 فني تركيب
+                          </span>
+                        ) : null}
                       </div>
                       <StatusBadge status={order.status} />
                     </div>
@@ -117,6 +122,11 @@ export default async function OrdersPage({ searchParams }: PageProps) {
                     <TD className="font-semibold">{formatPiastres(order.totalPiastres)}</TD>
                     <TD>
                       <StatusBadge status={order.status} />
+                      {order.needsInstaller ? (
+                        <span className="ms-1.5 inline-block rounded bg-accent/10 px-1.5 py-0.5 align-middle text-[11px] font-bold text-accent">
+                          🔧 فني
+                        </span>
+                      ) : null}
                     </TD>
                     <TD>
                       {order.notifiedAt ? (
