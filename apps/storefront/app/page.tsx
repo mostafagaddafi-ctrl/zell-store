@@ -2,6 +2,7 @@ import { Fragment } from 'react'
 import { Faq } from '../components/store/Faq'
 import { Hero } from '../components/store/Hero'
 import { HowItWorks } from '../components/store/HowItWorks'
+import { CollectionNav } from '../components/store/CollectionNav'
 import { CollectionStrip } from '../components/store/CollectionStrip'
 import { ProductCard } from '../components/store/ProductCard'
 import { Container } from '../components/ui/Container'
@@ -9,6 +10,9 @@ import { getStorefrontData } from '../lib/data/source'
 
 /**
  * الرئيسية — الأجزاء وترتيبها وظهورها ونصوصها من «المحتوى» في اللوحة.
+ *
+ * شريط «تسوّق حسب القسم» (CollectionNav) تحت الواجهة على طول — حتى لو
+ * الواجهة مخفية — عشان الزائر يعرف من أول ثانية إن فيه أقسام تانية.
  *
  * أقسام الرئيسية (CollectionStrip) بتيجي مكان جزء المنتجات بعده على طول،
  * حتى لو الجزء نفسه مخفي — الأقسام ليها مفتاحها الخاص في صفحة الأقسام.
@@ -23,7 +27,12 @@ export default async function HomePage() {
     <Container className="pb-8">
       {content.homeSections.map((section) => {
         if (section.key === 'hero') {
-          return section.visible ? <Hero key="hero" image={settings.heroImage} hero={content.hero} /> : null
+          return (
+            <Fragment key="hero">
+              {section.visible ? <Hero image={settings.heroImage} hero={content.hero} /> : null}
+              <CollectionNav collections={collections} title="تسوّق حسب القسم" />
+            </Fragment>
+          )
         }
 
         if (section.key === 'products') {
