@@ -69,6 +69,8 @@ export type StoreSettings = {
   freeShippingThresholdPiastres: number
   governorates: string[]
   announcement: Announcement
+  /** محتوى الصفحة من «المحتوى» في اللوحة. */
+  content: StoreContent
 }
 
 /**
@@ -130,4 +132,63 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
   shipped: 'تم الشحن',
   delivered: 'تم التسليم',
   cancelled: 'ملغي',
+}
+
+// ── محتوى الصفحة من «المحتوى» في اللوحة ─────────────────────────
+export type HomeSectionKey = 'hero' | 'products' | 'how_it_works' | 'faq'
+
+/** جزء من الرئيسية — بالترتيب، والمخفي visible = false. */
+export type HomeSection = {
+  key: HomeSectionKey
+  visible: boolean
+  title: string
+  subtitle: string
+}
+
+export type StoreContent = {
+  hero: { title: string; accent: string; subtitle: string; ctaLabel: string }
+  homeSections: HomeSection[]
+  orderSteps: { title: string; description: string }[]
+  faqs: { question: string; answer: string }[]
+  /** href فاضي = نص من غير رابط (الصفحة لسه مش موجودة). */
+  footerLinks: { label: string; href: string }[]
+  trustLine: string
+}
+
+/**
+ * القيم الافتراضية = نفس النصوص اللي كانت ثابتة في الكود قبل ما
+ * المتجر يقرا «المحتوى». بتتستخدم في وضع fallback (CI) ولو إعداد
+ * ناقص أو مش مقروء — فالمتجر مايبانش فاضي أبدًا.
+ */
+export const DEFAULT_STORE_CONTENT: StoreContent = {
+  hero: {
+    title: 'أفلام حماية الزجاج،',
+    accent: 'بالمتر',
+    subtitle:
+      'عزل حرارة، خصوصية، وتعتيم لشبابيك البيت. تدخل مقاس الشباك وإحنا نحسب الطول، والدفع عند الاستلام لكل محافظات مصر.',
+    ctaLabel: 'اختار نوع الفيلم',
+  },
+  homeSections: [
+    { key: 'hero', visible: true, title: '', subtitle: '' },
+    { key: 'products', visible: true, title: 'اختار نوع الفيلم', subtitle: 'السعر بالمتر الطولي.' },
+    { key: 'how_it_works', visible: true, title: '', subtitle: '' },
+    { key: 'faq', visible: true, title: 'أسئلة متكررة', subtitle: '' },
+  ],
+  orderSteps: [
+    { title: 'اختار النوع والمقاس', description: 'بمقاس الشباك أو بالمتر' },
+    { title: 'أكّد الطلب', description: 'أربع خانات بس' },
+    { title: 'ادفع عند الاستلام', description: 'تشوف الشحنة الأول' },
+  ],
+  faqs: [
+    { question: 'الفيلم بيتباع إزاي؟', answer: 'بالمتر الطولي. لو الشباك أعرض من عرض الرول بنقسمه شرايح والطول بيتحسب تلقائي. إنت بس تدخل مقاس الشباك.' },
+    { question: 'التركيب بيتم إزاي؟', answer: 'أدوات التركيب بتيجي مع الطلب مع شرح بالخطوات. الفيلم بيتركب بالمياه والصابون ومحتاجش فني.' },
+    { question: 'الدفع إزاي؟', answer: 'الدفع عند الاستلام لكل المحافظات. تشوف الشحنة وتدفع للمندوب.' },
+    { question: 'لو المقاس غلط؟', answer: 'كلّمنا على واتساب قبل ما تطلب وإحنا نحسبهولك.' },
+  ],
+  footerLinks: [
+    { label: 'سياسة الشحن والتوصيل', href: '' },
+    { label: 'الاستبدال والاسترجاع', href: '' },
+    { label: 'سياسة الخصوصية', href: '' },
+  ],
+  trustLine: 'الدفع عند الاستلام · توصيل لكل محافظات مصر',
 }
