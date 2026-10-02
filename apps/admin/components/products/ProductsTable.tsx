@@ -30,9 +30,12 @@ import { Table, TD, TH, THead, TR } from '../ui/Table'
 export function ProductsTable({
   products,
   reorderable = true,
+  unsectioned,
 }: {
   products: AdminProduct[]
   reorderable?: boolean
+  /** منتجات مش في أي قسم — بياخدوا علامة «بدون قسم». */
+  unsectioned?: ReadonlySet<number>
 }) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
@@ -80,6 +83,11 @@ export function ProductsTable({
                 <Link href={'/products/' + String(product.id)} className="font-semibold text-accent">
                   {product.nameAr}
                 </Link>
+                {unsectioned?.has(product.id) ? (
+                  <span className="ms-1.5 inline-block rounded bg-gold/20 px-1.5 py-0.5 align-middle text-[11px] font-semibold text-fg">
+                    بدون قسم
+                  </span>
+                ) : null}
                 {product.shortBenefit ? (
                   <p className="text-xs text-muted">{product.shortBenefit}</p>
                 ) : (
@@ -187,6 +195,11 @@ export function ProductsTable({
                 <Link href={'/products/' + String(product.id)} className="font-semibold text-accent">
                   {product.nameAr}
                 </Link>
+                {unsectioned?.has(product.id) ? (
+                  <span className="ms-1.5 inline-block rounded bg-gold/20 px-1.5 py-0.5 align-middle text-[11px] font-semibold text-fg">
+                    بدون قسم
+                  </span>
+                ) : null}
                 {product.shortBenefit ? (
                   <span className="block text-xs text-muted">{product.shortBenefit}</span>
                 ) : (
