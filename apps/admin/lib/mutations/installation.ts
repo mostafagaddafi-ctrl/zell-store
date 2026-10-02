@@ -2,6 +2,7 @@ import 'server-only'
 
 import { restGet, restInsert, restPatch } from '../data/client'
 import type { MutationResult } from '../mutations'
+import { orderGovernorates } from '@zell/core'
 import { toInternalFailure } from './errors'
 
 /**
@@ -31,11 +32,14 @@ export function parseInstallation(value: unknown): InstallationSettings {
   }
 }
 
+/** محافظات جدول الشحن بنفس ترتيب صفحة الشحن. */
 async function shippingGovernorates(): Promise<string[]> {
-  const rows = await restGet<{ value: unknown }>('settings', 'select=value&key=eq.shipping_rates&limit=1')
-  const value = rows.rows[0]?.value
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return []
-  return Object.keys(value as Record<string, unknown>).sort((a, b) => a.localeCompare(b, 'ar'))
+  const rows = await restGet<{ key: string; value: unknown }>('settings', 'select=key,value&key=in.(shipping_rates,shipping_order)')
+  const rates = rows.rows.find((row) => row.key === 'shipping_rates')?.value
+  const saved = rows.rows.find((row) => row.key === 'shipping_order')?.value
+  if (typeof rates !== 'object' || rates === null || Array.isArray(rates)) return []
+  const order = Array.isArray(saved) ? saved.filter((item): item is string => typeof item === 'string') : []
+  return orderGovernorates(Object.keys(rates as Record<string, unknown>), order)
 }
 
 export async function readInstallation(): Promise<{ settings: InstallationSettings; governorates: string[] }> {

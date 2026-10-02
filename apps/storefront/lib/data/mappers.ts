@@ -7,6 +7,7 @@
 import {
   publicImageUrl,
   sanitizeAnnouncementHref,
+  orderGovernorates,
   DEFAULT_STORE_CONTENT,
   type HomeSection,
   type HomeSectionKey,
@@ -259,6 +260,7 @@ export const PUBLIC_SETTING_KEYS = [
   'offer_text',
   'offer_enabled',
   'installation',
+  'shipping_order',
   'whatsapp_number',
   'whatsapp_message',
   'shipping_rates',
@@ -347,7 +349,12 @@ export function toStoreSettings(rows: SettingRow[], logo: StoreImage | null = nu
     shippingRates,
     shippingDefaultPiastres: settingNumber(map, 'shipping_default_piastres', 0),
     freeShippingThresholdPiastres: settingNumber(map, 'free_shipping_threshold_piastres', 0),
-    governorates: Object.keys(shippingRates).sort((a, b) => a.localeCompare(b, 'ar')),
+    governorates: orderGovernorates(
+      Object.keys(shippingRates),
+      Array.isArray(map.get('shipping_order'))
+        ? (map.get('shipping_order') as unknown[]).filter((item): item is string => typeof item === 'string')
+        : [],
+    ),
     announcement: settingAnnouncement(map),
     content: settingContent(map),
   }

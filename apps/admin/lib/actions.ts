@@ -53,6 +53,7 @@ import { saveInternalNote, updateOrderStatus } from './mutations/orders'
 import { saveProduct, setProductVisibility } from './mutations/products'
 import { reorderProductImages, reorderProducts } from './mutations/reorder'
 import { saveIdentity, saveShipping } from './mutations/settings'
+import { saveShippingOrder } from './mutations/shippingOrder'
 import type { CollectionInput } from './validation/collection'
 import type { ContentInput } from './validation/content'
 import type { ProductInput } from './validation/product'
@@ -209,15 +210,27 @@ export async function saveContentAction(
 }
 
 /** حفظ كامل مش patch — الدالة بتكتب الأربعة مفاتيح مع بعض. */
+/**
+ * order: ترتيب المحافظات في صفحة الطلب (اختياري). بيتحفظ **بعد** الأسعار،
+ * ومستقل عنها — لو فشل، الأسعار بتفضل محفوظة والرسالة بتقول كده بالظبط.
+ */
 export async function saveShippingAction(
   input: ShippingInput,
   expectedUpdatedAt: string,
+  order?: string[],
 ): Promise<MutationResult<SaveVersion>> {
   const auth = await requireAdminAction()
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return refreshAfter(await saveShipping(input, expectedUpdatedAt))
+  const result = await saveShipping(input, expectedUpdatedAt)
+  if (!result.ok || order === undefined) return refreshAfter(result)
+  const known = Object.keys((input as { rates?: Record<string, unknown> }).rates ?? {})
+  const ordered = await saveShippingOrder(order, known)
+  if (!ordered.ok) {
+    return refreshAfter({ ...result, warning: 'الأسعار اتحفظت، بس ترتيب المحافظات ما اتحفظش — دوس حفظ تاني.' })
+  }
+  return refreshAfter(result)
 }
 
 /**

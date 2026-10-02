@@ -219,3 +219,21 @@ export function composeOrderNotes(userNotes: string, wantsInstaller: boolean): s
 export function hasInstallerRequest(notes: string | null | undefined): boolean {
   return (notes ?? '').trim().startsWith(INSTALLATION_NOTE_MARKER)
 }
+
+// ── ترتيب المحافظات ────────────────────────────────────────────
+/** لحد ما الأدمن يرتّب بنفسه: دول الأول، والباقي أبجدي. */
+export const DEFAULT_GOVERNORATE_PRIORITY: readonly string[] = ['القاهرة', 'الجيزة']
+
+/**
+ * ترتيب المحافظات حسب اللوحة (settings.shipping_order).
+ * محافظة مش في الترتيب المحفوظ (اتضافت بعده) بتيجي في الآخر أبجدي —
+ * فمفيش محافظة بتختفي من القايمة لو الترتيب قديم.
+ */
+export function orderGovernorates(names: readonly string[], saved: readonly string[]): string[] {
+  const available = new Set(names)
+  const source = saved.length > 0 ? saved : DEFAULT_GOVERNORATE_PRIORITY
+  const out: string[] = []
+  for (const name of source) if (available.has(name) && !out.includes(name)) out.push(name)
+  const rest = names.filter((name) => !out.includes(name)).sort((a, b) => a.localeCompare(b, 'ar'))
+  return [...out, ...rest]
+}
