@@ -35,9 +35,11 @@ export default async function HomePage() {
         <CollectionStrip key={collection.slug} collection={collection} products={products} />
       ))}
 
-      <HowItWorks />
+      <div id="how" className="scroll-mt-20">
+        <HowItWorks />
+      </div>
 
-      <section className="py-10 md:py-14">
+      <section id="faq" className="scroll-mt-20 py-10 md:py-14">
         <h2 className="text-xl font-bold text-fg md:text-2xl">أسئلة متكررة</h2>
         <div className="mt-5">
           <Faq />
