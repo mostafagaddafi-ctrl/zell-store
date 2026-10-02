@@ -27,6 +27,7 @@ export type ProductRow = {
   after_image: string | null
   price_per_meter_piastres: number
   width_cm: number
+  lock_width: boolean
   min_length_cm: number
   step_cm: number
   max_length_cm: number
@@ -226,6 +227,7 @@ export function toStoreProduct(
     after_image: row.after_image,
     price_per_meter_piastres: row.price_per_meter_piastres,
     width_cm: row.width_cm,
+    lock_width: row.lock_width === true,
     min_length_cm: row.min_length_cm,
     step_cm: row.step_cm,
     max_length_cm: row.max_length_cm,

@@ -22,6 +22,7 @@ const RETURN_COLUMNS = [
   'benefits',
   'price_per_meter_piastres',
   'width_cm',
+  'lock_width',
   'min_length_cm',
   'step_cm',
   'max_length_cm',

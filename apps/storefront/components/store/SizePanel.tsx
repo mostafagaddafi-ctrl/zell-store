@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { AlertTriangle, Maximize, Minus, Plus, Ruler } from 'lucide-react'
+import { AlertTriangle, Lock, Maximize, Minus, Plus, Ruler } from 'lucide-react'
 import {
   areRulesUsable,
   computeSubtotalPiastres,
@@ -20,6 +20,9 @@ type Mode = 'window' | 'length'
 /**
  * اختيار المقاس. الافتراضي «بمقاس الشباك» لأن ده اللي الزبون عارفه —
  * عدد الشرايح والطول حساب بنعمله إحنا.
+ *
+ * العرض المتثبّت (0013): خانة العرض بتظهر مقفولة على عرض الرول، والزبون
+ * بيكتب الارتفاع بس — يعني شريحة واحدة. اختيار الطول بالمتر زي ما هو.
  *
  * 🔒 سلوك محفوظ: لو المقاس أكبر من الحد المتاح بنقول كده صراحة
  * وبنمنع الإضافة للسلة. ممنوع القص الصامت للحد الأقصى.
@@ -43,6 +46,8 @@ export function SizePanel({
 
   const options = lengthOptions(product)
   const price = computeSubtotalPiastres(product.price_per_meter_piastres, lengthCm)
+  const widthLocked = product.lock_width === true
+  const lockedWidth = String(product.width_cm)
 
   const block = (message: string | null) => {
     setError(message)
@@ -73,7 +78,7 @@ export function SizePanel({
   const switchMode = (next: Mode) => {
     setMode(next)
     if (next === 'length') block(null)
-    else applyWindow(width, height)
+    else applyWindow(widthLocked ? lockedWidth : width, height)
   }
 
   const stepBy = (delta: number) => {
@@ -108,16 +113,20 @@ export function SizePanel({
 
       {mode === 'window' ? (
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <CmInput
-            id="window-width"
-            label="عرض الشباك"
-            placeholder="120"
-            value={width}
-            onChange={(next) => {
-              setWidth(next)
-              applyWindow(next, height)
-            }}
-          />
+          {widthLocked ? (
+            <LockedCm id="window-width" label="عرض الشباك" value={lockedWidth} />
+          ) : (
+            <CmInput
+              id="window-width"
+              label="عرض الشباك"
+              placeholder="120"
+              value={width}
+              onChange={(next) => {
+                setWidth(next)
+                applyWindow(next, height)
+              }}
+            />
+          )}
           <CmInput
             id="window-height"
             label="ارتفاع الشباك"
@@ -125,7 +134,7 @@ export function SizePanel({
             value={height}
             onChange={(next) => {
               setHeight(next)
-              applyWindow(width, next)
+              applyWindow(widthLocked ? lockedWidth : width, next)
             }}
           />
         </div>
@@ -181,7 +190,7 @@ export function SizePanel({
           </p>
         ) : (
           <dl className="divide-y divide-border rounded-lg bg-bg px-3">
-            {mode === 'window' && strips > 0 ? (
+            {mode === 'window' && strips > 0 && !widthLocked ? (
               <SummaryRow label="عدد الشرايح" value={<Num>{String(strips)}</Num>} />
             ) : null}
             <SummaryRow label="الطول المطلوب" value={<Num>{formatLength(lengthCm)}</Num>} />
@@ -192,7 +201,9 @@ export function SizePanel({
 
       {mode === 'window' && !error && strips === 0 ? (
         <p className="mt-2 text-xs text-muted">
-          اكتب مقاس الشباك وإحنا نحسب عدد الشرايح والطول المطلوب.
+          {widthLocked
+            ? 'اكتب ارتفاع الشباك وإحنا نحسب الطول المطلوب.'
+            : 'اكتب مقاس الشباك وإحنا نحسب عدد الشرايح والطول المطلوب.'}
         </p>
       ) : null}
     </div>
@@ -299,6 +310,33 @@ function CmInput({
           سم
         </span>
       </div>
+    </div>
+  )
+}
+
+/** خانة عرض مقفولة — العرض متثبّت من اللوحة للمنتج ده. */
+function LockedCm({ id, label, value }: { id: string; label: string; value: string }) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="block text-sm font-semibold text-fg">
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          type="text"
+          value={value}
+          readOnly
+          aria-readonly="true"
+          tabIndex={-1}
+          className={cn(inputClasses, 'cursor-not-allowed bg-bg pl-14 text-muted')}
+        />
+        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center gap-1 text-xs text-muted">
+          <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+          سم
+        </span>
+      </div>
+      <p className="text-xs text-muted">العرض ثابت للمنتج ده</p>
     </div>
   )
 }

@@ -31,6 +31,11 @@ export type StoreProduct = ProductRules & {
   brand: string | null
   description_ar: string | null
   width_cm: number
+  /**
+   * العرض متثبّت من اللوحة (0013): الزبون مايكتبش عرض الشباك، والعرض
+   * بيظهر مقفول على width_cm. عرض بس — التسعير والطلب مابيتأثروش.
+   */
+  lock_width?: boolean
 
   /** مصدر الصور المعتمد — مرتّب: الرئيسية الأول. */
   gallery: StoreImage[]

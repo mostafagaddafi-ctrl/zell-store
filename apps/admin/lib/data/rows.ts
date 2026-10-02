@@ -26,6 +26,7 @@ export type ProductRow = {
   benefits: unknown
   price_per_meter_piastres: number
   width_cm: number
+  lock_width: boolean
   min_length_cm: number
   step_cm: number
   max_length_cm: number
@@ -159,6 +160,7 @@ export function toAdminProduct(row: ProductRow, imageCount: number): AdminProduc
     benefits: asStringArray(row.benefits),
     pricePerMeterPiastres: row.price_per_meter_piastres,
     widthCm: row.width_cm,
+    lockWidth: row.lock_width === true,
     minLengthCm: row.min_length_cm,
     stepCm: row.step_cm,
     maxLengthCm: row.max_length_cm,

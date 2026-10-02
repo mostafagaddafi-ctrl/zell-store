@@ -29,6 +29,7 @@ const EMPTY = {
   benefits: [] as string[],
   pricePounds: '0',
   widthCm: '50',
+  lockWidth: false,
   minLengthCm: '300',
   stepCm: '50',
   maxLengthCm: '3000',
@@ -49,6 +50,7 @@ export function ProductEditor({ product }: { product: AdminProductDetail | null 
           benefits: product.benefits,
           pricePounds: piastresToPounds(product.pricePerMeterPiastres),
           widthCm: String(product.widthCm),
+          lockWidth: product.lockWidth,
           minLengthCm: String(product.minLengthCm),
           stepCm: String(product.stepCm),
           maxLengthCm: String(product.maxLengthCm),
@@ -89,6 +91,7 @@ export function ProductEditor({ product }: { product: AdminProductDetail | null 
       benefits: product.benefits,
       pricePounds: piastresToPounds(product.pricePerMeterPiastres),
       widthCm: String(product.widthCm),
+      lockWidth: product.lockWidth,
       minLengthCm: String(product.minLengthCm),
       stepCm: String(product.stepCm),
       maxLengthCm: String(product.maxLengthCm),
@@ -124,6 +127,7 @@ export function ProductEditor({ product }: { product: AdminProductDetail | null 
       benefits: draft.benefits,
       pricePerMeterPiastres: poundsToPiastres(draft.pricePounds),
       widthCm: Number(draft.widthCm),
+      lockWidth: draft.lockWidth,
       minLengthCm: Number(draft.minLengthCm),
       stepCm: Number(draft.stepCm),
       maxLengthCm: Number(draft.maxLengthCm),
@@ -234,6 +238,18 @@ export function ProductEditor({ product }: { product: AdminProductDetail | null 
               </Field>
               <Field htmlFor="width" label="عرض الرول (سم)">
                 <input id="width" type="number" min={1} value={form.widthCm} onChange={(e) => set({ widthCm: e.target.value })} className={inputClasses} />
+                <label className="mt-2 flex items-start gap-2 text-xs text-fg">
+                  <input
+                    type="checkbox"
+                    checked={form.lockWidth}
+                    onChange={(e) => set({ lockWidth: e.target.checked })}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
+                  />
+                  <span>
+                    <span className="font-semibold">تثبيت العرض</span> — الزبون مايكتبش عرض الشباك، والخانة بتظهر له
+                    مقفولة على الرقم ده. اختيار الطول بالمتر بيفضل زي ما هو.
+                  </span>
+                </label>
               </Field>
               <Field htmlFor="min" label="أقل طول (سم)">
                 <input id="min" type="number" min={1} value={form.minLengthCm} onChange={(e) => set({ minLengthCm: e.target.value })} className={inputClasses} />

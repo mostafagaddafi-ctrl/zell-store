@@ -29,6 +29,7 @@
 | `0008a_align_announcement_version.sql` | ✅ **مطبّقة على production** بتاريخ 2026-10-01 | إرجاع `announcement.updated_at` لأحدث طابع محتوى. من غيرها `max` على السبعة ≠ `max` على الستة، فاللوحة المنشورة وقتها كانت بتاخد تعارض وهمي يمنع كل حفظ محتوى |
 | `0009_site_image_kinds.sql` | **مسودة — لم تُنفّذ** | `kind='hero'` في `site_images` + فهرس فريد لصورة نشطة واحدة لكل نوع فردي + `zell_activate_site_image` للتبديل الذرّي (بتسجّل القديم في `storage_orphans` بـ`replaced` وبتشيل صفّه، من غير ما تلمس Storage) |
 | `0012_collections_placement_cover.sql` | **مطبّقة على production** بتاريخ 2026-10-02 (قبل دمج #34، والتحقق الذاتي عدّى) | الأقسام: `show_on_home` و`show_in_nav` (قيمتهم الأولى من `is_visible`) + أعمدة الغلاف + سبب `removed` في `storage_orphans` + `zell_create_collection` (القسم الجديد أولًا) + `zell_set_collection_cover` + `zell_delete_collection` + قفل ترتيب مشترك. **إضافة بس** — لازم تتنفّذ **قبل** دمج كود الأقسام |
+| `0013_products_lock_width.sql` | **مطبّقة على production** بتاريخ 2026-10-02 (قبل دمج #39، والتحقق الذاتي عدّى) | `products.lock_width` (boolean · not null · default false) — تثبيت العرض في صفحة المنتج. عرض بس، `zell_create_order` مابتتلمسش |
 
 > ✅ **0006a و0006b و0006c و0007 اتنفّذوا على Production بتاريخ 2026-10-01.**
 > التحقق الذاتي في الاتنين عدّى، وبيانات الاختبار اتحذفت (`orders = 0`).
