@@ -56,7 +56,7 @@ export type StoreSettings = {
   logo: StoreImage | null
   /**
    * صورة الواجهة النشطة من site_images (kind = 'hero').
-   * null = مفيش صورة مرفوعة، والواجهة بتعرض الخانة البديلة.
+   * null = مفيش صورة مرفوعة، والواجهة بتبقى نص بس (من غير خانة فاضية).
    */
   heroImage: StoreImage | null
   /** عمود قديم — احتياطي لحد ما الترحيل يكتمل. */
