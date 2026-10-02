@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { CollectionsList } from '../../../components/collections/CollectionsList'
+import { HomeProductsEditor } from '../../../components/collections/HomeProductsEditor'
+import { readHomeProducts } from '../../../lib/mutations/homeProducts'
 import { PageHeader } from '../../../components/shell/PageHeader'
 import { buttonClasses } from '../../../components/ui/Button'
 import { PreviewNotice } from '../../../components/ui/PreviewNotice'
@@ -13,7 +15,7 @@ export const metadata: Metadata = { title: 'الأقسام' }
 export default async function CollectionsPage() {
   await requireAdminPage()
 
-  const collections = await adminData.listCollections()
+  const [collections, home] = await Promise.all([adminData.listCollections(), readHomeProducts()])
 
   return (
     <>
@@ -30,6 +32,10 @@ export default async function CollectionsPage() {
 
       <div className="mb-4">
         <PreviewNotice what="الإضافة والتعديل والإظهار والترتيب وربط المنتجات وصور الأقسام" />
+      </div>
+
+      <div className="mb-4">
+        <HomeProductsEditor initial={home.settings} products={home.products} />
       </div>
 
       <CollectionsList collections={collections} />
