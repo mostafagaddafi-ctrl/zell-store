@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PackageCheck } from 'lucide-react'
 import type { StoreImage } from '@zell/core'
 import { buttonClasses } from '../ui/Button'
 import { ImageSlot } from '../ui/ImageSlot'
@@ -15,7 +16,15 @@ export function Hero({ offerText, image }: { offerText: string; image: StoreImag
   return (
     <section className="grid items-center gap-6 py-8 md:grid-cols-2 md:gap-12 md:py-14">
       <div className="space-y-4">
-        {offerText ? <p className="text-sm font-semibold text-accent">{offerText}</p> : null}
+        {offerText ? (
+          <div className="flex max-w-md items-center gap-3 rounded-lg border border-gold/35 bg-card px-3 py-2.5 text-fg shadow-card">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-gold/15 text-brand">
+              <PackageCheck className="h-4 w-4" strokeWidth={2.1} aria-hidden="true" />
+            </span>
+            <p className="text-sm font-bold leading-6">{offerText}</p>
+            <span className="me-auto h-1.5 w-1.5 shrink-0 rounded-full bg-gold" aria-hidden="true" />
+          </div>
+        ) : null}
 
         <h1 className="text-display font-extrabold text-fg md:text-display-lg">
           أفلام حماية الزجاج، <span className="text-brand">بالمتر</span>

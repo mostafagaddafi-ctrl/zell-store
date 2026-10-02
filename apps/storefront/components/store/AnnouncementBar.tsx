@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ArrowLeft, Megaphone } from 'lucide-react'
 import type { Announcement } from '@zell/core'
 import { Container } from '../ui/Container'
 
@@ -23,10 +24,16 @@ export function AnnouncementBar({ announcement }: { announcement: Announcement }
   const showCta = href !== '' && label !== ''
 
   const body = (
-    <Container className="flex min-h-9 items-center justify-center gap-x-2.5 py-1.5 text-center sm:min-h-10 sm:gap-x-3 sm:py-2">
-      <span className="line-clamp-2 text-[11px] font-semibold leading-5 sm:text-sm">{announcement.text}</span>
+    <Container className="flex min-h-11 items-center justify-center gap-x-3 py-2 text-center sm:min-h-12 sm:gap-x-4">
+      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-fg/12" aria-hidden="true">
+        <Megaphone className="h-3.5 w-3.5" strokeWidth={2.25} />
+      </span>
+      <span className="line-clamp-2 text-xs font-bold leading-5 sm:text-sm">{announcement.text}</span>
       {showCta ? (
-        <span className="shrink-0 border-b border-brand-fg/70 text-[11px] font-bold sm:text-sm">{label}</span>
+        <span className="flex shrink-0 items-center gap-1 border-r border-brand-fg/25 pr-3 text-xs font-extrabold sm:pr-4 sm:text-sm">
+          {label}
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+        </span>
       ) : null}
     </Container>
   )
@@ -34,13 +41,17 @@ export function AnnouncementBar({ announcement }: { announcement: Announcement }
   // الشريط كله رابط لو فيه href من غير نص زرار — مساحة لمس أكبر على الموبايل
   if (href !== '') {
     return (
-      <aside className="bg-brand text-brand-fg">
-        <Link href={href} className="block transition-opacity hover:opacity-90">
+      <aside className="border-b border-brand-fg/10 bg-brand text-brand-fg shadow-[inset_0_-1px_0_hsl(var(--brand-fg)/0.08)]">
+        <Link href={href} className="block transition-colors hover:bg-brand-fg/5">
           {body}
         </Link>
       </aside>
     )
   }
 
-  return <aside className="bg-brand text-brand-fg">{body}</aside>
+  return (
+    <aside className="border-b border-brand-fg/10 bg-brand text-brand-fg shadow-[inset_0_-1px_0_hsl(var(--brand-fg)/0.08)]">
+      {body}
+    </aside>
+  )
 }

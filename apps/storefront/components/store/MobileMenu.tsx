@@ -7,7 +7,7 @@ import { Menu, MessageCircle, ShoppingBag, X } from 'lucide-react'
 import type { StoreCollection } from '@zell/core'
 
 /**
- * قائمة الموبايل — Drawer كامل الارتفاع من يمين الشاشة.
+ * قائمة الموبايل — Drawer كامل الارتفاع من يسار الشاشة.
  *
  * ⚠️ مبنية على `<dialog>` + showModal() عن قصد: حصر التركيز، Escape،
  *    inert للخلفية، والطبقة العليا (فمفيش قص من الهيدر ولا معركة

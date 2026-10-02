@@ -44,7 +44,7 @@ export function SiteHeader({
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-bg/95 shadow-[0_1px_10px_hsl(var(--brand)/0.06)] backdrop-blur-md">
       <Container className="flex h-16 items-center gap-2 sm:h-[4.5rem]">
-        <Link href="/" aria-label={storeName} className="flex shrink-0 items-center">
+        <Link href="/" aria-label={storeName} className="flex h-12 w-20 shrink-0 items-center overflow-hidden sm:w-24">
           {logo ? (
             <Image
               src={logo.url}
@@ -52,7 +52,7 @@ export function SiteHeader({
               width={160}
               height={40}
               priority
-              className="h-10 w-auto max-w-[160px] object-contain"
+              className="h-12 w-full object-contain mix-blend-multiply sm:h-14"
             />
           ) : (
             <span className="text-base font-semibold text-brand">{storeName}</span>
