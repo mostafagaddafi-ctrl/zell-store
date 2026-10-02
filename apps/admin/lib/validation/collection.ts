@@ -3,7 +3,7 @@ import 'server-only'
 import { invalid, optionalText, requiredText, timestamp, flag, type ValidationFailure } from './shared'
 
 /**
- * تحقق المجموعات.
+ * تحقق الأقسام.
  *
  * ⚠️ الـslug بيظهر في URL، فالشكل مقيّد: حروف لاتينية صغيرة وأرقام
  *    وشرطات بس. القيد نفسه موجود في الداتابيز (0010)، والفحص هنا
@@ -12,6 +12,9 @@ import { invalid, optionalText, requiredText, timestamp, flag, type ValidationFa
  * ⚠️ **مفيش توليد تلقائي للـslug من العنوان العربي.** التحويل الصوتي
  *    بيطلع نتايج غريبة، والـslug بيدخل في روابط دايمة — فالأدمن
  *    بيكتبه بنفسه ويشوفه قبل الحفظ.
+ *
+ * ⚠️ الظهور مفتاحين مستقلين (0012): الرئيسية والقائمة. الاتنين مقفولين
+ *    = القسم مخفي بالكامل، وده اختيار مسموح.
  */
 
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/
@@ -22,7 +25,8 @@ export type CollectionInput = {
   slug: unknown
   title: unknown
   subtitle: unknown
-  isVisible: unknown
+  showOnHome: unknown
+  showInNav: unknown
   expectedUpdatedAt?: unknown
 }
 
@@ -30,7 +34,13 @@ export type CollectionPayload = {
   slug: string
   title: string
   subtitle: string | null
-  isVisible: boolean
+  showOnHome: boolean
+  showInNav: boolean
+}
+
+export type CollectionPlacement = {
+  showOnHome: boolean
+  showInNav: boolean
 }
 
 export function validateSlug(value: unknown): { ok: true; value: string } | ValidationFailure {
@@ -44,20 +54,31 @@ export function validateSlug(value: unknown): { ok: true; value: string } | Vali
   return { ok: true, value: text }
 }
 
+export function validateCollectionPlacement(
+  showOnHome: unknown,
+  showInNav: unknown,
+): { ok: true; value: CollectionPlacement } | ValidationFailure {
+  const home = flag(showOnHome, 'إظهار القسم في الرئيسية')
+  if (!home.ok) return home
+  const nav = flag(showInNav, 'إظهار القسم في قائمة الأقسام')
+  if (!nav.ok) return nav
+  return { ok: true, value: { showOnHome: home.value, showInNav: nav.value } }
+}
+
 export function validateCollection(
   input: CollectionInput,
 ): { ok: true; payload: CollectionPayload } | ValidationFailure {
   const slug = validateSlug(input.slug)
   if (!slug.ok) return slug
 
-  const title = requiredText(input.title, 'عنوان المجموعة', 2, 80)
+  const title = requiredText(input.title, 'اسم القسم', 2, 80)
   if (!title.ok) return title
 
-  const subtitle = optionalText(input.subtitle, 'وصف المجموعة', 200)
+  const subtitle = optionalText(input.subtitle, 'وصف القسم', 200)
   if (!subtitle.ok) return subtitle
 
-  const isVisible = flag(input.isVisible, 'إظهار المجموعة')
-  if (!isVisible.ok) return isVisible
+  const placement = validateCollectionPlacement(input.showOnHome, input.showInNav)
+  if (!placement.ok) return placement
 
   return {
     ok: true,
@@ -65,29 +86,30 @@ export function validateCollection(
       slug: slug.value,
       title: title.value,
       subtitle: subtitle.value,
-      isVisible: isVisible.value,
+      showOnHome: placement.value.showOnHome,
+      showInNav: placement.value.showInNav,
     },
   }
 }
 
 export function validateExpectedUpdatedAt(value: unknown): { ok: true; value: string } | ValidationFailure {
-  return timestamp(value, 'طابع المجموعة')
+  return timestamp(value, 'طابع القسم')
 }
 
 export function validateCollectionId(value: unknown): { ok: true; value: string } | ValidationFailure {
   const text = typeof value === 'string' ? value.trim() : typeof value === 'number' ? String(value) : ''
-  if (!/^[0-9]+$/.test(text)) return invalid('معرّف المجموعة غير صالح')
+  if (!/^[0-9]+$/.test(text)) return invalid('معرّف القسم غير صالح')
   return { ok: true, value: text }
 }
 
 /**
  * قائمة معرّفات المنتجات. أرقام صحيحة، بلا تكرار.
- * القائمة الفاضية **مسموحة** — مجموعة من غير منتجات حالة شغّالة
- * (الأدمن بيعملها قبل ما يربط)، والمتجر بيخفيها لوحده.
+ * القائمة الفاضية **مسموحة** — قسم من غير منتجات حالة شغّالة
+ * (الأدمن بيعمله قبل ما يربط)، والمتجر بيخفيه لوحده.
  */
 export function validateProductIds(value: unknown): { ok: true; value: number[] } | ValidationFailure {
   if (!Array.isArray(value)) return invalid('قائمة المنتجات غير صالحة')
-  if (value.length > MAX_PRODUCTS) return invalid('أقصى عدد منتجات في المجموعة هو ' + String(MAX_PRODUCTS))
+  if (value.length > MAX_PRODUCTS) return invalid('أقصى عدد منتجات في القسم هو ' + String(MAX_PRODUCTS))
 
   const out: number[] = []
   const seen = new Set<number>()
@@ -109,7 +131,7 @@ export function validateCollectionOrder(value: unknown): { ok: true; value: stri
   for (const item of value) {
     const id = validateCollectionId(item)
     if (!id.ok) return id
-    if (seen.has(id.value)) return invalid('في مجموعة مكررة في الترتيب')
+    if (seen.has(id.value)) return invalid('في قسم مكرر في الترتيب')
     seen.add(id.value)
     out.push(id.value)
   }
