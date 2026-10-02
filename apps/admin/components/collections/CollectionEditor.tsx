@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { ChevronDown, ChevronUp, Trash2, X } from 'lucide-react'
 import {
   createCollectionAction,
@@ -13,7 +14,7 @@ import type { AdminCollectionDetail, AdminProduct } from '../../lib/adminData'
 import { collectionVisibility, VISIBILITY_TONE } from '../../lib/collectionStatus'
 import { useSaveAction } from '../../lib/client/useSaveAction'
 import { useMutationsEnabled } from '../../lib/readiness'
-import { Button } from '../ui/Button'
+import { Button, buttonClasses } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { FailureBanner } from '../ui/FailureBanner'
 import { Card, Field, inputClasses, textareaClasses } from '../ui/Field'
@@ -352,7 +353,15 @@ export function CollectionEditor({
             </div>
 
             <div>
-              <p className="mb-2 text-xs font-semibold text-muted">ضيف منتج</p>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-muted">ضيف منتج موجود</p>
+                <Link
+                  href={'/products/new?collection=' + encodeURIComponent(collection.id)}
+                  className={buttonClasses('secondary', 'sm')}
+                >
+                  منتج جديد في القسم ده
+                </Link>
+              </div>
               {available.length === 0 ? (
                 <p className="text-xs text-muted">كل المنتجات مضافة للقسم.</p>
               ) : (
