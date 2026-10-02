@@ -47,7 +47,7 @@ export function Field({
 
 export function Card({ title, actions, children, className }: { title?: string; actions?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={cn('rounded-lg border border-border bg-surface shadow-card', className)}>
+    <section className={cn('min-w-0 rounded-lg border border-border bg-surface shadow-card', className)}>
       {title || actions ? (
         <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
           {title ? <h2 className="text-sm font-bold text-fg">{title}</h2> : <span />}
