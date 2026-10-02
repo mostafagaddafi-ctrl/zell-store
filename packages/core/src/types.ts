@@ -79,6 +79,17 @@ export type StoreCollection = {
   title: string
   subtitle: string
   productIds: number[]
+  /** يظهر كجزء مستقل في الصفحة الرئيسية. */
+  showOnHome: boolean
+  /** يظهر في التنقل (الهيدر وقائمة الموبايل) وليه صفحة /collection/[slug]. */
+  showInNav: boolean
+  /**
+   * صورة القسم: الغلاف المرفوع، وإلا أول صورة لأول منتج ظاهر فيه.
+   * null بس لو مفيش ولا صورة خالص.
+   */
+  image: StoreImage | null
+  /** true = الصورة غلاف مرفوع من اللوحة، false = بديل تلقائي من منتج. */
+  hasCover: boolean
 }
 
 /** شريط الإعلان العلوي — مفتاح settings واحد (0008). */
