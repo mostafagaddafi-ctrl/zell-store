@@ -16,7 +16,15 @@ import { ImageSlot } from '../ui/ImageSlot'
 import { Num } from './Num'
 import { OrderSummary } from './OrderSummary'
 
-export function CartView({ products, trustLine }: { products: StoreProduct[]; trustLine?: string }) {
+export function CartView({
+  products,
+  trustLine,
+  gift,
+}: {
+  products: StoreProduct[]
+  trustLine?: string
+  gift?: string
+}) {
   const cart = useCart()
   const [pruned, setPruned] = useState(false)
 
@@ -142,6 +150,7 @@ export function CartView({ products, trustLine }: { products: StoreProduct[]; tr
         <div className="lg:sticky lg:top-24">
           <OrderSummary
             trustLine={trustLine}
+            gift={gift}
             subtotalPiastres={subtotal}
             shippingPiastres={null}
             action={
