@@ -43,6 +43,9 @@ export function SiteHeader({
   whatsappMessage: string
 }) {
   const cart = useCart()
+  // لوجو أفقي (أعرض من طوله بوضوح) بياخد عرضه الطبيعي. المربع بيفضل في
+  // خانته القديمة لحد ما يتبدّل — نفس حد تحذير اللوحة (العرض > الطول × 1.3).
+  const wideLogo = logo !== null && logo.width !== null && logo.height !== null && logo.width > logo.height * 1.3
   const navCollections = collections.filter((collection) => collection.showInNav)
   const overflow = navCollections.length > DESKTOP_LINKS
   const desktopLinks = overflow ? navCollections.slice(0, DESKTOP_LINKS - 1) : navCollections
@@ -53,15 +56,27 @@ export function SiteHeader({
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-bg/95 shadow-[0_1px_10px_hsl(var(--brand)/0.06)] backdrop-blur-md">
       <Container className="flex h-16 items-center gap-2 sm:h-[4.5rem]">
-        <Link href="/" aria-label={storeName} className="flex h-12 w-20 shrink-0 items-center overflow-hidden sm:w-24">
+        <Link
+          href="/"
+          aria-label={storeName}
+          className={
+            wideLogo
+              ? 'flex h-12 shrink-0 items-center'
+              : 'flex h-12 w-20 shrink-0 items-center overflow-hidden sm:w-24'
+          }
+        >
           {logo ? (
             <Image
               src={logo.url}
               alt={logo.alt || storeName}
-              width={160}
-              height={40}
+              width={logo.width ?? 160}
+              height={logo.height ?? 40}
               priority
-              className="h-12 w-full object-contain mix-blend-multiply sm:h-14"
+              className={
+                wideLogo
+                  ? 'h-10 w-auto max-w-[160px] object-contain sm:h-12 sm:max-w-[200px]'
+                  : 'h-12 w-full object-contain mix-blend-multiply sm:h-14'
+              }
             />
           ) : (
             <span className="text-base font-semibold text-brand">{storeName}</span>
