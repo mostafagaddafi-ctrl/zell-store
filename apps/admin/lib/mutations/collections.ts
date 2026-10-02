@@ -313,3 +313,28 @@ export async function reorderCollections(rawIds: unknown): Promise<MutationResul
     return toInternalFailure(error)
   }
 }
+
+/**
+ * إضافة منتج لآخر قسم — للمنتج الجديد اللي اتعمل من جوه القسم.
+ *
+ * بتقرا الربط الحالي وتبعته كامل + المنتج الجديد لـ setCollectionProducts
+ * (الدالة الذرّية + التحقق بالقراءة). نافذة السباق بين القراءة والكتابة
+ * مقبولة هنا: إنشاء منتج من جوه قسم وتعديل نفس القسم في نفس اللحظة.
+ * بترجّع false بدل ما ترمي — فشل الربط مابيلغيش المنتج اللي اتعمل.
+ */
+export async function addProductToCollection(rawCollectionId: unknown, productId: number): Promise<boolean> {
+  const id = validateCollectionId(rawCollectionId)
+  if (!id.ok) return false
+  try {
+    const links = await restGet<{ product_id: number }>(
+      'product_collections',
+      'select=product_id&collection_id=eq.' + encodeURIComponent(id.value) + '&order=sort_order.asc,product_id.asc',
+    )
+    const ids = links.rows.map((row) => row.product_id)
+    if (ids.includes(productId)) return true
+    const result = await setCollectionProducts(id.value, [...ids, productId])
+    return result.ok
+  } catch {
+    return false
+  }
+}
