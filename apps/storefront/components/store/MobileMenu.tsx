@@ -24,9 +24,11 @@ import type { StoreCollection } from '@zell/core'
 export function MobileMenu({
   collections,
   whatsappHref,
+  allLabel,
 }: {
   collections: StoreCollection[]
   whatsappHref: string | null
+  allLabel: string
 }) {
   const dialogRef = useRef<HTMLDialogElement | null>(null)
   const [open, setOpen] = useState(false)
@@ -87,7 +89,7 @@ export function MobileMenu({
    */
   const links: { href: string; label: string }[] = [
     { href: '/', label: 'الرئيسية' },
-    { href: '/#products', label: 'كل الأفلام' },
+    ...(allLabel ? [{ href: '/products', label: allLabel }] : []),
     ...collections.map((collection) => ({
       href: '/collection/' + collection.slug,
       label: collection.title,
