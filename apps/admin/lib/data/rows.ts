@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { publicImageUrl } from '@zell/core'
+import { hasInstallerRequest, publicImageUrl } from '@zell/core'
 import type {
   AdminCollection,
   AdminImage,
@@ -263,6 +263,7 @@ export function toAdminOrder(row: OrderRow, itemCount: number): AdminOrder {
     notifiedAt: row.notified_at,
     notifyError: row.notify_error,
     createdAt: row.created_at,
+    needsInstaller: hasInstallerRequest(row.notes),
   }
 }
 
