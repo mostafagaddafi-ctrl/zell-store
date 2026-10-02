@@ -345,7 +345,12 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
             ))}
           </ul>
 
-          <OrderSummary subtotalPiastres={subtotal} shippingPiastres={shipping} trustLine={settings.content.trustLine} />
+          <OrderSummary
+            subtotalPiastres={subtotal}
+            shippingPiastres={shipping}
+            trustLine={settings.content.trustLine}
+            gift={settings.offerEnabled ? settings.offerText : ''}
+          />
 
           <Button type="submit" size="lg" disabled={submitting}>
             {submitting ? (
