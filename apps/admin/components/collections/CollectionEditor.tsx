@@ -198,7 +198,7 @@ export function CollectionEditor({
                 touchDetails()
               }}
               className={inputClasses}
-              placeholder="بديل رخام"
+              placeholder="اكتب اسم القسم"
             />
           </Field>
 
@@ -216,7 +216,7 @@ export function CollectionEditor({
               }}
               className={inputClasses}
               dir="ltr"
-              placeholder="marble-alternative"
+              placeholder="section-name"
             />
           </Field>
 

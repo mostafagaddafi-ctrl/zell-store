@@ -287,7 +287,7 @@ export function ContentEditor({ content }: { content: StoreContent }) {
               touch({ ...draft, announcement: { ...draft.announcement, text: e.target.value } })
             }
             className={inputClasses}
-            placeholder="شحن مجاني للطلبات فوق ٥٠٠ جنيه"
+            placeholder="اكتب نص الشريط"
           />
         </Field>
 
@@ -300,7 +300,7 @@ export function ContentEditor({ content }: { content: StoreContent }) {
             }
             className={inputClasses}
             dir="ltr"
-            placeholder="/product/1"
+            placeholder="/... أو https://..."
           />
         </Field>
 
@@ -312,7 +312,7 @@ export function ContentEditor({ content }: { content: StoreContent }) {
               touch({ ...draft, announcement: { ...draft.announcement, ctaLabel: e.target.value } })
             }
             className={inputClasses}
-            placeholder="اعرف أكتر"
+            placeholder="نص الزرار"
           />
         </Field>
       </Card>
@@ -362,7 +362,7 @@ export function ContentEditor({ content }: { content: StoreContent }) {
                     }}
                     className={inputClasses}
                     dir="ltr"
-                    placeholder="/shipping-policy"
+                    placeholder="/... أو https://..."
                   />
                 </Field>
                 </div>

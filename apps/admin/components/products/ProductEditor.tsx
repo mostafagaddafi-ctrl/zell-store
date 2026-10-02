@@ -228,7 +228,7 @@ export function ProductEditor({
                         }}
                         className={inputClasses}
                         aria-label={'ميزة رقم ' + String(index + 1)}
-                        placeholder="مثال: بيقلل الحرارة جوه الأوضة"
+                        placeholder="اكتب ميزة للمنتج"
                       />
                       <Button
                         variant="ghost"
