@@ -104,6 +104,13 @@ export function CollectionsList({ collections }: { collections: AdminCollection[
                     <p className={'mt-1 text-xs font-semibold ' + VISIBILITY_TONE[status.tone]}>
                       {status.label} — {status.detail}
                     </p>
+                    {status.tone === 'warn' ? (
+                      <div className="mt-2">
+                        <Link href={'/collections/' + collection.id + '#products'} className={buttonClasses('primary', 'sm')}>
+                          {collection.productCount === 0 ? 'ضيف منتجات للقسم' : 'راجع منتجات القسم'}
+                        </Link>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
