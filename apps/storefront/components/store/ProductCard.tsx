@@ -15,33 +15,33 @@ export function ProductCard({ product }: { product: StoreProduct }) {
   return (
     <Link
       href={'/product/' + String(product.id)}
-      className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-card transition-shadow hover:shadow-md"
+      className="group flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-card transition duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-md"
     >
       <ImageSlot
         ratio="1/1"
         fit="cover"
         src={preview?.url ?? null}
         alt={preview?.alt ?? product.name_ar}
-        sizes="(min-width: 1024px) 380px, (min-width: 640px) 45vw, 100vw"
+        sizes="(min-width: 1024px) 380px, (min-width: 640px) 45vw, 46vw"
         label="صورة المنتج"
         className="rounded-none"
       />
 
-      <div className="flex flex-1 flex-col gap-3 p-4">
+      <div className="flex flex-1 flex-col gap-2.5 p-3 sm:gap-3 sm:p-4">
         <div className="space-y-1">
-          <h3 className="text-base font-bold text-fg">{product.name_ar}</h3>
-          <p className="text-sm leading-relaxed text-muted">{shortBenefit(product)}</p>
+          <h3 className="line-clamp-2 min-h-10 text-sm font-bold leading-5 text-fg sm:min-h-0 sm:text-base">{product.name_ar}</h3>
+          <p className="hidden text-sm leading-relaxed text-muted sm:block">{shortBenefit(product)}</p>
         </div>
 
         <div className="mt-auto space-y-3">
           <div>
-            <p className="inline-block border-b-2 border-gold pb-0.5 text-lg font-extrabold text-fg">
+            <p className="inline-block border-b-2 border-gold pb-0.5 text-lg font-extrabold text-fg sm:text-xl">
               <Num>{formatPiastres(product.price_per_meter_piastres)}</Num>
             </p>
             <span className="ms-1.5 text-xs text-muted">للمتر</span>
           </div>
 
-          <span className={buttonClasses('primary', 'md', 'w-full')}>شوف التفاصيل واختار المقاس</span>
+          <span className={buttonClasses('primary', 'md', 'w-full px-2 text-xs sm:px-4 sm:text-sm')}>التفاصيل <span className="hidden sm:inline">واختيار المقاس</span></span>
         </div>
       </div>
     </Link>

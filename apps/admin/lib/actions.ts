@@ -52,6 +52,13 @@ import type { CollectionInput } from './validation/collection'
 import type { ContentInput } from './validation/content'
 import type { ProductInput } from './validation/product'
 import type { IdentityInput, ShippingInput } from './validation/settings'
+import { REVALIDATION_WARNING, revalidateStorefront } from './revalidateStorefront'
+
+async function refreshAfter<T>(result: MutationResult<T>): Promise<MutationResult<T>> {
+  if (!result.ok) return result
+  const refreshed = await revalidateStorefront()
+  return refreshed ? result : { ...result, warning: REVALIDATION_WARNING }
+}
 
 // ── المنتجات ─────────────────────────────────────────────────
 export async function saveProductAction(input: ProductInput): Promise<MutationResult<AdminProduct>> {
@@ -59,7 +66,7 @@ export async function saveProductAction(input: ProductInput): Promise<MutationRe
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return saveProduct(input)
+  return refreshAfter(await saveProduct(input))
 }
 
 export async function setProductVisibilityAction(
@@ -71,7 +78,7 @@ export async function setProductVisibilityAction(
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return setProductVisibility(id, visible, expectedUpdatedAt)
+  return refreshAfter(await setProductVisibility(id, visible, expectedUpdatedAt))
 }
 
 /** لازم تشمل كل المنتجات — المخفية كمان — مرة واحدة بالظبط. */
@@ -80,7 +87,7 @@ export async function reorderProductsAction(orderedIds: number[]): Promise<Mutat
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return reorderProducts(orderedIds)
+  return refreshAfter(await reorderProducts(orderedIds))
 }
 
 // ── الصور ────────────────────────────────────────────────────
@@ -94,7 +101,7 @@ export async function setPrimaryImageAction(productId: number, imageId: string):
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return setPrimaryImage(productId, imageId)
+  return refreshAfter(await setPrimaryImage(productId, imageId))
 }
 
 /** cover على الرئيسية قيمة افتراضية مش قاعدة — الأدمن يقدر يرجّعها contain. */
@@ -107,7 +114,7 @@ export async function setImageFitAction(
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return setImageFit(imageId, fit, expectedUpdatedAt)
+  return refreshAfter(await setImageFit(imageId, fit, expectedUpdatedAt))
 }
 
 /** صور المعرض بس، وبتتكتب من صفر. المعرّفات نصوص. */
@@ -116,7 +123,7 @@ export async function reorderImagesAction(productId: number, orderedIds: string[
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return reorderProductImages(productId, orderedIds)
+  return refreshAfter(await reorderProductImages(productId, orderedIds))
 }
 
 /** برّه نطاق المرحلة — محتاجة تنظيف Storage مع الصف في معاملة واحدة. */
@@ -176,7 +183,7 @@ export async function saveContentAction(
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return saveContent(input, expectedUpdatedAt)
+  return refreshAfter(await saveContent(input, expectedUpdatedAt))
 }
 
 /** حفظ كامل مش patch — الدالة بتكتب الأربعة مفاتيح مع بعض. */
@@ -188,7 +195,7 @@ export async function saveShippingAction(
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return saveShipping(input, expectedUpdatedAt)
+  return refreshAfter(await saveShipping(input, expectedUpdatedAt))
 }
 
 /**
@@ -203,7 +210,7 @@ export async function saveIdentityAction(
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return saveIdentity(input, expectedUpdatedAt)
+  return refreshAfter(await saveIdentity(input, expectedUpdatedAt))
 }
 
 /** telegramToken مدخل فقط — ما بيترجعش أبدًا. برّه نطاق المرحلة. */
@@ -225,7 +232,7 @@ export async function createCollectionAction(input: CollectionInput): Promise<Mu
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return createCollection(input)
+  return refreshAfter(await createCollection(input))
 }
 
 export async function updateCollectionAction(
@@ -237,7 +244,7 @@ export async function updateCollectionAction(
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return updateCollection(id, input, expectedUpdatedAt)
+  return refreshAfter(await updateCollection(id, input, expectedUpdatedAt))
 }
 
 export async function setCollectionVisibilityAction(
@@ -249,7 +256,7 @@ export async function setCollectionVisibilityAction(
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return setCollectionVisibility(id, visible, expectedUpdatedAt)
+  return refreshAfter(await setCollectionVisibility(id, visible, expectedUpdatedAt))
 }
 
 export async function deleteCollectionAction(
@@ -260,7 +267,7 @@ export async function deleteCollectionAction(
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return deleteCollection(id, expectedUpdatedAt)
+  return refreshAfter(await deleteCollection(id, expectedUpdatedAt))
 }
 
 export async function setCollectionProductsAction(
@@ -271,7 +278,7 @@ export async function setCollectionProductsAction(
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return setCollectionProducts(id, productIds)
+  return refreshAfter(await setCollectionProducts(id, productIds))
 }
 
 export async function reorderCollectionsAction(orderedIds: string[]): Promise<MutationResult<null>> {
@@ -279,7 +286,7 @@ export async function reorderCollectionsAction(orderedIds: string[]): Promise<Mu
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return reorderCollections(orderedIds)
+  return refreshAfter(await reorderCollections(orderedIds))
 }
 
 export async function revalidateStorefrontAction(): Promise<MutationResult<null>> {
@@ -287,7 +294,9 @@ export async function revalidateStorefrontAction(): Promise<MutationResult<null>
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return { ok: false, code: 'INTERNAL', message: 'تحديث كاش المتجر لسه ما اتعملش.' }
+  return (await revalidateStorefront())
+    ? { ok: true, data: null }
+    : { ok: false, code: 'INTERNAL', message: 'تحديث المتجر الفوري فشل. قد يتأخر الظهور حتى ٥ دقائق.' }
 }
 
 /** placeholder لرفع الصور — الراوت الحقيقي ما اتعملش. */

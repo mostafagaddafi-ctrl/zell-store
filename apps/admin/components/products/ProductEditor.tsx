@@ -36,7 +36,7 @@ const EMPTY = {
 
 export function ProductEditor({ product }: { product: AdminProductDetail | null }) {
   const router = useRouter()
-  const { state: saveState, failure, run, retry, markDirty } = useSaveAction()
+  const { state: saveState, failure, warning, run, retry, markDirty } = useSaveAction()
   const [tab, setTab] = useState<Tab>('details')
 
   const [form, setForm] = useState(
@@ -138,8 +138,12 @@ export function ProductEditor({ product }: { product: AdminProductDetail | null 
     void run(() => saveProductAction(buildInput()), {
       onSuccess: (saved) => {
         // إنشاء: replace مش push عشان زرار Back مايرجعش لفورم إنشاء قديم
-        if (!productRef.current) router.replace('/products/' + String(saved.id))
-        else router.refresh()
+        if (!productRef.current) {
+          router.replace('/products/' + String(saved.id))
+          return
+        }
+        productRef.current = { ...productRef.current, ...saved }
+        stampRef.current = saved.updatedAt
       },
     })
   }
@@ -285,7 +289,7 @@ export function ProductEditor({ product }: { product: AdminProductDetail | null 
         <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
       </div>
 
-      <SaveBar state={saveState} onSave={save} />
+      <SaveBar state={saveState} onSave={save} warning={warning} />
     </div>
   )
 }

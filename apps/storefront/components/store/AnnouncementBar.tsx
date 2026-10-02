@@ -23,10 +23,10 @@ export function AnnouncementBar({ announcement }: { announcement: Announcement }
   const showCta = href !== '' && label !== ''
 
   const body = (
-    <Container className="flex min-h-10 flex-wrap items-center justify-center gap-x-3 gap-y-1 py-2 text-center">
-      <span className="text-xs font-medium leading-relaxed sm:text-sm">{announcement.text}</span>
+    <Container className="flex min-h-9 items-center justify-center gap-x-2.5 py-1.5 text-center sm:min-h-10 sm:gap-x-3 sm:py-2">
+      <span className="line-clamp-2 text-[11px] font-semibold leading-5 sm:text-sm">{announcement.text}</span>
       {showCta ? (
-        <span className="text-xs font-bold underline underline-offset-4 sm:text-sm">{label}</span>
+        <span className="shrink-0 border-b border-brand-fg/70 text-[11px] font-bold sm:text-sm">{label}</span>
       ) : null}
     </Container>
   )

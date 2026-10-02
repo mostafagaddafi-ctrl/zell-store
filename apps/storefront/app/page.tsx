@@ -19,7 +19,7 @@ export default async function HomePage() {
         <h2 className="text-xl font-bold text-fg md:text-2xl">اختار نوع الفيلم</h2>
         <p className="mt-1 text-sm text-muted">ثلاث خامات، والسعر بالمتر الطولي.</p>
 
-        <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}

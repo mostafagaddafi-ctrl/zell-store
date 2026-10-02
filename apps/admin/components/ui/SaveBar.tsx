@@ -27,7 +27,7 @@ const LABELS: Record<SaveState, { text: string; tone: string }> = {
  * يضغط، مايحصلش حاجة، ولا رسالة نجاح ولا فشل. الصمت ده أخطر من
  * زرار معطّل بسبب مكتوب.
  */
-export function SaveBar({ state, onSave }: { state: SaveState; onSave?: () => void }) {
+export function SaveBar({ state, onSave, warning }: { state: SaveState; onSave?: () => void; warning?: string | null }) {
   const enabled = useMutationsEnabled()
   const label = LABELS[state]
 
@@ -37,14 +37,17 @@ export function SaveBar({ state, onSave }: { state: SaveState; onSave?: () => vo
 
   return (
     <div className="sticky bottom-0 z-20 -mx-4 mt-6 flex items-center justify-between gap-3 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+      <div className="min-w-0">
       <p className={'flex items-center gap-1.5 text-xs font-medium ' + label.tone}>
         {state === 'saving' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
         {state === 'saved' ? <Check className="h-3.5 w-3.5" /> : null}
         {state === 'conflict' || state === 'error' ? <AlertTriangle className="h-3.5 w-3.5" /> : null}
         {label.text}
       </p>
+      {warning ? <p className="mt-1 max-w-xl text-xs text-gold">{warning}</p> : null}
+      </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         {reason ? <span className="text-xs text-muted">{reason}</span> : null}
         <Button disabled={blocked} onClick={onSave}>
           {blocked ? <Lock className="h-3.5 w-3.5" /> : null}

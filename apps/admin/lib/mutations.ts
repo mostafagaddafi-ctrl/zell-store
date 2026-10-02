@@ -26,7 +26,9 @@ export type MutationErrorCode =
   | 'STORAGE_ERROR'
   | 'INTERNAL'
 
-export type MutationResult<T> = { ok: true; data: T } | { ok: false; code: MutationErrorCode; message: string }
+export type MutationResult<T> =
+  | { ok: true; data: T; warning?: string }
+  | { ok: false; code: MutationErrorCode; message: string }
 
 /**
  * علم الجاهزية — من متغيرات البيئة، مش من الكود ولا من vercel.json.

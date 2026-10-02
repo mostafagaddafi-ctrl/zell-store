@@ -21,6 +21,8 @@ const config: Config = {
         accent: 'hsl(var(--accent) / <alpha-value>)',
         gold: 'hsl(var(--gold) / <alpha-value>)',
         danger: 'hsl(var(--danger) / <alpha-value>)',
+        whatsapp: 'hsl(var(--whatsapp) / <alpha-value>)',
+        'whatsapp-fg': 'hsl(var(--whatsapp-fg) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['var(--font-cairo)', 'system-ui', 'Segoe UI', 'Tahoma', 'sans-serif'],

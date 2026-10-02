@@ -31,6 +31,7 @@ const UNEXPECTED = 'حصل خطأ غير متوقع. حاول تاني، ولو 
 export function useSaveAction() {
   const [state, setState] = useState<SaveState>('idle')
   const [failure, setFailure] = useState<SaveFailure | null>(null)
+  const [warning, setWarning] = useState<string | null>(null)
 
   const retryRef = useRef<(() => void) | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -67,6 +68,7 @@ export function useSaveAction() {
 
     clearTimer()
     setFailure(null)
+    setWarning(null)
     setState('saving')
 
     let result: MutationResult<T>
@@ -89,6 +91,7 @@ export function useSaveAction() {
     }
 
     setState('saved')
+    setWarning(result.warning ?? null)
     options?.onSuccess?.(result.data)
 
     timerRef.current = setTimeout(() => {
@@ -106,14 +109,16 @@ export function useSaveAction() {
   function markDirty() {
     clearTimer()
     setFailure(null)
+    setWarning(null)
     setState('dirty')
   }
 
   function reset() {
     clearTimer()
     setFailure(null)
+    setWarning(null)
     setState('idle')
   }
 
-  return { state, failure, run, retry, markDirty, reset }
+  return { state, failure, warning, run, retry, markDirty, reset }
 }

@@ -15,7 +15,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
   primary: 'bg-brand text-brand-fg hover:opacity-90 active:opacity-80 disabled:bg-border disabled:text-muted',
   secondary: 'border border-border bg-card text-fg hover:bg-bg disabled:opacity-50',
   ghost: 'text-brand hover:opacity-70 disabled:opacity-50',
-  whatsapp: 'bg-[#25D366] text-white hover:opacity-90 disabled:opacity-50',
+  whatsapp: 'bg-whatsapp text-whatsapp-fg hover:opacity-90 disabled:opacity-50',
 }
 
 // أطوال مريحة للإبهام: ٤٤px الحد الأدنى، و٥٦px للأزرار الرئيسية

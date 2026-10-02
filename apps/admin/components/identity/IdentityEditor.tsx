@@ -12,7 +12,7 @@ import { SiteImageCard } from './SiteImageCard'
 
 export function IdentityEditor({ identity }: { identity: StoreIdentity }) {
   const router = useRouter()
-  const { state, failure, run, retry, markDirty } = useSaveAction()
+  const { state, failure, warning, run, retry, markDirty } = useSaveAction()
   const [draft, setDraft] = useState(identity)
 
   const touch = (patch: Partial<StoreIdentity>) => {
@@ -91,7 +91,7 @@ export function IdentityEditor({ identity }: { identity: StoreIdentity }) {
 
       <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
 
-      <SaveBar state={state} onSave={save} />
+      <SaveBar state={state} onSave={save} warning={warning} />
     </div>
   )
 }

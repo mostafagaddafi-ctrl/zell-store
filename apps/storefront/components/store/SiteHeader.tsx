@@ -42,8 +42,8 @@ export function SiteHeader({
     : null
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-bg/85 backdrop-blur">
-      <Container className="flex h-16 items-center gap-2">
+    <header className="sticky top-0 z-40 border-b border-border bg-bg/95 shadow-[0_1px_10px_hsl(var(--brand)/0.06)] backdrop-blur-md">
+      <Container className="flex h-16 items-center gap-2 sm:h-[4.5rem]">
         <Link href="/" aria-label={storeName} className="flex shrink-0 items-center">
           {logo ? (
             <Image
@@ -94,7 +94,7 @@ export function SiteHeader({
           <Link
             href="/cart"
             aria-label="السلة"
-            className="relative flex h-11 w-11 items-center justify-center rounded-lg text-fg transition-colors hover:text-accent"
+            className="relative flex h-11 w-11 border border-transparent hover:border-border hover:bg-card items-center justify-center rounded-lg text-fg transition-colors hover:text-accent"
           >
             <ShoppingBag className="h-5 w-5" />
             {cart.ready && cart.count > 0 ? (
