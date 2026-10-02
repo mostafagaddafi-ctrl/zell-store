@@ -60,6 +60,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <WhatsAppFab number={settings.whatsappNumber} message={settings.whatsappMessage} />
           <SiteFooter
             storeName={settings.storeName}
+            links={settings.content.footerLinks}
             whatsappNumber={settings.whatsappNumber}
             whatsappMessage={settings.whatsappMessage}
           />
