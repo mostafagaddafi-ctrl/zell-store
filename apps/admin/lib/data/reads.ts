@@ -520,23 +520,6 @@ export const supabaseAdminData: AdminDataSource = {
         detail: notifyDetail,
       },
       {
-        key: 'notify_email',
-        label: 'بريد الإشعارات',
-        ok: notifyEmail !== '',
-        state: notifyEmail !== '' ? 'ok' : 'warn',
-        detail:
-          notifyEmail !== ''
-            ? 'متظبط على ' + notifyEmail + ' — بس مفيش ناقل إيميل في المرحلة الأولى'
-            : 'مفيش إيميل إشعارات متظبط',
-      },
-      {
-        key: 'orders_api',
-        label: 'استقبال الطلبات',
-        ok: false,
-        state: 'warn',
-        detail: 'الراوت موجود و ORDERS_ENABLED مقفولة — الزباين لسه ما يقدروش يبعتوا',
-      },
-      {
         key: 'products',
         label: 'المنتجات النشطة',
         ok: active.length > 0,

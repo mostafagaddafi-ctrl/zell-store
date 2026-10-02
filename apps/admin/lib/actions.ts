@@ -45,6 +45,7 @@ import {
 } from './mutations/collections'
 import { removeCollectionCover } from './mutations/collectionCover'
 import { setOfferEnabled } from './mutations/offer'
+import { testTelegram } from './systemHealth'
 import { saveContent } from './mutations/content'
 import { setImageFit, setPrimaryImage } from './mutations/images'
 import { saveInternalNote, updateOrderStatus } from './mutations/orders'
@@ -344,4 +345,21 @@ export async function setOfferEnabledAction(enabled: boolean): Promise<MutationR
   const gate = guardMutations()
   if (gate) return gate
   return refreshAfter(await setOfferEnabled(enabled))
+}
+
+/** رسالة تجربة حقيقية على تليجرام — فحص، مش تعديل، فمش محتاج علم التعديلات. */
+export async function testTelegramAction(): Promise<MutationResult<{ delivered: true }>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  return testTelegram()
+}
+
+/** تحديث كاش المتجر فعلًا — نفس revalidateStorefront اللي بعد كل حفظ. */
+export async function refreshStorefrontAction(): Promise<MutationResult<null>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const refreshed = await revalidateStorefront()
+  return refreshed
+    ? { ok: true, data: null }
+    : { ok: false, code: 'INTERNAL', message: 'تحديث المتجر فشل — راجع «الاتصال بالمتجر» في حالة النظام فوق' }
 }
