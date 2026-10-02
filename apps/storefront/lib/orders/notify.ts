@@ -111,7 +111,7 @@ function buildMessage(order: NotifyOrder): string {
  * بيرجّع null عند النجاح، أو كود قصير بدون PII عند الفشل.
  * ⚠️ التوكن جزء من الـURL، فممنوع الـURL أو نص الاستثناء يدخل أي لوج.
  */
-async function sendTelegram(text: string): Promise<string | null> {
+export async function sendTelegram(text: string): Promise<string | null> {
   const token = (process.env['TELEGRAM_BOT_TOKEN'] ?? '').trim()
   const chatId = (process.env['TELEGRAM_CHAT_ID'] ?? '').trim()
   if (token === '' || chatId === '') return 'TELEGRAM_NOT_CONFIGURED'
