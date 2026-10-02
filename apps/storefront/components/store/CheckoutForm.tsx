@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Loader2, Wrench } from 'lucide-react'
 import {
+  composeAddress,
   composeOrderNotes,
   computeShippingPiastres,
   computeSubtotalPiastres,
@@ -134,6 +135,11 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   const installationOffered =
     settings.installation.enabled && values.governorate !== '' && settings.installation.governorates.includes(values.governorate)
   const wantsInstallation = installation && installationOffered
+  // المنطقة: اختيار سريع من قايمة اللوحة، وبتتكتب أول العنوان (composeAddress)
+  // — فهي جوه نفس التطبيع والهاش ومفتاح الـidempotency زي باقي العنوان.
+  const [area, setArea] = useState('')
+  const areas = values.governorate !== '' ? (settings.shippingAreas[values.governorate] ?? []) : []
+  const selectedArea = areas.includes(area) ? area : ''
   const [touched, setTouched] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -183,7 +189,7 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
       customerName: values.customerName,
       customerPhone: values.customerPhone,
       governorate: values.governorate,
-      address: values.address,
+      address: composeAddress(selectedArea, values.address),
       notes: composeOrderNotes(values.notes, wantsInstallation),
       items,
     }
@@ -288,7 +294,10 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
               name="governorate"
               autoComplete="address-level1"
               value={values.governorate}
-              onChange={(event) => set({ governorate: event.target.value })}
+              onChange={(event) => {
+                set({ governorate: event.target.value })
+                setArea('')
+              }}
               className={inputClasses}
             >
               <option value="">اختار المحافظة</option>
@@ -299,6 +308,26 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
               ))}
             </select>
           </Field>
+
+          {areas.length > 0 ? (
+            <Field htmlFor="area" label="المنطقة">
+              <select
+                id="area"
+                name="area"
+                autoComplete="address-level2"
+                value={selectedArea}
+                onChange={(event) => setArea(event.target.value)}
+                className={inputClasses}
+              >
+                <option value="">اختار المنطقة (أو اكتبها في العنوان)</option>
+                {areas.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
 
           {installationOffered ? (
             <button

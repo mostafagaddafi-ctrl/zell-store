@@ -47,6 +47,9 @@ import { removeCollectionCover } from './mutations/collectionCover'
 import { setOfferEnabled } from './mutations/offer'
 import { testTelegram } from './systemHealth'
 import { saveInstallation, type InstallationSettings } from './mutations/installation'
+import { saveShippingAreas } from './mutations/shippingAreas'
+import { saveHomeProducts } from './mutations/homeProducts'
+import type { HomeProducts } from '@zell/core'
 import { saveContent } from './mutations/content'
 import { setImageFit, setPrimaryImage } from './mutations/images'
 import { saveInternalNote, updateOrderStatus } from './mutations/orders'
@@ -218,17 +221,26 @@ export async function saveShippingAction(
   input: ShippingInput,
   expectedUpdatedAt: string,
   order?: string[],
+  areas?: Record<string, string[]>,
 ): Promise<MutationResult<SaveVersion>> {
   const auth = await requireAdminAction()
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
   const result = await saveShipping(input, expectedUpdatedAt)
-  if (!result.ok || order === undefined) return refreshAfter(result)
+  if (!result.ok) return refreshAfter(result)
   const known = Object.keys((input as { rates?: Record<string, unknown> }).rates ?? {})
-  const ordered = await saveShippingOrder(order, known)
-  if (!ordered.ok) {
-    return refreshAfter({ ...result, warning: 'الأسعار اتحفظت، بس ترتيب المحافظات ما اتحفظش — دوس حفظ تاني.' })
+  const problems: string[] = []
+  if (order !== undefined) {
+    const ordered = await saveShippingOrder(order, known)
+    if (!ordered.ok) problems.push('ترتيب المحافظات')
+  }
+  if (areas !== undefined) {
+    const saved = await saveShippingAreas(areas, known)
+    if (!saved.ok) problems.push('المناطق (' + saved.message + ')')
+  }
+  if (problems.length > 0) {
+    return refreshAfter({ ...result, warning: 'الأسعار اتحفظت، بس ' + problems.join(' و') + ' ما اتحفظش — دوس حفظ تاني.' })
   }
   return refreshAfter(result)
 }
@@ -385,4 +397,14 @@ export async function saveInstallationAction(input: InstallationSettings): Promi
   const gate = guardMutations()
   if (gate) return gate
   return refreshAfter(await saveInstallation(input))
+}
+
+// ── الصفحة الرئيسية ──────────────────────────────────────────
+/** منتجات الرئيسية (الكل · مختارة · ولا حاجة) + اسم رابط «كل المنتجات». */
+export async function saveHomeProductsAction(input: HomeProducts): Promise<MutationResult<HomeProducts>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const gate = guardMutations()
+  if (gate) return gate
+  return refreshAfter(await saveHomeProducts(input))
 }

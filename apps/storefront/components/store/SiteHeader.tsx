@@ -35,12 +35,15 @@ export function SiteHeader({
   collections,
   whatsappNumber,
   whatsappMessage,
+  allLabel,
 }: {
   storeName: string
   logo: StoreImage | null
   collections: StoreCollection[]
   whatsappNumber: string
   whatsappMessage: string
+  /** اسم رابط «كل المنتجات» من اللوحة — فاضي = الرابط مخفي. */
+  allLabel: string
 }) {
   const cart = useCart()
   const navCollections = collections.filter((collection) => collection.showInNav)
@@ -70,12 +73,14 @@ export function SiteHeader({
 
         {/* روابط الديسكتوب — لو الأقسام كتير، «كل الأقسام» بيوصل للباقي */}
         <nav aria-label="أقسام المتجر" className="hidden min-w-0 flex-1 md:flex md:items-center md:gap-1">
-          <Link
-            href="/#products"
-            className="shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-fg transition-colors hover:text-accent"
-          >
-            كل الأفلام
-          </Link>
+          {allLabel ? (
+            <Link
+              href="/products"
+              className="shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-fg transition-colors hover:text-accent"
+            >
+              {allLabel}
+            </Link>
+          ) : null}
           {desktopLinks.map((collection) => (
             <Link
               key={collection.slug}
@@ -125,7 +130,7 @@ export function SiteHeader({
             ) : null}
           </Link>
 
-          <MobileMenu collections={navCollections} whatsappHref={whatsappHref} />
+          <MobileMenu collections={navCollections} whatsappHref={whatsappHref} allLabel={allLabel} />
         </div>
       </Container>
     </header>

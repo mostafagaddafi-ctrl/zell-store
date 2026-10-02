@@ -72,6 +72,10 @@ export type StoreSettings = {
   shippingDefaultPiastres: number
   freeShippingThresholdPiastres: number
   governorates: string[]
+  /** مناطق كل محافظة لاختيار سريع في صفحة الطلب (settings.shipping_areas). */
+  shippingAreas: Record<string, string[]>
+  /** منتجات الرئيسية + اسم رابط «كل المنتجات» (settings.home_products). */
+  homeProducts: HomeProducts
   announcement: Announcement
   /** محتوى الصفحة من «المحتوى» في اللوحة. */
   content: StoreContent
@@ -236,4 +240,65 @@ export function orderGovernorates(names: readonly string[], saved: readonly stri
   for (const name of source) if (available.has(name) && !out.includes(name)) out.push(name)
   const rest = names.filter((name) => !out.includes(name)).sort((a, b) => a.localeCompare(b, 'ar'))
   return [...out, ...rest]
+}
+
+// ── الرئيسية: المنتجات المعروضة ─────────────────────────────────
+export type HomeProductsMode = 'all' | 'selected' | 'none'
+
+/**
+ * settings.home_products — من «الصفحة الرئيسية» في صفحة الأقسام باللوحة.
+ *   mode      all = كل المنتجات · selected = اللي في ids بس · none = الأقسام بس
+ *   ids       بالترتيب اللي اتعلّم بيه
+ *   allLabel  اسم رابط «كل المنتجات» في القائمة — فاضي = الرابط مخفي
+ */
+export type HomeProducts = { mode: HomeProductsMode; ids: number[]; allLabel: string }
+
+export const DEFAULT_HOME_PRODUCTS: HomeProducts = { mode: 'all', ids: [], allLabel: 'كل الأفلام' }
+
+export function parseHomeProducts(value: unknown): HomeProducts {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return { ...DEFAULT_HOME_PRODUCTS, ids: [] }
+  const raw = value as Record<string, unknown>
+  const rawMode = raw['mode']
+  const mode: HomeProductsMode = rawMode === 'selected' || rawMode === 'none' ? rawMode : 'all'
+  const ids: number[] = []
+  const rawIds: unknown = raw['ids']
+  if (Array.isArray(rawIds)) {
+    for (const id of rawIds as unknown[]) {
+      if (typeof id === 'number' && Number.isInteger(id) && id > 0 && !ids.includes(id)) ids.push(id)
+    }
+  }
+  const label = raw['allLabel']
+  return { mode, ids, allLabel: typeof label === 'string' ? label.trim() : DEFAULT_HOME_PRODUCTS.allLabel }
+}
+
+/** المنتجات اللي تظهر في جزء «المنتجات» في الرئيسية. */
+export function pickHomeProducts<T extends { id: number }>(products: readonly T[], home: HomeProducts): T[] {
+  if (home.mode === 'none') return []
+  if (home.mode === 'all') return [...products]
+  const byId = new Map(products.map((product) => [product.id, product]))
+  return home.ids.map((id) => byId.get(id)).filter((product): product is T => product !== undefined)
+}
+
+// ── مناطق المحافظات ────────────────────────────────────────────
+/** settings.shipping_areas — { "الجيزة": ["أكتوبر", "الشيخ زايد"] }. عرض بس، السعر بالمحافظة. */
+export function parseShippingAreas(value: unknown): Record<string, string[]> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
+  const out: Record<string, string[]> = {}
+  for (const [name, list] of Object.entries(value as Record<string, unknown>)) {
+    if (!Array.isArray(list)) continue
+    const areas: string[] = []
+    for (const item of list as unknown[]) {
+      if (typeof item !== 'string') continue
+      const area = item.trim()
+      if (area !== '' && !areas.includes(area)) areas.push(area)
+    }
+    if (areas.length > 0) out[name] = areas
+  }
+  return out
+}
+
+/** المنطقة المختارة بتتكتب أول العنوان — من غير أي تغيير في جدول الطلبات. */
+export function composeAddress(area: string, address: string): string {
+  const name = area.trim()
+  return name === '' ? address : name + ' — ' + address.trim()
 }
