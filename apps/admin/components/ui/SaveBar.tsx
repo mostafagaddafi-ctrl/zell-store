@@ -36,7 +36,7 @@ export function SaveBar({ state, onSave, warning }: { state: SaveState; onSave?:
   const reason = !enabled ? 'التعديلات موقوفة' : !wired ? 'الحفظ لسه ما اتعملش' : null
 
   return (
-    <div className="sticky bottom-0 z-20 -mx-4 mt-6 flex items-center justify-between gap-3 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+    <div className="sticky bottom-0 z-20 -mx-4 mt-6 flex items-center justify-between gap-3 border-t border-border bg-surface/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:-mx-6 sm:px-6">
       <div className="min-w-0">
       <p className={'flex items-center gap-1.5 text-xs font-medium ' + label.tone}>
         {state === 'saving' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}

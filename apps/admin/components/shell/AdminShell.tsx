@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -35,6 +35,22 @@ export function AdminShell({
 }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
+
+  // وهي مفتوحة: Escape بيقفلها، والصفحة اللي تحتها ماتتحركش مع السكرول
+  useEffect(() => {
+    if (!open) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    const root = document.documentElement
+    const previous = root.style.overflow
+    root.style.overflow = 'hidden'
+    document.addEventListener('keydown', onKey)
+    return () => {
+      root.style.overflow = previous
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
 
   const groups: Group[] = [
     { items: [{ href: '/', label: 'نظرة عامة', icon: LayoutDashboard }] },
@@ -77,7 +93,7 @@ export function AdminShell({
               href={item.href}
               onClick={() => setOpen(false)}
               className={cn(
-                'flex items-center gap-2.5 rounded px-2 py-2 text-sm font-medium transition-colors',
+                'flex items-center gap-2.5 rounded px-2 py-2.5 text-sm font-medium transition-colors lg:py-2',
                 isActive(item.href) ? 'bg-brand text-brand-fg' : 'text-fg hover:bg-border/50',
               )}
             >
@@ -125,11 +141,13 @@ export function AdminShell({
       {/* Sidebar ثابتة على الديسكتوب */}
       <aside className="fixed inset-y-0 right-0 hidden w-sidebar border-s border-border bg-surface lg:block">{nav}</aside>
 
-      {/* Drawer على الموبايل */}
+      {/* Drawer على الموبايل — بيطلع من اليمين، نفس ناحية زرار القائمة */}
       {open ? (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-fg/40" onClick={() => setOpen(false)} />
-          <aside className="absolute inset-y-0 right-0 w-64 border-s border-border bg-surface">{nav}</aside>
+        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="قائمة اللوحة">
+          <div className="admin-drawer-backdrop absolute inset-0 bg-fg/40" onClick={() => setOpen(false)} />
+          <aside className="admin-drawer-panel absolute inset-y-0 right-0 w-72 max-w-[85vw] border-s border-border bg-surface shadow-xl">
+            {nav}
+          </aside>
         </div>
       ) : null}
 
@@ -139,7 +157,7 @@ export function AdminShell({
             type="button"
             aria-label={open ? 'اقفل القائمة' : 'افتح القائمة'}
             onClick={() => setOpen((value) => !value)}
-            className="flex h-9 w-9 items-center justify-center rounded text-fg hover:bg-border/50"
+            className="relative z-50 flex h-10 w-10 items-center justify-center rounded text-fg hover:bg-border/50"
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>

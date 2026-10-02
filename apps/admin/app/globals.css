@@ -39,3 +39,29 @@
     -moz-appearance: textfield;
   }
 }
+
+/* قائمة اللوحة على الموبايل — بتطلع من اليمين، نفس ناحية زرارها */
+.admin-drawer-panel {
+  animation: admin-drawer-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.admin-drawer-backdrop {
+  animation: admin-fade-in 200ms ease-out;
+}
+
+@keyframes admin-drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes admin-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-drawer-panel,
+  .admin-drawer-backdrop {
+    animation: none;
+  }
+}

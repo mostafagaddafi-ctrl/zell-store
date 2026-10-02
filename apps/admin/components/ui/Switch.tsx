@@ -22,7 +22,8 @@ export function Switch({
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-55',
+        // before: بيكبّر مساحة اللمس لحوالي 44px من غير ما يكبّر الشكل
+        "relative h-5 w-9 shrink-0 rounded-full transition-colors before:absolute before:-inset-3 before:content-[''] disabled:cursor-not-allowed disabled:opacity-55",
         checked ? 'bg-ok' : 'bg-border',
       )}
     >
