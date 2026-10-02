@@ -109,6 +109,7 @@ export const FALLBACK_SETTINGS: StoreSettings = {
   heroImage: null,
   logoUrl: '',
   offerText: 'أدوات التركيب مرفقة مجاناً',
+  offerEnabled: true,
   whatsappNumber: '201000000000',
   whatsappMessage: 'مرحباً ZELL، عايز أستفسر عن فيلم زجاج للبيت',
   shippingRates: FALLBACK_SHIPPING_RATES,

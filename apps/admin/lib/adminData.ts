@@ -158,6 +158,8 @@ export type StoreIdentity = {
   /** صورة الواجهة النشطة (site_images kind = 'hero'). */
   heroImage: AdminImage | null
   offerText: string
+  /** settings.offer_enabled — مش موجود = ظاهر. مش داخل في حفظ الهوية. */
+  offerEnabled?: boolean
   whatsappNumber: string
   whatsappMessage: string
   /**

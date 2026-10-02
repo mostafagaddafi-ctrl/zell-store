@@ -62,6 +62,8 @@ export type StoreSettings = {
   /** عمود قديم — احتياطي لحد ما الترحيل يكتمل. */
   logoUrl: string
   offerText: string
+  /** مفتاح «إظهار نص العرض» في الهوية. المفتاح مش موجود = ظاهر. */
+  offerEnabled: boolean
   whatsappNumber: string
   whatsappMessage: string
   shippingRates: Record<string, number>

@@ -8,5 +8,15 @@
   },
   "env": {
     "STOREFRONT_DATA_SOURCE": "supabase"
+  },
+  "git": {
+    "deploymentEnabled": {
+      "feat/**": false,
+      "fix/**": false,
+      "docs/**": false,
+      "db/**": false,
+      "design/**": false,
+      "chore/**": false
+    }
   }
 }

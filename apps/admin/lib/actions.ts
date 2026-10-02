@@ -44,6 +44,7 @@ import {
   updateCollection,
 } from './mutations/collections'
 import { removeCollectionCover } from './mutations/collectionCover'
+import { setOfferEnabled } from './mutations/offer'
 import { saveContent } from './mutations/content'
 import { setImageFit, setPrimaryImage } from './mutations/images'
 import { saveInternalNote, updateOrderStatus } from './mutations/orders'
@@ -334,4 +335,13 @@ export async function uploadProductImagePlaceholder(_productId: number): Promise
   const gate = guardMutations()
   if (gate) return gate
   return { ok: false, code: 'INTERNAL', message: 'رفع الصور لسه ما اتعملش.' }
+}
+
+/** «إظهار نص العرض» — بيتحفظ فورًا من صفحة الهوية. */
+export async function setOfferEnabledAction(enabled: boolean): Promise<MutationResult<{ enabled: boolean }>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const gate = guardMutations()
+  if (gate) return gate
+  return refreshAfter(await setOfferEnabled(enabled))
 }

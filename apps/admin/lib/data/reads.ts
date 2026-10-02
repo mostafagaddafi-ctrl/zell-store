@@ -118,7 +118,7 @@ const SHIPPING_KEYS = [
   'free_shipping_threshold_piastres',
   'shipping_disabled_governorates',
 ] as const
-const IDENTITY_KEYS = ['store_name', 'logo_url', 'offer_text', 'whatsapp_number', 'whatsapp_message'] as const
+const IDENTITY_KEYS = ['store_name', 'logo_url', 'offer_text', 'offer_enabled', 'whatsapp_number', 'whatsapp_message'] as const
 
 /**
  * المفاتيح اللي zell_save_identity بتقفلها وبتقارن عليها.
@@ -416,6 +416,7 @@ export const supabaseAdminData: AdminDataSource = {
       logo: logoRow ? toAdminSiteImage(logoRow, projectUrl(), storeName, 'contain') : null,
       heroImage: heroRow ? toAdminSiteImage(heroRow, projectUrl(), 'صورة الواجهة', 'cover') : null,
       offerText: readString(map, 'offer_text'),
+      offerEnabled: map.get('offer_enabled') !== false,
       whatsappNumber: readString(map, 'whatsapp_number'),
       whatsappMessage: readString(map, 'whatsapp_message'),
       updatedAt: latestUpdatedAt(rows.rows, IDENTITY_SAVE_KEYS),
