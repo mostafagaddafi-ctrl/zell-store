@@ -12,6 +12,7 @@
  * الروابط الحقيقية بتتبنى في طبقة القراءة المعتمدة على السيرفر.
  */
 import type { StoreProduct, StoreCollection, StoreSettings } from '@zell/core'
+import { DEFAULT_STORE_CONTENT } from '@zell/core'
 
 export const FALLBACK_PRODUCTS: StoreProduct[] = [
   {
@@ -116,6 +117,7 @@ export const FALLBACK_SETTINGS: StoreSettings = {
   governorates: Object.keys(FALLBACK_SHIPPING_RATES),
   // الكتالوج المؤقت مابيعرضش شريط — الشريط بيانات حقيقية من settings بس
   announcement: { enabled: false, text: '', href: '', ctaLabel: '' },
+  content: DEFAULT_STORE_CONTENT,
 }
 
 /**

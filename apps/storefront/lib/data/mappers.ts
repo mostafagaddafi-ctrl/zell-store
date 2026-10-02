@@ -7,6 +7,10 @@
 import {
   publicImageUrl,
   sanitizeAnnouncementHref,
+  DEFAULT_STORE_CONTENT,
+  type HomeSection,
+  type HomeSectionKey,
+  type StoreContent,
   type Announcement,
   type StoreCollection,
   type StoreImage,
@@ -259,6 +263,13 @@ export const PUBLIC_SETTING_KEYS = [
   'shipping_default_piastres',
   'free_shipping_threshold_piastres',
   'announcement',
+  // «المحتوى» من اللوحة
+  'hero',
+  'sections',
+  'order_steps',
+  'faqs',
+  'footer_links',
+  'trust_line',
 ] as const
 
 function settingString(map: Map<string, unknown>, key: string, fallback = ''): string {
@@ -334,5 +345,95 @@ export function toStoreSettings(rows: SettingRow[], logo: StoreImage | null = nu
     freeShippingThresholdPiastres: settingNumber(map, 'free_shipping_threshold_piastres', 0),
     governorates: Object.keys(shippingRates).sort((a, b) => a.localeCompare(b, 'ar')),
     announcement: settingAnnouncement(map),
+    content: settingContent(map),
   }
+}
+
+// ── «المحتوى» من اللوحة ───────────────────────────────────────
+function asObject(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null
+}
+
+function cleanText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function objects(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) return []
+  return value.map(asObject).filter((item): item is Record<string, unknown> => item !== null)
+}
+
+const HOME_SECTION_KEYS: readonly HomeSectionKey[] = ['hero', 'products', 'how_it_works', 'faq']
+
+/**
+ * settings (hero · sections · order_steps · faqs · footer_links · trust_line)
+ * -> StoreContent.
+ *
+ * ⚠️ إعداد مش موجود أو مش مقروء = القيمة الافتراضية (نفس النص القديم).
+ *    لكن قايمة **محفوظة فاضية** (الأدمن مسح كل الأسئلة مثلًا) بتفضل فاضية
+ *    والجزء بيستخبى — ده اختيار الأدمن مش عطل.
+ */
+function settingContent(map: Map<string, unknown>): StoreContent {
+  const defaults = DEFAULT_STORE_CONTENT
+
+  const heroRaw = asObject(map.get('hero'))
+  const hero = heroRaw
+    ? {
+        title: cleanText(heroRaw['title']) || defaults.hero.title,
+        accent: cleanText(heroRaw['accent']),
+        subtitle: cleanText(heroRaw['subtitle']),
+        ctaLabel: cleanText(heroRaw['ctaLabel']) || defaults.hero.ctaLabel,
+      }
+    : defaults.hero
+
+  let homeSections: HomeSection[] = defaults.homeSections
+  const sectionsRaw = map.get('sections')
+  if (Array.isArray(sectionsRaw)) {
+    const parsed: (HomeSection & { sortOrder: number })[] = []
+    objects(sectionsRaw).forEach((item, index) => {
+      const key = item['key']
+      if (typeof key !== 'string' || !HOME_SECTION_KEYS.includes(key as HomeSectionKey)) return
+      if (parsed.some((existing) => existing.key === key)) return
+      const fallback = defaults.homeSections.find((section) => section.key === key)
+      parsed.push({
+        key: key as HomeSectionKey,
+        visible: item['visible'] !== false,
+        title: cleanText(item['title']) || (fallback ? fallback.title : ''),
+        subtitle: cleanText(item['subtitle']),
+        sortOrder: typeof item['sortOrder'] === 'number' ? item['sortOrder'] : index,
+      })
+    })
+    // جزء مش متسجّل في الإعداد بيفضل ظاهر في آخر الصفحة بقيمه الافتراضية
+    defaults.homeSections.forEach((section, index) => {
+      if (!parsed.some((existing) => existing.key === section.key)) parsed.push({ ...section, sortOrder: 1000 + index })
+    })
+    parsed.sort((a, b) => a.sortOrder - b.sortOrder)
+    homeSections = parsed.map(({ key, visible, title, subtitle }) => ({ key, visible, title, subtitle }))
+  }
+
+  const stepsRaw = map.get('order_steps')
+  const orderSteps = Array.isArray(stepsRaw)
+    ? objects(stepsRaw)
+        .map((item) => ({ title: cleanText(item['title']), description: cleanText(item['description']) }))
+        .filter((item) => item.title !== '')
+    : defaults.orderSteps
+
+  const faqsRaw = map.get('faqs')
+  const faqs = Array.isArray(faqsRaw)
+    ? objects(faqsRaw)
+        .map((item) => ({ question: cleanText(item['question']), answer: cleanText(item['answer']) }))
+        .filter((item) => item.question !== '' && item.answer !== '')
+    : defaults.faqs
+
+  const linksRaw = map.get('footer_links')
+  const footerLinks = Array.isArray(linksRaw)
+    ? objects(linksRaw)
+        .map((item) => ({ label: cleanText(item['label']), href: sanitizeAnnouncementHref(cleanText(item['href'])) }))
+        .filter((item) => item.label !== '')
+    : defaults.footerLinks
+
+  const trustRaw = map.get('trust_line')
+  const trustLine = typeof trustRaw === 'string' ? trustRaw.trim() : defaults.trustLine
+
+  return { hero, homeSections, orderSteps, faqs, footerLinks, trustLine }
 }
