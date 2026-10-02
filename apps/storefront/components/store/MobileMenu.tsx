@@ -73,7 +73,7 @@ export function MobileMenu({
         aria-label="افتح القائمة"
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="flex h-11 w-11 items-center justify-center rounded-lg text-fg transition-colors hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:hidden"
+        className="flex h-11 w-11 items-center justify-center rounded-lg border border-transparent text-fg hover:border-border hover:bg-card transition-colors hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:hidden"
       >
         <Menu className="h-6 w-6" />
       </button>
@@ -111,7 +111,7 @@ export function MobileMenu({
                   <Link
                     href={link.href}
                     onClick={closeMenu}
-                    className="block rounded-lg px-3 py-3 text-base font-medium text-fg transition-colors hover:bg-border/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    className="block rounded-lg border border-transparent px-3 py-3 text-base font-semibold text-fg hover:border-border hover:bg-card transition-colors hover:bg-border/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   >
                     {link.label}
                   </Link>

@@ -199,7 +199,7 @@ export function CollectionEditor({
             onRetry={details.retry}
             onDiscardAndRefresh={() => router.refresh()}
           />
-          <SaveBar state={details.state} onSave={saveDetails} />
+          <SaveBar state={details.state} onSave={saveDetails} warning={details.warning} />
         </div>
       </Card>
 

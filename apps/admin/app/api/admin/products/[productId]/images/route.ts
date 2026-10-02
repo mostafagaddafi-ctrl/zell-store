@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { requireAdminAction } from '../../../../../../lib/auth/guards'
 import { guardMutations } from '../../../../../../lib/mutations'
 import { uploadProductImage } from '../../../../../../lib/mutations/imageUpload'
+import { REVALIDATION_WARNING, revalidateStorefront } from '../../../../../../lib/revalidateStorefront'
 
 /**
  * POST /api/admin/products/[productId]/images
@@ -86,5 +87,11 @@ export async function POST(
     bytes,
   })
 
+  if (outcome.result.ok) {
+    const refreshed = await revalidateStorefront()
+    if (!refreshed) {
+      return NextResponse.json({ ...outcome.result, warning: REVALIDATION_WARNING }, { status: outcome.status })
+    }
+  }
   return NextResponse.json(outcome.result, { status: outcome.status })
 }

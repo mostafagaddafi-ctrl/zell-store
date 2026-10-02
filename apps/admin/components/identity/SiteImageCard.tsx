@@ -4,6 +4,7 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Upload } from 'lucide-react'
 import type { AdminImage } from '../../lib/adminData'
+import { compressUploadImage } from '../../lib/client/compressImage'
 import { MAX_UPLOAD_MB } from '../../lib/client/uploadImage'
 import { uploadSiteImage, type SiteImageKind } from '../../lib/client/uploadSiteImage'
 import { useSaveAction } from '../../lib/client/useSaveAction'
@@ -45,21 +46,26 @@ export function SiteImageCard({
 }: Props) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
-  const { state, failure, run, retry } = useSaveAction()
+  const { state, failure, warning, run, retry } = useSaveAction()
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [altText, setAltText] = useState('')
+  const [optimizing, setOptimizing] = useState(false)
   const altRef = useRef(altText)
   altRef.current = altText
 
-  const busy = state === 'saving'
+  const busy = optimizing || state === 'saving'
 
-  function choose(event: ChangeEvent<HTMLInputElement>) {
+  async function choose(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     // تصفير الخانة يسمح باختيار **نفس** الملف تاني بعد الفشل
     event.target.value = ''
     if (!file) return
 
-    void run(() => uploadSiteImage({ kind, file, altText: altRef.current }), {
+    setOptimizing(kind === 'hero')
+    const uploadFile = kind === 'hero' ? await compressUploadImage(file) : file
+    setOptimizing(false)
+
+    void run(() => uploadSiteImage({ kind, file: uploadFile, altText: altRef.current }), {
       onSuccess: () => {
         setAltText('')
         router.refresh()
@@ -129,7 +135,7 @@ export function SiteImageCard({
             onClick={() => inputRef.current?.click()}
           >
             <Upload className="h-3.5 w-3.5" />
-            {busy ? 'بيرفع…' : image ? 'استبدال الصورة' : 'ارفع صورة'}
+            {optimizing ? 'بيضغط الصورة…' : state === 'saving' ? 'بيرفع…' : image ? 'استبدال الصورة' : 'ارفع صورة'}
           </Button>
           {state === 'saved' ? (
             <span className="text-xs font-semibold text-ok">الصورة اتفعّلت</span>
@@ -138,8 +144,10 @@ export function SiteImageCard({
 
         <p className="text-xs text-muted">
           أقصى حجم {MAX_UPLOAD_MB} ميجابايت · الرفع بيتفعّل فورًا من غير زرار الحفظ · الصورة القديمة
-          مابتتحذفش، بتتسجّل للتنظيف · ظهور التغيير على المتجر ممكن ياخد لحد ٥ دقائق بسبب الكاش
+          مابتتحذفش، بتتسجّل للتنظيف{kind === 'hero' ? ' · صورة الواجهة بتتضغط قبل الرفع' : ' · اللوجو بيترفع كما هو للحفاظ على الشفافية'}
         </p>
+
+        {warning ? <p className="text-xs font-semibold text-gold">{warning}</p> : null}
 
         <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
       </div>

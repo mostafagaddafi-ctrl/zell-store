@@ -16,7 +16,7 @@ import { Table, TD, TH, THead, TR } from '../ui/Table'
 export function ShippingEditor({ shipping }: { shipping: ShippingSettings }) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
-  const { state, failure, run, retry, markDirty } = useSaveAction()
+  const { state, failure, warning, run, retry, markDirty } = useSaveAction()
   const [draft, setDraft] = useState(shipping)
 
   const governorates = Object.keys(draft.rates).sort((a, b) => a.localeCompare(b, 'ar'))
@@ -122,7 +122,7 @@ export function ShippingEditor({ shipping }: { shipping: ShippingSettings }) {
 
       <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
 
-      <SaveBar state={state} onSave={save} />
+      <SaveBar state={state} onSave={save} warning={warning} />
     </div>
   )
 }

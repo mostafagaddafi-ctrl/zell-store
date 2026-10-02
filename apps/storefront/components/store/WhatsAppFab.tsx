@@ -41,7 +41,7 @@ export function WhatsAppFab({ number, message }: { number: string; message: stri
           ? 'calc(env(safe-area-inset-bottom) + 6rem)'
           : 'calc(env(safe-area-inset-bottom) + 1rem)',
       }}
-      className="fixed start-4 z-30 flex h-12 items-center gap-2 rounded-full bg-[#25D366] px-4 text-sm font-bold text-white shadow-card transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:hidden"
+      className="fixed start-4 z-30 flex h-12 items-center gap-2 rounded-full border border-whatsapp-fg/20 bg-whatsapp px-4 text-sm font-bold text-whatsapp-fg shadow-lg transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:hidden"
     >
       <MessageCircle className="h-5 w-5 shrink-0" />
       استفسر على واتساب

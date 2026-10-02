@@ -29,7 +29,7 @@ const FITS: Array<{ value: ImageFit; label: string; hint: string }> = [
 export function ImageManager({ productId, images }: { productId: number; images: AdminImage[] }) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
-  const { state, failure, run, retry } = useSaveAction()
+  const { state, failure, warning, run, retry } = useSaveAction()
   const [confirmId, setConfirmId] = useState<string | null>(null)
 
   /**
@@ -81,7 +81,9 @@ export function ImageManager({ productId, images }: { productId: number; images:
   if (ordered.length === 0) {
     return (
       <div className="space-y-3">
-        <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
+        {warning ? <p className="text-xs font-semibold text-gold">{warning}</p> : null}
+
+      <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
         <EmptyState
           title="مفيش صور للمنتج ده"
           description="الصورة الرئيسية بتظهر في كارت المتجر، والباقي في معرض صفحة المنتج."

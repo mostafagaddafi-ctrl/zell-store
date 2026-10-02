@@ -29,7 +29,7 @@ import { Table, TD, TH, THead, TR } from '../ui/Table'
 export function ProductsTable({ products }: { products: AdminProduct[] }) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
-  const { state, failure, run, retry } = useSaveAction()
+  const { state, failure, warning, run, retry } = useSaveAction()
   const [busyId, setBusyId] = useState<number | null>(null)
 
   const productsRef = useRef(products)
@@ -60,6 +60,8 @@ export function ProductsTable({ products }: { products: AdminProduct[] }) {
 
   return (
     <div className="space-y-3">
+      {warning ? <p className="text-xs font-semibold text-gold">{warning}</p> : null}
+
       <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
 
       <Table>

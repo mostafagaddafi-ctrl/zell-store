@@ -17,6 +17,7 @@ import 'server-only'
  */
 
 const TIMEOUT_MS = 8000
+export const STOREFRONT_CACHE_TAG = 'storefront-data'
 
 type Credentials = { url: string; key: string }
 
@@ -54,7 +55,7 @@ export async function restGet<T>(table: string, query: string, revalidateSeconds
   const { url, key } = readCredentials()
   const endpoint = url + '/rest/v1/' + table + '?' + query
 
-  const init: RequestInit & { next?: { revalidate: number } } = {
+  const init: RequestInit & { next?: { revalidate: number; tags: string[] } } = {
     method: 'GET',
     headers: {
       apikey: key,
@@ -62,7 +63,7 @@ export async function restGet<T>(table: string, query: string, revalidateSeconds
       Accept: 'application/json',
     },
     signal: AbortSignal.timeout(TIMEOUT_MS),
-    next: { revalidate: revalidateSeconds },
+    next: { revalidate: revalidateSeconds, tags: [STOREFRONT_CACHE_TAG] },
   }
 
   let response: Response

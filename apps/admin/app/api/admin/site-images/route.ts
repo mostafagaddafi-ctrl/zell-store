@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { requireAdminAction } from '../../../../lib/auth/guards'
 import { guardMutations } from '../../../../lib/mutations'
 import { uploadSiteImage } from '../../../../lib/mutations/siteImageUpload'
+import { REVALIDATION_WARNING, revalidateStorefront } from '../../../../lib/revalidateStorefront'
 
 /**
  * POST /api/admin/site-images
@@ -74,5 +75,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     bytes,
   })
 
+  if (outcome.result.ok) {
+    const refreshed = await revalidateStorefront()
+    if (!refreshed) {
+      return NextResponse.json({ ...outcome.result, warning: REVALIDATION_WARNING }, { status: outcome.status })
+    }
+  }
   return NextResponse.json(outcome.result, { status: outcome.status })
 }

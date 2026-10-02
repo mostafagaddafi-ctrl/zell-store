@@ -33,7 +33,7 @@ import { Switch } from '../ui/Switch'
 export function CollectionsList({ collections }: { collections: AdminCollection[] }) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
-  const { state, failure, run, retry } = useSaveAction()
+  const { state, failure, warning, run, retry } = useSaveAction()
   const [busyId, setBusyId] = useState<string | null>(null)
 
   const busy = state === 'saving'
@@ -79,6 +79,8 @@ export function CollectionsList({ collections }: { collections: AdminCollection[
 
   return (
     <div className="space-y-3">
+      {warning ? <p className="text-xs font-semibold text-gold">{warning}</p> : null}
+
       <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
 
       <ul className="space-y-3">
