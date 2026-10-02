@@ -75,6 +75,10 @@ export async function saveProductAction(
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
+  // كل منتج جديد لازم يكون في قسم — القاعدة على السيرفر مش في الواجهة بس
+  if (input.id === undefined && (collectionId === undefined || collectionId.trim() === '')) {
+    return { ok: false, code: 'VALIDATION', message: 'اختار قسم للمنتج الأول — كل منتج لازم يكون في قسم.' }
+  }
   const result = await saveProduct(input)
   if (!result.ok || input.id !== undefined || collectionId === undefined) return refreshAfter(result)
   const linked = await addProductToCollection(collectionId, result.data.id)
