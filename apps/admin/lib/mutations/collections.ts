@@ -225,6 +225,21 @@ export async function setCollectionProducts(
   const ids = validateProductIds(rawProductIds)
   if (!ids.ok) return ids
 
+  /**
+   * ⚠️ **ممنوع نجاح وهمي.**
+   *
+   * النسخة الأولى كانت بتصدّق ردّ الدالة وبس. لو النداء نفسه فشل على
+   * مستوى HTTP (دالة مش في كاش PostgREST، مهلة، صلاحية) الكود كان
+   * بيرجّع INTERNAL عام، والأدمن بيشوف بانر مبهم — أو مايشوفهوش خالص
+   * لو كان بره الشاشة. وأسوأ: أي رد غير متوقع كان ممكن يتفسّر نجاح.
+   *
+   * الحل: بعد النداء **بنقرا الربط المخزّن فعلًا** ونقارنه بالمطلوب.
+   * النجاح مابيترجعش غير لما المخزّن يطابق المبعوت بالظبط. ولو مطابقش،
+   * الرسالة بتقول الحالة اللي رجعت من الداتابيز عشان السبب يبان بدل
+   * ما يتوه.
+   */
+  let rpcStatus: string | null = null
+
   try {
     const count = await restRpc<number | null>(SET_PRODUCTS_RPC, {
       p_collection_id: id.value,
@@ -232,8 +247,6 @@ export async function setCollectionProducts(
     })
     // null = المجموعة مش موجودة (الدالة بترجّع null مش بترمي)
     if (count === null) return { ok: false, code: 'NOT_FOUND', message: COLLECTION_GONE }
-    if (count !== ids.value.length) return toInternalFailure(null)
-    return { ok: true, data: null }
   } catch (error) {
     const sentinel = sentinelOf(error)
     if (sentinel === 'ZELL_INVALID_COLLECTION_PRODUCTS') {
@@ -242,8 +255,37 @@ export async function setCollectionProducts(
     if (sentinel === 'ZELL_INVALID_COLLECTION') {
       return { ok: false, code: 'NOT_FOUND', message: COLLECTION_GONE }
     }
+    // كود الحالة بس — مفيش أي حرف من جسم رد Supabase
+    const match = /\b(\d{3})\b/.exec(error instanceof Error ? error.message : '')
+    rpcStatus = match === null ? null : match[1] ?? null
+  }
+
+  // التحقق بالقراءة — المرجع الوحيد للنجاح
+  let storedIds: number[]
+  try {
+    const stored = await restGet<{ product_id: number }>(
+      'product_collections',
+      'select=product_id&collection_id=eq.' + encodeURIComponent(id.value),
+    )
+    storedIds = stored.rows.map((row) => row.product_id)
+  } catch (error) {
     return toInternalFailure(error)
   }
+
+  const wanted = ids.value
+  const matches =
+    storedIds.length === wanted.length && wanted.every((productId) => storedIds.includes(productId))
+
+  if (!matches) {
+    const suffix = rpcStatus === null ? '' : ' (الداتابيز رجّعت الحالة ' + rpcStatus + ')'
+    return {
+      ok: false,
+      code: 'INTERNAL',
+      message: 'الربط ما اتحفظش' + suffix + '. اعمل تحديث للصفحة وحاول تاني.',
+    }
+  }
+
+  return { ok: true, data: null }
 }
 
 export async function reorderCollections(rawIds: unknown): Promise<MutationResult<null>> {
