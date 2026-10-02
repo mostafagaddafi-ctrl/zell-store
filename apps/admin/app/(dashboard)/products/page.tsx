@@ -40,6 +40,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
   for (const ids of linked.values()) for (const id of ids) inAnySection.add(id)
 
   const byId = new Map(products.map((product) => [product.id, product]))
+  const unsectioned = new Set(products.filter((product) => !inAnySection.has(product.id)).map((product) => product.id))
   const current = collections.find((collection) => collection.id === requested) ?? null
   const selected = requested === 'none' ? 'none' : current ? current.id : 'all'
 
@@ -135,7 +136,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
           description={current ? 'ضيف منتج جديد من الزرار فوق، أو اربط منتجات موجودة من صفحة القسم.' : ''}
         />
       ) : (
-        <ProductsTable products={shown} reorderable={selected === 'all'} />
+        <ProductsTable products={shown} reorderable={selected === 'all'} unsectioned={unsectioned} />
       )}
     </>
   )
