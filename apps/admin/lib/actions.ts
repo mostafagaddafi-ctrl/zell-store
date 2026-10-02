@@ -46,6 +46,7 @@ import {
 import { removeCollectionCover } from './mutations/collectionCover'
 import { setOfferEnabled } from './mutations/offer'
 import { testTelegram } from './systemHealth'
+import { saveInstallation, type InstallationSettings } from './mutations/installation'
 import { saveContent } from './mutations/content'
 import { setImageFit, setPrimaryImage } from './mutations/images'
 import { saveInternalNote, updateOrderStatus } from './mutations/orders'
@@ -362,4 +363,13 @@ export async function refreshStorefrontAction(): Promise<MutationResult<null>> {
   return refreshed
     ? { ok: true, data: null }
     : { ok: false, code: 'INTERNAL', message: 'تحديث المتجر فشل — راجع «الاتصال بالمتجر» في حالة النظام فوق' }
+}
+
+/** فني التركيب — تشغيل وسطر توضيح ومحافظات. */
+export async function saveInstallationAction(input: InstallationSettings): Promise<MutationResult<InstallationSettings>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const gate = guardMutations()
+  if (gate) return gate
+  return refreshAfter(await saveInstallation(input))
 }
