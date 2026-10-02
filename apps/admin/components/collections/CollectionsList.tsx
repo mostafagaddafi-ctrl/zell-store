@@ -132,7 +132,7 @@ export function CollectionsList({ collections }: { collections: AdminCollection[
                     label={'إظهار ' + collection.title + ' في الرئيسية'}
                     disabled={!mutationsOn || busy}
                   />
-                  <span className="text-xs text-fg">الرئيسية</span>
+                  <span className="text-xs text-fg">صف في الرئيسية</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Switch
