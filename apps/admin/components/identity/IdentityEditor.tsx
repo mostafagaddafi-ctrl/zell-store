@@ -62,7 +62,7 @@ export function IdentityEditor({ identity }: { identity: StoreIdentity }) {
             <Field
               htmlFor="offer"
               label="نص العرض"
-              hint="بيظهر في شريط الهدية أعلى المتجر لما «الشريط العلوي» في صفحة المحتوى يكون مقفول أو فاضي. مثال: أدوات التركيب هدية مع كل طلب."
+              hint="بيظهر في شريط الهدية أعلى المتجر لما «الشريط العلوي» في صفحة المحتوى يكون مقفول أو فاضي."
             >
               <input id="offer" value={draft.offerText} onChange={(e) => touch({ offerText: e.target.value })} className={inputClasses} />
             </Field>
