@@ -1,4 +1,7 @@
 import { Fragment } from 'react'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
+import { pickHomeProducts } from '@zell/core'
 import { Faq } from '../components/store/Faq'
 import { Hero } from '../components/store/Hero'
 import { HowItWorks } from '../components/store/HowItWorks'
@@ -22,6 +25,9 @@ export default async function HomePage() {
   const { products, settings, collections } = await getStorefrontData()
   const { content } = settings
   const homeCollections = collections.filter((collection) => collection.showOnHome)
+  // «الصفحة الرئيسية» في صفحة الأقسام: كل المنتجات · منتجات مختارة · ولا حاجة
+  const homeProducts = pickHomeProducts(products, settings.homeProducts)
+  const allLabel = settings.homeProducts.allLabel || 'كل المنتجات'
 
   return (
     <Container className="pb-8">
@@ -37,24 +43,36 @@ export default async function HomePage() {
 
         if (section.key === 'products') {
           return (
-            <Fragment key="products">
-              {section.visible ? (
-                <section id="products" className="scroll-mt-20 py-10 md:py-14">
+            <div key="products" id="products" className="scroll-mt-20">
+              {section.visible && homeProducts.length > 0 ? (
+                <section className="py-10 md:py-14">
                   <h2 className="text-xl font-bold text-fg md:text-2xl">{section.title}</h2>
                   {section.subtitle ? <p className="mt-1 text-sm text-muted">{section.subtitle}</p> : null}
 
                   <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
-                    {products.map((product) => (
+                    {homeProducts.map((product) => (
                       <ProductCard key={product.id} product={product} />
                     ))}
                   </div>
+
+                  {homeProducts.length < products.length ? (
+                    <div className="mt-6 flex justify-center">
+                      <Link
+                        href="/products"
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 text-sm font-semibold text-fg transition-colors hover:border-brand hover:text-brand"
+                      >
+                        {'شوف ' + allLabel}
+                        <ArrowLeft className="h-4 w-4" />
+                      </Link>
+                    </div>
+                  ) : null}
                 </section>
               ) : null}
 
               {homeCollections.map((collection) => (
                 <CollectionStrip key={collection.slug} collection={collection} products={products} />
               ))}
-            </Fragment>
+            </div>
           )
         }
 
