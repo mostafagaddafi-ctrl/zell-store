@@ -78,7 +78,7 @@ export function IdentityEditor({ identity }: { identity: StoreIdentity }) {
         accept="image/jpeg,image/png,image/webp"
         emptyLabel="خانة صورة الواجهة"
         previewClassName="h-24 w-32"
-        requirements="JPEG أو PNG أو WebP. أقل مقاس 800×450، ويفضّل نسبة 4:3 أفقية. بتظهر جنب نص الواجهة في الصفحة الرئيسية. من غيرها بتفضل الخانة البديلة ظاهرة."
+        requirements="JPEG أو PNG أو WebP. أقل مقاس 800×450، ويفضّل نسبة 4:3 أفقية. بتظهر جنب نص الواجهة في الصفحة الرئيسية. من غيرها الواجهة بتبقى نص بس."
       />
 
       <Card title="واتساب">
