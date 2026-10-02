@@ -43,10 +43,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body className="flex min-h-dvh flex-col bg-bg font-sans text-fg antialiased">
         <CartProvider>
           {/* فوق الهيدر — settings متاحة هنا أصلاً، فمفيش fetch زيادة */}
-          <AnnouncementBar
-            announcement={settings.announcement}
-            offerText={settings.offerEnabled ? settings.offerText : ''}
-          />
+          <AnnouncementBar announcement={settings.announcement} />
           <SiteHeader
             storeName={settings.storeName}
             logo={settings.logo}
