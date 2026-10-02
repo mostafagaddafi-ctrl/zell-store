@@ -35,7 +35,14 @@ const EMPTY = {
   maxLengthCm: '3000',
 }
 
-export function ProductEditor({ product }: { product: AdminProductDetail | null }) {
+/** collectionId: إنشاء من جوه قسم — المنتج بيتضاف آخر القسم بعد الحفظ. */
+export function ProductEditor({
+  product,
+  collectionId,
+}: {
+  product: AdminProductDetail | null
+  collectionId?: string
+}) {
   const router = useRouter()
   const { state: saveState, failure, warning, run, retry, markDirty } = useSaveAction()
   const [tab, setTab] = useState<Tab>('details')
@@ -139,7 +146,7 @@ export function ProductEditor({ product }: { product: AdminProductDetail | null 
   }
 
   function save() {
-    void run(() => saveProductAction(buildInput()), {
+    void run(() => saveProductAction(buildInput(), productRef.current ? undefined : collectionId), {
       onSuccess: (saved) => {
         // إنشاء: replace مش push عشان زرار Back مايرجعش لفورم إنشاء قديم
         if (!productRef.current) {
