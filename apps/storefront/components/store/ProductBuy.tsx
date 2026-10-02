@@ -7,9 +7,11 @@ import { formatLength, validateLength, type StoreProduct } from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { buttonClasses, Button } from '../ui/Button'
 import { Num } from './Num'
+import { GiftNote } from './GiftNote'
 import { SizePanel } from './SizePanel'
 
-export function ProductBuy({ product }: { product: StoreProduct }) {
+/** gift: «نص العرض» لو ظاهر — بيظهر كهدية فوق زرار الإضافة. */
+export function ProductBuy({ product, gift = '' }: { product: StoreProduct; gift?: string }) {
   const cart = useCart()
   const [lengthCm, setLengthCm] = useState(product.min_length_cm)
   const [justAdded, setJustAdded] = useState(false)
@@ -38,6 +40,8 @@ export function ProductBuy({ product }: { product: StoreProduct }) {
           if (next) setJustAdded(false)
         }}
       />
+
+      <GiftNote text={gift} />
 
       <Button size="lg" onClick={handleAdd} disabled={!canAdd}>
         <ShoppingBag className="h-5 w-5" />
