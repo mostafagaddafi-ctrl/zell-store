@@ -4,11 +4,9 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ChevronDown, ChevronUp, Pencil } from 'lucide-react'
-import {
-  reorderCollectionsAction,
-  setCollectionVisibilityAction,
-} from '../../lib/actions'
+import { reorderCollectionsAction, setCollectionPlacementAction } from '../../lib/actions'
 import type { AdminCollection } from '../../lib/adminData'
+import { collectionVisibility, VISIBILITY_TONE } from '../../lib/collectionStatus'
 import { useSaveAction } from '../../lib/client/useSaveAction'
 import { useMutationsEnabled } from '../../lib/readiness'
 import { Button, buttonClasses } from '../ui/Button'
@@ -17,18 +15,13 @@ import { FailureBanner } from '../ui/FailureBanner'
 import { Switch } from '../ui/Switch'
 
 /**
- * قائمة المجموعات — **بطاقات، مش جدول**.
+ * قائمة الأقسام.
  *
- * ⚠️ الجدول العريض هو الغلط المتكرر في لوحات الإدارة على الموبايل:
- *    ستة أعمدة بتتحول scroll أفقي، والأزرار بتخرج من الشاشة. كل
- *    مجموعة هنا بطاقة مستقلة، والأزرار جواها — فالتفاعل كله في
- *    متناول الإصبع على أي عرض. على الديسكتوب البطاقات بتوسّع.
+ * الترتيب هنا هو ترتيب الظهور في الرئيسية **و**القائمة، وكل مكان
+ * بيحترم مفتاحه. القسم الجديد بيبدأ أول القائمة، ومفيش أولوية ثابتة.
  *
- * ⚠️ الترتيب بسهمين لكل بطاقة مش drag and drop: السحب على اللمس
- *    بيتعارض مع scroll الصفحة، والسهمين واضحين ومتاحين بلوحة
- *    المفاتيح من غير أي كود إضافي.
- *
- * ⚠️ الترتيب بيتبعت **كقائمة كاملة** — الدالة بترفض أي مجموعة ناقصة.
+ * ⚠️ حالة الظهور بتتحسب بنفس قواعد المتجر (collectionStatus) — فلو
+ *    القسم مش ظاهر للزباين، السبب مكتوب جنبه بدل ما الأدمن يخمّن.
  */
 export function CollectionsList({ collections }: { collections: AdminCollection[] }) {
   const router = useRouter()
@@ -38,41 +31,36 @@ export function CollectionsList({ collections }: { collections: AdminCollection[
 
   const busy = state === 'saving'
 
+  function done() {
+    setBusyId(null)
+    router.refresh()
+  }
+
   function move(index: number, direction: -1 | 1) {
     const next = index + direction
     if (next < 0 || next >= collections.length) return
-
     const ids = collections.map((collection) => collection.id)
     const current = ids[index]
     const swap = ids[next]
     if (current === undefined || swap === undefined) return
     ids[index] = swap
     ids[next] = current
-
     setBusyId(current)
-    void run(() => reorderCollectionsAction(ids), {
-      onSuccess: () => {
-        setBusyId(null)
-        router.refresh()
-      },
-    })
+    void run(() => reorderCollectionsAction(ids), { onSuccess: done })
   }
 
-  function toggle(collection: AdminCollection, visible: boolean) {
+  function place(collection: AdminCollection, showOnHome: boolean, showInNav: boolean) {
     setBusyId(collection.id)
-    void run(() => setCollectionVisibilityAction(collection.id, visible, collection.updatedAt), {
-      onSuccess: () => {
-        setBusyId(null)
-        router.refresh()
-      },
+    void run(() => setCollectionPlacementAction(collection.id, showOnHome, showInNav, collection.updatedAt), {
+      onSuccess: done,
     })
   }
 
   if (collections.length === 0) {
     return (
       <EmptyState
-        title="مفيش مجموعات لسه"
-        description="المجموعة بتجمّع منتجات تحت عنوان واحد، وبتظهر في الرئيسية وعلى صفحة خاصة بها."
+        title="مفيش أقسام لسه"
+        description="القسم بيجمّع منتجات تحت اسم واحد، وتقدر تظهره في الرئيسية أو في قائمة المتجر أو الاتنين."
       />
     )
   }
@@ -84,34 +72,41 @@ export function CollectionsList({ collections }: { collections: AdminCollection[
       <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
 
       <ul className="space-y-3">
-        {collections.map((collection, index) => (
-          <li
-            key={collection.id}
-            className="rounded border border-border bg-surface p-3 shadow-card"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold text-fg">{collection.title}</p>
-                <p className="mt-0.5 truncate text-xs text-muted" dir="ltr">
-                  /collection/{collection.slug}
-                </p>
-                {collection.subtitle ? (
-                  <p className="mt-1 line-clamp-2 text-xs text-muted">{collection.subtitle}</p>
-                ) : null}
-                <p className="mt-1 text-xs text-muted">
-                  {collection.productCount === 0
-                    ? 'مفيش منتجات — المجموعة مش بتظهر في المتجر'
-                    : String(collection.productCount) + ' منتج'}
-                </p>
-              </div>
+        {collections.map((collection, index) => {
+          const status = collectionVisibility(collection)
+          const inactive = collection.productCount - collection.activeProductCount
+          const rowBusy = busyId === collection.id && busy
 
-              <div className="flex shrink-0 items-center gap-2">
-                <Switch
-                  checked={collection.isVisible}
-                  onChange={(next) => toggle(collection, next)}
-                  label={'إظهار ' + collection.title}
-                  disabled={!mutationsOn || busy}
-                />
+          return (
+            <li key={collection.id} className="rounded border border-border bg-surface p-3 shadow-card">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  {collection.cover ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={collection.cover.url}
+                      alt=""
+                      className="h-12 w-16 shrink-0 rounded border border-border object-cover"
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-fg">{collection.title}</p>
+                    <p className="mt-0.5 truncate text-xs text-muted" dir="ltr">
+                      /collection/{collection.slug}
+                    </p>
+                    {collection.subtitle ? (
+                      <p className="mt-1 line-clamp-2 text-xs text-muted">{collection.subtitle}</p>
+                    ) : null}
+                    <p className="mt-1 text-xs text-muted">
+                      {String(collection.productCount) + ' منتج'}
+                      {inactive > 0 ? ' · ' + String(inactive) + ' متوقّف' : ''}
+                    </p>
+                    <p className={'mt-1 text-xs font-semibold ' + VISIBILITY_TONE[status.tone]}>
+                      {status.label} — {status.detail}
+                    </p>
+                  </div>
+                </div>
+
                 <Link
                   href={'/collections/' + collection.id}
                   aria-label={'تعديل ' + collection.title}
@@ -121,34 +116,55 @@ export function CollectionsList({ collections }: { collections: AdminCollection[
                   تعديل
                 </Link>
               </div>
-            </div>
 
-            <div className="mt-3 flex items-center gap-1.5 border-t border-border pt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label={'حرّك ' + collection.title + ' لفوق'}
-                disabled={!mutationsOn || busy || index === 0}
-                onClick={() => move(index, -1)}
-              >
-                <ChevronUp className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label={'حرّك ' + collection.title + ' لتحت'}
-                disabled={!mutationsOn || busy || index === collections.length - 1}
-                onClick={() => move(index, 1)}
-              >
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-              <span className="ms-auto text-xs text-muted">
-                الترتيب {index + 1}
-                {busyId === collection.id && busy ? ' · بيحفظ…' : ''}
-              </span>
-            </div>
-          </li>
-        ))}
+              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border pt-2">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={collection.showOnHome}
+                    onChange={(next) => place(collection, next, collection.showInNav)}
+                    label={'إظهار ' + collection.title + ' في الرئيسية'}
+                    disabled={!mutationsOn || busy}
+                  />
+                  <span className="text-xs text-fg">الرئيسية</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={collection.showInNav}
+                    onChange={(next) => place(collection, collection.showOnHome, next)}
+                    label={'إظهار ' + collection.title + ' في قائمة الأقسام'}
+                    disabled={!mutationsOn || busy}
+                  />
+                  <span className="text-xs text-fg">القائمة</span>
+                </div>
+
+                <div className="ms-auto flex items-center gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={'حرّك ' + collection.title + ' لفوق'}
+                    disabled={!mutationsOn || busy || index === 0}
+                    onClick={() => move(index, -1)}
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={'حرّك ' + collection.title + ' لتحت'}
+                    disabled={!mutationsOn || busy || index === collections.length - 1}
+                    onClick={() => move(index, 1)}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs text-muted">
+                    الترتيب {index + 1}
+                    {rowBusy ? ' · بيحفظ…' : ''}
+                  </span>
+                </div>
+              </div>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )
