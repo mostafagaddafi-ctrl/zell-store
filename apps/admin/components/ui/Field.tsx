@@ -1,13 +1,17 @@
 import type { ReactNode } from 'react'
 import { cn } from '../../lib/cn'
 
+/**
+ * ⚠️ max-sm:text-base مش تزيين: Safari على الآيفون بيعمل zoom تلقائي لأي
+ *    خانة خطها أقل من 16px. وعلى الموبايل الخانة أعلى شوية للصباع.
+ */
 export const inputClasses =
-  'w-full h-9 rounded border border-border bg-surface px-2.5 text-sm text-fg ' +
+  'w-full h-9 rounded border border-border bg-surface px-2.5 text-sm text-fg max-sm:h-10 max-sm:text-base ' +
   'placeholder:text-muted outline-none transition-colors ' +
   'focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:bg-bg disabled:text-muted'
 
 export const textareaClasses =
-  'w-full min-h-20 rounded border border-border bg-surface p-2.5 text-sm text-fg ' +
+  'w-full min-h-20 rounded border border-border bg-surface p-2.5 text-sm text-fg max-sm:text-base ' +
   'placeholder:text-muted outline-none transition-colors resize-y ' +
   'focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:bg-bg disabled:text-muted'
 
