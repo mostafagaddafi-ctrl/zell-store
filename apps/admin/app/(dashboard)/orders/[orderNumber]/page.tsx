@@ -49,7 +49,22 @@ export default async function OrderDetailPage({ params }: PageProps) {
       <div className="grid gap-5 xl:grid-cols-3">
         <div className="space-y-5 xl:col-span-2">
           <Card title="الأصناف">
-            <Table className="border-0">
+            {/* الموبايل: سطر لكل صنف بدل جدول بسكرول جانبي */}
+            <ul className="divide-y divide-border md:hidden">
+              {order.items.map((item, index) => (
+                <li key={index} className="flex items-start justify-between gap-3 py-2.5 first:pt-0">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-fg">{item.productNameAr}</p>
+                    <p className="text-xs text-muted">
+                      {formatLength(item.lengthCm)} × {formatPiastres(item.unitPricePiastres)} للمتر
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold text-fg">{formatPiastres(item.lineTotalPiastres)}</p>
+                </li>
+              ))}
+            </ul>
+
+            <Table className="hidden border-0 md:block">
               <THead>
                 <TR>
                   <TH>المنتج</TH>
@@ -87,7 +102,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
           />
         </div>
 
-        <div className="space-y-5">
+        <div className="order-first space-y-5 xl:order-none">
           <Card title="العميل">
             <dl className="space-y-2 text-sm">
               <Row label="الاسم" value={order.customerName} />
