@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, MessageCircle, ShoppingBag, X } from 'lucide-react'
@@ -38,13 +38,44 @@ export function MobileMenu({
     setOpen(true)
   }
 
+  const closingRef = useRef(false)
+
+  /**
+   * القفل بحركة: data-closing بيشغّل حركة الخروج في globals.css، وبعد
+   * ما تخلص بنقفل الحوار فعلًا. المهلة احتياط لو animationend ماوصلش
+   * (تاب في الخلفية مثلًا). مع prefers-reduced-motion القفل فوري.
+   */
   function closeMenu() {
-    dialogRef.current?.close()
+    const dialog = dialogRef.current
+    if (!dialog || !dialog.open || closingRef.current) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      dialog.close()
+      return
+    }
+
+    closingRef.current = true
+    dialog.setAttribute('data-closing', '')
+
+    let finished = false
+    const onEnd = (event: AnimationEvent) => {
+      if (event.target === dialog) finish()
+    }
+    const finish = () => {
+      if (finished) return
+      finished = true
+      dialog.removeEventListener('animationend', onEnd)
+      dialog.removeAttribute('data-closing')
+      closingRef.current = false
+      dialog.close()
+    }
+
+    dialog.addEventListener('animationend', onEnd)
+    window.setTimeout(finish, 320)
   }
 
   // تغيير الصفحة لازم يقفل القائمة — الراوتر مابيعملش unmount للهيدر
   useEffect(() => {
-    if (dialogRef.current?.open) dialogRef.current.close()
+    closeMenu()
   }, [pathname])
 
   /**
@@ -82,6 +113,11 @@ export function MobileMenu({
         ref={dialogRef}
         aria-labelledby={titleId}
         onClose={() => setOpen(false)}
+        // Escape: نقفل بالحركة بدل القفل الفوري بتاع المتصفح
+        onCancel={(event) => {
+          event.preventDefault()
+          closeMenu()
+        }}
         // الضغط على الـbackdrop: الهدف بيكون العنصر نفسه مش أي حاجة جواه
         onClick={(event) => {
           if (event.target === dialogRef.current) closeMenu()
@@ -106,8 +142,8 @@ export function MobileMenu({
 
           <nav aria-label="قائمة المتجر" className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
             <ul className="space-y-1">
-              {links.map((link) => (
-                <li key={link.href}>
+              {links.map((link, index) => (
+                <li key={link.href} className="zell-drawer-item" style={{ '--i': index } as CSSProperties}>
                   <Link
                     href={link.href}
                     onClick={closeMenu}

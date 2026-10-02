@@ -59,8 +59,8 @@ export function IdentityEditor({ identity }: { identity: StoreIdentity }) {
             </Field>
             <Field
               htmlFor="offer"
-              label="شارة الواجهة الرئيسية"
-              hint="سطر صغير يظهر جوه الواجهة (Hero) فوق العنوان مباشرة. ده مش الشريط العلوي — الشريط بيتظبط من صفحة المحتوى تحت «الشريط العلوي»."
+              label="نص العرض"
+              hint="بيظهر في شريط الهدية أعلى المتجر لما «الشريط العلوي» في صفحة المحتوى يكون مقفول أو فاضي. مثال: أدوات التركيب هدية مع كل طلب."
             >
               <input id="offer" value={draft.offerText} onChange={(e) => touch({ offerText: e.target.value })} className={inputClasses} />
             </Field>
