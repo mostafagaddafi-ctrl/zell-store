@@ -44,7 +44,7 @@ export function OrderSummary({
         {gift ? (
           <div className="flex items-center justify-between gap-3">
             <dt className="flex min-w-0 items-center gap-1.5 text-muted">
-              <Gift className="h-3.5 w-3.5 shrink-0 text-gold" aria-hidden="true" />
+              <Gift className="h-3.5 w-3.5 shrink-0 text-brand" aria-hidden="true" />
               <span className="truncate">{gift}</span>
             </dt>
             <dd className="shrink-0 font-semibold text-accent">هدية</dd>
