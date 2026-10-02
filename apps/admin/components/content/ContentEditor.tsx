@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
+import { ChevronDown, ChevronUp, ExternalLink, Plus, Trash2 } from 'lucide-react'
 import { saveContentAction } from '../../lib/actions'
 import type { StoreContent } from '../../lib/adminData'
 import { useSaveAction } from '../../lib/client/useSaveAction'
@@ -126,7 +126,16 @@ export function ContentEditor({ content }: { content: StoreContent }) {
       <Card title="خطوات الطلب">
         <div className="space-y-3">
           {draft.orderSteps.map((step, index) => (
-            <div key={index} className="grid gap-2 sm:grid-cols-2">
+            <div key={index} className="space-y-2 rounded border border-border p-3">
+              <ItemControls
+                label={'خطوة ' + String(index + 1)}
+                index={index}
+                count={draft.orderSteps.length}
+                disabled={!mutationsOn}
+                onMove={(delta) => touch({ ...draft, orderSteps: moveItem(draft.orderSteps, index, delta) })}
+                onRemove={() => touch({ ...draft, orderSteps: draft.orderSteps.filter((_, position) => position !== index) })}
+              />
+              <div className="grid gap-2 sm:grid-cols-2">
               <Field htmlFor={'step-t-' + String(index)} label={'خطوة ' + String(index + 1) + ' — العنوان'}>
                 <input
                   id={'step-t-' + String(index)}
@@ -151,9 +160,17 @@ export function ContentEditor({ content }: { content: StoreContent }) {
                   className={inputClasses}
                 />
               </Field>
+              </div>
             </div>
           ))}
           {draft.orderSteps.length === 0 ? <p className="text-xs text-muted">مفيش خطوات مسجّلة.</p> : null}
+          <AddItemButton
+            label="ضيف خطوة"
+            count={draft.orderSteps.length}
+            max={8}
+            disabled={!mutationsOn}
+            onClick={() => touch({ ...draft, orderSteps: [...draft.orderSteps, { title: '', description: '' }] })}
+          />
         </div>
       </Card>
 
@@ -161,6 +178,14 @@ export function ContentEditor({ content }: { content: StoreContent }) {
         <div className="space-y-4">
           {draft.faqs.map((faq, index) => (
             <div key={index} className="space-y-2 border-b border-border pb-4 last:border-0 last:pb-0">
+              <ItemControls
+                label={'سؤال ' + String(index + 1)}
+                index={index}
+                count={draft.faqs.length}
+                disabled={!mutationsOn}
+                onMove={(delta) => touch({ ...draft, faqs: moveItem(draft.faqs, index, delta) })}
+                onRemove={() => touch({ ...draft, faqs: draft.faqs.filter((_, position) => position !== index) })}
+              />
               <Field htmlFor={'faq-q-' + String(index)} label={'سؤال ' + String(index + 1)}>
                 <input
                   id={'faq-q-' + String(index)}
@@ -188,6 +213,13 @@ export function ContentEditor({ content }: { content: StoreContent }) {
             </div>
           ))}
           {draft.faqs.length === 0 ? <p className="text-xs text-muted">مفيش أسئلة مسجّلة.</p> : null}
+          <AddItemButton
+            label="ضيف سؤال"
+            count={draft.faqs.length}
+            max={30}
+            disabled={!mutationsOn}
+            onClick={() => touch({ ...draft, faqs: [...draft.faqs, { question: '', answer: '' }] })}
+          />
         </div>
         <p className="mt-3 text-xs text-muted">
           تجنّب كتابة أرقام زي عرض الرول أو أقل طول هنا — لو اتغيّرت من صفحة المنتج، الإجابة تبقى غلط.
@@ -290,7 +322,18 @@ export function ContentEditor({ content }: { content: StoreContent }) {
           {draft.footerLinks.map((link, index) => {
             const status = hrefState(link.href)
             return (
-              <div key={index} className="grid gap-2 sm:grid-cols-2">
+              <div key={index} className="space-y-2 rounded border border-border p-3">
+                <ItemControls
+                  label={'رابط ' + String(index + 1)}
+                  index={index}
+                  count={draft.footerLinks.length}
+                  disabled={!mutationsOn}
+                  onMove={(delta) => touch({ ...draft, footerLinks: moveItem(draft.footerLinks, index, delta) })}
+                  onRemove={() =>
+                    touch({ ...draft, footerLinks: draft.footerLinks.filter((_, position) => position !== index) })
+                  }
+                />
+                <div className="grid gap-2 sm:grid-cols-2">
                 <Field htmlFor={'fl-l-' + String(index)} label={'رابط ' + String(index + 1) + ' — النص'}>
                   <input
                     id={'fl-l-' + String(index)}
@@ -322,9 +365,17 @@ export function ContentEditor({ content }: { content: StoreContent }) {
                     placeholder="/shipping-policy"
                   />
                 </Field>
+                </div>
               </div>
             )
           })}
+          <AddItemButton
+            label="ضيف رابط"
+            count={draft.footerLinks.length}
+            max={10}
+            disabled={!mutationsOn}
+            onClick={() => touch({ ...draft, footerLinks: [...draft.footerLinks, { label: '', href: '' }] })}
+          />
         </div>
 
         <Field htmlFor="trust" label="سطر الطمأنة" className="mt-4" hint="بيظهر تحت ملخص الطلب">
@@ -345,6 +396,82 @@ export function ContentEditor({ content }: { content: StoreContent }) {
       <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
 
       <SaveBar state={state} onSave={save} warning={warning} />
+    </div>
+  )
+}
+
+function moveItem<T>(list: T[], index: number, delta: number): T[] {
+  const target = index + delta
+  const a = list[index]
+  const b = list[target]
+  if (a === undefined || b === undefined) return list
+  const copy = [...list]
+  copy[index] = b
+  copy[target] = a
+  return copy
+}
+
+/** عنوان العنصر + ترتيب لفوق/لتحت + حذف. */
+function ItemControls({
+  label,
+  index,
+  count,
+  disabled,
+  onMove,
+  onRemove,
+}: {
+  label: string
+  index: number
+  count: number
+  disabled: boolean
+  onMove: (delta: -1 | 1) => void
+  onRemove: () => void
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <p className="text-xs font-semibold text-muted">{label}</p>
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="sm" aria-label={'حرّك ' + label + ' لفوق'} disabled={disabled || index === 0} onClick={() => onMove(-1)}>
+          <ChevronUp className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={'حرّك ' + label + ' لتحت'}
+          disabled={disabled || index === count - 1}
+          onClick={() => onMove(1)}
+        >
+          <ChevronDown className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" aria-label={'احذف ' + label} disabled={disabled} onClick={onRemove}>
+          <Trash2 className="h-4 w-4 text-danger" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** زرار إضافة — بيتقفل عند الحد اللي السيرفر بيقبله. */
+function AddItemButton({
+  label,
+  count,
+  max,
+  disabled,
+  onClick,
+}: {
+  label: string
+  count: number
+  max: number
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button variant="secondary" size="sm" disabled={disabled || count >= max} onClick={onClick}>
+        <Plus className="h-3.5 w-3.5" />
+        {label}
+      </Button>
+      <span className="text-xs text-muted">{String(count) + ' من ' + String(max)}</span>
     </div>
   )
 }
