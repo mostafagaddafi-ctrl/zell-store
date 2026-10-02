@@ -10,7 +10,7 @@ import { useSaveAction } from '../../lib/client/useSaveAction'
 import { formatLength, formatPiastres } from '../../lib/format'
 import { useMutationsEnabled } from '../../lib/readiness'
 import { Badge } from '../ui/Badge'
-import { Button } from '../ui/Button'
+import { Button, buttonClasses } from '../ui/Button'
 import { FailureBanner } from '../ui/FailureBanner'
 import { Switch } from '../ui/Switch'
 import { Table, TD, TH, THead, TR } from '../ui/Table'
@@ -64,7 +64,79 @@ export function ProductsTable({ products }: { products: AdminProduct[] }) {
 
       <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
 
-      <Table>
+      {/* الموبايل: كارت لكل منتج بدل جدول بسكرول جانبي */}
+      <ul className="space-y-2 md:hidden">
+        {products.map((product, index) => (
+          <li key={product.id} className="rounded-lg border border-border bg-surface p-3 shadow-card">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <Link href={'/products/' + String(product.id)} className="font-semibold text-accent">
+                  {product.nameAr}
+                </Link>
+                {product.shortBenefit ? (
+                  <p className="text-xs text-muted">{product.shortBenefit}</p>
+                ) : (
+                  <p className="text-xs text-danger">مفيش فائدة مختصرة</p>
+                )}
+                <p className="mt-1 text-sm font-semibold text-fg">
+                  {formatPiastres(product.pricePerMeterPiastres)}{' '}
+                  <span className="text-xs font-normal text-muted">للمتر</span>
+                </p>
+                <p className="text-xs text-muted">
+                  {formatLength(product.minLengthCm)} – {formatLength(product.maxLengthCm)} · خطوة{' '}
+                  {formatLength(product.stepCm)}
+                </p>
+              </div>
+              {product.imageCount > 0 ? (
+                <Badge tone="ok">{product.imageCount} صور</Badge>
+              ) : (
+                <Badge tone="danger">
+                  <ImageOff className="h-3 w-3" />
+                  مفيش صور
+                </Badge>
+              )}
+            </div>
+
+            <div className="mt-3 flex items-center gap-3 border-t border-border pt-2">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={product.isActive}
+                  onChange={(next) => toggle(product, next)}
+                  disabled={!mutationsOn || busy}
+                  label={'إظهار ' + product.nameAr}
+                />
+                <span className="text-xs text-fg">ظاهر</span>
+              </div>
+              <div className="ms-auto flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={!mutationsOn || busy || index === 0}
+                  onClick={() => move(index, -1)}
+                  aria-label="تحريك لفوق"
+                >
+                  <ChevronUp className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={!mutationsOn || busy || index === products.length - 1}
+                  onClick={() => move(index, 1)}
+                  aria-label="تحريك لتحت"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+                <Link href={'/products/' + String(product.id)} className={buttonClasses('secondary', 'sm')}>
+                  تعديل
+                </Link>
+              </div>
+            </div>
+            {busyId === product.id && busy ? <p className="mt-1 text-xs text-muted">بيحفظ…</p> : null}
+          </li>
+        ))}
+      </ul>
+
+      <Table className="hidden md:block">
         <THead>
           <TR>
             <TH className="w-20">الترتيب</TH>
