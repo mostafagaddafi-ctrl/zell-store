@@ -26,7 +26,14 @@ import { Table, TD, TH, THead, TR } from '../ui/Table'
  * التفعيل ممكن يفشل VALIDATION لو المنتج ناقص (وصف · فايدة مختصرة ·
  * صورة رئيسية). ده الحارس شغّال مش خطأ.
  */
-export function ProductsTable({ products }: { products: AdminProduct[] }) {
+/** reorderable = false في تبويبات الأقسام — الترتيب العام محتاج كل المنتجات. */
+export function ProductsTable({
+  products,
+  reorderable = true,
+}: {
+  products: AdminProduct[]
+  reorderable?: boolean
+}) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
   const { state, failure, warning, run, retry } = useSaveAction()
@@ -111,7 +118,7 @@ export function ProductsTable({ products }: { products: AdminProduct[] }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={!mutationsOn || busy || index === 0}
+                  disabled={!reorderable || !mutationsOn || busy || index === 0}
                   onClick={() => move(index, -1)}
                   aria-label="تحريك لفوق"
                 >
@@ -120,7 +127,7 @@ export function ProductsTable({ products }: { products: AdminProduct[] }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={!mutationsOn || busy || index === products.length - 1}
+                  disabled={!reorderable || !mutationsOn || busy || index === products.length - 1}
                   onClick={() => move(index, 1)}
                   aria-label="تحريك لتحت"
                 >
@@ -156,7 +163,7 @@ export function ProductsTable({ products }: { products: AdminProduct[] }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={!mutationsOn || busy || index === 0}
+                    disabled={!reorderable || !mutationsOn || busy || index === 0}
                     onClick={() => move(index, -1)}
                     aria-label="تحريك لفوق"
                     className="h-7 w-7 px-0"
@@ -166,7 +173,7 @@ export function ProductsTable({ products }: { products: AdminProduct[] }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={!mutationsOn || busy || index === products.length - 1}
+                    disabled={!reorderable || !mutationsOn || busy || index === products.length - 1}
                     onClick={() => move(index, 1)}
                     aria-label="تحريك لتحت"
                     className="h-7 w-7 px-0"
