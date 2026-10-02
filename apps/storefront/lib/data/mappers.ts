@@ -8,6 +8,8 @@ import {
   publicImageUrl,
   sanitizeAnnouncementHref,
   orderGovernorates,
+  parseHomeProducts,
+  parseShippingAreas,
   DEFAULT_STORE_CONTENT,
   type HomeSection,
   type HomeSectionKey,
@@ -261,6 +263,9 @@ export const PUBLIC_SETTING_KEYS = [
   'offer_enabled',
   'installation',
   'shipping_order',
+  'shipping_disabled_governorates',
+  'shipping_areas',
+  'home_products',
   'whatsapp_number',
   'whatsapp_message',
   'shipping_rates',
@@ -330,6 +335,9 @@ export function toStoreSettings(rows: SettingRow[], logo: StoreImage | null = nu
   }
 
   const shippingRates = settingRates(map, 'shipping_rates')
+  // المحافظة الموقوفة من اللوحة مابتظهرش في القايمة أصلًا (السيرفر بيرفضها كمان)
+  const disabledRaw = map.get('shipping_disabled_governorates')
+  const disabled = new Set(Array.isArray(disabledRaw) ? disabledRaw.filter((item): item is string => typeof item === 'string') : [])
 
   return {
     storeName: settingString(map, 'store_name', 'ZELL'),
@@ -350,11 +358,13 @@ export function toStoreSettings(rows: SettingRow[], logo: StoreImage | null = nu
     shippingDefaultPiastres: settingNumber(map, 'shipping_default_piastres', 0),
     freeShippingThresholdPiastres: settingNumber(map, 'free_shipping_threshold_piastres', 0),
     governorates: orderGovernorates(
-      Object.keys(shippingRates),
+      Object.keys(shippingRates).filter((name) => !disabled.has(name)),
       Array.isArray(map.get('shipping_order'))
         ? (map.get('shipping_order') as unknown[]).filter((item): item is string => typeof item === 'string')
         : [],
     ),
+    shippingAreas: parseShippingAreas(map.get('shipping_areas')),
+    homeProducts: parseHomeProducts(map.get('home_products')),
     announcement: settingAnnouncement(map),
     content: settingContent(map),
   }
