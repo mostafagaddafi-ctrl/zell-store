@@ -8,13 +8,17 @@ export function OrderSummary({
   shippingPiastres,
   action,
   note,
+  trustLine,
 }: {
   subtotalPiastres: number
   /** null = المحافظة لسه مش متحددة */
   shippingPiastres: number | null
   action?: ReactNode
   note?: string
+  /** «سطر الطمأنة» من «المحتوى» في اللوحة. فاضي = مايظهرش. */
+  trustLine?: string
 }) {
+  const line = trustLine ?? 'الدفع عند الاستلام · توصيل لكل محافظات مصر'
   const total = subtotalPiastres + (shippingPiastres ?? 0)
 
   return (
@@ -41,7 +45,7 @@ export function OrderSummary({
         </div>
       </dl>
 
-      <p className="mt-3 text-xs text-muted">الدفع عند الاستلام · توصيل لكل محافظات مصر</p>
+      {line ? <p className="mt-3 text-xs text-muted">{line}</p> : null}
 
       {action ? <div className="mt-4">{action}</div> : null}
       {note ? <p className="mt-3 text-xs text-muted">{note}</p> : null}
