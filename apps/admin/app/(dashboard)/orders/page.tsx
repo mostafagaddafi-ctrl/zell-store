@@ -48,7 +48,44 @@ export default async function OrdersPage({ searchParams }: PageProps) {
           <EmptyState title="مفيش طلبات مطابقة" description="جرّب تغيّر البحث أو الفلتر." />
         ) : (
           <>
-            <Table>
+            {/* الموبايل: كروت بدل جدول عرضه 42rem بيعمل سكرول جانبي */}
+            <ul className="space-y-2 md:hidden">
+              {result.rows.map((order) => (
+                <li key={order.id}>
+                  <Link
+                    href={'/orders/' + order.orderNumber}
+                    className="block rounded-lg border border-border bg-surface p-3 shadow-card transition-colors active:bg-bg"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-accent">{order.orderNumber}</p>
+                        <p className="mt-0.5 truncate text-sm font-medium text-fg">{order.customerName}</p>
+                        <span className="inline-block text-xs text-muted" dir="ltr">
+                          {order.customerPhone}
+                        </span>
+                      </div>
+                      <StatusBadge status={order.status} />
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border pt-2 text-xs text-muted">
+                      <span>
+                        {order.governorate} · {order.itemCount} صنف
+                      </span>
+                      <span className="text-sm font-bold text-fg">{formatPiastres(order.totalPiastres)}</span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-3 text-[11px] text-muted">
+                      <span>{formatDateTime(order.createdAt)}</span>
+                      {order.notifiedAt ? (
+                        <Badge tone="ok">الإشعار اتبعت</Badge>
+                      ) : order.notifyError ? (
+                        <Badge tone="danger">الإشعار فشل</Badge>
+                      ) : null}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+
+            <Table className="hidden md:block">
               <THead>
                 <TR>
                   <TH>رقم الطلب</TH>
