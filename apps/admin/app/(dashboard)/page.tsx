@@ -35,14 +35,46 @@ export default async function OverviewPage() {
       <div className="mt-5 grid gap-5 xl:grid-cols-3">
         <Card
           title="آخر الطلبات"
-          className="xl:col-span-2"
+          className="min-w-0 xl:col-span-2"
           actions={
             <Link href="/orders" className={buttonClasses('secondary', 'sm')}>
               كل الطلبات
             </Link>
           }
         >
-          <Table className="border-0">
+          {/*
+            ⚠️ الموبايل: قائمة بدل الجدول. الجدول عرضه الأدنى 42rem، وجوه
+               grid كان بيوسّع العمود فالصفحة كلها تبقى أعرض من الشاشة —
+               المتصفح يصغّرها (خط صغير وشكل ديسكتوب) والقائمة تطلع من حافة
+               الصفحة العريضة بدل حافة الشاشة.
+          */}
+          {latest.rows.length === 0 ? (
+            <p className="text-xs text-muted md:hidden">مفيش طلبات لسه.</p>
+          ) : (
+            <ul className="divide-y divide-border md:hidden">
+              {latest.rows.map((order) => (
+                <li key={order.id}>
+                  <Link
+                    href={'/orders/' + order.orderNumber}
+                    className="flex items-center justify-between gap-3 py-2.5 first:pt-0"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-accent">{order.orderNumber}</p>
+                      <p className="truncate text-xs text-muted">
+                        {order.customerName} · {formatDateTime(order.createdAt)}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <StatusBadge status={order.status} />
+                      <span className="text-xs font-semibold text-fg">{formatPiastres(order.totalPiastres)}</span>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <Table className="hidden border-0 md:block">
             <THead>
               <TR>
                 <TH>رقم الطلب</TH>
@@ -72,7 +104,7 @@ export default async function OverviewPage() {
           </Table>
         </Card>
 
-        <Card title={'مؤشر الجاهزية · ' + String(readyCount) + '/' + String(operational.readiness.length)}>
+        <Card className="min-w-0" title={'مؤشر الجاهزية · ' + String(readyCount) + '/' + String(operational.readiness.length)}>
           <ul className="space-y-2.5">
             {operational.readiness.map((check) => (
               <li key={check.key} className="flex items-start gap-2">
@@ -87,7 +119,7 @@ export default async function OverviewPage() {
                     }
                   />
                 )}
-                <div>
+                <div className="min-w-0 break-words">
                   <p className="text-xs font-semibold text-fg">{check.label}</p>
                   <p className="text-xs text-muted">{check.detail}</p>
                 </div>
