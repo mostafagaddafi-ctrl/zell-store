@@ -33,6 +33,7 @@ export type ProductColumns = {
   benefits: string[]
   price_per_meter_piastres: number
   width_cm: number
+  lock_width: boolean
   min_length_cm: number
   step_cm: number
   max_length_cm: number
@@ -89,6 +90,10 @@ export function validateProduct(
   const width = wholeNumber(input.widthCm, 'عرض الرول')
   if (!width.ok) return width
 
+  // 0013 — قيمة ناقصة = مش متثبّت (نفس السلوك القديم)
+  const lockWidth = flag(input.lockWidth ?? false, 'تثبيت العرض')
+  if (!lockWidth.ok) return lockWidth
+
   const minLength = wholeNumber(input.minLengthCm, 'أقل طول')
   if (!minLength.ok) return minLength
 
@@ -132,6 +137,7 @@ export function validateProduct(
     benefits: benefits.value,
     price_per_meter_piastres: price.value,
     width_cm: width.value,
+    lock_width: lockWidth.value,
     min_length_cm: minLength.value,
     step_cm: step.value,
     max_length_cm: maxLength.value,
