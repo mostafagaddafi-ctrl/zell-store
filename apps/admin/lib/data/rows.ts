@@ -67,10 +67,35 @@ export type CollectionRow = {
   slug: string
   title_ar: string
   subtitle_ar: string | null
-  is_visible: boolean
+  show_on_home: boolean
+  show_in_nav: boolean
   sort_order: number
+  cover_bucket: string | null
+  cover_object_path: string | null
+  cover_width_px: number | null
+  cover_height_px: number | null
   updated_at: string
 }
+
+/**
+ * أعمدة القسم — مصدر واحد للقراءة والتعديل.
+ * ⚠️ is_visible مش هنا عن قصد: اللوحة بتكتبه بس (للتوافق مع نسخة
+ *    المتجر القديمة أثناء الانتقال) ومابتقراهوش. شوف 0012.
+ */
+export const COLLECTION_SELECT = [
+  'id',
+  'slug',
+  'title_ar',
+  'subtitle_ar',
+  'show_on_home',
+  'show_in_nav',
+  'sort_order',
+  'cover_bucket',
+  'cover_object_path',
+  'cover_width_px',
+  'cover_height_px',
+  'updated_at',
+].join(',')
 
 /** صف public.product_collections */
 export type ProductCollectionRow = {
@@ -188,15 +213,37 @@ export function toAdminLogo(row: SiteImageRow, supabaseUrl: string, storeName: s
   return toAdminSiteImage(row, supabaseUrl, storeName, 'contain')
 }
 
-export function toAdminCollection(row: CollectionRow, productCount: number): AdminCollection {
+export function toAdminCollection(
+  row: CollectionRow,
+  counts: { total: number; active: number },
+  supabaseUrl: string,
+): AdminCollection {
+  const cover: AdminImage | null =
+    row.cover_bucket && row.cover_object_path
+      ? {
+          id: String(row.id),
+          url: publicImageUrl(supabaseUrl, { bucket: row.cover_bucket, object_path: row.cover_object_path }),
+          alt: row.title_ar,
+          fit: 'cover',
+          sortOrder: 0,
+          isPrimary: true,
+          width: row.cover_width_px,
+          height: row.cover_height_px,
+          updatedAt: row.updated_at,
+        }
+      : null
+
   return {
     id: String(row.id),
     slug: row.slug,
     title: row.title_ar,
     subtitle: row.subtitle_ar ?? '',
-    isVisible: row.is_visible,
+    showOnHome: row.show_on_home,
+    showInNav: row.show_in_nav,
     sortOrder: row.sort_order,
-    productCount,
+    productCount: counts.total,
+    activeProductCount: counts.active,
+    cover,
     updatedAt: row.updated_at,
   }
 }

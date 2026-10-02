@@ -10,7 +10,7 @@ type Params = { id: string }
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { id } = await params
   const collection = await adminData.getCollection(id)
-  return { title: collection ? collection.title : 'المجموعة مش موجودة' }
+  return { title: collection ? collection.title : 'القسم مش موجود' }
 }
 
 export default async function CollectionPage({ params }: { params: Promise<Params> }) {

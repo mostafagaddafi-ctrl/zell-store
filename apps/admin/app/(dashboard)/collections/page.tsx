@@ -8,7 +8,7 @@ import { PreviewNotice } from '../../../components/ui/PreviewNotice'
 import { adminData } from '../../../lib/adminData'
 import { requireAdminPage } from '../../../lib/auth/guards'
 
-export const metadata: Metadata = { title: 'المجموعات' }
+export const metadata: Metadata = { title: 'الأقسام' }
 
 export default async function CollectionsPage() {
   await requireAdminPage()
@@ -18,18 +18,18 @@ export default async function CollectionsPage() {
   return (
     <>
       <PageHeader
-        title="المجموعات"
-        description="الترتيب هنا هو ترتيب ظهور المجموعات في الصفحة الرئيسية"
+        title="الأقسام"
+        description="الترتيب هنا هو ترتيب الظهور في الرئيسية والقائمة. القسم الجديد بيبدأ أول القائمة."
         actions={
           <Link href="/collections/new" className={buttonClasses('primary', 'md')}>
             <Plus className="h-4 w-4" />
-            مجموعة جديدة
+            قسم جديد
           </Link>
         }
       />
 
       <div className="mb-4">
-        <PreviewNotice what="الإضافة والتعديل والإظهار والترتيب وربط المنتجات" />
+        <PreviewNotice what="الإضافة والتعديل والإظهار والترتيب وربط المنتجات وصور الأقسام" />
       </div>
 
       <CollectionsList collections={collections} />

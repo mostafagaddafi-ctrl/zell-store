@@ -4,7 +4,7 @@ import { PageHeader } from '../../../../components/shell/PageHeader'
 import { adminData } from '../../../../lib/adminData'
 import { requireAdminPage } from '../../../../lib/auth/guards'
 
-export const metadata: Metadata = { title: 'مجموعة جديدة' }
+export const metadata: Metadata = { title: 'قسم جديد' }
 
 export default async function NewCollectionPage() {
   await requireAdminPage()
@@ -14,7 +14,7 @@ export default async function NewCollectionPage() {
 
   return (
     <>
-      <PageHeader title="مجموعة جديدة" description="احفظ البيانات الأول، وبعدها اربط المنتجات" />
+      <PageHeader title="قسم جديد" description="احفظ البيانات الأول، وبعدها ضيف المنتجات والصورة" />
       <CollectionEditor collection={null} products={products} />
     </>
   )

@@ -43,7 +43,7 @@ export function AdminShell({
       title: 'الكتالوج',
       items: [
         { href: '/products', label: 'المنتجات', icon: Package },
-        { href: '/collections', label: 'المجموعات', icon: Layers },
+        { href: '/collections', label: 'الأقسام', icon: Layers },
       ],
     },
     {

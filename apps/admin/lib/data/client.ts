@@ -134,6 +134,8 @@ const KNOWN_SENTINELS = [
   // ⚠️ بادئة ZELL_INVALID_COLLECTION، ومفيش تعارض: المطابقة إما تامة
   //    وإما بالبادئة 'CODE:' — والنقطتين بتفصلوا الحالتين.
   'ZELL_INVALID_COLLECTION_PRODUCTS',
+  // 0012 — zell_create_collection
+  'ZELL_COLLECTION_SLUG_TAKEN',
 ] as const
 
 export type DbSentinel = (typeof KNOWN_SENTINELS)[number]

@@ -67,8 +67,13 @@ export type CollectionRow = {
   slug: string
   title_ar: string
   subtitle_ar: string | null
-  is_visible: boolean
+  show_on_home: boolean
+  show_in_nav: boolean
   sort_order: number
+  cover_bucket: string | null
+  cover_object_path: string | null
+  cover_width_px: number | null
+  cover_height_px: number | null
 }
 
 /** صف public.product_collections */
@@ -92,13 +97,16 @@ export type ProductCollectionRow = {
 export function toStoreCollections(
   collectionRows: CollectionRow[],
   linkRows: ProductCollectionRow[],
-  visibleProductIds: readonly number[],
+  products: readonly StoreProduct[],
+  supabaseUrl: string,
 ): StoreCollection[] {
-  const allowed = new Set<number>(visibleProductIds)
+  // products = المنتجات الظاهرة بس. منتج متوقّف مش هنا، فبيختفي من
+  // القسم والربط نفسه بيفضل محفوظ في الداتابيز.
+  const byProduct = new Map<number, StoreProduct>(products.map((product) => [product.id, product]))
 
   const byCollection = new Map<number, ProductCollectionRow[]>()
   for (const link of linkRows) {
-    if (!allowed.has(link.product_id)) continue
+    if (!byProduct.has(link.product_id)) continue
     const bucket = byCollection.get(link.collection_id)
     if (bucket) bucket.push(link)
     else byCollection.set(link.collection_id, [link])
@@ -106,21 +114,52 @@ export function toStoreCollections(
 
   const out: StoreCollection[] = []
   for (const row of collectionRows) {
-    if (!row.is_visible) continue
+    if (!row.show_on_home && !row.show_in_nav) continue
     const links = byCollection.get(row.id) ?? []
+    // قسم فاضي مابيظهرش للزائر حتى لو مفعّل — اللوحة بتوضّح السبب
     if (links.length === 0) continue
-
     links.sort((a, b) => (a.sort_order - b.sort_order) || (a.product_id - b.product_id))
-
+    const productIds = links.map((link) => link.product_id)
+    const cover = toCollectionCover(row, supabaseUrl)
     out.push({
       id: row.id,
       slug: row.slug,
       title: row.title_ar,
       subtitle: row.subtitle_ar ?? '',
-      productIds: links.map((link) => link.product_id),
+      productIds,
+      showOnHome: row.show_on_home,
+      showInNav: row.show_in_nav,
+      image: cover ?? firstProductImage(productIds, byProduct),
+      hasCover: cover !== null,
     })
   }
   return out
+}
+
+/** الغلاف المرفوع من اللوحة — kind بيتثبّت 'gallery' لنفس سبب toStoreSiteImage. */
+function toCollectionCover(row: CollectionRow, supabaseUrl: string): StoreImage | null {
+  if (!row.cover_bucket || !row.cover_object_path) return null
+  return {
+    id: row.id,
+    url: publicImageUrl(supabaseUrl, { bucket: row.cover_bucket, object_path: row.cover_object_path }),
+    alt: row.title_ar,
+    width: row.cover_width_px,
+    height: row.cover_height_px,
+    kind: 'gallery',
+    isPrimary: true,
+  }
+}
+
+/** بديل الغلاف: أول صورة لأول منتج ظاهر بترتيب القسم. */
+function firstProductImage(
+  productIds: readonly number[],
+  byProduct: ReadonlyMap<number, StoreProduct>,
+): StoreImage | null {
+  for (const id of productIds) {
+    const image = byProduct.get(id)?.gallery[0]
+    if (image) return image
+  }
+  return null
 }
 
 function asStringArray(value: unknown): string[] {

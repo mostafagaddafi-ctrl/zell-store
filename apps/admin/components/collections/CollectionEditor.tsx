@@ -10,29 +10,65 @@ import {
   updateCollectionAction,
 } from '../../lib/actions'
 import type { AdminCollectionDetail, AdminProduct } from '../../lib/adminData'
+import { collectionVisibility, VISIBILITY_TONE } from '../../lib/collectionStatus'
 import { useSaveAction } from '../../lib/client/useSaveAction'
 import { useMutationsEnabled } from '../../lib/readiness'
 import { Button } from '../ui/Button'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { FailureBanner } from '../ui/FailureBanner'
 import { Card, Field, inputClasses, textareaClasses } from '../ui/Field'
 import { SaveBar } from '../ui/SaveBar'
 import { Switch } from '../ui/Switch'
+import { CollectionCoverCard } from './CollectionCoverCard'
 
 /**
- * محرّر مجموعة.
+ * محرّر قسم.
  *
- * ⚠️ **حفظين منفصلين عن قصد**: بيانات المجموعة (صف واحد، تزامن
- *    تفاؤلي بـ updated_at) وقائمة المنتجات (صفوف كتير، دالة ذرّية).
- *    لو جمعناهم في زرار واحد، فشل نصّه كان هيسيب الحالة نصف محفوظة
- *    والأدمن مش عارف أنهي نص نجح.
+ * ⚠️ **حفظين منفصلين عن قصد**: بيانات القسم (صف واحد، تزامن تفاؤلي
+ *    بـ updated_at) وقائمة المنتجات (صفوف كتير، دالة ذرّية). لو
+ *    جمعناهم في زرار واحد، فشل نصّه كان هيسيب الحالة نصف محفوظة.
+ *    والغلاف ليه رفعه الخاص في بطاقته.
  *
- * ⚠️ في وضع الإنشاء مفيش ربط منتجات: المجموعة لازم يبقى لها id الأول.
- *    بعد الإنشاء بنروح لصفحة التعديل بـreplace — مش push — عشان زرار
- *    «رجوع» مايرجّعش لفورم إنشاء لمجموعة بقت موجودة.
+ * ⚠️ في وضع الإنشاء مفيش ربط منتجات ولا غلاف: القسم لازم يبقى له id
+ *    الأول. بعد الإنشاء بنروح لصفحة التعديل بـreplace.
  *
- * ⚠️ ترتيب المنتجات جوه المجموعة بيتحفظ فعلًا (sort_order في جدول
- *    الربط)، فالسهمين مش تزيين — ده الترتيب اللي المتجر بيعرض بيه.
+ * ⚠️ تغيير الرابط المختصر لقسم موجود بيطلب **تأكيد صريح** قبل الحفظ —
+ *    أي لينك قديم اتشارك للقسم بيرجّع 404 بعده.
+ *
+ * ⚠️ ترتيب المنتجات جوه القسم بيتحفظ فعلًا (sort_order في جدول الربط)،
+ *    وده الترتيب اللي المتجر بيعرض بيه.
  */
+
+function normalizeSlug(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+function PlacementRow({
+  title,
+  hint,
+  checked,
+  onChange,
+  label,
+  disabled,
+}: {
+  title: string
+  hint: string
+  checked: boolean
+  onChange: (next: boolean) => void
+  label: string
+  disabled: boolean
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-fg">{title}</p>
+        <p className="text-xs text-muted">{hint}</p>
+      </div>
+      <Switch checked={checked} onChange={onChange} label={label} disabled={disabled} />
+    </div>
+  )
+}
+
 export function CollectionEditor({
   collection,
   products,
@@ -50,29 +86,48 @@ export function CollectionEditor({
   const [title, setTitle] = useState(collection?.title ?? '')
   const [slug, setSlug] = useState(collection?.slug ?? '')
   const [subtitle, setSubtitle] = useState(collection?.subtitle ?? '')
-  const [isVisible, setIsVisible] = useState(collection?.isVisible ?? true)
+  const [showOnHome, setShowOnHome] = useState(collection?.showOnHome ?? true)
+  const [showInNav, setShowInNav] = useState(collection?.showInNav ?? true)
   const [selected, setSelected] = useState<number[]>(collection?.productIds ?? [])
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmSlug, setConfirmSlug] = useState(false)
 
   // «حاول تاني» لازم تبعت أحدث قيم — مش نسخة من وقت الضغط
-  const draftRef = useRef({ title, slug, subtitle, isVisible })
-  draftRef.current = { title, slug, subtitle, isVisible }
+  const draftRef = useRef({ title, slug, subtitle, showOnHome, showInNav })
+  draftRef.current = { title, slug, subtitle, showOnHome, showInNav }
   const selectedRef = useRef(selected)
   selectedRef.current = selected
 
   const byId = new Map(products.map((product) => [product.id, product]))
   const available = products.filter((product) => !selected.includes(product.id))
+  const activeSelected = selected.filter((id) => byId.get(id)?.isActive === true).length
+  const status = collectionVisibility({
+    showOnHome,
+    showInNav,
+    productCount: selected.length,
+    activeProductCount: activeSelected,
+  })
+  const originalSlug = collection?.slug ?? null
+  const slugChanged = originalSlug !== null && normalizeSlug(slug) !== originalSlug
 
   function touchDetails() {
     details.markDirty()
   }
 
-  function saveDetails() {
+  function saveDetails(slugConfirmed: boolean) {
+    const draft = draftRef.current
+    if (collection !== null && !slugConfirmed && normalizeSlug(draft.slug) !== collection.slug) {
+      setConfirmSlug(true)
+      return
+    }
+    setConfirmSlug(false)
+
     const input = {
-      slug: draftRef.current.slug,
-      title: draftRef.current.title,
-      subtitle: draftRef.current.subtitle,
-      isVisible: draftRef.current.isVisible,
+      slug: draft.slug,
+      title: draft.title,
+      subtitle: draft.subtitle,
+      showOnHome: draft.showOnHome,
+      showInNav: draft.showInNav,
     }
 
     if (collection === null) {
@@ -131,9 +186,9 @@ export function CollectionEditor({
 
   return (
     <div className="space-y-4">
-      <Card title="بيانات المجموعة">
+      <Card title="بيانات القسم">
         <div className="space-y-3">
-          <Field htmlFor="title" label="العنوان" hint="اللي بيظهر للزباين فوق المنتجات">
+          <Field htmlFor="title" label="الاسم" hint="اللي بيظهر للزباين فوق المنتجات وفي القائمة">
             <input
               id="title"
               value={title}
@@ -142,13 +197,14 @@ export function CollectionEditor({
                 touchDetails()
               }}
               className={inputClasses}
+              placeholder="بديل رخام"
             />
           </Field>
 
           <Field
             htmlFor="slug"
             label="الرابط المختصر"
-            hint="حروف إنجليزي صغيرة وأرقام وشرطات بس. بيظهر في العنوان: /collection/الرابط — وتغييره بيكسر أي لينك قديم."
+            hint="حروف إنجليزي صغيرة وأرقام وشرطات بس. بيظهر في العنوان: /collection/الرابط"
           >
             <input
               id="slug"
@@ -159,9 +215,16 @@ export function CollectionEditor({
               }}
               className={inputClasses}
               dir="ltr"
-              placeholder="heat-blocking"
+              placeholder="marble-alternative"
             />
           </Field>
+
+          {slugChanged ? (
+            <p className="rounded border border-gold/40 bg-gold/10 p-2 text-xs font-semibold text-fg">
+              تغيير الرابط بيكسر أي لينك قديم اتشارك للقسم (/collection/{originalSlug}). هنطلب منك تأكيد قبل
+              الحفظ.
+            </p>
+          ) : null}
 
           <Field htmlFor="subtitle" label="وصف مختصر (اختياري)">
             <textarea
@@ -176,22 +239,37 @@ export function CollectionEditor({
             />
           </Field>
 
-          <div className="flex items-center justify-between gap-3 rounded border border-border p-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-fg">إظهار في المتجر</p>
-              <p className="text-xs text-muted">
-                المجموعة من غير منتجات مابتظهرش في المتجر حتى لو مفعّلة.
-              </p>
-            </div>
-            <Switch
-              checked={isVisible}
+          <div className="space-y-3 rounded border border-border p-3">
+            <PlacementRow
+              title="إظهار في الرئيسية"
+              hint="القسم ومنتجاته بيظهروا كجزء مستقل في الصفحة الرئيسية."
+              checked={showOnHome}
               onChange={(next) => {
-                setIsVisible(next)
+                setShowOnHome(next)
                 touchDetails()
               }}
-              label="إظهار المجموعة في المتجر"
+              label="إظهار القسم في الرئيسية"
               disabled={!mutationsOn || detailsBusy}
             />
+            <PlacementRow
+              title="إظهار في قائمة الأقسام"
+              hint="بيظهر في الهيدر وقائمة الموبايل، وبياخد صفحة خاصة على /collection/الرابط."
+              checked={showInNav}
+              onChange={(next) => {
+                setShowInNav(next)
+                touchDetails()
+              }}
+              label="إظهار القسم في قائمة الأقسام"
+              disabled={!mutationsOn || detailsBusy}
+            />
+            <p className={'border-t border-border pt-2 text-xs font-semibold ' + VISIBILITY_TONE[status.tone]}>
+              {status.label} — {status.detail}
+            </p>
+            {collection === null ? (
+              <p className="text-xs text-muted">
+                القسم الجديد بيظهر أول القائمة، وتقدر تحرّكه بعدين من صفحة الأقسام.
+              </p>
+            ) : null}
           </div>
 
           <FailureBanner
@@ -199,16 +277,16 @@ export function CollectionEditor({
             onRetry={details.retry}
             onDiscardAndRefresh={() => router.refresh()}
           />
-          <SaveBar state={details.state} onSave={saveDetails} warning={details.warning} />
+          <SaveBar state={details.state} onSave={() => saveDetails(false)} warning={details.warning} />
         </div>
       </Card>
 
+      {collection === null ? null : <CollectionCoverCard collection={collection} />}
+
       {collection === null ? (
-        <p className="text-xs text-muted">
-          احفظ المجموعة الأول، وبعدها تقدر تربط المنتجات وتظبط ترتيبهم.
-        </p>
+        <p className="text-xs text-muted">احفظ القسم الأول، وبعدها تقدر تضيف المنتجات والصورة وتظبط الترتيب.</p>
       ) : (
-        <Card title="منتجات المجموعة">
+        <Card title="منتجات القسم">
           <div className="space-y-4">
             <div>
               <p className="mb-2 text-xs font-semibold text-muted">
@@ -217,21 +295,18 @@ export function CollectionEditor({
 
               {selected.length === 0 ? (
                 <p className="rounded border border-dashed border-border p-3 text-xs text-muted">
-                  مفيش منتجات مختارة. المجموعة مش هتظهر في المتجر.
+                  مفيش منتجات مختارة. القسم مش هيظهر في المتجر.
                 </p>
               ) : (
                 <ul className="space-y-2">
                   {selected.map((id, index) => {
                     const product = byId.get(id)
                     return (
-                      <li
-                        key={id}
-                        className="flex flex-wrap items-center gap-2 rounded border border-border p-2"
-                      >
+                      <li key={id} className="flex flex-wrap items-center gap-2 rounded border border-border p-2">
                         <span className="min-w-0 flex-1 truncate text-sm text-fg">
                           {product ? product.nameAr : 'منتج محذوف (' + String(id) + ')'}
                           {product && !product.isActive ? (
-                            <span className="ms-1.5 text-xs text-muted">· متوقّف</span>
+                            <span className="ms-1.5 text-xs text-muted">· متوقّف ومخفي من القسم</span>
                           ) : null}
                         </span>
                         <div className="flex shrink-0 items-center gap-1">
@@ -256,7 +331,7 @@ export function CollectionEditor({
                           <Button
                             variant="ghost"
                             size="sm"
-                            aria-label="شيل من المجموعة"
+                            aria-label="شيل من القسم"
                             disabled={!mutationsOn || linksBusy}
                             onClick={() => drop(id)}
                           >
@@ -268,12 +343,18 @@ export function CollectionEditor({
                   })}
                 </ul>
               )}
+
+              {selected.length > 0 && activeSelected === 0 ? (
+                <p className="mt-2 text-xs font-semibold text-gold">
+                  كل المنتجات المختارة متوقفة، فالقسم مش هيظهر للزباين لحد ما منتج منهم يتفعّل.
+                </p>
+              ) : null}
             </div>
 
             <div>
               <p className="mb-2 text-xs font-semibold text-muted">ضيف منتج</p>
               {available.length === 0 ? (
-                <p className="text-xs text-muted">كل المنتجات مضافة للمجموعة.</p>
+                <p className="text-xs text-muted">كل المنتجات مضافة للقسم.</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {available.map((product) => (
@@ -285,10 +366,12 @@ export function CollectionEditor({
                       onClick={() => add(product.id)}
                     >
                       {product.nameAr}
+                      {product.isActive ? '' : ' (متوقّف)'}
                     </Button>
                   ))}
                 </div>
               )}
+              <p className="mt-2 text-xs text-muted">المنتج ينفع يبقى في أكتر من قسم.</p>
             </div>
 
             <FailureBanner
@@ -298,12 +381,8 @@ export function CollectionEditor({
             />
 
             {/*
-              ⚠️ زرار جوه البطاقة، **مش** SaveBar.
-                 SaveBar مبني sticky bottom-0، فاتنين منه على نفس
-                 الصفحة بيقعدوا فوق بعض في نفس المكان: الأدمن بيشوف
-                 شريط واحد ويضغط «حفظ» فيحفظ بيانات المجموعة بس،
-                 وحفظ المنتجات مابيتنادى أصلاً. البطاقة دي ليها زرارها
-                 الخاص وحالتها مكتوبة جنبه.
+              ⚠️ زرار جوه البطاقة، **مش** SaveBar: SaveBar مبني sticky
+              bottom-0، فاتنين منه على نفس الصفحة بيقعدوا فوق بعض.
             */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
               <p className="text-xs font-medium text-muted">
@@ -329,11 +408,11 @@ export function CollectionEditor({
       )}
 
       {collection === null ? null : (
-        <Card title="حذف المجموعة">
+        <Card title="حذف القسم">
           <div className="space-y-3">
             <p className="text-xs text-muted">
-              الحذف بيشيل المجموعة وكل ربطها بالمنتجات. المنتجات نفسها مابتتأثرش. الرابط
-              /collection/{collection.slug} هيرجّع 404 بعد الحذف.
+              الحذف بيشيل القسم وكل ربطه بالمنتجات. المنتجات نفسها مابتتأثرش، وصورة الغلاف بتتسجّل للتنظيف.
+              الرابط /collection/{collection.slug} هيرجّع 404 بعد الحذف.
             </p>
 
             {confirmDelete ? (
@@ -352,14 +431,9 @@ export function CollectionEditor({
                 </Button>
               </div>
             ) : (
-              <Button
-                variant="danger"
-                size="sm"
-                disabled={!mutationsOn}
-                onClick={() => setConfirmDelete(true)}
-              >
+              <Button variant="danger" size="sm" disabled={!mutationsOn} onClick={() => setConfirmDelete(true)}>
                 <Trash2 className="h-3.5 w-3.5" />
-                احذف المجموعة
+                احذف القسم
               </Button>
             )}
 
@@ -371,6 +445,21 @@ export function CollectionEditor({
           </div>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={confirmSlug}
+        title="تغيير رابط القسم؟"
+        message={
+          'الرابط هيتغيّر من /collection/' +
+          (originalSlug ?? '') +
+          ' إلى /collection/' +
+          normalizeSlug(slug) +
+          '. أي لينك قديم اتشارك للقسم هيرجّع 404.'
+        }
+        confirmLabel="غيّر الرابط واحفظ"
+        onCancel={() => setConfirmSlug(false)}
+        onConfirm={() => saveDetails(true)}
+      />
     </div>
   )
 }

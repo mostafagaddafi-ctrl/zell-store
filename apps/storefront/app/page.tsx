@@ -10,6 +10,7 @@ import { getStorefrontData } from '../lib/data/source'
 
 export default async function HomePage() {
   const { products, settings, collections } = await getStorefrontData()
+  const homeCollections = collections.filter((collection) => collection.showOnHome)
 
   return (
     <Container className="pb-8">
@@ -27,11 +28,11 @@ export default async function HomePage() {
       </section>
 
       {/*
-        المجموعات بعد كل الأفلام: الزائر الجديد بيشوف الكتالوج كله
-        الأول، وبعدين التجميعات. مجموعة فاضية أو مخفية مابتوصلش هنا
-        أصلاً — التصفية في toStoreCollections.
+        الأقسام بعد كل الأفلام، بنفس ترتيب اللوحة. هنا الأقسام المفعّلة
+        للرئيسية بس — قسم فاضي أو مقفول خالص مابيوصلش أصلًا
+        (التصفية في toStoreCollections).
       */}
-      {collections.map((collection) => (
+      {homeCollections.map((collection) => (
         <CollectionStrip key={collection.slug} collection={collection} products={products} />
       ))}
 

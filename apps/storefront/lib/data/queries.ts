@@ -49,7 +49,19 @@ const PRODUCT_IMAGE_COLUMNS = [
   'height_px',
 ].join(',')
 
-const COLLECTION_COLUMNS = ['id', 'slug', 'title_ar', 'subtitle_ar', 'is_visible', 'sort_order'].join(',')
+const COLLECTION_COLUMNS = [
+  'id',
+  'slug',
+  'title_ar',
+  'subtitle_ar',
+  'show_on_home',
+  'show_in_nav',
+  'sort_order',
+  'cover_bucket',
+  'cover_object_path',
+  'cover_width_px',
+  'cover_height_px',
+].join(',')
 
 const SITE_IMAGE_COLUMNS = [
   'id',
@@ -111,7 +123,7 @@ export async function fetchStorefrontFromSupabase(): Promise<{
     // المجموعات الظاهرة بس. الترتيب من sort_order ثم id لثبات العرض.
     restGet<CollectionRow>(
       'collections',
-      'select=' + COLLECTION_COLUMNS + '&is_visible=eq.true&order=sort_order.asc,id.asc',
+      'select=' + COLLECTION_COLUMNS + '&or=(show_on_home.eq.true,show_in_nav.eq.true)&order=sort_order.asc,id.asc',
       REVALIDATE_SECONDS,
     ),
     // كل الروابط. الجدول صغير (مجموعات × منتجات)، فطلب واحد أرخص
@@ -139,11 +151,7 @@ export async function fetchStorefrontFromSupabase(): Promise<{
   const heroImage = heroRow ? toStoreSiteImage(heroRow, supabaseUrl, 'صورة الواجهة') : null
 
   // المنتجات الظاهرة بس — منتج متوقّف لازم يختفي من المجموعة كمان
-  const collections = toStoreCollections(
-    collectionRows,
-    linkRows,
-    products.map((product) => product.id),
-  )
+  const collections = toStoreCollections(collectionRows, linkRows, products, supabaseUrl)
 
   return { products, settings: { ...baseSettings, logo, heroImage }, collections }
 }

@@ -1,47 +1,81 @@
 import 'server-only'
 
 import type { AdminCollection } from '../adminData'
-import { restDelete, restGet, restInsert, restRpc, sentinelOf } from '../data/client'
-import { toAdminCollection, type CollectionRow } from '../data/rows'
+import { projectUrl, restGet, restRpc, sentinelOf } from '../data/client'
+import { COLLECTION_SELECT, toAdminCollection, type CollectionRow } from '../data/rows'
 import type { MutationResult } from '../mutations'
 import {
   validateCollection,
   validateCollectionId,
   validateCollectionOrder,
+  validateCollectionPlacement,
   validateExpectedUpdatedAt,
   validateProductIds,
   type CollectionInput,
 } from '../validation/collection'
-import { flag } from '../validation/shared'
-import { patchGuarded, sameInstant, CONFLICT_MESSAGE } from './concurrency'
+import { CONFLICT_MESSAGE, patchGuarded } from './concurrency'
 import { toInternalFailure } from './errors'
 
 /**
- * تعديلات المجموعات.
+ * تعديلات الأقسام.
  *
  * ⚠️ الكتابة اللي بتمس **أكتر من صف** بتمر على دالة داتابيز:
- *      ربط المنتجات -> zell_set_collection_products
+ *      الإنشاء       -> zell_create_collection   (بيزحزح الكل خانة)
+ *      الحذف         -> zell_delete_collection   (+ تسجيل الغلاف للتنظيف)
+ *      ربط المنتجات  -> zell_set_collection_products
  *      الترتيب       -> zell_reorder_collections
- *    الكتابة على صف واحد (إنشاء، تعديل بيانات، إظهار، حذف) بتمر على
- *    REST بتزامن تفاؤلي — القفل بيحصل بفلتر updated_at في نفس الطلب.
+ *    الكتابة على صف واحد (تعديل البيانات، مفاتيح الظهور) بتمر على REST
+ *    بتزامن تفاؤلي — القفل بيحصل بفلتر updated_at في نفس الطلب.
+ *
+ * ⚠️ القسم الجديد بيبدأ **أول** الترتيب (0012). مفيش أولوية محجوزة
+ *    لأي قسم — الترتيب كله في إيد الأدمن بعد كده.
+ *
+ * ⚠️ is_visible بيتكتب = show_on_home or show_in_nav عشان نسخة المتجر
+ *    القديمة تفضل متسقة لحد ما الكود الجديد ينزل. مابيتقراش من هنا.
  *
  * ⚠️ تفرّد الـslug مضمون بقيد الداتابيز مش بالفحص المبدئي. الفحص
- *    المبدئي للرسالة بس؛ بينه وبين الإدخال في نافذة سباق، والقيد هو
- *    اللي بيقفلها فعلًا.
+ *    المبدئي للرسالة بس.
  */
 
 const TABLE = 'collections'
+const CREATE_RPC = 'zell_create_collection'
+const DELETE_RPC = 'zell_delete_collection'
 const SET_PRODUCTS_RPC = 'zell_set_collection_products'
 const REORDER_RPC = 'zell_reorder_collections'
 
-const RETURN_COLUMNS = ['id', 'slug', 'title_ar', 'subtitle_ar', 'is_visible', 'sort_order', 'updated_at'].join(',')
-
-const SLUG_TAKEN = 'الرابط المختصر ده مستخدم في مجموعة تانية. اختار رابط غيره.'
-const ORDER_MISMATCH = 'الترتيب لازم يشمل كل المجموعات مرة واحدة بالظبط. اعمل تحديث للصفحة وحاول تاني.'
+const SLUG_TAKEN = 'الرابط المختصر ده مستخدم في قسم تاني. اختار رابط غيره.'
+const ORDER_MISMATCH = 'الترتيب لازم يشمل كل الأقسام مرة واحدة بالظبط. اعمل تحديث للصفحة وحاول تاني.'
 const PRODUCTS_INVALID = 'في منتج مش موجود أو مكرر في القائمة. اعمل تحديث للصفحة وحاول تاني.'
-const COLLECTION_GONE = 'المجموعة مش موجودة. يمكن تكون اتمسحت.'
+const COLLECTION_GONE = 'القسم مش موجود. يمكن يكون اتمسح.'
 
-/** هل الـslug محجوز لمجموعة تانية؟ للرسالة بس — القيد هو الحارس. */
+/** العدّ الكلي والنشط لمنتجات قسم. */
+export async function collectionProductCounts(collectionId: string): Promise<{ total: number; active: number }> {
+  const links = await restGet<{ product_id: number }>(
+    'product_collections',
+    'select=product_id&collection_id=eq.' + encodeURIComponent(collectionId),
+  )
+  const ids = links.rows.map((row) => row.product_id)
+  if (ids.length === 0) return { total: 0, active: 0 }
+
+  const active = await restGet<{ id: number }>(
+    'products',
+    'select=id&is_active=eq.true&id=in.(' + ids.map((id) => String(id)).join(',') + ')',
+  )
+  return { total: ids.length, active: active.rows.length }
+}
+
+/** القراءة بعد الكتابة — النجاح لازم يعكس الحالة المخزّنة فعلًا. */
+export async function readAdminCollection(id: string): Promise<AdminCollection | null> {
+  const rows = await restGet<CollectionRow>(
+    TABLE,
+    'select=' + COLLECTION_SELECT + '&id=eq.' + encodeURIComponent(id) + '&limit=1',
+  )
+  const row = rows.rows[0]
+  if (!row) return null
+  return toAdminCollection(row, await collectionProductCounts(id), projectUrl())
+}
+
+/** هل الـslug محجوز لقسم تاني؟ للرسالة بس — القيد هو الحارس. */
 async function slugTaken(slug: string, exceptId?: string): Promise<boolean> {
   let query = 'select=id&slug=eq.' + encodeURIComponent(slug) + '&limit=2'
   if (exceptId !== undefined) query += '&id=neq.' + encodeURIComponent(exceptId)
@@ -51,6 +85,7 @@ async function slugTaken(slug: string, exceptId?: string): Promise<boolean> {
 
 /** خطأ قيد التفرّد بيتحوّل رسالة مفهومة بدل «خطأ غير متوقع». */
 function slugConflict(error: unknown): boolean {
+  if (sentinelOf(error) === 'ZELL_COLLECTION_SLUG_TAKEN') return true
   const text = error instanceof Error ? error.message : ''
   return text.includes('collections_slug_unique') || text.includes('duplicate key')
 }
@@ -64,25 +99,18 @@ export async function createCollection(input: CollectionInput): Promise<Mutation
       return { ok: false, code: 'VALIDATION', message: SLUG_TAKEN }
     }
 
-    // المجموعة الجديدة في الآخر. sort_order بيتظبط بعدها من الترتيب.
-    const highest = await restGet<{ sort_order: number }>(TABLE, 'select=sort_order&order=sort_order.desc&limit=1')
-    const top = highest.rows[0]
-    const sortOrder = top === undefined ? 0 : top.sort_order + 1
+    const returned = await restRpc<string | number | null>(CREATE_RPC, {
+      p_slug: checked.payload.slug,
+      p_title: checked.payload.title,
+      p_subtitle: checked.payload.subtitle,
+      p_show_on_home: checked.payload.showOnHome,
+      p_show_in_nav: checked.payload.showInNav,
+    })
+    if (returned === null || returned === undefined) return toInternalFailure(null)
 
-    const rows = await restInsert<CollectionRow>(
-      TABLE,
-      {
-        slug: checked.payload.slug,
-        title_ar: checked.payload.title,
-        subtitle_ar: checked.payload.subtitle,
-        is_visible: checked.payload.isVisible,
-        sort_order: sortOrder,
-      },
-      RETURN_COLUMNS,
-    )
-    const row = rows[0]
-    if (!row) return toInternalFailure(null)
-    return { ok: true, data: toAdminCollection(row, 0) }
+    const created = await readAdminCollection(String(returned))
+    if (!created) return toInternalFailure(null)
+    return { ok: true, data: created }
   } catch (error) {
     if (slugConflict(error)) return { ok: false, code: 'VALIDATION', message: SLUG_TAKEN }
     return toInternalFailure(error)
@@ -115,35 +143,34 @@ export async function updateCollection(
         slug: checked.payload.slug,
         title_ar: checked.payload.title,
         subtitle_ar: checked.payload.subtitle,
-        is_visible: checked.payload.isVisible,
+        show_on_home: checked.payload.showOnHome,
+        show_in_nav: checked.payload.showInNav,
+        is_visible: checked.payload.showOnHome || checked.payload.showInNav,
       },
-      select: RETURN_COLUMNS,
+      select: COLLECTION_SELECT,
     })
     if (!result.ok) return result
 
     const row = result.rows[0]
     if (!row) return toInternalFailure(null)
-
-    const links = await restGet<{ product_id: number }>(
-      'product_collections',
-      'select=product_id&collection_id=eq.' + encodeURIComponent(id.value),
-    )
-    return { ok: true, data: toAdminCollection(row, links.rows.length) }
+    return { ok: true, data: toAdminCollection(row, await collectionProductCounts(id.value), projectUrl()) }
   } catch (error) {
     if (slugConflict(error)) return { ok: false, code: 'VALIDATION', message: SLUG_TAKEN }
     return toInternalFailure(error)
   }
 }
 
-export async function setCollectionVisibility(
+/** مفتاحين الظهور من قائمة الأقسام — من غير ما نلمس باقي البيانات. */
+export async function setCollectionPlacement(
   rawId: unknown,
-  rawVisible: unknown,
+  rawShowOnHome: unknown,
+  rawShowInNav: unknown,
   rawExpected: unknown,
 ): Promise<MutationResult<AdminCollection>> {
   const id = validateCollectionId(rawId)
   if (!id.ok) return id
-  const visible = flag(rawVisible, 'إظهار المجموعة')
-  if (!visible.ok) return visible
+  const placement = validateCollectionPlacement(rawShowOnHome, rawShowInNav)
+  if (!placement.ok) return placement
   const expected = validateExpectedUpdatedAt(rawExpected)
   if (!expected.ok) return expected
 
@@ -153,34 +180,29 @@ export async function setCollectionVisibility(
       idColumn: 'id',
       idValue: id.value,
       expectedUpdatedAt: expected.value,
-      changes: { is_visible: visible.value },
-      select: RETURN_COLUMNS,
+      changes: {
+        show_on_home: placement.value.showOnHome,
+        show_in_nav: placement.value.showInNav,
+        is_visible: placement.value.showOnHome || placement.value.showInNav,
+      },
+      select: COLLECTION_SELECT,
     })
     if (!result.ok) return result
 
     const row = result.rows[0]
     if (!row) return toInternalFailure(null)
-
-    const links = await restGet<{ product_id: number }>(
-      'product_collections',
-      'select=product_id&collection_id=eq.' + encodeURIComponent(id.value),
-    )
-    return { ok: true, data: toAdminCollection(row, links.rows.length) }
+    return { ok: true, data: toAdminCollection(row, await collectionProductCounts(id.value), projectUrl()) }
   } catch (error) {
     return toInternalFailure(error)
   }
 }
 
 /**
- * حذف مجموعة.
+ * حذف قسم.
  *
- * ⚠️ الحذف محمي بنفس التزامن التفاؤلي: بنقرا updated_at، نقارنه،
- *    وبعدين نحذف **بفلتر updated_at** — فلو حد عدّل بين القراءة
- *    والحذف، الحذف بيأثر على صفر صفوف وبنرجّع CONFLICT بدل ما نمسح
- *    نسخة ما شافهاش الأدمن.
- *
- * ⚠️ الروابط بتتشال بالـcascade من 0010. مفيش ملفات متأثرة — مجموعات
- *    v1 مالهاش صور.
+ * ⚠️ الحذف والتزامن وتسجيل ملف الغلاف للتنظيف كلهم جوه
+ *    zell_delete_collection في معاملة واحدة (0012). الروابط بتتشال
+ *    بالـcascade، والمنتجات نفسها مابتتأثرش.
  */
 export async function deleteCollection(rawId: unknown, rawExpected: unknown): Promise<MutationResult<null>> {
   const id = validateCollectionId(rawId)
@@ -189,29 +211,21 @@ export async function deleteCollection(rawId: unknown, rawExpected: unknown): Pr
   if (!expected.ok) return expected
 
   try {
-    const current = await restGet<{ updated_at: string }>(
-      TABLE,
-      'select=updated_at&id=eq.' + encodeURIComponent(id.value) + '&limit=1',
-    )
-    const row = current.rows[0]
-    if (!row) return { ok: false, code: 'NOT_FOUND', message: COLLECTION_GONE }
-    if (!sameInstant(expected.value, row.updated_at)) {
-      return { ok: false, code: 'CONFLICT', message: CONFLICT_MESSAGE }
-    }
-
-    const removed = await restDelete<{ id: string }>(
-      TABLE,
-      'id=eq.' + encodeURIComponent(id.value) + '&updated_at=eq.' + encodeURIComponent(row.updated_at),
-    )
-    if (removed.length === 0) return { ok: false, code: 'CONFLICT', message: CONFLICT_MESSAGE }
-    return { ok: true, data: null }
+    const outcome = await restRpc<string | null>(DELETE_RPC, {
+      p_collection_id: id.value,
+      p_expected_updated_at: expected.value,
+    })
+    if (outcome === 'DELETED') return { ok: true, data: null }
+    if (outcome === 'NOT_FOUND') return { ok: false, code: 'NOT_FOUND', message: COLLECTION_GONE }
+    if (outcome === 'CONFLICT') return { ok: false, code: 'CONFLICT', message: CONFLICT_MESSAGE }
+    return toInternalFailure(null)
   } catch (error) {
     return toInternalFailure(error)
   }
 }
 
 /**
- * استبدال قائمة منتجات المجموعة.
+ * استبدال قائمة منتجات القسم.
  *
  * القائمة الفاضية مسموحة ومعناها «شيل كل الربط».
  * الذرّية والقفل جوه الدالة — شوف 0010.
@@ -226,17 +240,8 @@ export async function setCollectionProducts(
   if (!ids.ok) return ids
 
   /**
-   * ⚠️ **ممنوع نجاح وهمي.**
-   *
-   * النسخة الأولى كانت بتصدّق ردّ الدالة وبس. لو النداء نفسه فشل على
-   * مستوى HTTP (دالة مش في كاش PostgREST، مهلة، صلاحية) الكود كان
-   * بيرجّع INTERNAL عام، والأدمن بيشوف بانر مبهم — أو مايشوفهوش خالص
-   * لو كان بره الشاشة. وأسوأ: أي رد غير متوقع كان ممكن يتفسّر نجاح.
-   *
-   * الحل: بعد النداء **بنقرا الربط المخزّن فعلًا** ونقارنه بالمطلوب.
-   * النجاح مابيترجعش غير لما المخزّن يطابق المبعوت بالظبط. ولو مطابقش،
-   * الرسالة بتقول الحالة اللي رجعت من الداتابيز عشان السبب يبان بدل
-   * ما يتوه.
+   * ⚠️ **ممنوع نجاح وهمي.** بعد النداء بنقرا الربط المخزّن فعلًا
+   *    ونقارنه بالمطلوب — النجاح مابيترجعش غير لما يطابق بالظبط.
    */
   let rpcStatus: string | null = null
 
@@ -245,7 +250,7 @@ export async function setCollectionProducts(
       p_collection_id: id.value,
       p_product_ids: ids.value,
     })
-    // null = المجموعة مش موجودة (الدالة بترجّع null مش بترمي)
+    // null = القسم مش موجود (الدالة بترجّع null مش بترمي)
     if (count === null) return { ok: false, code: 'NOT_FOUND', message: COLLECTION_GONE }
   } catch (error) {
     const sentinel = sentinelOf(error)

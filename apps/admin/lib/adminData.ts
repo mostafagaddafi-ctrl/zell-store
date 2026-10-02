@@ -188,9 +188,16 @@ export type AdminCollection = {
   slug: string
   title: string
   subtitle: string
-  isVisible: boolean
+  /** يظهر كجزء مستقل في الرئيسية. */
+  showOnHome: boolean
+  /** يظهر في التنقل وليه صفحة /collection/[slug]. */
+  showInNav: boolean
   sortOrder: number
   productCount: number
+  /** المنتجات النشطة بس — صفر معناه القسم مش ظاهر للزباين حتى لو مفعّل. */
+  activeProductCount: number
+  /** null = مفيش غلاف، والمتجر بيستخدم أول صورة لأول منتج ظاهر. */
+  cover: AdminImage | null
   updatedAt: string
 }
 
