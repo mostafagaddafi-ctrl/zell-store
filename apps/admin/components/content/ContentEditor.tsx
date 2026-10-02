@@ -263,9 +263,8 @@ export function ContentEditor({ content }: { content: StoreContent }) {
       </Card>
 
       {/*
-        الشريط العلوي (شريط الهدية). الزائر يقدر يقفله، وبيرجع يظهر لوحده
-        لو النص أو الرابط اتغيّر. لو مقفول أو نصّه فاضي، المتجر بيعرض «نص
-        العرض» من صفحة الهوية بداله.
+        الشريط العلوي — رفيع وثابت، من غير حركة ولا زرار إغلاق. للإعلانات
+        المهمة بس. «نص العرض» مكانه صفحة المنتج وملخص الطلب كهدية.
       */}
       <Card title="الشريط العلوي">
         <label className="mb-4 flex items-center gap-2 text-sm font-semibold text-fg">
@@ -279,7 +278,7 @@ export function ContentEditor({ content }: { content: StoreContent }) {
           مفعّل
         </label>
 
-        <Field htmlFor="ann-text" label="النص" hint="بيظهر فوق الهيدر كعرض بينزل من فوق. فاضي أو مقفول = بيظهر «نص العرض» من صفحة الهوية بداله">
+        <Field htmlFor="ann-text" label="النص" hint="شريط رفيع فوق الهيدر للإعلانات المهمة (خصم · مواعيد). فاضي = الشريط مقفول حتى لو مفعّل">
           <input
             id="ann-text"
             value={draft.announcement.text}
