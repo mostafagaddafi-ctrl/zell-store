@@ -16,9 +16,10 @@ const VARIANTS: Record<ButtonVariant, string> = {
   danger: 'border border-danger/40 bg-surface text-danger hover:bg-danger/5',
 }
 
+// على الموبايل الزراير أعلى شوية — هدف لمس أريح للصباع
 const SIZES: Record<ButtonSize, string> = {
-  sm: 'h-8 px-2.5 text-xs',
-  md: 'h-9 px-3 text-sm',
+  sm: 'h-8 px-2.5 text-xs max-sm:h-9 max-sm:px-3',
+  md: 'h-9 px-3 text-sm max-sm:h-10 max-sm:px-3.5',
 }
 
 export function buttonClasses(variant: ButtonVariant = 'primary', size: ButtonSize = 'md', extra?: string): string {
