@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
 import type { Metadata } from 'next'
 import type { StoreProduct } from '@zell/core'
+import { CollectionNav } from '../../../components/store/CollectionNav'
 import { ProductCard } from '../../../components/store/ProductCard'
 import { Container } from '../../../components/ui/Container'
 import { ImageSlot } from '../../../components/ui/ImageSlot'
@@ -47,6 +48,8 @@ export default async function CollectionPage({ params }: { params: Promise<Param
   if (!found) notFound()
 
   const { collection, items } = found
+  // نفس البيانات المكاشة — مفيش طلب زيادة
+  const { collections } = await getStorefrontData()
   const image = collection.image
 
   return (
@@ -66,6 +69,9 @@ export default async function CollectionPage({ params }: { params: Promise<Param
           كل الأقسام
         </Link>
       </nav>
+
+      {/* التنقّل من قسم لقسم من غير الرجوع للرئيسية */}
+      <CollectionNav collections={collections} currentSlug={collection.slug} />
 
       <header className="grid gap-5 py-6 md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] md:items-center md:gap-10 md:py-8">
         <div className="min-w-0">
