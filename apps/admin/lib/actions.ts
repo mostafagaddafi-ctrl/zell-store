@@ -40,6 +40,7 @@ import {
   reorderCollections,
   setCollectionProducts,
   setCollectionPlacement,
+  addProductToCollection,
   updateCollection,
 } from './mutations/collections'
 import { removeCollectionCover } from './mutations/collectionCover'
@@ -62,12 +63,25 @@ async function refreshAfter<T>(result: MutationResult<T>): Promise<MutationResul
 }
 
 // ── المنتجات ─────────────────────────────────────────────────
-export async function saveProductAction(input: ProductInput): Promise<MutationResult<AdminProduct>> {
+/**
+ * collectionId: إنشاء من جوه قسم. المنتج بيتضاف آخر القسم بعد ما يتعمل.
+ * فشل الربط **مابيلغيش** المنتج — بيرجع نجاح بتحذير يقول يتربط إزاي.
+ */
+export async function saveProductAction(
+  input: ProductInput,
+  collectionId?: string,
+): Promise<MutationResult<AdminProduct>> {
   const auth = await requireAdminAction()
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return refreshAfter(await saveProduct(input))
+  const result = await saveProduct(input)
+  if (!result.ok || input.id !== undefined || collectionId === undefined) return refreshAfter(result)
+  const linked = await addProductToCollection(collectionId, result.data.id)
+  const withLink = linked
+    ? result
+    : { ...result, warning: 'المنتج اتعمل، بس ماتضافش للقسم. ضيفه من صفحة القسم.' }
+  return refreshAfter(withLink)
 }
 
 export async function setProductVisibilityAction(
