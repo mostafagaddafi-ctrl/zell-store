@@ -288,7 +288,7 @@ export function CollectionEditor({
         <p className="text-xs text-muted">احفظ القسم الأول، وبعدها تقدر تضيف المنتجات والصورة وتظبط الترتيب.</p>
       ) : (
         <Card title="منتجات القسم">
-          <div className="space-y-4">
+          <div id="products" className="scroll-mt-24 space-y-4">
             <div>
               <p className="mb-2 text-xs font-semibold text-muted">
                 المختارين ({selected.length}) — الترتيب هنا هو ترتيب العرض
@@ -296,7 +296,7 @@ export function CollectionEditor({
 
               {selected.length === 0 ? (
                 <p className="rounded border border-dashed border-border p-3 text-xs text-muted">
-                  مفيش منتجات مختارة. القسم مش هيظهر في المتجر.
+                  مفيش منتجات مختارة لسه. اختار المنتجات من تحت واحفظ، والقسم هيظهر في المتجر على طول.
                 </p>
               ) : (
                 <ul className="space-y-2">
