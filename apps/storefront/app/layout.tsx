@@ -49,6 +49,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             logo={settings.logo}
             collections={collections}
             allLabel={settings.homeProducts.allLabel}
+            social={settings.socialLinks}
             whatsappNumber={settings.whatsappNumber}
             whatsappMessage={settings.whatsappMessage}
           />
