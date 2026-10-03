@@ -52,6 +52,8 @@ import { saveHomeProducts } from './mutations/homeProducts'
 import type { HomeProducts } from '@zell/core'
 import { saveSocialLinks, type SocialLinksInput } from './mutations/socialLinks'
 import { saveProductWidths, type AdminWidth } from './mutations/productWidths'
+import { saveProductAddons } from './mutations/productAddons'
+import { saveAddonsTitle } from './mutations/addonsTitle'
 import { saveContent } from './mutations/content'
 import { setImageFit, setPrimaryImage } from './mutations/images'
 import { saveInternalNote, updateOrderStatus } from './mutations/orders'
@@ -85,7 +87,8 @@ export async function saveProductAction(
   const gate = guardMutations()
   if (gate) return gate
   // كل منتج جديد لازم يكون في قسم — القاعدة على السيرفر مش في الواجهة بس
-  if (input.id === undefined && (collectionId === undefined || collectionId.trim() === '')) {
+  // 0016 — منتج القطعة (إضافة) مش لازم يكون في قسم
+  if (input.id === undefined && input.saleUnit !== 'piece' && (collectionId === undefined || collectionId.trim() === '')) {
     return { ok: false, code: 'VALIDATION', message: 'اختار قسم للمنتج الأول — كل منتج لازم يكون في قسم.' }
   }
   const result = await saveProduct(input)
@@ -429,4 +432,23 @@ export async function saveProductWidthsAction(productId: number, rows: AdminWidt
   const gate = guardMutations()
   if (gate) return gate
   return refreshAfter(await saveProductWidths(productId, rows))
+}
+
+// ── الإضافات (0016) ──────────────────────────────────────────
+/** إضافات فيلم (منتجات قطعة) بالترتيب — ذرّي عن طريق zell_set_product_addons. */
+export async function saveProductAddonsAction(productId: number, addonIds: number[]): Promise<MutationResult<number[]>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const gate = guardMutations()
+  if (gate) return gate
+  return refreshAfter(await saveProductAddons(productId, addonIds))
+}
+
+/** عنوان جزء الإضافات في صفحة المنتج — واحد لكل المنتجات. */
+export async function saveAddonsTitleAction(title: string): Promise<MutationResult<string>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const gate = guardMutations()
+  if (gate) return gate
+  return refreshAfter(await saveAddonsTitle(title))
 }

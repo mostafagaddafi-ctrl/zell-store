@@ -30,10 +30,13 @@ export type AdminOrder = {
 
 export type AdminOrderItem = {
   productNameAr: string
-  lengthCm: number
-  widthCm: number
+  /** null لسطر القطعة (0016). */
+  lengthCm: number | null
+  widthCm: number | null
   unitPricePiastres: number
   lineTotalPiastres: number
+  saleUnit: 'meter' | 'piece'
+  quantity: number
 }
 
 export type AdminOrderDetail = AdminOrder & {
@@ -103,6 +106,12 @@ export type AdminProduct = {
   lockWidth: boolean
   /** 0014 — السعر قبل الخصم بالقرش. null = مفيش خصم. */
   compareAtPiastres: number | null
+  /** 0016 — بالمتر أو بالقطعة. القطعة: pricePerMeterPiastres = سعر القطعة. */
+  saleUnit: 'meter' | 'piece'
+  /** 0016 — يظهر في الرئيسية والأقسام. */
+  isListed: boolean
+  /** 0016 — أقصى عدد لمنتج القطعة. */
+  maxQuantity: number
   minLengthCm: number
   stepCm: number
   maxLengthCm: number

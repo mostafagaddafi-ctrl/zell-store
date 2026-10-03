@@ -4,20 +4,33 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check, ShoppingBag } from 'lucide-react'
-import { formatLength, validateLength, widthOptionsOf, withWidth, type StoreProduct } from '@zell/core'
+import { formatLength, maxQuantityOf, validateLength, widthOptionsOf, withWidth, type StoreProduct } from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { buttonClasses, Button } from '../ui/Button'
 import { Num } from './Num'
 import { GiftNote } from './GiftNote'
 import { SizePanel } from './SizePanel'
+import { AddonsPicker } from './AddonsPicker'
 
 /** gift: «نص العرض» لو ظاهر — بيظهر كهدية فوق زرار الإضافة. */
-export function ProductBuy({ product, gift = '' }: { product: StoreProduct; gift?: string }) {
+export function ProductBuy({
+  product,
+  gift = '',
+  addons = [],
+  addonsTitle = '',
+}: {
+  product: StoreProduct
+  gift?: string
+  /** 0016 — منتجات قطعة بتتضاف مع الفيلم (بعددها). */
+  addons?: StoreProduct[]
+  addonsTitle?: string
+}) {
   const cart = useCart()
   const router = useRouter()
   const [lengthCm, setLengthCm] = useState(product.min_length_cm)
   const [justAdded, setJustAdded] = useState(false)
   const [blocked, setBlocked] = useState(false)
+  const [addonQty, setAddonQty] = useState<Record<number, number>>({})
   // 0015 — العرض المختار. المنتج بعرض واحد = مفيش اختيار ومفيش تغيير.
   const options = widthOptionsOf(product)
   const [widthCm, setWidthCm] = useState(product.width_cm)
@@ -30,14 +43,27 @@ export function ProductBuy({ product, gift = '' }: { product: StoreProduct; gift
   const handleAdd = () => {
     if (!canAdd) return
     cart.add(product.id, lengthCm, chosenWidth)
+    addSelectedAddons()
     setJustAdded(true)
+  }
+
+  /** الإضافات المختارة بتتضاف كسطور قطعة، والاختيار بيتصفّر عشان ماتتكررش. */
+  function addSelectedAddons() {
+    for (const addon of addons) {
+      const quantity = addonQty[addon.id] ?? 0
+      if (quantity > 0) cart.addPiece(addon.id, quantity, maxQuantityOf(addon))
+    }
+    setAddonQty({})
   }
 
   // «اطلب دلوقتي»: يضيف ويروح للبيانات على طول. لو نفس الاختيار اتضاف
   // لسه (justAdded) مابيضيفوش تاني — يروح بس، عشان مايتكررش في السلة.
   const handleBuyNow = () => {
     if (!canAdd) return
-    if (!justAdded) cart.add(product.id, lengthCm, chosenWidth)
+    if (!justAdded) {
+      cart.add(product.id, lengthCm, chosenWidth)
+      addSelectedAddons()
+    }
     router.push('/checkout')
   }
 
@@ -63,6 +89,8 @@ export function ProductBuy({ product, gift = '' }: { product: StoreProduct; gift
       />
 
       <GiftNote text={gift} />
+
+      <AddonsPicker addons={addons} title={addonsTitle} quantities={addonQty} onChange={setAddonQty} />
 
       <div className="grid gap-2">
         <Button size="lg" onClick={handleBuyNow} disabled={!canAdd}>

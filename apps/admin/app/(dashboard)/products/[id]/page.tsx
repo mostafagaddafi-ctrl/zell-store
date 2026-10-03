@@ -5,6 +5,8 @@ import { ArrowRight } from 'lucide-react'
 import { PageHeader } from '../../../../components/shell/PageHeader'
 import { ProductEditor } from '../../../../components/products/ProductEditor'
 import { readProductWidths } from '../../../../lib/mutations/productWidths'
+import { readAddonOptions, readProductAddons } from '../../../../lib/mutations/productAddons'
+import { readAddonsTitle } from '../../../../lib/mutations/addonsTitle'
 import { Badge } from '../../../../components/ui/Badge'
 import { Card } from '../../../../components/ui/Field'
 import { PreviewNotice } from '../../../../components/ui/PreviewNotice'
@@ -26,7 +28,12 @@ export default async function ProductPage({ params }: PageProps) {
   const { id } = await params
   const product = await adminData.getProduct(Number(id))
   if (!product) notFound()
-  const widths = await readProductWidths(product.id)
+  const [widths, addonOptions, addonIds, addonsTitle] = await Promise.all([
+    readProductWidths(product.id),
+    readAddonOptions(),
+    readProductAddons(product.id),
+    readAddonsTitle(),
+  ])
 
   // الأقسام اللي المنتج فيها — عرض بس، الربط من صفحة القسم
   const collections = await adminData.listCollections()
@@ -76,7 +83,13 @@ export default async function ProductPage({ params }: PageProps) {
         )}
       </Card>
 
-      <ProductEditor product={product} widths={widths} />
+      <ProductEditor
+        product={product}
+        widths={widths}
+        addonOptions={addonOptions}
+        addonIds={addonIds}
+        addonsTitle={addonsTitle}
+      />
     </>
   )
 }

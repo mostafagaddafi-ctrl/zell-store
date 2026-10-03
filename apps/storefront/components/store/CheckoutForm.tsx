@@ -8,12 +8,12 @@ import {
   composeAddress,
   composeOrderNotes,
   computeShippingPiastres,
-  computeSubtotalPiastres,
-  formatLength,
+  describeLine,
   formatPiastres,
   hasErrors,
+  lineTotalPiastres,
+  resolveCartLine,
   validateCheckout,
-  withWidth,
   type CheckoutValues,
   type StoreProduct,
   type StoreSettings,
@@ -157,12 +157,12 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   const entries = cart.lines
     .map((line) => {
       const base = byId.get(line.productId)
-      return { line, product: base ? (withWidth(base, line.widthCm) ?? undefined) : undefined }
+      return { line, product: base ? (resolveCartLine(base, line) ?? undefined) : undefined }
     })
     .filter((entry): entry is { line: (typeof cart.lines)[number]; product: StoreProduct } => Boolean(entry.product))
 
   const subtotal = entries.reduce(
-    (sum, entry) => sum + computeSubtotalPiastres(entry.product.price_per_meter_piastres, entry.line.lengthCm),
+    (sum, entry) => sum + lineTotalPiastres(entry.product, entry.line),
     0,
   )
 
@@ -183,10 +183,13 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   const show = (key: keyof typeof errors) => (touched ? errors[key] : undefined)
 
   // 0015 — العرض بيتبعت بس لو مختار غير الأساسي؛ السعر الداتابيز هي اللي بتحسبه
+  // 0016 — القطعة بتتبعت بعددها بس (من غير طول/عرض)
   const items = entries.map((entry) =>
-    entry.line.widthCm === undefined
-      ? { productId: entry.product.id, lengthCm: entry.line.lengthCm }
-      : { productId: entry.product.id, lengthCm: entry.line.lengthCm, widthCm: entry.line.widthCm },
+    entry.line.quantity !== undefined
+      ? { productId: entry.product.id, quantity: entry.line.quantity }
+      : entry.line.widthCm === undefined
+        ? { productId: entry.product.id, lengthCm: entry.line.lengthCm }
+        : { productId: entry.product.id, lengthCm: entry.line.lengthCm, widthCm: entry.line.widthCm },
   )
 
   async function submit(): Promise<void> {
@@ -421,14 +424,12 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-fg">{entry.product.name_ar}</p>
                   <p className="text-xs text-muted">
-                    <Num>{formatLength(entry.line.lengthCm)}</Num>
+                    <Num>{describeLine(entry.product, entry.line)}</Num>
                   </p>
                 </div>
                 <span className="shrink-0 font-semibold text-fg">
                   <Num>
-                    {formatPiastres(
-                      computeSubtotalPiastres(entry.product.price_per_meter_piastres, entry.line.lengthCm),
-                    )}
+                    {formatPiastres(lineTotalPiastres(entry.product, entry.line))}
                   </Num>
                 </span>
               </li>

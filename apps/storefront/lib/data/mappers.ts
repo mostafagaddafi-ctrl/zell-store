@@ -11,6 +11,7 @@ import {
   parseHomeProducts,
   parseShippingAreas,
   parseSocialLinks,
+  DEFAULT_ADDONS_TITLE,
   DEFAULT_STORE_CONTENT,
   type HomeSection,
   type HomeSectionKey,
@@ -38,6 +39,9 @@ export type ProductRow = {
   width_cm: number
   lock_width: boolean
   compare_at_piastres: number | null
+  sale_unit: string
+  is_listed: boolean
+  max_quantity: number
   min_length_cm: number
   step_cm: number
   max_length_cm: number
@@ -239,6 +243,9 @@ export function toStoreProduct(
     width_cm: row.width_cm,
     lock_width: row.lock_width === true,
     compare_at_piastres: row.compare_at_piastres ?? null,
+    sale_unit: row.sale_unit === 'piece' ? 'piece' : 'meter',
+    is_listed: row.is_listed !== false,
+    max_quantity: typeof row.max_quantity === 'number' ? row.max_quantity : 20,
     min_length_cm: row.min_length_cm,
     step_cm: row.step_cm,
     max_length_cm: row.max_length_cm,
@@ -271,6 +278,7 @@ export const PUBLIC_SETTING_KEYS = [
   'shipping_areas',
   'home_products',
   'social_links',
+  'addons_title',
   'whatsapp_number',
   'whatsapp_message',
   'shipping_rates',
@@ -371,6 +379,7 @@ export function toStoreSettings(rows: SettingRow[], logo: StoreImage | null = nu
     shippingAreas: parseShippingAreas(map.get('shipping_areas')),
     homeProducts: parseHomeProducts(map.get('home_products')),
     socialLinks: parseSocialLinks(map.get('social_links')),
+    addonsTitle: settingString(map, 'addons_title').trim() || DEFAULT_ADDONS_TITLE,
     announcement: settingAnnouncement(map),
     content: settingContent(map),
   }
@@ -501,5 +510,28 @@ export function attachWidths(products: StoreProduct[], rows: ProductWidthRow[]):
   return products.map((product) => {
     const options = (byProduct.get(product.id) ?? []).filter((option) => option.width_cm !== product.width_cm)
     return options.length > 0 ? { ...product, width_options: options } : product
+  })
+}
+
+// ── الإضافات (0016) ──────────────────────────────────────────
+/** صف public.product_addons. */
+export type ProductAddonRow = { product_id: number; addon_id: number; sort_order: number }
+
+/** بيضيف addon_ids لمنتجات المتر — الإضافة لازم تكون منتج قطعة نشط. */
+export function attachAddons(products: StoreProduct[], rows: ProductAddonRow[]): StoreProduct[] {
+  if (rows.length === 0) return products
+  const pieces = new Set(products.filter((product) => product.sale_unit === 'piece').map((product) => product.id))
+  const byProduct = new Map<number, ProductAddonRow[]>()
+  for (const row of rows) {
+    if (!pieces.has(row.addon_id)) continue
+    const list = byProduct.get(row.product_id)
+    if (list) list.push(row)
+    else byProduct.set(row.product_id, [row])
+  }
+  return products.map((product) => {
+    const list = byProduct.get(product.id)
+    if (!list || product.sale_unit === 'piece') return product
+    list.sort((a, b) => a.sort_order - b.sort_order || a.addon_id - b.addon_id)
+    return { ...product, addon_ids: list.map((row) => row.addon_id) }
   })
 }

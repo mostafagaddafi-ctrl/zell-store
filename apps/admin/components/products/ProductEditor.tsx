@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2 } from 'lucide-react'
-import { saveProductAction, saveProductWidthsAction } from '../../lib/actions'
+import { saveAddonsTitleAction, saveProductAction, saveProductAddonsAction, saveProductWidthsAction } from '../../lib/actions'
 import type { AdminProductDetail } from '../../lib/adminData'
 import type { AdminWidth } from '../../lib/mutations/productWidths'
 import { useSaveAction } from '../../lib/client/useSaveAction'
@@ -15,6 +15,9 @@ import { Card, Field, inputClasses, textareaClasses } from '../ui/Field'
 import { SaveBar } from '../ui/SaveBar'
 import { ImageManager } from './ImageManager'
 import { extraWidthsPayload, pricingProblem, PricingFields, toWidthDraft, type WidthDraft } from './PricingFields'
+import type { AddonOption } from '../../lib/mutations/productAddons'
+import { AddonsSelector } from './AddonsSelector'
+import { PiecePricing, pieceProblem, SaleUnitSwitch, type SaleUnit } from './PiecePricing'
 
 type Tab = 'details' | 'pricing' | 'images'
 
@@ -38,6 +41,11 @@ const EMPTY = {
   stepCm: '50',
   maxLengthCm: '3000',
   extraWidths: [] as WidthDraft[],
+  saleUnit: 'meter' as SaleUnit,
+  isListed: true,
+  maxQuantity: '20',
+  addonIds: [] as number[],
+  addonsTitle: '',
 }
 
 /** collectionId: إنشاء من جوه قسم — المنتج بيتضاف آخر القسم بعد الحفظ. */
@@ -45,11 +53,21 @@ export function ProductEditor({
   product,
   collectionId,
   widths = [],
+  addonOptions = [],
+  addonIds = [],
+  addonsTitle = '',
+  initialSaleUnit = 'meter',
 }: {
   product: AdminProductDetail | null
   collectionId?: string
   /** 0015 — عروض الرول الإضافية المحفوظة (غير العرض الأساسي). */
   widths?: AdminWidth[]
+  /** 0016 — منتجات القطعة المتاحة كإضافات، والمختار منها للمنتج ده، وعنوان الجزء. */
+  addonOptions?: AddonOption[]
+  addonIds?: number[]
+  addonsTitle?: string
+  /** 0016 — «إضافة / منتج بالقطعة» من صفحة منتج جديد. */
+  initialSaleUnit?: SaleUnit
 }) {
   const router = useRouter()
   const { state: saveState, failure, warning, run, retry, markDirty } = useSaveAction()
@@ -71,8 +89,13 @@ export function ProductEditor({
           stepCm: String(product.stepCm),
           maxLengthCm: String(product.maxLengthCm),
           extraWidths: widths.map(toWidthDraft),
+          saleUnit: product.saleUnit,
+          isListed: product.isListed,
+          maxQuantity: String(product.maxQuantity),
+          addonIds,
+          addonsTitle,
         }
-      : EMPTY,
+      : { ...EMPTY, saleUnit: initialSaleUnit, isListed: initialSaleUnit !== 'piece', addonsTitle },
   )
 
   const set = (patch: Partial<typeof form>) => {
@@ -114,8 +137,13 @@ export function ProductEditor({
       stepCm: String(product.stepCm),
       maxLengthCm: String(product.maxLengthCm),
       extraWidths: widths.map(toWidthDraft),
+      saleUnit: product.saleUnit,
+      isListed: product.isListed,
+      maxQuantity: String(product.maxQuantity),
+      addonIds,
+      addonsTitle,
     })
-  }, [product, syncedAt, widths])
+  }, [product, syncedAt, widths, addonIds, addonsTitle])
 
   /**
    * ⚠️ **كل** قيمة في الـ payload بتتقرا من ref، ولا حاجة من closure
@@ -151,6 +179,9 @@ export function ProductEditor({
       minLengthCm: Number(draft.minLengthCm),
       stepCm: Number(draft.stepCm),
       maxLengthCm: Number(draft.maxLengthCm),
+      saleUnit: draft.saleUnit,
+      isListed: draft.isListed,
+      maxQuantity: Number(draft.maxQuantity),
       sortOrder: current?.sortOrder ?? 0,
       isActive: current?.isActive ?? false,
     }
@@ -164,18 +195,38 @@ export function ProductEditor({
    * حفظ واحد: المنتج (العرض الأساسي وسعره) الأول، وبعده العروض الإضافية
    * (zell_set_product_widths). فشل العروض مابيلغيش حفظ المنتج — بيرجع تحذير.
    */
+  const titleRef = useRef(addonsTitle)
+
   function save() {
-    if (pricingProblem(formRef.current) !== null) {
+    const draftNow = formRef.current
+    const problem = draftNow.saleUnit === 'piece' ? pieceProblem(draftNow) : pricingProblem(draftNow)
+    if (problem !== null) {
       setShowPricingErrors(true)
       setTab('pricing')
       return
     }
     setShowPricingErrors(false)
+    /**
+     * حفظ واحد بالترتيب: المنتج ← عروض الرول ← الإضافات ← عنوان الإضافات.
+     * القطعة: مفيش عروض ولا إضافات (بتتفضّى). فشل أي خطوة بعد المنتج = تحذير.
+     */
     const thunk = async () => {
+      const draft = formRef.current
+      const meter = draft.saleUnit !== 'piece'
       const result = await saveProductAction(buildInput(), productRef.current ? undefined : collectionId)
       if (!result.ok) return result
-      const saved = await saveProductWidthsAction(result.data.id, extraWidthsPayload(formRef.current))
-      if (!saved.ok) return { ...result, warning: 'المنتج اتحفظ، بس عروض الرول ما اتحفظتش: ' + saved.message }
+      const problems: string[] = []
+      const widthsSaved = await saveProductWidthsAction(result.data.id, meter ? extraWidthsPayload(draft) : [])
+      if (!widthsSaved.ok) problems.push('عروض الرول (' + widthsSaved.message + ')')
+      const addonsSaved = await saveProductAddonsAction(result.data.id, meter ? draft.addonIds : [])
+      if (!addonsSaved.ok) problems.push('الإضافات (' + addonsSaved.message + ')')
+      const title = draft.addonsTitle.trim()
+      if (meter && title !== '' && title !== titleRef.current) {
+        const titleSaved = await saveAddonsTitleAction(title)
+        if (titleSaved.ok) titleRef.current = titleSaved.data
+        else problems.push('عنوان الإضافات (' + titleSaved.message + ')')
+      }
+      if (problems.length > 0) return { ...result, warning: 'المنتج اتحفظ، بس ' + problems.join(' و') + ' ما اتحفظش.' }
       return result
     }
     void run(thunk, {
@@ -281,7 +332,25 @@ export function ProductEditor({
         </div>
       ) : null}
 
-      {tab === 'pricing' ? <PricingFields form={form} set={set} showErrors={showPricingErrors} /> : null}
+      {tab === 'pricing' ? (
+        <div className="space-y-4">
+          <SaleUnitSwitch value={form.saleUnit} onChange={(next) => set({ saleUnit: next })} />
+          {form.saleUnit === 'piece' ? (
+            <PiecePricing form={form} set={set} showErrors={showPricingErrors} />
+          ) : (
+            <>
+              <PricingFields form={form} set={set} showErrors={showPricingErrors} />
+              <AddonsSelector
+                options={addonOptions.filter((option) => option.id !== product?.id)}
+                value={form.addonIds}
+                onChange={(next) => set({ addonIds: next })}
+                title={form.addonsTitle}
+                onTitleChange={(next) => set({ addonsTitle: next })}
+              />
+            </>
+          )}
+        </div>
+      ) : null}
 
       {tab === 'images' && product ? <ImageManager productId={product.id} images={product.images} /> : null}
       {tab === 'images' && !product ? (

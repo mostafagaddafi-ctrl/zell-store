@@ -4,6 +4,7 @@ import {
   formatPiastres,
   lowestPricePerMeter,
   primaryImage,
+  isPiece,
   widthOptionsOf,
   type StoreProduct,
 } from '@zell/core'
@@ -61,10 +62,11 @@ export function ProductCard({ product }: { product: StoreProduct }) {
                 <Num>{formatPiastres(discount.compareAtPiastres)}</Num>
               </span>
             ) : null}
-            <span className="ms-1.5 text-xs text-muted">للمتر</span>
+            <span className="ms-1.5 text-xs text-muted">{isPiece(product) ? 'للقطعة' : 'للمتر'}</span>
           </div>
 
-          <span className={buttonClasses('primary', 'md', 'w-full px-2 text-xs sm:px-4 sm:text-sm')}>التفاصيل <span className="hidden sm:inline">واختيار المقاس</span></span>
+          <span className={buttonClasses('primary', 'md', 'w-full px-2 text-xs sm:px-4 sm:text-sm')}>التفاصيل{' '}
+            {isPiece(product) ? null : <span className="hidden sm:inline">واختيار المقاس</span>}</span>
         </div>
       </div>
     </Link>

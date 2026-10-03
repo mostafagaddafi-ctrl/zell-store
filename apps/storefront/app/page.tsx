@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-import { pickHomeProducts } from '@zell/core'
+import { isListed, pickHomeProducts } from '@zell/core'
 import { Faq } from '../components/store/Faq'
 import { Hero } from '../components/store/Hero'
 import { HowItWorks } from '../components/store/HowItWorks'
@@ -26,7 +26,9 @@ export default async function HomePage() {
   const { content } = settings
   const homeCollections = collections.filter((collection) => collection.showOnHome)
   // «الصفحة الرئيسية» في صفحة الأقسام: كل المنتجات · منتجات مختارة · ولا حاجة
-  const homeProducts = pickHomeProducts(products, settings.homeProducts)
+  // 0016 — الإضافات (مش ظاهرة في القوايم) مابتظهرش في الرئيسية
+  const listed = products.filter(isListed)
+  const homeProducts = pickHomeProducts(listed, settings.homeProducts)
   const allLabel = settings.homeProducts.allLabel || 'كل المنتجات'
 
   return (
@@ -55,7 +57,7 @@ export default async function HomePage() {
                     ))}
                   </div>
 
-                  {homeProducts.length < products.length ? (
+                  {homeProducts.length < listed.length ? (
                     <div className="mt-6 flex justify-center">
                       <Link
                         href="/products"

@@ -1,3 +1,4 @@
+import { isPiece, type StoreProduct } from './types'
 /**
  * منطق التسعير — النسخة المرجعية الجديدة.
  *
@@ -201,4 +202,19 @@ export function computeShippingPiastres(
   if (freeThresholdPiastres > 0 && subtotalPiastres >= freeThresholdPiastres) return 0
   const rate = rates[governorate]
   return typeof rate === 'number' && Number.isFinite(rate) && rate >= 0 ? rate : fallback
+}
+
+// ── سطر السلة (0016) ──────────────────────────────────────────
+/** إجمالي سطر — نفس zell_create_order: المتر round(السعر × الطول ÷ ١٠٠)، القطعة السعر × العدد. */
+export function lineTotalPiastres(product: StoreProduct, line: { lengthCm: number; quantity?: number }): number {
+  if (isPiece(product)) {
+    const quantity = line.quantity ?? 0
+    return quantity > 0 && product.price_per_meter_piastres > 0 ? product.price_per_meter_piastres * quantity : 0
+  }
+  return computeSubtotalPiastres(product.price_per_meter_piastres, line.lengthCm)
+}
+
+/** وصف السطر للزبون: «٣ متر» أو «٢ قطعة». */
+export function describeLine(product: StoreProduct, line: { lengthCm: number; quantity?: number }): string {
+  return isPiece(product) ? String(line.quantity ?? 1) + ' قطعة' : formatLength(line.lengthCm)
 }

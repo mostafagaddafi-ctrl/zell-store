@@ -120,6 +120,7 @@ export const FALLBACK_SETTINGS: StoreSettings = {
   shippingAreas: {},
   homeProducts: { mode: 'all', ids: [], allLabel: 'كل الأفلام' },
   socialLinks: [],
+  addonsTitle: 'أدوات التركيب',
   // الكتالوج المؤقت مابيعرضش شريط — الشريط بيانات حقيقية من settings بس
   announcement: { enabled: false, text: '', href: '', ctaLabel: '' },
   content: DEFAULT_STORE_CONTENT,

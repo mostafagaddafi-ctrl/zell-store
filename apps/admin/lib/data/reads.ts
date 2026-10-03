@@ -62,6 +62,9 @@ const PRODUCT_COLUMNS = [
   'width_cm',
   'lock_width',
   'compare_at_piastres',
+  'sale_unit',
+  'is_listed',
+  'max_quantity',
   'min_length_cm',
   'step_cm',
   'max_length_cm',
@@ -213,7 +216,7 @@ export const supabaseAdminData: AdminDataSource = {
 
     const items = await restGet<OrderItemRow>(
       'order_items',
-      'select=order_id,product_name_ar,length_cm,width_cm,unit_price_piastres,line_total_piastres&order_id=eq.' +
+      'select=order_id,product_name_ar,length_cm,width_cm,unit_price_piastres,line_total_piastres,sale_unit,quantity&order_id=eq.' +
         String(row.id) +
         '&order=id.asc',
     )
