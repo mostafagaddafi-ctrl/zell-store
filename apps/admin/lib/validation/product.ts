@@ -35,6 +35,9 @@ export type ProductColumns = {
   width_cm: number
   lock_width: boolean
   compare_at_piastres: number | null
+  sale_unit: 'meter' | 'piece'
+  is_listed: boolean
+  max_quantity: number
   min_length_cm: number
   step_cm: number
   max_length_cm: number
@@ -95,6 +98,14 @@ export function validateProduct(
   const lockWidth = flag(input.lockWidth ?? false, 'تثبيت العرض')
   if (!lockWidth.ok) return lockWidth
 
+  // 0016 — نوع البيع (ناقص = متر) · الظهور في القوايم · أقصى عدد للقطعة
+  const saleUnit: 'meter' | 'piece' = input.saleUnit === 'piece' ? 'piece' : 'meter'
+  const listed = flag(input.isListed ?? true, 'الظهور في القوايم')
+  if (!listed.ok) return listed
+  const maxQuantity = wholeNumber(input.maxQuantity ?? 20, 'أقصى عدد')
+  if (!maxQuantity.ok) return maxQuantity
+  if (maxQuantity.value < 1 || maxQuantity.value > 999) return invalid('أقصى عدد لازم يكون من ١ لـ ٩٩٩')
+
   // 0014 — فاضي أو صفر = مفيش خصم
   let compareAt: number | null = null
   const rawCompare = input.compareAtPiastres
@@ -152,6 +163,9 @@ export function validateProduct(
     width_cm: width.value,
     lock_width: lockWidth.value,
     compare_at_piastres: compareAt,
+    sale_unit: saleUnit,
+    is_listed: listed.value,
+    max_quantity: maxQuantity.value,
     min_length_cm: minLength.value,
     step_cm: step.value,
     max_length_cm: maxLength.value,
