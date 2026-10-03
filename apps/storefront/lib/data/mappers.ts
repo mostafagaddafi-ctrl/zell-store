@@ -20,6 +20,7 @@ import {
   type StoreImage,
   type StoreProduct,
   type StoreSettings,
+  type WidthOption,
 } from '@zell/core'
 
 /** صف جدول products. */
@@ -472,4 +473,33 @@ function settingInstallation(map: Map<string, unknown>): StoreSettings['installa
     ? raw['governorates'].filter((item): item is string => typeof item === 'string' && item.trim() !== '')
     : []
   return { enabled: raw['enabled'] === true, note: cleanText(raw['note']), governorates }
+}
+
+// ── عروض الرول (0015) ─────────────────────────────────────────
+/** صف public.product_widths — الشغّال بس، بترتيب sort_order. */
+export type ProductWidthRow = {
+  product_id: number
+  width_cm: number
+  price_per_meter_piastres: number
+  compare_at_piastres: number | null
+}
+
+/** بيضيف العروض الإضافية لكل منتج. العرض اللي بيساوي الأساسي بيتشال. */
+export function attachWidths(products: StoreProduct[], rows: ProductWidthRow[]): StoreProduct[] {
+  if (rows.length === 0) return products
+  const byProduct = new Map<number, WidthOption[]>()
+  for (const row of rows) {
+    const option: WidthOption = {
+      width_cm: row.width_cm,
+      price_per_meter_piastres: row.price_per_meter_piastres,
+      compare_at_piastres: typeof row.compare_at_piastres === 'number' ? row.compare_at_piastres : null,
+    }
+    const list = byProduct.get(row.product_id)
+    if (list) list.push(option)
+    else byProduct.set(row.product_id, [option])
+  }
+  return products.map((product) => {
+    const options = (byProduct.get(product.id) ?? []).filter((option) => option.width_cm !== product.width_cm)
+    return options.length > 0 ? { ...product, width_options: options } : product
+  })
 }

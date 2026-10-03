@@ -8,6 +8,8 @@
 export type OrderItemInput = {
   productId: number
   lengthCm: number
+  /** 0015 — العرض المختار؛ ناقص = العرض الأساسي. */
+  widthCm?: number
 }
 
 export type OrderRequest = {

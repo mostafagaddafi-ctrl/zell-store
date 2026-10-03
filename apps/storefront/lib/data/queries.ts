@@ -13,6 +13,8 @@ import {
   type ProductRow,
   type SettingRow,
   type SiteImageRow,
+  attachWidths,
+  type ProductWidthRow,
 } from './mappers'
 import { restGet, supabaseProjectUrl } from './supabaseServer'
 
@@ -99,7 +101,7 @@ export async function fetchStorefrontFromSupabase(): Promise<{
 }> {
   const supabaseUrl = supabaseProjectUrl()
 
-  const [productRows, imageRows, settingRows, siteImageRows, collectionRows, linkRows] = await Promise.all([
+  const [productRows, imageRows, settingRows, siteImageRows, collectionRows, linkRows, widthRows] = await Promise.all([
     restGet<ProductRow>(
       'products',
       'select=' + PRODUCT_COLUMNS + '&is_active=eq.true&order=sort_order.asc,id.asc',
@@ -135,6 +137,12 @@ export async function fetchStorefrontFromSupabase(): Promise<{
       'select=collection_id,product_id,sort_order&order=sort_order.asc',
       REVALIDATE_SECONDS,
     ),
+    // 0015 — عروض الرول الإضافية الشغّالة بس
+    restGet<ProductWidthRow>(
+      'product_widths',
+      'select=product_id,width_cm,price_per_meter_piastres,compare_at_piastres&is_active=eq.true&order=sort_order.asc,width_cm.asc',
+      REVALIDATE_SECONDS,
+    ),
   ])
 
   // متجر بصفر منتجات عطل مش حالة طبيعية — نفشل بوضوح بدل ما نعرض صفحة فاضية
@@ -142,7 +150,7 @@ export async function fetchStorefrontFromSupabase(): Promise<{
     throw new Error('مفيش منتجات نشطة راجعة من الداتابيز')
   }
 
-  const products = toStoreProducts(productRows, imageRows, supabaseUrl)
+  const products = attachWidths(toStoreProducts(productRows, imageRows, supabaseUrl), widthRows)
 
   // الإعدادات الأول عشان نعرف اسم المتجر كبديل لنص اللوجو
   const baseSettings = toStoreSettings(settingRows, null)

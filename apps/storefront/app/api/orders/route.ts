@@ -100,7 +100,14 @@ function parseRequest(payload: unknown): { ok: true; value: OrderRequest } | { o
     const productId = entry['productId']
     const lengthCm = entry['lengthCm']
     if (!isPositiveInteger(productId) || !isPositiveInteger(lengthCm)) return { ok: false, code: 'CART_INVALID' }
-    items.push({ productId, lengthCm })
+    // 0015 — العرض اختياري؛ لو موجود لازم رقم صحيح موجب (الداتابيز بتتأكد إنه متاح)
+    const widthCm = entry['widthCm']
+    if (widthCm === undefined || widthCm === null) {
+      items.push({ productId, lengthCm })
+    } else {
+      if (!isPositiveInteger(widthCm)) return { ok: false, code: 'CART_INVALID' }
+      items.push({ productId, lengthCm, widthCm })
+    }
   }
 
   return {
@@ -189,7 +196,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   let result: RpcResult<unknown>
   try {
     result = await restRpc<unknown>('zell_create_order', {
-      p_items: normalized.items.map((item) => ({ productId: item.productId, lengthCm: item.lengthCm })),
+      p_items: normalized.items.map((item) =>
+        item.widthCm === undefined
+          ? { productId: item.productId, lengthCm: item.lengthCm }
+          : { productId: item.productId, lengthCm: item.lengthCm, widthCm: item.widthCm },
+      ),
       p_customer_name: normalized.customerName,
       p_customer_phone: normalized.customerPhone,
       p_governorate: normalized.governorate,

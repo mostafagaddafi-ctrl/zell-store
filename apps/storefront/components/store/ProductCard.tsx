@@ -1,5 +1,12 @@
 import Link from 'next/link'
-import { discountInfo, formatPiastres, primaryImage, type StoreProduct } from '@zell/core'
+import {
+  discountInfo,
+  formatPiastres,
+  lowestPricePerMeter,
+  primaryImage,
+  widthOptionsOf,
+  type StoreProduct,
+} from '@zell/core'
 import { shortBenefit } from '../../lib/productCopy'
 import { buttonClasses } from '../ui/Button'
 import { ImageSlot } from '../ui/ImageSlot'
@@ -11,7 +18,9 @@ import { Num } from './Num'
  */
 export function ProductCard({ product }: { product: StoreProduct }) {
   const preview = primaryImage(product)
-  const discount = discountInfo(product)
+  const multi = widthOptionsOf(product).length > 1
+  const discount = multi ? null : discountInfo(product)
+  const shownPrice = multi ? lowestPricePerMeter(product) : product.price_per_meter_piastres
 
   return (
     <Link
@@ -43,8 +52,9 @@ export function ProductCard({ product }: { product: StoreProduct }) {
 
         <div className="mt-auto space-y-3">
           <div>
+            {multi ? <span className="me-1 text-xs text-muted">من</span> : null}
             <p className="inline-block border-b-2 border-gold pb-0.5 text-lg font-extrabold text-fg sm:text-xl">
-              <Num>{formatPiastres(product.price_per_meter_piastres)}</Num>
+              <Num>{formatPiastres(shownPrice)}</Num>
             </p>
             {discount ? (
               <span className="ms-1.5 text-sm text-muted line-through">

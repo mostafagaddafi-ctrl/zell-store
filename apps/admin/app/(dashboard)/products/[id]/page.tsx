@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
 import { PageHeader } from '../../../../components/shell/PageHeader'
 import { ProductEditor } from '../../../../components/products/ProductEditor'
+import { WidthsEditor } from '../../../../components/products/WidthsEditor'
+import { readProductWidths } from '../../../../lib/mutations/productWidths'
 import { Badge } from '../../../../components/ui/Badge'
 import { Card } from '../../../../components/ui/Field'
 import { PreviewNotice } from '../../../../components/ui/PreviewNotice'
@@ -25,6 +27,7 @@ export default async function ProductPage({ params }: PageProps) {
   const { id } = await params
   const product = await adminData.getProduct(Number(id))
   if (!product) notFound()
+  const widths = await readProductWidths(product.id)
 
   // الأقسام اللي المنتج فيها — عرض بس، الربط من صفحة القسم
   const collections = await adminData.listCollections()
@@ -75,6 +78,15 @@ export default async function ProductPage({ params }: PageProps) {
       </Card>
 
       <ProductEditor product={product} />
+
+      <div className="mt-4">
+        <WidthsEditor
+          productId={product.id}
+          baseWidthCm={product.widthCm}
+          basePricePiastres={product.pricePerMeterPiastres}
+          initial={widths}
+        />
+      </div>
     </>
   )
 }

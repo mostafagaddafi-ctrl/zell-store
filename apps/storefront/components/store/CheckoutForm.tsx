@@ -13,6 +13,7 @@ import {
   formatPiastres,
   hasErrors,
   validateCheckout,
+  withWidth,
   type CheckoutValues,
   type StoreProduct,
   type StoreSettings,
@@ -154,7 +155,10 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   }, [products])
 
   const entries = cart.lines
-    .map((line) => ({ line, product: byId.get(line.productId) }))
+    .map((line) => {
+      const base = byId.get(line.productId)
+      return { line, product: base ? (withWidth(base, line.widthCm) ?? undefined) : undefined }
+    })
     .filter((entry): entry is { line: (typeof cart.lines)[number]; product: StoreProduct } => Boolean(entry.product))
 
   const subtotal = entries.reduce(
@@ -178,7 +182,12 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   const set = (patch: Partial<CheckoutValues>) => setValues({ ...values, ...patch })
   const show = (key: keyof typeof errors) => (touched ? errors[key] : undefined)
 
-  const items = entries.map((entry) => ({ productId: entry.product.id, lengthCm: entry.line.lengthCm }))
+  // 0015 — العرض بيتبعت بس لو مختار غير الأساسي؛ السعر الداتابيز هي اللي بتحسبه
+  const items = entries.map((entry) =>
+    entry.line.widthCm === undefined
+      ? { productId: entry.product.id, lengthCm: entry.line.lengthCm }
+      : { productId: entry.product.id, lengthCm: entry.line.lengthCm, widthCm: entry.line.widthCm },
+  )
 
   async function submit(): Promise<void> {
     setTouched(true)

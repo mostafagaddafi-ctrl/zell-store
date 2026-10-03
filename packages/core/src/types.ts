@@ -38,6 +38,8 @@ export type StoreProduct = ProductRules & {
   lock_width?: boolean
   /** 0014 — السعر قبل الخصم بالقرش (عرض بس). null = مفيش خصم. */
   compare_at_piastres?: number | null
+  /** 0015 — عروض رول إضافية (غير العرض الأساسي) بسعرها. فاضي/ناقص = عرض واحد. */
+  width_options?: WidthOption[]
 
   /** مصدر الصور المعتمد — مرتّب: الرئيسية الأول. */
   gallery: StoreImage[]
@@ -124,6 +126,8 @@ export type CartLine = {
   id: string
   productId: number
   lengthCm: number
+  /** 0015 — العرض المختار. ناقص = العرض الأساسي للمنتج. */
+  widthCm?: number
 }
 
 export type CheckoutValues = {
@@ -374,4 +378,48 @@ export function discountInfo(product: {
   const percent = Math.round((1 - price / compare) * 100)
   if (percent < 1) return null
   return { percent, savePiastres: compare - price, compareAtPiastres: compare }
+}
+
+// ── عروض الرول ─────────────────────────────────────────────────
+/**
+ * 0015 — المنتج ليه عرض أساسي (products.width_cm بسعره) + عروض إضافية من
+ * product_widths، كل واحد بسعر المتر بتاعه. zell_create_order بتسعّر من
+ * الداتابيز حسب العرض المختار — المتصفح مابيبعتش أسعار.
+ */
+export type WidthOption = {
+  width_cm: number
+  price_per_meter_piastres: number
+  compare_at_piastres: number | null
+}
+
+/** كل العروض المتاحة بالترتيب: الأساسي الأول، وبعده الإضافية. */
+export function widthOptionsOf(product: StoreProduct): WidthOption[] {
+  const base: WidthOption = {
+    width_cm: product.width_cm,
+    price_per_meter_piastres: product.price_per_meter_piastres,
+    compare_at_piastres: product.compare_at_piastres ?? null,
+  }
+  const extras = (product.width_options ?? []).filter((option) => option.width_cm !== product.width_cm)
+  return [base, ...extras]
+}
+
+/**
+ * المنتج بالعرض المختار (العرض والسعر والخصم بتوعه). العرض الناقص أو
+ * الأساسي = المنتج زي ما هو. عرض مش متاح = null.
+ */
+export function withWidth(product: StoreProduct, widthCm: number | undefined): StoreProduct | null {
+  if (widthCm === undefined || widthCm === product.width_cm) return product
+  const option = (product.width_options ?? []).find((item) => item.width_cm === widthCm)
+  if (!option) return null
+  return {
+    ...product,
+    width_cm: option.width_cm,
+    price_per_meter_piastres: option.price_per_meter_piastres,
+    compare_at_piastres: option.compare_at_piastres,
+  }
+}
+
+/** أقل سعر متر بين العروض — لـ«يبدأ من». */
+export function lowestPricePerMeter(product: StoreProduct): number {
+  return Math.min(...widthOptionsOf(product).map((option) => option.price_per_meter_piastres))
 }

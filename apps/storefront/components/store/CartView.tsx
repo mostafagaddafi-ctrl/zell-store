@@ -8,6 +8,8 @@ import {
   formatLength,
   formatPiastres,
   primaryImage,
+  widthOptionsOf,
+  withWidth,
   type StoreProduct,
 } from '@zell/core'
 import { useCart } from '../../lib/cart'
@@ -38,7 +40,9 @@ export function CartView({
   useEffect(() => {
     if (!cart.ready || pruned) return
     for (const line of cart.lines) {
-      if (!byId.has(line.productId)) cart.remove(line.id)
+      const base = byId.get(line.productId)
+      // 0015 — عرض اتشال أو اتوقف = الصنف مش متاح
+      if (!base || !withWidth(base, line.widthCm)) cart.remove(line.id)
     }
     setPruned(true)
   }, [cart, byId, pruned])
@@ -48,8 +52,18 @@ export function CartView({
   }
 
   const entries = cart.lines
-    .map((line) => ({ line, product: byId.get(line.productId) }))
-    .filter((entry): entry is { line: (typeof cart.lines)[number]; product: StoreProduct } => Boolean(entry.product))
+    .map((line) => {
+      const base = byId.get(line.productId)
+      return {
+        line,
+        product: base ? (withWidth(base, line.widthCm) ?? undefined) : undefined,
+        multi: base ? widthOptionsOf(base).length > 1 : false,
+      }
+    })
+    .filter(
+      (entry): entry is { line: (typeof cart.lines)[number]; product: StoreProduct; multi: boolean } =>
+        Boolean(entry.product),
+    )
 
   if (entries.length === 0) {
     return (
@@ -104,6 +118,13 @@ export function CartView({
                     </Link>
                     <p className="mt-0.5 text-xs text-muted">
                       <Num>{formatPiastres(entry.product.price_per_meter_piastres)}</Num> للمتر
+                      {entry.multi ? (
+                        <>
+                          {' · عرض '}
+                          <Num>{String(entry.product.width_cm)}</Num>
+                          {' سم'}
+                        </>
+                      ) : null}
                     </p>
                   </div>
 

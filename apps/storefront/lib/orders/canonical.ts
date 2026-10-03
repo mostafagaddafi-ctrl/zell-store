@@ -30,7 +30,7 @@ export type NormalizedOrder = {
   governorate: string
   address: string
   notes: string | null
-  items: Array<{ productId: number; lengthCm: number }>
+  items: Array<{ productId: number; lengthCm: number; widthCm?: number }>
 }
 
 /**
@@ -40,8 +40,12 @@ export type NormalizedOrder = {
 export function normalizeOrder(input: OrderRequest): NormalizedOrder {
   const notes = normalizeText(input.notes ?? '')
   const items = input.items
-    .map((item) => ({ productId: item.productId, lengthCm: item.lengthCm }))
-    .sort((a, b) => a.productId - b.productId || a.lengthCm - b.lengthCm)
+    .map((item) =>
+      item.widthCm === undefined
+        ? { productId: item.productId, lengthCm: item.lengthCm }
+        : { productId: item.productId, lengthCm: item.lengthCm, widthCm: item.widthCm },
+    )
+    .sort((a, b) => a.productId - b.productId || a.lengthCm - b.lengthCm || (a.widthCm ?? 0) - (b.widthCm ?? 0))
 
   return {
     customerName: normalizeText(input.customerName),
@@ -65,6 +69,9 @@ export function canonicalOrderJson(order: NormalizedOrder): string {
     order.governorate,
     order.address,
     order.notes,
-    order.items.map((item) => [item.productId, item.lengthCm]),
+    // 0015 — الصنف من غير عرض بيفضل بنفس الشكل القديم بالظبط
+    order.items.map((item) =>
+      item.widthCm === undefined ? [item.productId, item.lengthCm] : [item.productId, item.lengthCm, item.widthCm],
+    ),
   ])
 }

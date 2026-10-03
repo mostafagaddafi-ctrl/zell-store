@@ -51,6 +51,7 @@ import { saveShippingAreas } from './mutations/shippingAreas'
 import { saveHomeProducts } from './mutations/homeProducts'
 import type { HomeProducts } from '@zell/core'
 import { saveSocialLinks, type SocialLinksInput } from './mutations/socialLinks'
+import { saveProductWidths, type AdminWidth } from './mutations/productWidths'
 import { saveContent } from './mutations/content'
 import { setImageFit, setPrimaryImage } from './mutations/images'
 import { saveInternalNote, updateOrderStatus } from './mutations/orders'
@@ -418,4 +419,14 @@ export async function saveSocialLinksAction(input: SocialLinksInput): Promise<Mu
   const gate = guardMutations()
   if (gate) return gate
   return refreshAfter(await saveSocialLinks(input))
+}
+
+// ── عروض الرول (0015) ────────────────────────────────────────
+/** استبدال كل العروض الإضافية لمنتج — ذرّي عن طريق zell_set_product_widths. */
+export async function saveProductWidthsAction(productId: number, rows: AdminWidth[]): Promise<MutationResult<AdminWidth[]>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const gate = guardMutations()
+  if (gate) return gate
+  return refreshAfter(await saveProductWidths(productId, rows))
 }
