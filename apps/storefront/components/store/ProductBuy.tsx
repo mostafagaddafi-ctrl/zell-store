@@ -10,7 +10,6 @@ import { buttonClasses, Button } from '../ui/Button'
 import { Num } from './Num'
 import { GiftNote } from './GiftNote'
 import { SizePanel } from './SizePanel'
-import { WidthPicker } from './WidthPicker'
 
 /** gift: «نص العرض» لو ظاهر — بيظهر كهدية فوق زرار الإضافة. */
 export function ProductBuy({ product, gift = '' }: { product: StoreProduct; gift?: string }) {
@@ -44,20 +43,14 @@ export function ProductBuy({ product, gift = '' }: { product: StoreProduct; gift
 
   return (
     <div className="space-y-4">
-      <WidthPicker
-        options={options}
-        value={effective.width_cm}
-        onChange={(next) => {
+      {/* العرض جوه كارت المقاس نفسه — وتغييره بيعيد الحساب على نفس مقاس الشباك */}
+      <SizePanel
+        product={product}
+        widthCm={effective.width_cm}
+        onWidthChange={(next) => {
           setWidthCm(next)
-          setBlocked(false)
           setJustAdded(false)
         }}
-      />
-
-      {/* key: تغيير العرض بيعيد حساب الشرايح من الأول */}
-      <SizePanel
-        key={String(effective.width_cm)}
-        product={effective}
         lengthCm={lengthCm}
         onLengthChange={(next) => {
           setLengthCm(next)
@@ -87,6 +80,13 @@ export function ProductBuy({ product, gift = '' }: { product: StoreProduct; gift
           <p className="flex items-center gap-2 text-sm font-semibold text-fg">
             <Check className="h-4 w-4 text-accent" />
             اتضاف للسلة — <Num>{formatLength(lengthCm)}</Num>
+            {options.length > 1 ? (
+              <>
+                {' · عرض '}
+                <Num>{String(effective.width_cm)}</Num>
+                {' سم'}
+              </>
+            ) : null}
           </p>
           <Link href="/checkout" className={buttonClasses('primary', 'md', 'w-full')}>
             إتمام الطلب
