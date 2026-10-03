@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react'
 import {
-  computeSubtotalPiastres,
-  formatLength,
+  describeLine,
   formatPiastres,
+  isPiece,
+  lineTotalPiastres,
+  maxQuantityOf,
   primaryImage,
+  resolveCartLine,
   widthOptionsOf,
-  withWidth,
   type StoreProduct,
 } from '@zell/core'
 import { useCart } from '../../lib/cart'
@@ -42,7 +44,7 @@ export function CartView({
     for (const line of cart.lines) {
       const base = byId.get(line.productId)
       // 0015 — عرض اتشال أو اتوقف = الصنف مش متاح
-      if (!base || !withWidth(base, line.widthCm)) cart.remove(line.id)
+      if (!base || !resolveCartLine(base, line)) cart.remove(line.id)
     }
     setPruned(true)
   }, [cart, byId, pruned])
@@ -56,7 +58,7 @@ export function CartView({
       const base = byId.get(line.productId)
       return {
         line,
-        product: base ? (withWidth(base, line.widthCm) ?? undefined) : undefined,
+        product: base ? (resolveCartLine(base, line) ?? undefined) : undefined,
         multi: base ? widthOptionsOf(base).length > 1 : false,
       }
     })
@@ -78,7 +80,7 @@ export function CartView({
   }
 
   const subtotal = entries.reduce(
-    (sum, entry) => sum + computeSubtotalPiastres(entry.product.price_per_meter_piastres, entry.line.lengthCm),
+    (sum, entry) => sum + lineTotalPiastres(entry.product, entry.line),
     0,
   )
 
@@ -86,9 +88,16 @@ export function CartView({
     <div className="grid gap-6 lg:grid-cols-12 lg:gap-10">
       <ul className="space-y-3 lg:col-span-7">
         {entries.map((entry) => {
-          const lineTotal = computeSubtotalPiastres(entry.product.price_per_meter_piastres, entry.line.lengthCm)
+          const lineTotal = lineTotalPiastres(entry.product, entry.line)
           const preview = primaryImage(entry.product)
           const stepBy = (delta: number) => {
+            // 0016 — القطعة: العدد من ١ لأقصى عدد
+            if (isPiece(entry.product)) {
+              const next = (entry.line.quantity ?? 1) + delta
+              if (next < 1 || next > maxQuantityOf(entry.product)) return
+              cart.setQuantity(entry.line.id, next)
+              return
+            }
             const next = entry.line.lengthCm + delta * entry.product.step_cm
             if (next < entry.product.min_length_cm || next > entry.product.max_length_cm) return
             cart.setLength(entry.line.id, next)
@@ -117,7 +126,7 @@ export function CartView({
                       {entry.product.name_ar}
                     </Link>
                     <p className="mt-0.5 text-xs text-muted">
-                      <Num>{formatPiastres(entry.product.price_per_meter_piastres)}</Num> للمتر
+                      <Num>{formatPiastres(entry.product.price_per_meter_piastres)}</Num> {isPiece(entry.product) ? 'للقطعة' : 'للمتر'}
                       {entry.multi ? (
                         <>
                           {' · عرض '}
@@ -144,7 +153,7 @@ export function CartView({
                       <Minus className="h-4 w-4" />
                     </StepButton>
                     <span className="min-w-[5.5rem] text-center text-sm font-semibold text-fg">
-                      <Num>{formatLength(entry.line.lengthCm)}</Num>
+                      <Num>{describeLine(entry.product, entry.line)}</Num>
                     </span>
                     <StepButton onClick={() => stepBy(1)} label="زوّد">
                       <Plus className="h-4 w-4" />
