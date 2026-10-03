@@ -28,6 +28,9 @@ export type ProductRow = {
   width_cm: number
   lock_width: boolean
   compare_at_piastres: number | null
+  sale_unit?: string
+  is_listed?: boolean
+  max_quantity?: number
   min_length_cm: number
   step_cm: number
   max_length_cm: number
@@ -128,10 +131,12 @@ export type OrderRow = {
 export type OrderItemRow = {
   order_id: number
   product_name_ar: string
-  length_cm: number
-  width_cm: number
+  length_cm: number | null
+  width_cm: number | null
   unit_price_piastres: number
   line_total_piastres: number
+  sale_unit?: string
+  quantity?: number
 }
 
 export type SettingRow = { key: string; value: unknown; updated_at?: string | null }
@@ -163,6 +168,9 @@ export function toAdminProduct(row: ProductRow, imageCount: number): AdminProduc
     widthCm: row.width_cm,
     lockWidth: row.lock_width === true,
     compareAtPiastres: typeof row.compare_at_piastres === 'number' ? row.compare_at_piastres : null,
+    saleUnit: row.sale_unit === 'piece' ? 'piece' : 'meter',
+    isListed: row.is_listed !== false,
+    maxQuantity: typeof row.max_quantity === 'number' ? row.max_quantity : 20,
     minLengthCm: row.min_length_cm,
     stepCm: row.step_cm,
     maxLengthCm: row.max_length_cm,
@@ -276,6 +284,8 @@ export function toAdminOrderItem(row: OrderItemRow): AdminOrderItem {
     widthCm: row.width_cm,
     unitPricePiastres: row.unit_price_piastres,
     lineTotalPiastres: row.line_total_piastres,
+    saleUnit: row.sale_unit === 'piece' ? 'piece' : 'meter',
+    quantity: typeof row.quantity === 'number' ? row.quantity : 1,
   }
 }
 
