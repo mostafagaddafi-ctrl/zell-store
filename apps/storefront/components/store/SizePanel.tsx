@@ -107,7 +107,7 @@ export function SizePanel({
         </ModeButton>
         <ModeButton active={mode === 'length'} onClick={() => switchMode('length')}>
           <Ruler className="h-4 w-4" />
-          بالمتر
+          بالطول (متر)
         </ModeButton>
       </div>
 
@@ -159,6 +159,12 @@ export function SizePanel({
             </StepButton>
           </div>
 
+          {/* الطول لوحده كان بيلخبط: من رول عرضه كام؟ */}
+          <p className="rounded-lg bg-bg px-3 py-2 text-xs leading-relaxed text-muted">
+            الطول ده لشريط فيلم عرضه <Num>{String(product.width_cm)}</Num> سم. مش متأكد من الطول؟ اختار «بمقاس الشباك»
+            واكتب المقاس بالسنتيمتر وإحنا نحسب.
+          </p>
+
           {options.length > 0 ? (
             <div className="space-y-1.5">
               <label htmlFor="exact-length" className="block text-sm font-semibold text-fg">
@@ -193,6 +199,14 @@ export function SizePanel({
             {mode === 'window' && strips > 0 && !widthLocked ? (
               <SummaryRow label="عدد الشرايح" value={<Num>{String(strips)}</Num>} />
             ) : null}
+            <SummaryRow
+              label="عرض الرول"
+              value={
+                <>
+                  <Num>{String(product.width_cm)}</Num> سم
+                </>
+              }
+            />
             <SummaryRow label="الطول المطلوب" value={<Num>{formatLength(lengthCm)}</Num>} />
             <SummaryRow label="السعر" value={<Num>{formatPiastres(price)}</Num>} strong />
           </dl>
