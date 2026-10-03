@@ -127,7 +127,9 @@ export function SizePanel({
   return (
     <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
       <h2 className="text-base font-bold text-fg">حدد المقاس</h2>
-      <p className="mt-1 text-xs text-muted">بتقيس بالسنتيمتر، وبتدفع بالمتر — وإحنا بنحسب.</p>
+      <p className="mt-1 text-xs leading-relaxed text-muted">
+        قيس المكان اللي هيتركّب عليه الفيلم — شباك، باب، قزاز، مراية — بالسنتيمتر، وإحنا نحسب كام متر محتاج.
+      </p>
 
       {widths.length > 1 ? (
         <div className="mt-4">
@@ -159,25 +161,15 @@ export function SizePanel({
         </div>
       ) : null}
 
-      <div className="mt-4 grid grid-cols-2 gap-1 rounded-lg bg-bg p-1">
-        <ModeButton active={mode === 'window'} onClick={() => switchMode('window')}>
-          <Maximize className="h-4 w-4" />
-          بمقاس الشباك (سم)
-        </ModeButton>
-        <ModeButton active={mode === 'length'} onClick={() => switchMode('length')}>
-          <Ruler className="h-4 w-4" />
-          بالطول (متر)
-        </ModeButton>
-      </div>
 
       {mode === 'window' ? (
         <div className="mt-4 grid grid-cols-2 gap-3">
           {widthLocked ? (
-            <LockedCm id="window-width" label="عرض الشباك" value={String(current.width_cm)} />
+            <LockedCm id="window-width" label="العرض" value={String(current.width_cm)} />
           ) : (
             <CmInput
               id="window-width"
-              label="عرض الشباك"
+              label="العرض"
               placeholder="120"
               value={width}
               onChange={(next) => {
@@ -188,7 +180,7 @@ export function SizePanel({
           )}
           <CmInput
             id="window-height"
-            label="ارتفاع الشباك"
+            label="الارتفاع"
             placeholder="150"
             value={height}
             onChange={(next) => {
@@ -219,8 +211,8 @@ export function SizePanel({
           </div>
 
           <p className="rounded-lg bg-bg px-3 py-2 text-xs leading-relaxed text-muted">
-            الطول ده لشريط فيلم عرضه <Num>{String(current.width_cm)}</Num> سم. مش متأكد؟ اختار «بمقاس الشباك» واكتب
-            المقاس بالسنتيمتر وإحنا نحسب.
+            الطول ده لشريط فيلم عرضه <Num>{String(current.width_cm)}</Num> سم. مش متأكد؟ ارجع للمقاس واكتبه
+            بالسنتيمتر وإحنا نحسب.
           </p>
 
           {options.length > 0 ? (
@@ -244,6 +236,25 @@ export function SizePanel({
           ) : null}
         </div>
       )}
+
+      {/* المقاس بالسم هو الطريق الأساسي — المتر لينك صغير للي عارف الطول */}
+      <button
+        type="button"
+        onClick={() => switchMode(mode === 'window' ? 'length' : 'window')}
+        className="mt-3 inline-flex items-center gap-1.5 rounded px-1 py-1 text-sm font-semibold text-brand hover:underline"
+      >
+        {mode === 'window' ? (
+          <>
+            <Ruler className="h-4 w-4" />
+            عارف الطول اللي محتاجه بالمتر؟
+          </>
+        ) : (
+          <>
+            <Maximize className="h-4 w-4" />
+            ارجع للمقاس بالسنتيمتر
+          </>
+        )}
+      </button>
 
       {/* نتيجة الحساب */}
       <div className="mt-4">
@@ -298,8 +309,8 @@ export function SizePanel({
       {mode === 'window' && !error && strips === 0 ? (
         <p className="mt-2 text-xs text-muted">
           {widthLocked
-            ? 'اكتب ارتفاع الشباك بالسنتيمتر وإحنا نحسب الطول المطلوب.'
-            : 'اكتب عرض وارتفاع الشباك بالسنتيمتر وإحنا نحسب عدد الشرايح والطول.'}
+            ? 'اكتب الارتفاع بالسنتيمتر وإحنا نحسب الطول المطلوب.'
+            : 'اكتب العرض والارتفاع بالسنتيمتر وإحنا نحسب عدد الشرايح والطول.'}
         </p>
       ) : null}
     </div>
@@ -322,29 +333,6 @@ function SummaryRow({
         {value}
       </dd>
     </div>
-  )
-}
-
-function ModeButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'flex h-11 items-center justify-center gap-2 rounded text-sm font-semibold transition-colors',
-        active ? 'bg-card text-fg shadow-card' : 'text-muted hover:text-fg',
-      )}
-    >
-      {children}
-    </button>
   )
 }
 
