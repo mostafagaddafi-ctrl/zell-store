@@ -164,9 +164,13 @@ export function SizePanel({
 
 
       {mode === 'window' ? (
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className={cn('mt-4 grid gap-3', widthLocked ? 'grid-cols-1' : 'grid-cols-2')}>
+          {/* متثبّت: مفيش خانة عرض خالص — العرض = الرول المختار، والزبون بيكتب الارتفاع بس */}
           {widthLocked ? (
-            <LockedCm id="window-width" label="عرض المكان" value={String(current.width_cm)} />
+            <p className="flex items-center gap-1.5 rounded-lg bg-bg px-3 py-2 text-xs text-muted">
+              <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              العرض ثابت على عرض الرول (<Num>{String(current.width_cm)}</Num> سم) — اكتب الارتفاع بس.
+            </p>
           ) : (
             <CmInput
               id="window-width"
@@ -402,33 +406,6 @@ function CmInput({
           سم
         </span>
       </div>
-    </div>
-  )
-}
-
-/** خانة عرض مقفولة — العرض متثبّت من اللوحة للمنتج ده. */
-function LockedCm({ id, label, value }: { id: string; label: string; value: string }) {
-  return (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-sm font-semibold text-fg">
-        {label}
-      </label>
-      <div className="relative">
-        <input
-          id={id}
-          type="text"
-          value={value}
-          readOnly
-          aria-readonly="true"
-          tabIndex={-1}
-          className={cn(inputClasses, 'cursor-not-allowed bg-bg pl-14 text-muted')}
-        />
-        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center gap-1 text-xs text-muted">
-          <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-          سم
-        </span>
-      </div>
-      <p className="text-xs text-muted">= عرض الرول اللي اخترته</p>
     </div>
   )
 }
