@@ -61,8 +61,13 @@ function isReceipt(value: unknown): value is Receipt {
     if (typeof entry !== 'object' || entry === null) return false
     const item = entry as Record<string, unknown>
     if (typeof item['product_name_ar'] !== 'string') return false
-    if (!isFiniteInteger(item['length_cm'])) return false
-    if (!isFiniteInteger(item['width_cm'])) return false
+    // 0016 — سطر القطعة: عدد من غير طول/عرض
+    if (item['sale_unit'] === 'piece') {
+      if (!isFiniteInteger(item['quantity'])) return false
+    } else {
+      if (!isFiniteInteger(item['length_cm'])) return false
+      if (!isFiniteInteger(item['width_cm'])) return false
+    }
     if (!isFiniteInteger(item['line_total_piastres'])) return false
   }
 
@@ -172,7 +177,11 @@ export default async function OrderReceiptPage({
               <div className="min-w-0">
                 <p className="truncate font-semibold text-fg">{item.product_name_ar}</p>
                 <p className="text-xs text-muted">
-                  <Num>{formatLength(item.length_cm)}</Num>
+                  <Num>
+                    {item.sale_unit === 'piece'
+                      ? String(item.quantity ?? 1) + ' قطعة'
+                      : formatLength(item.length_cm ?? 0)}
+                  </Num>
                 </p>
               </div>
               <span className="shrink-0 font-semibold text-fg">
