@@ -5,11 +5,14 @@
  *    السر الخام بيتسلّم في Set-Cookie بس، في نفس استجابة POST /api/orders.
  */
 
+/** صنف متر (lengthCm ± widthCm) أو صنف قطعة (quantity) — واحد بس منهم. */
 export type OrderItemInput = {
   productId: number
-  lengthCm: number
+  lengthCm?: number
   /** 0015 — العرض المختار؛ ناقص = العرض الأساسي. */
   widthCm?: number
+  /** 0016 — عدد القطع لمنتج القطعة. */
+  quantity?: number
 }
 
 export type OrderRequest = {
@@ -59,9 +62,12 @@ export type CreateOrderResult = {
 /** إسقاط الإيصال المقنّع — zell_get_order_receipt. */
 export type ReceiptItem = {
   product_name_ar: string
-  length_cm: number
-  width_cm: number
+  length_cm: number | null
+  width_cm: number | null
   line_total_piastres: number
+  /** 0016 */
+  quantity?: number
+  sale_unit?: string
 }
 
 export type Receipt = {
