@@ -32,6 +32,7 @@ const EMPTY = {
   pricePounds: '0',
   widthCm: '50',
   lockWidth: false,
+  comparePounds: '',
   minLengthCm: '300',
   stepCm: '50',
   maxLengthCm: '3000',
@@ -60,6 +61,7 @@ export function ProductEditor({
           pricePounds: piastresToPounds(product.pricePerMeterPiastres),
           widthCm: String(product.widthCm),
           lockWidth: product.lockWidth,
+          comparePounds: product.compareAtPiastres ? piastresToPounds(product.compareAtPiastres) : '',
           minLengthCm: String(product.minLengthCm),
           stepCm: String(product.stepCm),
           maxLengthCm: String(product.maxLengthCm),
@@ -101,6 +103,7 @@ export function ProductEditor({
       pricePounds: piastresToPounds(product.pricePerMeterPiastres),
       widthCm: String(product.widthCm),
       lockWidth: product.lockWidth,
+      comparePounds: product.compareAtPiastres ? piastresToPounds(product.compareAtPiastres) : '',
       minLengthCm: String(product.minLengthCm),
       stepCm: String(product.stepCm),
       maxLengthCm: String(product.maxLengthCm),
@@ -137,6 +140,7 @@ export function ProductEditor({
       pricePerMeterPiastres: poundsToPiastres(draft.pricePounds),
       widthCm: Number(draft.widthCm),
       lockWidth: draft.lockWidth,
+      compareAtPiastres: draft.comparePounds.trim() === '' ? null : poundsToPiastres(draft.comparePounds),
       minLengthCm: Number(draft.minLengthCm),
       stepCm: Number(draft.stepCm),
       maxLengthCm: Number(draft.maxLengthCm),
@@ -169,6 +173,30 @@ export function ProductEditor({
     width_cm: Number(form.widthCm),
   }
   const rulesCheck = validateRules(rules)
+
+  // الخصم — عرض بس: الزبون بيدفع «سعر المتر»، و«السعر قبل الخصم» بيظهر مشطوب
+  const comparePiastres = form.comparePounds.trim() === '' ? 0 : poundsToPiastres(form.comparePounds)
+  const discountPercent =
+    comparePiastres > rules.price_per_meter_piastres && rules.price_per_meter_piastres > 0
+      ? Math.round((1 - rules.price_per_meter_piastres / comparePiastres) * 100)
+      : 0
+  const discountError =
+    form.comparePounds.trim() !== '' && comparePiastres <= rules.price_per_meter_piastres
+      ? 'لازم يكون أكبر من سعر المتر — أو سيبه فاضي'
+      : undefined
+
+  /** خصم سريع: الأساس = السعر قبل الخصم لو موجود، وإلا السعر الحالي. */
+  function applyPercent(percent: number) {
+    const basePounds = comparePiastres > 0 ? comparePiastres / 100 : poundsToPiastres(form.pricePounds) / 100
+    if (basePounds <= 0) return
+    const next = Math.max(1, Math.round(basePounds * (1 - percent / 100)))
+    set({ comparePounds: String(basePounds), pricePounds: String(next) })
+  }
+
+  function removeDiscount() {
+    if (comparePiastres > 0) set({ pricePounds: String(comparePiastres / 100), comparePounds: '' })
+    else set({ comparePounds: '' })
+  }
 
   return (
     <div>
@@ -298,6 +326,54 @@ export function ProductEditor({
                 {rulesCheck.message}
               </p>
             ) : null}
+          </Card>
+
+          <Card title="الخصم">
+            <div className="space-y-3">
+              <p className="text-xs text-muted">
+                الزبون بيدفع «سعر المتر» بس. «السعر قبل الخصم» بيظهر مشطوب جنبه، وعلى المنتج علامة بنسبة الخصم.
+              </p>
+              <Field
+                htmlFor="compare"
+                label="السعر قبل الخصم (ج.م)"
+                hint="فاضي = مفيش خصم"
+                error={discountError}
+              >
+                <input
+                  id="compare"
+                  type="number"
+                  min={0}
+                  value={form.comparePounds}
+                  onChange={(e) => set({ comparePounds: e.target.value })}
+                  className={inputClasses}
+                  placeholder="مثلًا 200"
+                />
+              </Field>
+              <div>
+                <p className="mb-1.5 text-xs font-semibold text-fg">خصم سريع</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[10, 15, 20, 25].map((percent) => (
+                    <Button key={percent} variant="secondary" size="sm" onClick={() => applyPercent(percent)}>
+                      {String(percent) + '٪'}
+                    </Button>
+                  ))}
+                  {form.comparePounds.trim() !== '' ? (
+                    <Button variant="ghost" size="sm" onClick={removeDiscount}>
+                      شيل الخصم
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+              {discountPercent > 0 ? (
+                <p className="rounded border border-border bg-bg p-2 text-xs text-fg">
+                  {'الزبون هيشوف: خصم ' + String(discountPercent) + '٪ — '}
+                  <span className="text-muted line-through">{formatPiastres(comparePiastres)}</span>
+                  {' ← '}
+                  <span className="font-bold">{formatPiastres(rules.price_per_meter_piastres)}</span>
+                  {' للمتر'}
+                </p>
+              ) : null}
+            </div>
           </Card>
 
           <Card title="معاينة الحساب">
