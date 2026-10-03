@@ -77,16 +77,17 @@ export default async function ProductPage({ params }: PageProps) {
         )}
       </Card>
 
-      <ProductEditor product={product} />
-
-      <div className="mt-4">
-        <WidthsEditor
-          productId={product.id}
-          baseWidthCm={product.widthCm}
-          basePricePiastres={product.pricePerMeterPiastres}
-          initial={widths}
-        />
-      </div>
+      <ProductEditor
+        product={product}
+        widthsSlot={
+          <WidthsEditor
+            productId={product.id}
+            baseWidthCm={product.widthCm}
+            basePricePiastres={product.pricePerMeterPiastres}
+            initial={widths}
+          />
+        }
+      />
     </>
   )
 }
