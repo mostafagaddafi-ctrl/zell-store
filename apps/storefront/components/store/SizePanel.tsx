@@ -158,6 +158,7 @@ export function SizePanel({
               )
             })}
           </div>
+          <p className="mt-1.5 text-xs text-muted">ده عرض الفيلم نفسه (الشريحة الواحدة). لو المكان أعرض منه، بنقسمه شرايح.</p>
         </div>
       ) : null}
 
@@ -165,11 +166,11 @@ export function SizePanel({
       {mode === 'window' ? (
         <div className="mt-4 grid grid-cols-2 gap-3">
           {widthLocked ? (
-            <LockedCm id="window-width" label="العرض" value={String(current.width_cm)} />
+            <LockedCm id="window-width" label="عرض المكان" value={String(current.width_cm)} />
           ) : (
             <CmInput
               id="window-width"
-              label="العرض"
+              label="عرض المكان"
               placeholder="120"
               value={width}
               onChange={(next) => {
@@ -180,7 +181,7 @@ export function SizePanel({
           )}
           <CmInput
             id="window-height"
-            label="الارتفاع"
+            label="ارتفاع المكان"
             placeholder="150"
             value={height}
             onChange={(next) => {
@@ -236,6 +237,13 @@ export function SizePanel({
           ) : null}
         </div>
       )}
+
+      {/* المكان أعرض من الرول = شرايح — بيتقال على طول عشان مايبانش تناقض */}
+      {mode === 'window' && !widthLocked && !error && strips > 1 ? (
+        <p className="mt-2 rounded-lg border border-brand/30 bg-brand/5 px-3 py-2 text-xs text-fg">
+          المكان أعرض من الرول — هيتقسم <Num>{String(strips)}</Num> شرايح، كل واحدة <Num>{String(current.width_cm)}</Num> سم.
+        </p>
+      ) : null}
 
       {/* المقاس بالسم هو الطريق الأساسي — المتر لينك صغير للي عارف الطول */}
       <button
@@ -420,7 +428,7 @@ function LockedCm({ id, label, value }: { id: string; label: string; value: stri
           سم
         </span>
       </div>
-      <p className="text-xs text-muted">العرض ثابت للمنتج ده</p>
+      <p className="text-xs text-muted">= عرض الرول اللي اخترته</p>
     </div>
   )
 }
