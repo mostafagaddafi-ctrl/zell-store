@@ -22,9 +22,12 @@ const TIME_ZONE = 'Africa/Cairo'
 
 type NotifyItem = {
   product_name_ar: string
-  length_cm: number
-  width_cm: number
+  length_cm: number | null
+  width_cm: number | null
   line_total_piastres: number
+  /** 0016 */
+  sale_unit?: string
+  quantity?: number
 }
 
 type NotifyOrder = {
@@ -45,7 +48,7 @@ type NotifyOrder = {
 const ORDER_SELECT =
   'id,order_number,customer_name,customer_phone,governorate,address,notes,' +
   'subtotal_piastres,shipping_piastres,total_piastres,created_at,' +
-  'order_items(product_name_ar,length_cm,width_cm,line_total_piastres)'
+  'order_items(product_name_ar,length_cm,width_cm,line_total_piastres,sale_unit,quantity)'
 
 /** تهريب HTML لكل قيمة — parse_mode: 'HTML' (§7.3). */
 function escapeHtml(value: string): string {
@@ -89,7 +92,9 @@ function buildMessage(order: NotifyOrder): string {
   for (const item of order.order_items) {
     lines.push(
       '• ' + escapeHtml(item.product_name_ar) +
-        ' — ' + String(item.length_cm) + ' سم × ' + String(item.width_cm) + ' سم' +
+        (item.sale_unit === 'piece'
+          ? ' × ' + String(item.quantity ?? 1) + ' قطعة'
+          : ' — ' + String(item.length_cm) + ' سم × ' + String(item.width_cm) + ' سم') +
         ' = ' + escapeHtml(money(item.line_total_piastres)),
     )
   }
