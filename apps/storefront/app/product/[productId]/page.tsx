@@ -2,8 +2,17 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight, Check } from 'lucide-react'
-import { discountInfo, formatLength, formatPiastres, lowestPricePerMeter, widthOptionsOf } from '@zell/core'
+import {
+  discountInfo,
+  formatLength,
+  formatPiastres,
+  isPiece,
+  lowestPricePerMeter,
+  widthOptionsOf,
+  type StoreProduct,
+} from '@zell/core'
 import { Num } from '../../../components/store/Num'
+import { PieceBuy } from '../../../components/store/PieceBuy'
 import { ProductBuy } from '../../../components/store/ProductBuy'
 import { ProductGallery } from '../../../components/store/ProductGallery'
 import { Container } from '../../../components/ui/Container'
@@ -41,8 +50,14 @@ export default async function ProductPage({ params }: PageProps) {
   const discount = multi ? null : discountInfo(product)
   const shownPrice = multi ? lowestPricePerMeter(product) : product.price_per_meter_piastres
   // الهدية من «نص العرض» — نفس البيانات المكاشة، مفيش طلب زيادة
-  const { settings } = await getStorefrontData()
+  const { settings, products: catalog } = await getStorefrontData()
   const gift = settings.offerEnabled ? settings.offerText : ''
+  // 0016 — منتج القطعة: عدد بدل مقاسات. منتج المتر: إضافاته (قطع نشطة) بالترتيب.
+  const piece = isPiece(product)
+  const addons = (product.addon_ids ?? [])
+    .map((id) => catalog.find((item) => item.id === id))
+    .filter((item): item is StoreProduct => item !== undefined && isPiece(item))
+  const widths = widthOptionsOf(product)
 
   return (
     <Container className="py-6 md:py-10">
@@ -77,11 +92,11 @@ export default async function ProductPage({ params }: PageProps) {
                   <Num>{formatPiastres(discount.compareAtPiastres)}</Num>
                 </span>
               ) : null}
-              <span className="ms-2 text-sm text-muted">للمتر الطولي</span>
+              <span className="ms-2 text-sm text-muted">{piece ? 'للقطعة' : 'للمتر الطولي'}</span>
               {discount ? (
                 <p className="mt-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-brand px-3 py-1 text-xs font-bold text-brand-fg">
-                    خصم <Num>{String(discount.percent)}</Num>٪ · وفّر <Num>{formatPiastres(discount.savePiastres)}</Num> في المتر
+                    خصم <Num>{String(discount.percent)}</Num>٪ · وفّر <Num>{formatPiastres(discount.savePiastres)}</Num> {piece ? 'في القطعة' : 'في المتر'}
                   </span>
                 </p>
               ) : null}
@@ -102,15 +117,21 @@ export default async function ProductPage({ params }: PageProps) {
               </ul>
             ) : null}
 
-            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3">
-              <Spec label="عرض الرول" value={String(product.width_cm) + ' سم'} />
-              <Spec label="أقل طلب" value={formatLength(product.min_length_cm)} />
-              <Spec label="الزيادة بخطوة" value={formatLength(product.step_cm)} />
-            </dl>
+            {/* المواصفات: كل عروض الرول + أقل طلب. القطعة مالهاش مقاسات. */}
+            {piece ? null : (
+              <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
+                <Spec label={widths.length > 1 ? 'عروض الرول' : 'عرض الرول'} value={widths.map((option) => String(option.width_cm)).join(' / ') + ' سم'} />
+                <Spec label="أقل طلب" value={formatLength(product.min_length_cm)} />
+              </dl>
+            )}
           </section>
 
           {/* ٣ + ٤ — اختيار المقاس والإضافة للسلة */}
-          <ProductBuy product={product} gift={gift} />
+          {piece ? (
+            <PieceBuy product={product} />
+          ) : (
+            <ProductBuy product={product} gift={gift} addons={addons} addonsTitle={settings.addonsTitle} />
+          )}
         </div>
       </div>
     </Container>
