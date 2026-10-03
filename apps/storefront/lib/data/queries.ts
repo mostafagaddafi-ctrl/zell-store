@@ -1,6 +1,6 @@
 import 'server-only'
 
-import type { StoreCollection, StoreProduct, StoreSettings } from '@zell/core'
+import { isListed, type StoreCollection, type StoreProduct, type StoreSettings } from '@zell/core'
 import {
   PUBLIC_SETTING_KEYS,
   toStoreCollections,
@@ -15,6 +15,8 @@ import {
   type SiteImageRow,
   attachWidths,
   type ProductWidthRow,
+  attachAddons,
+  type ProductAddonRow,
 } from './mappers'
 import { restGet, supabaseProjectUrl } from './supabaseServer'
 
@@ -35,6 +37,9 @@ const PRODUCT_COLUMNS = [
   'width_cm',
   'lock_width',
   'compare_at_piastres',
+  'sale_unit',
+  'is_listed',
+  'max_quantity',
   'min_length_cm',
   'step_cm',
   'max_length_cm',
@@ -101,7 +106,7 @@ export async function fetchStorefrontFromSupabase(): Promise<{
 }> {
   const supabaseUrl = supabaseProjectUrl()
 
-  const [productRows, imageRows, settingRows, siteImageRows, collectionRows, linkRows, widthRows] = await Promise.all([
+  const [productRows, imageRows, settingRows, siteImageRows, collectionRows, linkRows, widthRows, addonRows] = await Promise.all([
     restGet<ProductRow>(
       'products',
       'select=' + PRODUCT_COLUMNS + '&is_active=eq.true&order=sort_order.asc,id.asc',
@@ -143,6 +148,12 @@ export async function fetchStorefrontFromSupabase(): Promise<{
       'select=product_id,width_cm,price_per_meter_piastres,compare_at_piastres&is_active=eq.true&order=sort_order.asc,width_cm.asc',
       REVALIDATE_SECONDS,
     ),
+    // 0016 — إضافات كل منتج (منتجات قطعة)
+    restGet<ProductAddonRow>(
+      'product_addons',
+      'select=product_id,addon_id,sort_order&order=sort_order.asc',
+      REVALIDATE_SECONDS,
+    ),
   ])
 
   // متجر بصفر منتجات عطل مش حالة طبيعية — نفشل بوضوح بدل ما نعرض صفحة فاضية
@@ -150,7 +161,7 @@ export async function fetchStorefrontFromSupabase(): Promise<{
     throw new Error('مفيش منتجات نشطة راجعة من الداتابيز')
   }
 
-  const products = attachWidths(toStoreProducts(productRows, imageRows, supabaseUrl), widthRows)
+  const products = attachAddons(attachWidths(toStoreProducts(productRows, imageRows, supabaseUrl), widthRows), addonRows)
 
   // الإعدادات الأول عشان نعرف اسم المتجر كبديل لنص اللوجو
   const baseSettings = toStoreSettings(settingRows, null)
@@ -161,7 +172,8 @@ export async function fetchStorefrontFromSupabase(): Promise<{
   const heroImage = heroRow ? toStoreSiteImage(heroRow, supabaseUrl, 'صورة الواجهة') : null
 
   // المنتجات الظاهرة بس — منتج متوقّف لازم يختفي من المجموعة كمان
-  const collections = toStoreCollections(collectionRows, linkRows, products, supabaseUrl)
+  // 0016 — منتج مش ظاهر في القوايم (إضافة) مايظهرش في الأقسام كمان
+  const collections = toStoreCollections(collectionRows, linkRows, products.filter(isListed), supabaseUrl)
 
   return { products, settings: { ...baseSettings, logo, heroImage }, collections }
 }
