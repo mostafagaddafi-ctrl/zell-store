@@ -28,6 +28,12 @@ function readStorage(): CartLine[] {
         lengthCm: line.lengthCm as number,
       }
       // 0015 — العرض اختياري؛ أي قيمة مش رقم صحيح موجب بتتشال
+      // 0016 — سطر القطعة: عدد صحيح موجب
+      const quantity = line.quantity
+      if (typeof quantity === 'number' && Number.isInteger(quantity) && quantity > 0) {
+        out.push({ ...base, quantity: Math.min(quantity, 999) })
+        continue
+      }
       const widthCm = line.widthCm
       out.push(typeof widthCm === 'number' && Number.isInteger(widthCm) && widthCm > 0 ? { ...base, widthCm } : base)
     }
@@ -45,6 +51,9 @@ type CartApi = {
   /** widthCm: العرض المختار — ناقص = العرض الأساسي. */
   add: (productId: number, lengthCm: number, widthCm?: number) => void
   setLength: (id: string, lengthCm: number) => void
+  /** 0016 — قطعة: لو موجودة في السلة العدد بيزيد (لحد max). */
+  addPiece: (productId: number, quantity: number, max: number) => void
+  setQuantity: (id: string, quantity: number) => void
   remove: (id: string) => void
   removeByProduct: (productId: number) => void
   clear: () => void
@@ -78,6 +87,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
     ])
   }, [])
 
+  const addPiece = useCallback((productId: number, quantity: number, max: number) => {
+    setLines((prev) => {
+      const existing = prev.find((line) => line.productId === productId && line.quantity !== undefined)
+      if (existing) {
+        return prev.map((line) =>
+          line.id === existing.id ? { ...line, quantity: Math.min(max, (line.quantity ?? 0) + quantity) } : line,
+        )
+      }
+      return [...prev, { id: newId(), productId, lengthCm: 0, quantity: Math.min(max, quantity) }]
+    })
+  }, [])
+
+  const setQuantity = useCallback((id: string, quantity: number) => {
+    setLines((prev) => prev.map((line) => (line.id === id ? { ...line, quantity } : line)))
+  }, [])
+
   const setLength = useCallback((id: string, lengthCm: number) => {
     setLines((prev) => prev.map((line) => (line.id === id ? { ...line, lengthCm } : line)))
   }, [])
@@ -93,8 +118,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const clear = useCallback(() => setLines([]), [])
 
   const value = useMemo<CartApi>(
-    () => ({ lines, ready, count: lines.length, add, setLength, remove, removeByProduct, clear }),
-    [lines, ready, add, setLength, remove, removeByProduct, clear],
+    () => ({ lines, ready, count: lines.length, add, setLength, addPiece, setQuantity, remove, removeByProduct, clear }),
+    [lines, ready, add, setLength, addPiece, setQuantity, remove, removeByProduct, clear],
   )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
