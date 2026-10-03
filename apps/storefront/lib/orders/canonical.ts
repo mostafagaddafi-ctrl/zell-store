@@ -30,7 +30,7 @@ export type NormalizedOrder = {
   governorate: string
   address: string
   notes: string | null
-  items: Array<{ productId: number; lengthCm: number; widthCm?: number }>
+  items: Array<{ productId: number; lengthCm?: number; widthCm?: number; quantity?: number }>
 }
 
 /**
@@ -40,12 +40,20 @@ export type NormalizedOrder = {
 export function normalizeOrder(input: OrderRequest): NormalizedOrder {
   const notes = normalizeText(input.notes ?? '')
   const items = input.items
-    .map((item) =>
-      item.widthCm === undefined
-        ? { productId: item.productId, lengthCm: item.lengthCm }
-        : { productId: item.productId, lengthCm: item.lengthCm, widthCm: item.widthCm },
+    .map((item): { productId: number; lengthCm?: number; widthCm?: number; quantity?: number } =>
+      item.quantity !== undefined
+        ? { productId: item.productId, quantity: item.quantity }
+        : item.widthCm === undefined
+          ? { productId: item.productId, lengthCm: item.lengthCm ?? 0 }
+          : { productId: item.productId, lengthCm: item.lengthCm ?? 0, widthCm: item.widthCm },
     )
-    .sort((a, b) => a.productId - b.productId || a.lengthCm - b.lengthCm || (a.widthCm ?? 0) - (b.widthCm ?? 0))
+    .sort(
+      (a, b) =>
+        a.productId - b.productId ||
+        (a.lengthCm ?? 0) - (b.lengthCm ?? 0) ||
+        (a.widthCm ?? 0) - (b.widthCm ?? 0) ||
+        (a.quantity ?? 0) - (b.quantity ?? 0),
+    )
 
   return {
     customerName: normalizeText(input.customerName),
@@ -70,8 +78,13 @@ export function canonicalOrderJson(order: NormalizedOrder): string {
     order.address,
     order.notes,
     // 0015 — الصنف من غير عرض بيفضل بنفس الشكل القديم بالظبط
+    // 0016 — القطعة بعلامة 'q' عشان ماتتلخبطش مع [منتج، طول، عرض]
     order.items.map((item) =>
-      item.widthCm === undefined ? [item.productId, item.lengthCm] : [item.productId, item.lengthCm, item.widthCm],
+      item.quantity !== undefined
+        ? [item.productId, 'q', item.quantity]
+        : item.widthCm === undefined
+          ? [item.productId, item.lengthCm ?? 0]
+          : [item.productId, item.lengthCm ?? 0, item.widthCm],
     ),
   ])
 }
