@@ -40,6 +40,14 @@ export type StoreProduct = ProductRules & {
   compare_at_piastres?: number | null
   /** 0015 — عروض رول إضافية (غير العرض الأساسي) بسعرها. فاضي/ناقص = عرض واحد. */
   width_options?: WidthOption[]
+  /** 0016 — طريقة البيع. ناقص = بالمتر. */
+  sale_unit?: SaleUnit
+  /** 0016 — يظهر في الرئيسية والأقسام و«كل المنتجات». ناقص = ظاهر. */
+  is_listed?: boolean
+  /** 0016 — أقصى عدد لمنتج القطعة. */
+  max_quantity?: number
+  /** 0016 — الإضافات (منتجات قطعة) اللي بتظهر في صفحة المنتج ده، بالترتيب. */
+  addon_ids?: number[]
 
   /** مصدر الصور المعتمد — مرتّب: الرئيسية الأول. */
   gallery: StoreImage[]
@@ -82,6 +90,8 @@ export type StoreSettings = {
   homeProducts: HomeProducts
   /** روابط السوشيال من «هوية المتجر» — بالترتيب الثابت، والفاضي مش موجود. */
   socialLinks: SocialLink[]
+  /** 0016 — عنوان جزء الإضافات في صفحة المنتج (settings.addons_title). */
+  addonsTitle: string
   announcement: Announcement
   /** محتوى الصفحة من «المحتوى» في اللوحة. */
   content: StoreContent
@@ -128,6 +138,8 @@ export type CartLine = {
   lengthCm: number
   /** 0015 — العرض المختار. ناقص = العرض الأساسي للمنتج. */
   widthCm?: number
+  /** 0016 — عدد القطع لمنتج القطعة (lengthCm = 0 ساعتها). */
+  quantity?: number
 }
 
 export type CheckoutValues = {
@@ -422,4 +434,44 @@ export function withWidth(product: StoreProduct, widthCm: number | undefined): S
 /** أقل سعر متر بين العروض — لـ«يبدأ من». */
 export function lowestPricePerMeter(product: StoreProduct): number {
   return Math.min(...widthOptionsOf(product).map((option) => option.price_per_meter_piastres))
+}
+
+// ── البيع بالقطعة (0016) ──────────────────────────────────────
+/**
+ * المنتج يا بالمتر (أفلام — طول وعرض رول) يا بالقطعة (إضافات وأدوات — عدد).
+ * القطعة: السعر في price_per_meter_piastres = سعر القطعة، والحساب السعر × العدد —
+ * نفس فرع القطعة في zell_create_order بالحرف.
+ */
+export type SaleUnit = 'meter' | 'piece'
+
+export const DEFAULT_ADDONS_TITLE = 'أدوات التركيب'
+export const MAX_PIECE_QUANTITY = 999
+
+export function isPiece(product: { sale_unit?: SaleUnit }): boolean {
+  return product.sale_unit === 'piece'
+}
+
+export function isListed(product: { is_listed?: boolean }): boolean {
+  return product.is_listed !== false
+}
+
+export function maxQuantityOf(product: { max_quantity?: number }): number {
+  const max = product.max_quantity
+  return typeof max === 'number' && Number.isInteger(max) && max >= 1 ? Math.min(max, MAX_PIECE_QUANTITY) : 20
+}
+
+/**
+ * المنتج اللي سطر السلة بيتحسب عليه — أو null لو السطر مابقاش صالح
+ * (نوع البيع اتغيّر، العرض اتشال، العدد فوق الأقصى).
+ */
+export function resolveCartLine(
+  product: StoreProduct,
+  line: { widthCm?: number; quantity?: number },
+): StoreProduct | null {
+  if (isPiece(product)) {
+    const quantity = line.quantity
+    return quantity !== undefined && quantity >= 1 && quantity <= maxQuantityOf(product) ? product : null
+  }
+  if (line.quantity !== undefined) return null
+  return withWidth(product, line.widthCm)
 }
