@@ -36,6 +36,8 @@ export type StoreProduct = ProductRules & {
    * بيظهر مقفول على width_cm. عرض بس — التسعير والطلب مابيتأثروش.
    */
   lock_width?: boolean
+  /** 0014 — السعر قبل الخصم بالقرش (عرض بس). null = مفيش خصم. */
+  compare_at_piastres?: number | null
 
   /** مصدر الصور المعتمد — مرتّب: الرئيسية الأول. */
   gallery: StoreImage[]
@@ -353,4 +355,23 @@ export function parseSocialLinks(value: unknown): SocialLink[] {
     if (url !== null) out.push({ platform, url })
   }
   return out
+}
+
+// ── الخصم (عرض بس) ─────────────────────────────────────────────
+/**
+ * الزبون بيدفع price_per_meter_piastres دايمًا — compare_at_piastres للعرض بس
+ * (السعر القديم مشطوب + النسبة). فـ zell_create_order مالهاش دعوة بالخصم.
+ */
+export type DiscountInfo = { percent: number; savePiastres: number; compareAtPiastres: number }
+
+export function discountInfo(product: {
+  price_per_meter_piastres: number
+  compare_at_piastres?: number | null
+}): DiscountInfo | null {
+  const compare = product.compare_at_piastres
+  const price = product.price_per_meter_piastres
+  if (typeof compare !== 'number' || price <= 0 || compare <= price) return null
+  const percent = Math.round((1 - price / compare) * 100)
+  if (percent < 1) return null
+  return { percent, savePiastres: compare - price, compareAtPiastres: compare }
 }
