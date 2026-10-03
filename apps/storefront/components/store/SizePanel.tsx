@@ -9,6 +9,8 @@ import {
   formatPiastres,
   lengthOptions,
   requiredLength,
+  widthOptionsOf,
+  withWidth,
   type StoreProduct,
 } from '@zell/core'
 import { cn } from '../../lib/cn'
@@ -18,22 +20,33 @@ import { Num } from './Num'
 type Mode = 'window' | 'length'
 
 /**
- * اختيار المقاس. الافتراضي «بمقاس الشباك» لأن ده اللي الزبون عارفه —
- * عدد الشرايح والطول حساب بنعمله إحنا.
+ * اختيار المقاس — كارت واحد بالترتيب: عرض الرول ← المقاس ← النتيجة.
  *
- * العرض المتثبّت (0013): خانة العرض بتظهر مقفولة على عرض الرول، والزبون
- * بيكتب الارتفاع بس — يعني شريحة واحدة. اختيار الطول بالمتر زي ما هو.
+ * القاعدة: «بتقيس بالسنتيمتر، وبتدفع بالمتر». أي حاجة بيكتبها الزبون
+ * بالسم (المازورة)، والطول والسعر بالمتر وجنبه السم بين قوسين.
+ *
+ * العروض (0015): أزرار جوه نفس الكارت لو المنتج ليه أكتر من عرض. تغيير
+ * العرض **بيحتفظ** بمقاس الشباك المكتوب وبيعيد الحساب على العرض الجديد
+ * على طول — قبل كده الخانات كانت بتتمسح والطول بيفضل على العرض القديم.
+ *
+ * العرض المتثبّت (0013): خانة عرض الشباك مقفولة على العرض المختار.
  *
  * 🔒 سلوك محفوظ: لو المقاس أكبر من الحد المتاح بنقول كده صراحة
  * وبنمنع الإضافة للسلة. ممنوع القص الصامت للحد الأقصى.
  */
 export function SizePanel({
   product,
+  widthCm,
+  onWidthChange,
   lengthCm,
   onLengthChange,
   onBlockedChange,
 }: {
+  /** المنتج الأساسي — العروض التانية بتتحسب منه. */
   product: StoreProduct
+  /** العرض المختار. */
+  widthCm: number
+  onWidthChange: (next: number) => void
   lengthCm: number
   onLengthChange: (next: number) => void
   onBlockedChange: (blocked: boolean) => void
@@ -43,51 +56,66 @@ export function SizePanel({
   const [height, setHeight] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [strips, setStrips] = useState(0)
+  const [neededCm, setNeededCm] = useState(0)
 
-  const options = lengthOptions(product)
-  const price = computeSubtotalPiastres(product.price_per_meter_piastres, lengthCm)
+  const widths = widthOptionsOf(product)
+  const current = withWidth(product, widthCm) ?? product
+  const options = lengthOptions(current)
+  const price = computeSubtotalPiastres(current.price_per_meter_piastres, lengthCm)
   const widthLocked = product.lock_width === true
-  const lockedWidth = String(product.width_cm)
 
   const block = (message: string | null) => {
     setError(message)
     onBlockedChange(message !== null)
   }
 
-  const applyWindow = (nextWidth: string, nextHeight: string) => {
+  /** الحساب دايمًا على العرض اللي جاي في النداء — مش على قيمة render قديمة. */
+  const applyWindow = (rules: StoreProduct, nextWidth: string, nextHeight: string) => {
     if (nextWidth.trim() === '' || nextHeight.trim() === '') {
       setStrips(0)
+      setNeededCm(0)
       block(null)
       return
     }
 
-    const result = requiredLength(Number(nextWidth), Number(nextHeight), product)
+    const result = requiredLength(Number(nextWidth), Number(nextHeight), rules)
 
     if (!result.ok) {
       setStrips(0)
+      setNeededCm(0)
       // وإحنا بنكتب لسه ما نزعّقش — بس المقاس الكبير لازم يتقال بوضوح
       block(result.code === 'invalid_input' ? null : result.message)
       return
     }
 
     setStrips(result.strips)
+    setNeededCm(result.neededCm)
     block(null)
     onLengthChange(result.lengthCm)
+  }
+
+  const windowWidthFor = (rules: StoreProduct) => (widthLocked ? String(rules.width_cm) : width)
+
+  const pickWidth = (next: number) => {
+    const rules = withWidth(product, next)
+    if (!rules) return
+    onWidthChange(next)
+    if (mode === 'window') applyWindow(rules, windowWidthFor(rules), height)
   }
 
   const switchMode = (next: Mode) => {
     setMode(next)
     if (next === 'length') block(null)
-    else applyWindow(widthLocked ? lockedWidth : width, height)
+    else applyWindow(current, windowWidthFor(current), height)
   }
 
   const stepBy = (delta: number) => {
-    const next = lengthCm + delta * product.step_cm
-    if (next < product.min_length_cm || next > product.max_length_cm) return
+    const next = lengthCm + delta * current.step_cm
+    if (next < current.min_length_cm || next > current.max_length_cm) return
     onLengthChange(next)
   }
 
-  if (!areRulesUsable(product)) {
+  if (!areRulesUsable(current)) {
     return (
       <p className="flex items-start gap-2 rounded-lg border border-danger/40 bg-card p-4 text-sm text-danger">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -99,11 +127,42 @@ export function SizePanel({
   return (
     <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
       <h2 className="text-base font-bold text-fg">حدد المقاس</h2>
+      <p className="mt-1 text-xs text-muted">بتقيس بالسنتيمتر، وبتدفع بالمتر — وإحنا بنحسب.</p>
+
+      {widths.length > 1 ? (
+        <div className="mt-4">
+          <p className="mb-2 text-sm font-semibold text-fg">عرض الرول</p>
+          <div className={cn('grid gap-2', widths.length === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
+            {widths.map((option) => {
+              const active = option.width_cm === current.width_cm
+              return (
+                <button
+                  key={option.width_cm}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => pickWidth(option.width_cm)}
+                  className={cn(
+                    'flex flex-col items-center justify-center gap-0.5 rounded-lg border-2 px-2 py-2.5 text-center transition-colors',
+                    active ? 'border-brand bg-brand/5' : 'border-border hover:border-brand/50',
+                  )}
+                >
+                  <span className="text-sm font-bold text-fg">
+                    <Num>{String(option.width_cm)}</Num> سم
+                  </span>
+                  <span className="text-xs text-muted">
+                    <Num>{formatPiastres(option.price_per_meter_piastres)}</Num> للمتر
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-4 grid grid-cols-2 gap-1 rounded-lg bg-bg p-1">
         <ModeButton active={mode === 'window'} onClick={() => switchMode('window')}>
           <Maximize className="h-4 w-4" />
-          بمقاس الشباك
+          بمقاس الشباك (سم)
         </ModeButton>
         <ModeButton active={mode === 'length'} onClick={() => switchMode('length')}>
           <Ruler className="h-4 w-4" />
@@ -114,7 +173,7 @@ export function SizePanel({
       {mode === 'window' ? (
         <div className="mt-4 grid grid-cols-2 gap-3">
           {widthLocked ? (
-            <LockedCm id="window-width" label="عرض الشباك" value={lockedWidth} />
+            <LockedCm id="window-width" label="عرض الشباك" value={String(current.width_cm)} />
           ) : (
             <CmInput
               id="window-width"
@@ -123,7 +182,7 @@ export function SizePanel({
               value={width}
               onChange={(next) => {
                 setWidth(next)
-                applyWindow(next, height)
+                applyWindow(current, next, height)
               }}
             />
           )}
@@ -134,14 +193,14 @@ export function SizePanel({
             value={height}
             onChange={(next) => {
               setHeight(next)
-              applyWindow(widthLocked ? lockedWidth : width, next)
+              applyWindow(current, windowWidthFor(current), next)
             }}
           />
         </div>
       ) : (
         <div className="mt-4 space-y-3">
           <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-2">
-            <StepButton onClick={() => stepBy(-1)} disabled={lengthCm <= product.min_length_cm} label="قلّل الطول">
+            <StepButton onClick={() => stepBy(-1)} disabled={lengthCm <= current.min_length_cm} label="قلّل الطول">
               <Minus className="h-5 w-5" />
             </StepButton>
 
@@ -150,19 +209,18 @@ export function SizePanel({
                 <Num>{formatLength(lengthCm)}</Num>
               </p>
               <p className="text-xs text-muted">
-                الخطوة <Num>{formatLength(product.step_cm)}</Num>
+                (<Num>{String(lengthCm)}</Num> سم) · الخطوة <Num>{formatLength(current.step_cm)}</Num>
               </p>
             </div>
 
-            <StepButton onClick={() => stepBy(1)} disabled={lengthCm >= product.max_length_cm} label="زوّد الطول">
+            <StepButton onClick={() => stepBy(1)} disabled={lengthCm >= current.max_length_cm} label="زوّد الطول">
               <Plus className="h-5 w-5" />
             </StepButton>
           </div>
 
-          {/* الطول لوحده كان بيلخبط: من رول عرضه كام؟ */}
           <p className="rounded-lg bg-bg px-3 py-2 text-xs leading-relaxed text-muted">
-            الطول ده لشريط فيلم عرضه <Num>{String(product.width_cm)}</Num> سم. مش متأكد من الطول؟ اختار «بمقاس الشباك»
-            واكتب المقاس بالسنتيمتر وإحنا نحسب.
+            الطول ده لشريط فيلم عرضه <Num>{String(current.width_cm)}</Num> سم. مش متأكد؟ اختار «بمقاس الشباك» واكتب
+            المقاس بالسنتيمتر وإحنا نحسب.
           </p>
 
           {options.length > 0 ? (
@@ -178,7 +236,7 @@ export function SizePanel({
               >
                 {options.map((option) => (
                   <option key={option} value={String(option)}>
-                    {formatLength(option)}
+                    {formatLength(option) + ' (' + String(option) + ' سم)'}
                   </option>
                 ))}
               </select>
@@ -196,28 +254,52 @@ export function SizePanel({
           </p>
         ) : (
           <dl className="divide-y divide-border rounded-lg bg-bg px-3">
-            {mode === 'window' && strips > 0 && !widthLocked ? (
-              <SummaryRow label="عدد الشرايح" value={<Num>{String(strips)}</Num>} />
-            ) : null}
             <SummaryRow
               label="عرض الرول"
               value={
                 <>
-                  <Num>{String(product.width_cm)}</Num> سم
+                  <Num>{String(current.width_cm)}</Num> سم
                 </>
               }
             />
-            <SummaryRow label="الطول المطلوب" value={<Num>{formatLength(lengthCm)}</Num>} />
+            {mode === 'window' && strips > 0 && !widthLocked ? (
+              <SummaryRow label="عدد الشرايح" value={<Num>{String(strips)}</Num>} />
+            ) : null}
+            <SummaryRow
+              label="الطول المطلوب"
+              value={
+                <>
+                  <Num>{formatLength(lengthCm)}</Num>{' '}
+                  <span className="text-xs font-medium text-muted">
+                    (<Num>{String(lengthCm)}</Num> سم)
+                  </span>
+                </>
+              }
+            />
             <SummaryRow label="السعر" value={<Num>{formatPiastres(price)}</Num>} strong />
           </dl>
         )}
       </div>
 
+      {mode === 'window' && !error && strips > 0 ? (
+        <p className="mt-2 text-xs text-muted">
+          <Num>{String(strips)}</Num> {strips === 1 ? 'شريحة' : 'شرايح'} × <Num>{height}</Num> سم ={' '}
+          <Num>{String(neededCm)}</Num> سم
+          {lengthCm > neededCm ? (
+            <>
+              {' ← بنقرّبها لـ '}
+              <Num>{String(lengthCm)}</Num>
+              {' سم'}
+            </>
+          ) : null}
+        </p>
+      ) : null}
+
       {mode === 'window' && !error && strips === 0 ? (
         <p className="mt-2 text-xs text-muted">
           {widthLocked
-            ? 'اكتب ارتفاع الشباك وإحنا نحسب الطول المطلوب.'
-            : 'اكتب مقاس الشباك وإحنا نحسب عدد الشرايح والطول المطلوب.'}
+            ? 'اكتب ارتفاع الشباك بالسنتيمتر وإحنا نحسب الطول المطلوب.'
+            : 'اكتب عرض وارتفاع الشباك بالسنتيمتر وإحنا نحسب عدد الشرايح والطول.'}
         </p>
       ) : null}
     </div>
