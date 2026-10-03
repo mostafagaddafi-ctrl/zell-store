@@ -22,11 +22,14 @@ function readStorage(): CartLine[] {
       if (typeof entry !== 'object' || entry === null) continue
       const line = entry as Partial<CartLine>
       if (!Number.isInteger(line.productId) || !Number.isInteger(line.lengthCm)) continue
-      out.push({
+      const base = {
         id: typeof line.id === 'string' ? line.id : newId(),
         productId: line.productId as number,
         lengthCm: line.lengthCm as number,
-      })
+      }
+      // 0015 — العرض اختياري؛ أي قيمة مش رقم صحيح موجب بتتشال
+      const widthCm = line.widthCm
+      out.push(typeof widthCm === 'number' && Number.isInteger(widthCm) && widthCm > 0 ? { ...base, widthCm } : base)
     }
     return out
   } catch {
@@ -39,7 +42,8 @@ type CartApi = {
   /** false لحد ما نقرا localStorage — يمنع وميض «السلة فاضية» بعد الـ hydration */
   ready: boolean
   count: number
-  add: (productId: number, lengthCm: number) => void
+  /** widthCm: العرض المختار — ناقص = العرض الأساسي. */
+  add: (productId: number, lengthCm: number, widthCm?: number) => void
   setLength: (id: string, lengthCm: number) => void
   remove: (id: string) => void
   removeByProduct: (productId: number) => void
@@ -67,8 +71,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [lines, ready])
 
-  const add = useCallback((productId: number, lengthCm: number) => {
-    setLines((prev) => [...prev, { id: newId(), productId, lengthCm }])
+  const add = useCallback((productId: number, lengthCm: number, widthCm?: number) => {
+    setLines((prev) => [
+      ...prev,
+      widthCm === undefined ? { id: newId(), productId, lengthCm } : { id: newId(), productId, lengthCm, widthCm },
+    ])
   }, [])
 
   const setLength = useCallback((id: string, lengthCm: number) => {
