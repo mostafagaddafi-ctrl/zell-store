@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { MessageCircle, ShoppingBag } from 'lucide-react'
-import type { StoreCollection, StoreImage } from '@zell/core'
+import type { SocialLink, StoreCollection, StoreImage } from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { Container } from '../ui/Container'
 import { MobileMenu } from './MobileMenu'
@@ -36,6 +36,7 @@ export function SiteHeader({
   whatsappNumber,
   whatsappMessage,
   allLabel,
+  social,
 }: {
   storeName: string
   logo: StoreImage | null
@@ -44,6 +45,8 @@ export function SiteHeader({
   whatsappMessage: string
   /** اسم رابط «كل المنتجات» من اللوحة — فاضي = الرابط مخفي. */
   allLabel: string
+  /** روابط السوشيال — بتظهر تحت في قائمة الموبايل. */
+  social: SocialLink[]
 }) {
   const cart = useCart()
   const navCollections = collections.filter((collection) => collection.showInNav)
@@ -130,7 +133,7 @@ export function SiteHeader({
             ) : null}
           </Link>
 
-          <MobileMenu collections={navCollections} whatsappHref={whatsappHref} allLabel={allLabel} />
+          <MobileMenu collections={navCollections} whatsappHref={whatsappHref} allLabel={allLabel} social={social} />
         </div>
       </Container>
     </header>
