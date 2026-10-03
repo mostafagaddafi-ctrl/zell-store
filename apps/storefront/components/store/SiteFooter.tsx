@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import { MessageCircle } from 'lucide-react'
-import type { StoreContent } from '@zell/core'
+import type { SocialLink, StoreContent } from '@zell/core'
+import { SocialLinks } from './SocialLinks'
 import { Container } from '../ui/Container'
 
 /**
- * تواصل وسياسات بس. مفيش أقسام تسويقية ولا شبكات اجتماعية.
+ * تواصل وسياسات وروابط السوشيال (من «هوية المتجر») — مفيش أقسام تسويقية.
  *
  * الروابط من «المحتوى» في اللوحة. رابط من غير عنوان صفحة بيظهر نص
  * عادي — رابط ميّت أسوأ من نص — وبيتحوّل لرابط أول ما الأدمن يحط له
@@ -15,11 +16,13 @@ export function SiteFooter({
   links,
   whatsappNumber,
   whatsappMessage,
+  social,
 }: {
   storeName: string
   links: StoreContent['footerLinks']
   whatsappNumber: string
   whatsappMessage: string
+  social: SocialLink[]
 }) {
   const whatsappHref = whatsappNumber
     ? 'https://wa.me/' + whatsappNumber + '?text=' + encodeURIComponent(whatsappMessage || '')
@@ -41,6 +44,12 @@ export function SiteFooter({
               <MessageCircle className="h-4 w-4" />
               تواصل على واتساب
             </a>
+          ) : null}
+          {social.length > 0 ? (
+            <div className="pt-1">
+              <p className="mb-2 text-xs font-semibold text-muted">تابعنا</p>
+              <SocialLinks links={social} />
+            </div>
           ) : null}
         </div>
 

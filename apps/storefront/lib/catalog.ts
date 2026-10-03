@@ -119,6 +119,7 @@ export const FALLBACK_SETTINGS: StoreSettings = {
   governorates: Object.keys(FALLBACK_SHIPPING_RATES),
   shippingAreas: {},
   homeProducts: { mode: 'all', ids: [], allLabel: 'كل الأفلام' },
+  socialLinks: [],
   // الكتالوج المؤقت مابيعرضش شريط — الشريط بيانات حقيقية من settings بس
   announcement: { enabled: false, text: '', href: '', ctaLabel: '' },
   content: DEFAULT_STORE_CONTENT,

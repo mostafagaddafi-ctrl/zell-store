@@ -62,6 +62,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <SiteFooter
             storeName={settings.storeName}
             links={settings.content.footerLinks}
+            social={settings.socialLinks}
             whatsappNumber={settings.whatsappNumber}
             whatsappMessage={settings.whatsappMessage}
           />

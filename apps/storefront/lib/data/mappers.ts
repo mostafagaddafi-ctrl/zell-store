@@ -10,6 +10,7 @@ import {
   orderGovernorates,
   parseHomeProducts,
   parseShippingAreas,
+  parseSocialLinks,
   DEFAULT_STORE_CONTENT,
   type HomeSection,
   type HomeSectionKey,
@@ -266,6 +267,7 @@ export const PUBLIC_SETTING_KEYS = [
   'shipping_disabled_governorates',
   'shipping_areas',
   'home_products',
+  'social_links',
   'whatsapp_number',
   'whatsapp_message',
   'shipping_rates',
@@ -365,6 +367,7 @@ export function toStoreSettings(rows: SettingRow[], logo: StoreImage | null = nu
     ),
     shippingAreas: parseShippingAreas(map.get('shipping_areas')),
     homeProducts: parseHomeProducts(map.get('home_products')),
+    socialLinks: parseSocialLinks(map.get('social_links')),
     announcement: settingAnnouncement(map),
     content: settingContent(map),
   }

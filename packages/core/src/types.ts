@@ -76,6 +76,8 @@ export type StoreSettings = {
   shippingAreas: Record<string, string[]>
   /** منتجات الرئيسية + اسم رابط «كل المنتجات» (settings.home_products). */
   homeProducts: HomeProducts
+  /** روابط السوشيال من «هوية المتجر» — بالترتيب الثابت، والفاضي مش موجود. */
+  socialLinks: SocialLink[]
   announcement: Announcement
   /** محتوى الصفحة من «المحتوى» في اللوحة. */
   content: StoreContent
@@ -301,4 +303,54 @@ export function parseShippingAreas(value: unknown): Record<string, string[]> {
 export function composeAddress(area: string, address: string): string {
   const name = area.trim()
   return name === '' ? address : name + ' — ' + address.trim()
+}
+
+// ── السوشيال ميديا ─────────────────────────────────────────────
+export const SOCIAL_PLATFORMS = ['facebook', 'instagram', 'tiktok', 'youtube', 'snapchat', 'x'] as const
+export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number]
+
+export const SOCIAL_LABELS: Record<SocialPlatform, string> = {
+  facebook: 'فيسبوك',
+  instagram: 'إنستجرام',
+  tiktok: 'تيك توك',
+  youtube: 'يوتيوب',
+  snapchat: 'سناب شات',
+  x: 'إكس (تويتر)',
+}
+
+export type SocialLink = { platform: SocialPlatform; url: string }
+
+const SOCIAL_URL_SHAPE = /^https:\/\/[^\s/?#"'<>]+\.[^\s/?#"'<>]+([/?#][^\s"'<>]*)?$/i
+const MAX_SOCIAL_URL = 300
+
+/**
+ * «facebook.com/zell» أو «https://…» -> رابط https كامل، أو null لو مش رابط.
+ * http بيتحوّل https، وأي بروتوكول تاني (javascript: وغيره) مرفوض.
+ */
+export function normalizeSocialUrl(input: string): string | null {
+  const raw = input.trim()
+  if (raw === '' || raw.length > MAX_SOCIAL_URL) return null
+  const lower = raw.toLowerCase()
+  const url = lower.startsWith('https://')
+    ? raw
+    : lower.startsWith('http://')
+      ? 'https://' + raw.slice(7)
+      : raw.includes('://')
+        ? ''
+        : 'https://' + raw.replace(/^\/+/, '')
+  return SOCIAL_URL_SHAPE.test(url) ? url : null
+}
+
+/** settings.social_links — { facebook: "https://…" } -> قايمة بالترتيب الثابت. */
+export function parseSocialLinks(value: unknown): SocialLink[] {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return []
+  const raw = value as Record<string, unknown>
+  const out: SocialLink[] = []
+  for (const platform of SOCIAL_PLATFORMS) {
+    const item = raw[platform]
+    if (typeof item !== 'string') continue
+    const url = normalizeSocialUrl(item)
+    if (url !== null) out.push({ platform, url })
+  }
+  return out
 }
