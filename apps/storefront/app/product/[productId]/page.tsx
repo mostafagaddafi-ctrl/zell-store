@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight, Check } from 'lucide-react'
-import { discountInfo, formatLength, formatPiastres } from '@zell/core'
+import { discountInfo, formatLength, formatPiastres, lowestPricePerMeter, widthOptionsOf } from '@zell/core'
 import { Num } from '../../../components/store/Num'
 import { ProductBuy } from '../../../components/store/ProductBuy'
 import { ProductGallery } from '../../../components/store/ProductGallery'
@@ -36,7 +36,10 @@ export default async function ProductPage({ params }: PageProps) {
   if (!product) notFound()
 
   const points = keyPoints(product)
-  const discount = discountInfo(product)
+  // 0015 — أكتر من عرض = «يبدأ من» أقل سعر، والخصم بيظهر جوه اختيار العرض
+  const multi = widthOptionsOf(product).length > 1
+  const discount = multi ? null : discountInfo(product)
+  const shownPrice = multi ? lowestPricePerMeter(product) : product.price_per_meter_piastres
   // الهدية من «نص العرض» — نفس البيانات المكاشة، مفيش طلب زيادة
   const { settings } = await getStorefrontData()
   const gift = settings.offerEnabled ? settings.offerText : ''
@@ -65,8 +68,9 @@ export default async function ProductPage({ params }: PageProps) {
             </div>
 
             <div>
+              {multi ? <span className="me-1.5 text-sm text-muted">يبدأ من</span> : null}
               <span className="inline-block border-b-2 border-gold pb-0.5 text-2xl font-extrabold text-fg">
-                <Num>{formatPiastres(product.price_per_meter_piastres)}</Num>
+                <Num>{formatPiastres(shownPrice)}</Num>
               </span>
               {discount ? (
                 <span className="ms-2 text-base text-muted line-through">
