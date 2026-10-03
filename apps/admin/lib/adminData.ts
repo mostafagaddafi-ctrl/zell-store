@@ -101,6 +101,8 @@ export type AdminProduct = {
   widthCm: number
   /** 0013 — الزبون مايكتبش عرض الشباك، والعرض بيظهر مقفول على widthCm. */
   lockWidth: boolean
+  /** 0014 — السعر قبل الخصم بالقرش. null = مفيش خصم. */
+  compareAtPiastres: number | null
   minLengthCm: number
   stepCm: number
   maxLengthCm: number

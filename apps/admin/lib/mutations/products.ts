@@ -23,6 +23,7 @@ const RETURN_COLUMNS = [
   'price_per_meter_piastres',
   'width_cm',
   'lock_width',
+  'compare_at_piastres',
   'min_length_cm',
   'step_cm',
   'max_length_cm',

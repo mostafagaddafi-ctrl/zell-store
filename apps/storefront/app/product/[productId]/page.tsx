@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight, Check } from 'lucide-react'
-import { formatLength, formatPiastres } from '@zell/core'
+import { discountInfo, formatLength, formatPiastres } from '@zell/core'
 import { Num } from '../../../components/store/Num'
 import { ProductBuy } from '../../../components/store/ProductBuy'
 import { ProductGallery } from '../../../components/store/ProductGallery'
@@ -36,6 +36,7 @@ export default async function ProductPage({ params }: PageProps) {
   if (!product) notFound()
 
   const points = keyPoints(product)
+  const discount = discountInfo(product)
   // الهدية من «نص العرض» — نفس البيانات المكاشة، مفيش طلب زيادة
   const { settings } = await getStorefrontData()
   const gift = settings.offerEnabled ? settings.offerText : ''
@@ -67,7 +68,19 @@ export default async function ProductPage({ params }: PageProps) {
               <span className="inline-block border-b-2 border-gold pb-0.5 text-2xl font-extrabold text-fg">
                 <Num>{formatPiastres(product.price_per_meter_piastres)}</Num>
               </span>
+              {discount ? (
+                <span className="ms-2 text-base text-muted line-through">
+                  <Num>{formatPiastres(discount.compareAtPiastres)}</Num>
+                </span>
+              ) : null}
               <span className="ms-2 text-sm text-muted">للمتر الطولي</span>
+              {discount ? (
+                <p className="mt-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-brand px-3 py-1 text-xs font-bold text-brand-fg">
+                    خصم <Num>{String(discount.percent)}</Num>٪ · وفّر <Num>{formatPiastres(discount.savePiastres)}</Num> في المتر
+                  </span>
+                </p>
+              ) : null}
             </div>
 
             {product.description_ar ? (

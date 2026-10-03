@@ -34,6 +34,7 @@ export type ProductColumns = {
   price_per_meter_piastres: number
   width_cm: number
   lock_width: boolean
+  compare_at_piastres: number | null
   min_length_cm: number
   step_cm: number
   max_length_cm: number
@@ -94,6 +95,15 @@ export function validateProduct(
   const lockWidth = flag(input.lockWidth ?? false, 'تثبيت العرض')
   if (!lockWidth.ok) return lockWidth
 
+  // 0014 — فاضي أو صفر = مفيش خصم
+  let compareAt: number | null = null
+  const rawCompare = input.compareAtPiastres
+  if (rawCompare !== undefined && rawCompare !== null && rawCompare !== 0) {
+    const parsed = wholeNumber(rawCompare, 'السعر قبل الخصم')
+    if (!parsed.ok) return parsed
+    compareAt = parsed.value
+  }
+
   const minLength = wholeNumber(input.minLengthCm, 'أقل طول')
   if (!minLength.ok) return minLength
 
@@ -122,6 +132,9 @@ export function validateProduct(
   }
 
   if (price.value <= 0) return invalid('سعر المتر لازم يكون أكبر من صفر')
+  if (compareAt !== null && compareAt <= price.value) {
+    return invalid('السعر قبل الخصم لازم يكون أكبر من سعر المتر — أو سيبه فاضي')
+  }
   if (width.value <= 0) return invalid('عرض الرول لازم يكون أكبر من صفر')
   if (minLength.value <= 0) return invalid('أقل طول لازم يكون أكبر من صفر')
   if (step.value <= 0) return invalid('خطوة الطول لازم تكون أكبر من صفر')
@@ -138,6 +151,7 @@ export function validateProduct(
     price_per_meter_piastres: price.value,
     width_cm: width.value,
     lock_width: lockWidth.value,
+    compare_at_piastres: compareAt,
     min_length_cm: minLength.value,
     step_cm: step.value,
     max_length_cm: maxLength.value,
