@@ -27,6 +27,7 @@ export type ProductRow = {
   price_per_meter_piastres: number
   width_cm: number
   lock_width: boolean
+  compare_at_piastres: number | null
   min_length_cm: number
   step_cm: number
   max_length_cm: number
@@ -161,6 +162,7 @@ export function toAdminProduct(row: ProductRow, imageCount: number): AdminProduc
     pricePerMeterPiastres: row.price_per_meter_piastres,
     widthCm: row.width_cm,
     lockWidth: row.lock_width === true,
+    compareAtPiastres: typeof row.compare_at_piastres === 'number' ? row.compare_at_piastres : null,
     minLengthCm: row.min_length_cm,
     stepCm: row.step_cm,
     maxLengthCm: row.max_length_cm,
