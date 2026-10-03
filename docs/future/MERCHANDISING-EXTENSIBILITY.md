@@ -7,7 +7,9 @@
 > | الأقسام | ✅ **اتعملت بشكل مختلف** — جدول `collections` + `product_collections` (المنتج ممكن يبقى في أكتر من قسم)، مش `categories` + `category_id`. راجع `docs/COLLECTIONS.md` |
 > | شريط الإعلان | ✅ **اتعمل أبسط** — مفتاح واحد `settings.announcement` (نص · رابط · تشغيل)، مش جدول |
 > | إعلانات متعددة بمواعيد وأنواع | ❌ مش منفّذ — جدول `announcements` تحت |
-> | نماذج التسعير (متر مربع · قطعة · مقاسات ثابتة) | ❌ مش منفّذ — `pricing_model` و`product_size_variants` و`order_items` العامة |
+> | عروض رول متعددة لكل منتج | ✅ **0015** — `product_widths` (كل عرض بسعر المتر بتاعه) |
+> | البيع بالقطعة + الإضافات | ✅ **0016** — `products.sale_unit` + `order_items.sale_unit/quantity` + `product_addons` (مش `pricing_model` بأربع قيم) |
+> | المتر المربع · المقاسات الثابتة | ❌ مش منفّذ — `square_meter` و`product_size_variants` |
 >
 > أرقام الـ migrations اللي تحت (0007–0013) **اتستخدمت لحاجات تانية** على
 > Production. أي تنفيذ جديد ياخد أرقام بعد آخر migration موجودة.
