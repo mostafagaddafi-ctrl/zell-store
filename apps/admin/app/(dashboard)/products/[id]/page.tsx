@@ -4,7 +4,6 @@ import { notFound } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
 import { PageHeader } from '../../../../components/shell/PageHeader'
 import { ProductEditor } from '../../../../components/products/ProductEditor'
-import { WidthsEditor } from '../../../../components/products/WidthsEditor'
 import { readProductWidths } from '../../../../lib/mutations/productWidths'
 import { Badge } from '../../../../components/ui/Badge'
 import { Card } from '../../../../components/ui/Field'
@@ -77,17 +76,7 @@ export default async function ProductPage({ params }: PageProps) {
         )}
       </Card>
 
-      <ProductEditor
-        product={product}
-        widthsSlot={
-          <WidthsEditor
-            productId={product.id}
-            baseWidthCm={product.widthCm}
-            basePricePiastres={product.pricePerMeterPiastres}
-            initial={widths}
-          />
-        }
-      />
+      <ProductEditor product={product} widths={widths} />
     </>
   )
 }
