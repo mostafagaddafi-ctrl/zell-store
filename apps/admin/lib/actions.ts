@@ -50,6 +50,7 @@ import { saveInstallation, type InstallationSettings } from './mutations/install
 import { saveShippingAreas } from './mutations/shippingAreas'
 import { saveHomeProducts } from './mutations/homeProducts'
 import type { HomeProducts } from '@zell/core'
+import { saveSocialLinks, type SocialLinksInput } from './mutations/socialLinks'
 import { saveContent } from './mutations/content'
 import { setImageFit, setPrimaryImage } from './mutations/images'
 import { saveInternalNote, updateOrderStatus } from './mutations/orders'
@@ -407,4 +408,14 @@ export async function saveHomeProductsAction(input: HomeProducts): Promise<Mutat
   const gate = guardMutations()
   if (gate) return gate
   return refreshAfter(await saveHomeProducts(input))
+}
+
+// ── السوشيال ─────────────────────────────────────────────────
+/** روابط السوشيال اللي بتظهر في فوتر المتجر. الفاضي = مخفي. */
+export async function saveSocialLinksAction(input: SocialLinksInput): Promise<MutationResult<SocialLinksInput>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const gate = guardMutations()
+  if (gate) return gate
+  return refreshAfter(await saveSocialLinks(input))
 }
