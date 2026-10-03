@@ -98,8 +98,17 @@ function parseRequest(payload: unknown): { ok: true; value: OrderRequest } | { o
   for (const entry of rawItems) {
     if (!isPlainObject(entry)) return { ok: false, code: 'CART_INVALID' }
     const productId = entry['productId']
+    if (!isPositiveInteger(productId)) return { ok: false, code: 'CART_INVALID' }
+    // 0016 — صنف قطعة: عدد بس، من غير طول ولا عرض (الداتابيز بتتأكد إن المنتج قطعة)
+    const quantity = entry['quantity']
+    if (quantity !== undefined && quantity !== null) {
+      if (!isPositiveInteger(quantity) || quantity > 999) return { ok: false, code: 'CART_INVALID' }
+      if (entry['lengthCm'] !== undefined || entry['widthCm'] !== undefined) return { ok: false, code: 'CART_INVALID' }
+      items.push({ productId, quantity })
+      continue
+    }
     const lengthCm = entry['lengthCm']
-    if (!isPositiveInteger(productId) || !isPositiveInteger(lengthCm)) return { ok: false, code: 'CART_INVALID' }
+    if (!isPositiveInteger(lengthCm)) return { ok: false, code: 'CART_INVALID' }
     // 0015 — العرض اختياري؛ لو موجود لازم رقم صحيح موجب (الداتابيز بتتأكد إنه متاح)
     const widthCm = entry['widthCm']
     if (widthCm === undefined || widthCm === null) {
@@ -197,9 +206,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     result = await restRpc<unknown>('zell_create_order', {
       p_items: normalized.items.map((item) =>
-        item.widthCm === undefined
-          ? { productId: item.productId, lengthCm: item.lengthCm }
-          : { productId: item.productId, lengthCm: item.lengthCm, widthCm: item.widthCm },
+        item.quantity !== undefined
+          ? { productId: item.productId, quantity: item.quantity }
+          : item.widthCm === undefined
+            ? { productId: item.productId, lengthCm: item.lengthCm }
+            : { productId: item.productId, lengthCm: item.lengthCm, widthCm: item.widthCm },
       ),
       p_customer_name: normalized.customerName,
       p_customer_phone: normalized.customerPhone,
