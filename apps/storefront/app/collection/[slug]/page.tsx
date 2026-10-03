@@ -81,12 +81,14 @@ export default async function CollectionPage({ params }: { params: Promise<Param
           ) : null}
         </div>
 
-        {image ? (
+        {/* الصورة الكبيرة للغلاف المرفوع بس — البديل التلقائي هو صورة أول منتج،
+            فكانت بتتكرر فوق كارته على طول (صورتين شبه بعض فوق بعض). */}
+        {image && collection.hasCover ? (
           <ImageSlot
             ratio="16/9"
             fit="cover"
             src={image.url}
-            alt={collection.hasCover ? image.alt : ''}
+            alt={image.alt}
             sizes="(min-width: 768px) 352px, 100vw"
             priority
             className="rounded-lg border border-border"
