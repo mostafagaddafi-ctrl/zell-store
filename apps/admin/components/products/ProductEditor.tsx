@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2 } from 'lucide-react'
 import { computeSubtotalPiastres, validateRules } from '@zell/core'
@@ -19,7 +19,7 @@ type Tab = 'details' | 'pricing' | 'images'
 
 const TABS: Array<{ key: Tab; label: string }> = [
   { key: 'details', label: 'بيانات' },
-  { key: 'pricing', label: 'تسعير ومقاسات' },
+  { key: 'pricing', label: 'التسعير والعروض' },
   { key: 'images', label: 'صور' },
 ]
 
@@ -42,9 +42,12 @@ const EMPTY = {
 export function ProductEditor({
   product,
   collectionId,
+  widthsSlot,
 }: {
   product: AdminProductDetail | null
   collectionId?: string
+  /** 0015 — كارت «عروض الرول» بيتعرض جوه تاب التسعير (ليه حفظ خاص بيه). */
+  widthsSlot?: ReactNode
 }) {
   const router = useRouter()
   const { state: saveState, failure, warning, run, retry, markDirty } = useSaveAction()
@@ -290,12 +293,12 @@ export function ProductEditor({
 
       {tab === 'pricing' ? (
         <div className="grid gap-4 lg:grid-cols-2">
-          <Card title="السعر والمقاسات">
+          <Card title="العرض الأساسي وقواعد الطول">
             <div className="grid grid-cols-2 gap-3">
-              <Field htmlFor="price" label="سعر المتر (ج.م)">
+              <Field htmlFor="price" label="سعر المتر للعرض الأساسي (ج.م)">
                 <input id="price" type="number" min={0} value={form.pricePounds} onChange={(e) => set({ pricePounds: e.target.value })} className={inputClasses} />
               </Field>
-              <Field htmlFor="width" label="عرض الرول (سم)">
+              <Field htmlFor="width" label="العرض الأساسي للرول (سم)" hint="عروض تانية بأسعارها؟ من «عروض الرول» تحت">
                 <input id="width" type="number" min={1} value={form.widthCm} onChange={(e) => set({ widthCm: e.target.value })} className={inputClasses} />
                 <label className="mt-2 flex items-start gap-2 text-xs text-fg">
                   <input
@@ -310,17 +313,28 @@ export function ProductEditor({
                   </span>
                 </label>
               </Field>
-              <Field htmlFor="min" label="أقل طول (سم)">
+              <Field htmlFor="min" label="أقل طول للطلب (سم)" hint={'= ' + formatLength(Number(form.minLengthCm)) + ' — أقل حاجة الزبون يقدر يطلبها'}>
                 <input id="min" type="number" min={1} value={form.minLengthCm} onChange={(e) => set({ minLengthCm: e.target.value })} className={inputClasses} />
               </Field>
-              <Field htmlFor="step" label="خطوة الزيادة (سم)">
+              <Field htmlFor="step" label="الزيادة كل مرة (سم)" hint={'= ' + formatLength(Number(form.stepCm)) + ' — الطول بيزيد بالمقدار ده'}>
                 <input id="step" type="number" min={1} value={form.stepCm} onChange={(e) => set({ stepCm: e.target.value })} className={inputClasses} />
               </Field>
-              <Field htmlFor="max" label="أقصى طول (سم)" className="col-span-2">
+              <Field htmlFor="max" label="أقصى طول للطلب (سم)" className="col-span-2" hint={'= ' + formatLength(Number(form.maxLengthCm)) + ' — أكبر من كده الزبون بيتطلب منه يكلمك واتساب'}>
                 <input id="max" type="number" min={1} value={form.maxLengthCm} onChange={(e) => set({ maxLengthCm: e.target.value })} className={inputClasses} />
               </Field>
             </div>
 
+            {rulesCheck.ok ? (
+              <p className="mt-3 rounded border border-border bg-bg p-2 text-xs text-fg">
+                {'الزبون يقدر يطلب من ' +
+                  formatLength(rules.min_length_cm) +
+                  ' لحد ' +
+                  formatLength(rules.max_length_cm) +
+                  '، والطول بيزيد ' +
+                  formatLength(rules.step_cm) +
+                  ' كل مرة. القواعد دي لكل عروض الرول بتاعة المنتج.'}
+              </p>
+            ) : null}
             {!rulesCheck.ok ? (
               <p className="mt-3 rounded border border-danger/40 bg-danger/5 p-2 text-xs font-medium text-danger">
                 {rulesCheck.message}
@@ -391,6 +405,8 @@ export function ProductEditor({
               ))}
             </dl>
           </Card>
+
+          {widthsSlot ? <div className="lg:col-span-2">{widthsSlot}</div> : null}
         </div>
       ) : null}
 
