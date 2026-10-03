@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Check, ShoppingBag } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ArrowLeft, Check, ShoppingBag } from 'lucide-react'
 import { formatLength, validateLength, widthOptionsOf, withWidth, type StoreProduct } from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { buttonClasses, Button } from '../ui/Button'
@@ -14,6 +15,7 @@ import { WidthPicker } from './WidthPicker'
 /** gift: «نص العرض» لو ظاهر — بيظهر كهدية فوق زرار الإضافة. */
 export function ProductBuy({ product, gift = '' }: { product: StoreProduct; gift?: string }) {
   const cart = useCart()
+  const router = useRouter()
   const [lengthCm, setLengthCm] = useState(product.min_length_cm)
   const [justAdded, setJustAdded] = useState(false)
   const [blocked, setBlocked] = useState(false)
@@ -30,6 +32,14 @@ export function ProductBuy({ product, gift = '' }: { product: StoreProduct; gift
     if (!canAdd) return
     cart.add(product.id, lengthCm, chosenWidth)
     setJustAdded(true)
+  }
+
+  // «اطلب دلوقتي»: يضيف ويروح للبيانات على طول. لو نفس الاختيار اتضاف
+  // لسه (justAdded) مابيضيفوش تاني — يروح بس، عشان مايتكررش في السلة.
+  const handleBuyNow = () => {
+    if (!canAdd) return
+    if (!justAdded) cart.add(product.id, lengthCm, chosenWidth)
+    router.push('/checkout')
   }
 
   return (
@@ -61,10 +71,16 @@ export function ProductBuy({ product, gift = '' }: { product: StoreProduct; gift
 
       <GiftNote text={gift} />
 
-      <Button size="lg" onClick={handleAdd} disabled={!canAdd}>
-        <ShoppingBag className="h-5 w-5" />
-        ضيف للسلة
-      </Button>
+      <div className="grid gap-2">
+        <Button size="lg" onClick={handleBuyNow} disabled={!canAdd}>
+          اطلب دلوقتي
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <Button size="lg" variant="secondary" onClick={handleAdd} disabled={!canAdd}>
+          <ShoppingBag className="h-5 w-5" />
+          ضيف للسلة
+        </Button>
+      </div>
 
       {justAdded ? (
         <div className="space-y-3 rounded-lg border border-accent/40 bg-card p-4">
@@ -72,8 +88,12 @@ export function ProductBuy({ product, gift = '' }: { product: StoreProduct; gift
             <Check className="h-4 w-4 text-accent" />
             اتضاف للسلة — <Num>{formatLength(lengthCm)}</Num>
           </p>
+          <Link href="/checkout" className={buttonClasses('primary', 'md', 'w-full')}>
+            إتمام الطلب
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
           <div className="grid grid-cols-2 gap-2">
-            <Link href="/cart" className={buttonClasses('primary', 'md', 'w-full')}>
+            <Link href="/cart" className={buttonClasses('secondary', 'md', 'w-full')}>
               افتح السلة
             </Link>
             <Link href="/" className={buttonClasses('secondary', 'md', 'w-full')}>
