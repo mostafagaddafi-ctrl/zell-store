@@ -23,6 +23,23 @@ export default async function NewProductPage({ searchParams }: PageProps) {
   await requireAdminPage()
 
   const params = await searchParams
+
+  // 0016 — إضافة / منتج بالقطعة: من غير قسم
+  if (params['kind'] === 'piece') {
+    return (
+      <>
+        <Link href="/products" className="mb-3 inline-flex items-center gap-1 text-xs font-semibold text-accent">
+          <ArrowRight className="h-3.5 w-3.5" />
+          المنتجات
+        </Link>
+        <PageHeader
+          title="إضافة / منتج بالقطعة"
+          description="أدوات أو أي حاجة من غير مقاسات — بتتباع بالعدد ومش لازم تبقى في قسم"
+        />
+        <ProductEditor product={null} initialSaleUnit="piece" />
+      </>
+    )
+  }
   const requested = typeof params['collection'] === 'string' ? params['collection'] : null
   const collection = requested && /^[0-9]+$/.test(requested) ? await adminData.getCollection(requested) : null
 
@@ -36,6 +53,11 @@ export default async function NewProductPage({ searchParams }: PageProps) {
         </Link>
 
         <PageHeader title="منتج جديد" description="كل منتج لازم يكون في قسم — اختار القسم الأول" />
+
+        <Link href="/products/new?kind=piece" className={buttonClasses('secondary', 'sm', 'mb-4')}>
+          <Plus className="h-4 w-4" />
+          إضافة / منتج بالقطعة (من غير قسم)
+        </Link>
 
         {collections.length === 0 ? (
           <div className="space-y-3">
