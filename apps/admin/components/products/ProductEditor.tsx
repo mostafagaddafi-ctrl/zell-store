@@ -1,19 +1,20 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2 } from 'lucide-react'
-import { computeSubtotalPiastres, validateRules } from '@zell/core'
-import { saveProductAction } from '../../lib/actions'
+import { saveProductAction, saveProductWidthsAction } from '../../lib/actions'
 import type { AdminProductDetail } from '../../lib/adminData'
+import type { AdminWidth } from '../../lib/mutations/productWidths'
 import { useSaveAction } from '../../lib/client/useSaveAction'
-import { formatLength, formatPiastres, piastresToPounds, poundsToPiastres } from '../../lib/format'
+import { piastresToPounds, poundsToPiastres } from '../../lib/format'
 import { cn } from '../../lib/cn'
 import { Button } from '../ui/Button'
 import { FailureBanner } from '../ui/FailureBanner'
 import { Card, Field, inputClasses, textareaClasses } from '../ui/Field'
 import { SaveBar } from '../ui/SaveBar'
 import { ImageManager } from './ImageManager'
+import { extraWidthsPayload, pricingProblem, PricingFields, toWidthDraft, type WidthDraft } from './PricingFields'
 
 type Tab = 'details' | 'pricing' | 'images'
 
@@ -36,18 +37,19 @@ const EMPTY = {
   minLengthCm: '300',
   stepCm: '50',
   maxLengthCm: '3000',
+  extraWidths: [] as WidthDraft[],
 }
 
 /** collectionId: إنشاء من جوه قسم — المنتج بيتضاف آخر القسم بعد الحفظ. */
 export function ProductEditor({
   product,
   collectionId,
-  widthsSlot,
+  widths = [],
 }: {
   product: AdminProductDetail | null
   collectionId?: string
-  /** 0015 — كارت «عروض الرول» بيتعرض جوه تاب التسعير (ليه حفظ خاص بيه). */
-  widthsSlot?: ReactNode
+  /** 0015 — عروض الرول الإضافية المحفوظة (غير العرض الأساسي). */
+  widths?: AdminWidth[]
 }) {
   const router = useRouter()
   const { state: saveState, failure, warning, run, retry, markDirty } = useSaveAction()
@@ -68,6 +70,7 @@ export function ProductEditor({
           minLengthCm: String(product.minLengthCm),
           stepCm: String(product.stepCm),
           maxLengthCm: String(product.maxLengthCm),
+          extraWidths: widths.map(toWidthDraft),
         }
       : EMPTY,
   )
@@ -110,8 +113,9 @@ export function ProductEditor({
       minLengthCm: String(product.minLengthCm),
       stepCm: String(product.stepCm),
       maxLengthCm: String(product.maxLengthCm),
+      extraWidths: widths.map(toWidthDraft),
     })
-  }, [product, syncedAt])
+  }, [product, syncedAt, widths])
 
   /**
    * ⚠️ **كل** قيمة في الـ payload بتتقرا من ref، ولا حاجة من closure
@@ -154,8 +158,27 @@ export function ProductEditor({
     return { ...base, id: current.id, expectedUpdatedAt: stampRef.current }
   }
 
+  const [showPricingErrors, setShowPricingErrors] = useState(false)
+
+  /**
+   * حفظ واحد: المنتج (العرض الأساسي وسعره) الأول، وبعده العروض الإضافية
+   * (zell_set_product_widths). فشل العروض مابيلغيش حفظ المنتج — بيرجع تحذير.
+   */
   function save() {
-    void run(() => saveProductAction(buildInput(), productRef.current ? undefined : collectionId), {
+    if (pricingProblem(formRef.current) !== null) {
+      setShowPricingErrors(true)
+      setTab('pricing')
+      return
+    }
+    setShowPricingErrors(false)
+    const thunk = async () => {
+      const result = await saveProductAction(buildInput(), productRef.current ? undefined : collectionId)
+      if (!result.ok) return result
+      const saved = await saveProductWidthsAction(result.data.id, extraWidthsPayload(formRef.current))
+      if (!saved.ok) return { ...result, warning: 'المنتج اتحفظ، بس عروض الرول ما اتحفظتش: ' + saved.message }
+      return result
+    }
+    void run(thunk, {
       onSuccess: (saved) => {
         // إنشاء: replace مش push عشان زرار Back مايرجعش لفورم إنشاء قديم
         if (!productRef.current) {
@@ -166,39 +189,6 @@ export function ProductEditor({
         stampRef.current = saved.updatedAt
       },
     })
-  }
-
-  const rules = {
-    price_per_meter_piastres: poundsToPiastres(form.pricePounds),
-    min_length_cm: Number(form.minLengthCm),
-    step_cm: Number(form.stepCm),
-    max_length_cm: Number(form.maxLengthCm),
-    width_cm: Number(form.widthCm),
-  }
-  const rulesCheck = validateRules(rules)
-
-  // الخصم — عرض بس: الزبون بيدفع «سعر المتر»، و«السعر قبل الخصم» بيظهر مشطوب
-  const comparePiastres = form.comparePounds.trim() === '' ? 0 : poundsToPiastres(form.comparePounds)
-  const discountPercent =
-    comparePiastres > rules.price_per_meter_piastres && rules.price_per_meter_piastres > 0
-      ? Math.round((1 - rules.price_per_meter_piastres / comparePiastres) * 100)
-      : 0
-  const discountError =
-    form.comparePounds.trim() !== '' && comparePiastres <= rules.price_per_meter_piastres
-      ? 'لازم يكون أكبر من سعر المتر — أو سيبه فاضي'
-      : undefined
-
-  /** خصم سريع: الأساس = السعر قبل الخصم لو موجود، وإلا السعر الحالي. */
-  function applyPercent(percent: number) {
-    const basePounds = comparePiastres > 0 ? comparePiastres / 100 : poundsToPiastres(form.pricePounds) / 100
-    if (basePounds <= 0) return
-    const next = Math.max(1, Math.round(basePounds * (1 - percent / 100)))
-    set({ comparePounds: String(basePounds), pricePounds: String(next) })
-  }
-
-  function removeDiscount() {
-    if (comparePiastres > 0) set({ pricePounds: String(comparePiastres / 100), comparePounds: '' })
-    else set({ comparePounds: '' })
   }
 
   return (
@@ -291,124 +281,7 @@ export function ProductEditor({
         </div>
       ) : null}
 
-      {tab === 'pricing' ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card title="العرض الأساسي وقواعد الطول">
-            <div className="grid grid-cols-2 gap-3">
-              <Field htmlFor="price" label="سعر المتر للعرض الأساسي (ج.م)">
-                <input id="price" type="number" min={0} value={form.pricePounds} onChange={(e) => set({ pricePounds: e.target.value })} className={inputClasses} />
-              </Field>
-              <Field htmlFor="width" label="العرض الأساسي للرول (سم)" hint="عروض تانية بأسعارها؟ من «عروض الرول» تحت">
-                <input id="width" type="number" min={1} value={form.widthCm} onChange={(e) => set({ widthCm: e.target.value })} className={inputClasses} />
-                <label className="mt-2 flex items-start gap-2 text-xs text-fg">
-                  <input
-                    type="checkbox"
-                    checked={form.lockWidth}
-                    onChange={(e) => set({ lockWidth: e.target.checked })}
-                    className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
-                  />
-                  <span>
-                    <span className="font-semibold">تثبيت العرض</span> — الزبون مايكتبش عرض الشباك، والخانة بتظهر له
-                    مقفولة على الرقم ده. اختيار الطول بالمتر بيفضل زي ما هو.
-                  </span>
-                </label>
-              </Field>
-              <Field htmlFor="min" label="أقل طول للطلب (سم)" hint={'= ' + formatLength(Number(form.minLengthCm)) + ' — أقل حاجة الزبون يقدر يطلبها'}>
-                <input id="min" type="number" min={1} value={form.minLengthCm} onChange={(e) => set({ minLengthCm: e.target.value })} className={inputClasses} />
-              </Field>
-              <Field htmlFor="step" label="الزيادة كل مرة (سم)" hint={'= ' + formatLength(Number(form.stepCm)) + ' — الطول بيزيد بالمقدار ده'}>
-                <input id="step" type="number" min={1} value={form.stepCm} onChange={(e) => set({ stepCm: e.target.value })} className={inputClasses} />
-              </Field>
-              <Field htmlFor="max" label="أقصى طول للطلب (سم)" className="col-span-2" hint={'= ' + formatLength(Number(form.maxLengthCm)) + ' — أكبر من كده الزبون بيتطلب منه يكلمك واتساب'}>
-                <input id="max" type="number" min={1} value={form.maxLengthCm} onChange={(e) => set({ maxLengthCm: e.target.value })} className={inputClasses} />
-              </Field>
-            </div>
-
-            {rulesCheck.ok ? (
-              <p className="mt-3 rounded border border-border bg-bg p-2 text-xs text-fg">
-                {'الزبون يقدر يطلب من ' +
-                  formatLength(rules.min_length_cm) +
-                  ' لحد ' +
-                  formatLength(rules.max_length_cm) +
-                  '، والطول بيزيد ' +
-                  formatLength(rules.step_cm) +
-                  ' كل مرة. القواعد دي لكل عروض الرول بتاعة المنتج.'}
-              </p>
-            ) : null}
-            {!rulesCheck.ok ? (
-              <p className="mt-3 rounded border border-danger/40 bg-danger/5 p-2 text-xs font-medium text-danger">
-                {rulesCheck.message}
-              </p>
-            ) : null}
-          </Card>
-
-          <Card title="الخصم">
-            <div className="space-y-3">
-              <p className="text-xs text-muted">
-                الزبون بيدفع «سعر المتر» بس. «السعر قبل الخصم» بيظهر مشطوب جنبه، وعلى المنتج علامة بنسبة الخصم.
-              </p>
-              <Field
-                htmlFor="compare"
-                label="السعر قبل الخصم (ج.م)"
-                hint="فاضي = مفيش خصم"
-                error={discountError}
-              >
-                <input
-                  id="compare"
-                  type="number"
-                  min={0}
-                  value={form.comparePounds}
-                  onChange={(e) => set({ comparePounds: e.target.value })}
-                  className={inputClasses}
-                  placeholder="مثلًا 200"
-                />
-              </Field>
-              <div>
-                <p className="mb-1.5 text-xs font-semibold text-fg">خصم سريع</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {[10, 15, 20, 25].map((percent) => (
-                    <Button key={percent} variant="secondary" size="sm" onClick={() => applyPercent(percent)}>
-                      {String(percent) + '٪'}
-                    </Button>
-                  ))}
-                  {form.comparePounds.trim() !== '' ? (
-                    <Button variant="ghost" size="sm" onClick={removeDiscount}>
-                      شيل الخصم
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-              {discountPercent > 0 ? (
-                <p className="rounded border border-border bg-bg p-2 text-xs text-fg">
-                  {'الزبون هيشوف: خصم ' + String(discountPercent) + '٪ — '}
-                  <span className="text-muted line-through">{formatPiastres(comparePiastres)}</span>
-                  {' ← '}
-                  <span className="font-bold">{formatPiastres(rules.price_per_meter_piastres)}</span>
-                  {' للمتر'}
-                </p>
-              ) : null}
-            </div>
-          </Card>
-
-          <Card title="معاينة الحساب">
-            <p className="text-xs text-muted">
-              نفس دوال التسعير اللي بتحسب للزبون في المتجر — لو الرقم هنا صح، هو صح عنده.
-            </p>
-            <dl className="mt-3 divide-y divide-border">
-              {[rules.min_length_cm, rules.min_length_cm + rules.step_cm * 2, rules.max_length_cm].map((length) => (
-                <div key={length} className="flex items-center justify-between py-2 text-sm">
-                  <dt className="text-muted">{formatLength(length)}</dt>
-                  <dd className="font-semibold text-fg">
-                    {formatPiastres(computeSubtotalPiastres(rules.price_per_meter_piastres, length))}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </Card>
-
-          {widthsSlot ? <div className="lg:col-span-2">{widthsSlot}</div> : null}
-        </div>
-      ) : null}
+      {tab === 'pricing' ? <PricingFields form={form} set={set} showErrors={showPricingErrors} /> : null}
 
       {tab === 'images' && product ? <ImageManager productId={product.id} images={product.images} /> : null}
       {tab === 'images' && !product ? (
