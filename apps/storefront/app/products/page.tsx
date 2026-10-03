@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { ArrowRight } from 'lucide-react'
+import { isListed } from '@zell/core'
 import { CollectionNav } from '../../components/store/CollectionNav'
 import { ProductCard } from '../../components/store/ProductCard'
 import { Container } from '../../components/ui/Container'
@@ -18,6 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AllProductsPage() {
   const { products, settings, collections } = await getStorefrontData()
   const title = settings.homeProducts.allLabel || 'كل المنتجات'
+  const listed = products.filter(isListed)
 
   return (
     <Container className="pb-8">
@@ -37,11 +39,11 @@ export default async function AllProductsPage() {
         <h1 className="text-display font-extrabold text-fg">{title}</h1>
       </header>
 
-      {products.length === 0 ? (
+      {listed.length === 0 ? (
         <p className="pb-6 text-sm text-muted">مفيش منتجات متاحة دلوقتي.</p>
       ) : (
         <div className="grid grid-cols-2 gap-3 pb-6 sm:gap-5 lg:grid-cols-3">
-          {products.map((product) => (
+          {listed.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
