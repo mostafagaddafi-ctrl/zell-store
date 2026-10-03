@@ -4,7 +4,8 @@ import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, MessageCircle, ShoppingBag, X } from 'lucide-react'
-import type { StoreCollection } from '@zell/core'
+import type { SocialLink, StoreCollection } from '@zell/core'
+import { SocialLinks } from './SocialLinks'
 
 /**
  * قائمة الموبايل — Drawer كامل الارتفاع من شمال الشاشة — نفس ناحية زرار القائمة.
@@ -25,10 +26,12 @@ export function MobileMenu({
   collections,
   whatsappHref,
   allLabel,
+  social,
 }: {
   collections: StoreCollection[]
   whatsappHref: string | null
   allLabel: string
+  social: SocialLink[]
 }) {
   const dialogRef = useRef<HTMLDialogElement | null>(null)
   const [open, setOpen] = useState(false)
@@ -169,8 +172,15 @@ export function MobileMenu({
             </ul>
           </nav>
 
-          {whatsappHref ? (
-            <div className="safe-bottom shrink-0 border-t border-border p-3">
+          {whatsappHref || social.length > 0 ? (
+            <div className="safe-bottom shrink-0 space-y-3 border-t border-border p-3">
+              {social.length > 0 ? (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-muted">تابعنا</span>
+                  <SocialLinks links={social} />
+                </div>
+              ) : null}
+              {whatsappHref ? (
               <a
                 href={whatsappHref}
                 target="_blank"
@@ -181,6 +191,7 @@ export function MobileMenu({
                 <MessageCircle className="h-5 w-5" />
                 استفسر على واتساب
               </a>
+              ) : null}
             </div>
           ) : null}
         </div>
