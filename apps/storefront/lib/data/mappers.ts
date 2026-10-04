@@ -45,6 +45,8 @@ export type ProductRow = {
   min_length_cm: number
   step_cm: number
   max_length_cm: number
+  short_benefit: string | null
+  benefits: unknown
 }
 
 /**
@@ -249,6 +251,9 @@ export function toStoreProduct(
     min_length_cm: row.min_length_cm,
     step_cm: row.step_cm,
     max_length_cm: row.max_length_cm,
+    // نصوص اللوحة زي ما هي — من غير أي تخمين من الاسم
+    short_benefit: typeof row.short_benefit === 'string' && row.short_benefit.trim() !== '' ? row.short_benefit.trim() : null,
+    benefits: asStringArray(row.benefits).map((point) => point.trim()),
   }
 }
 
