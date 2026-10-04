@@ -2,12 +2,20 @@
 -- (md5 لـpg_get_functiondef: create = 3329021bb3960500d3ee4fb92506ef0c · receipt = b45bf92b770caecc168c4f6d1e4693a1)
 -- ويشيل الأعمدة والقيود.
 --
--- ⚠ الترتيب: رجّع كود المتجر الأول، وبعدين الملف ده.
--- ⚠ بيقف لو فيه أوردر installation_requested = true (بيانات فلوس — قرار يدوي).
--- ⚠ لو فيه أوردرات فيها shipping_area: المنطقة بترجع أول العنوان بشكل composeAddress قبل مسح العمود
---   — محتاج موافقة وقت التنفيذ.
+-- ⚠ الترتيب الإلزامي قبل الملف ده:
+--   1. رجّع كود storefront لنسخة ما قبل PR3 واعمل Deployment ليه — المتجر الجديد بيبعت p_area/p_installation
+--      والدالة القديمة مش هتلاقيهم (كل الطلبات هتقع).
+--   2. رجّع كود admin لنسخة ما قبل PR2 واعمل Deployment ليه — اللوحة الجديدة بتقرا أعمدة التركيب
+--      وصفحة الأوردرات هتقع لما الأعمدة تتمسح.
+--   3. بعد ما النشرين يخلصوا، شغّل الملف ده.
+-- ⚠ بيقف لو فيه أوردر installation_requested = true (بيانات فلوس — قرار يدوي، الملف مش بيمسحها).
+-- ⚠ بيتنفّذ تلقائيًا من غير انتظار: أي أوردر فيه shipping_area بترجع منطقته أول العنوان بشكل composeAddress
+--   («المنطقة — العنوان») قبل مسح العمود — إلا لو العنوان بيبدأ بالفعل بـ«المنطقة — »، فمابيتكررش.
+-- lock_timeout = 5s.
 
 begin;
+
+set local lock_timeout = '5s';
 
 do $g$ begin
   if current_user <> 'postgres' then
@@ -20,13 +28,14 @@ do $r$ declare v boolean; begin
              where table_schema = 'public' and table_name = 'orders' and column_name = 'installation_requested') then
     execute 'select exists (select 1 from public.orders where installation_requested)' into v;
     if v then
-      -- فيه أوردرات بأجر تركيب — الرجوع هيمسح بيانات فلوس. قرار يدوي بموافقة.
+      -- فيه أوردرات بأجر تركيب — الرجوع هيمسح بيانات فلوس. الملف بيقف هنا.
       raise exception 'ZELL_0018_ROLLBACK_HAS_INSTALLATION_ORDERS';
     end if;
-    -- المنطقة ترجع أول العنوان بنفس شكل composeAddress عشان ماتضيعش (بموافقة وقت الرجوع)
+    -- بيتنفّذ تلقائيًا: المنطقة ترجع أول العنوان بشكل composeAddress، إلا لو العنوان بيبدأ بيها أصلًا
     execute $u$update public.orders
                set address = shipping_area || ' — ' || address
-             where shipping_area is not null$u$;
+             where shipping_area is not null
+               and not pg_catalog.starts_with(address, shipping_area || ' — ')$u$;
   end if;
 end $r$;
 
