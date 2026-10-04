@@ -43,6 +43,8 @@ const PRODUCT_COLUMNS = [
   'min_length_cm',
   'step_cm',
   'max_length_cm',
+  'short_benefit',
+  'benefits',
 ].join(',')
 
 const PRODUCT_IMAGE_COLUMNS = [
