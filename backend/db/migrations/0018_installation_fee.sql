@@ -2,6 +2,7 @@
 --
 -- ⚠ مكتوبة ولم تُنفّذ. التطبيق على Production محتاج موافقة صريحة (بيلمس الفلوس وzell_create_order).
 -- لازم تتنفّذ بدور postgres (فيه حارس). idempotent: إعادة التشغيل آمنة (اتجرّبت في dry-run).
+-- lock_timeout = 5s: لو قفل orders مش متاح بسرعة، المعاملة كلها بتقف بدل ما توقف الطلبات وراها.
 --
 -- اللي بيتغير:
 --   • orders: shipping_area · installation_requested · installation_rate_piastres · installation_length_cm
@@ -17,10 +18,12 @@
 --     ومفتاح ناقص/بايظ = الفني مش متاح (أو SETTINGS_MISSING لسعر المتر). الطلب العادي مابيقراش الإعداد ده.
 --
 -- أكواد جديدة: 45032 ZELL_INSTALLATION_NOT_AVAILABLE · 45033 ZELL_INSTALLATION_NO_METERS · 45034 ZELL_AREA_INVALID
--- الرجوع: 0018_installation_fee_rollback.sql — بعد رجوع كود المتجر الأول.
+-- الرجوع: 0018_installation_fee_rollback.sql — بعد رجوع ونشر المتجر واللوحة الأول (التفاصيل في الملف).
 -- الاختبارات: 0018_installation_fee_ptest.sql (كلها بترجع بالكامل).
 
 begin;
+
+set local lock_timeout = '5s';
 
 do $g$ begin
   if current_user <> 'postgres' then
