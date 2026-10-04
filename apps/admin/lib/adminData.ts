@@ -8,6 +8,7 @@
  */
 import { supabaseAdminData } from './data/reads'
 import type { ImageFit, OrderStatus, SectionKey } from './enums'
+import type { CatalogLayout } from '@zell/core'
 
 export * from './enums'
 
@@ -215,6 +216,8 @@ export type AdminCollection = {
   activeProductCount: number
   /** null = مفيش غلاف، والمتجر بيستخدم أول صورة لأول منتج ظاهر. */
   cover: AdminImage | null
+  /** 0017 — شكل عرض المنتجات في صفحة القسم. */
+  catalogLayout: CatalogLayout
   updatedAt: string
 }
 

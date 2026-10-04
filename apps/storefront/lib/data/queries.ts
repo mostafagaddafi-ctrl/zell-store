@@ -72,6 +72,7 @@ const COLLECTION_COLUMNS = [
   'cover_object_path',
   'cover_width_px',
   'cover_height_px',
+  'catalog_layout',
 ].join(',')
 
 const SITE_IMAGE_COLUMNS = [

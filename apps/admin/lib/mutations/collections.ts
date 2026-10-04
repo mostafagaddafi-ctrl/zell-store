@@ -146,6 +146,8 @@ export async function updateCollection(
         show_on_home: checked.payload.showOnHome,
         show_in_nav: checked.payload.showInNav,
         is_visible: checked.payload.showOnHome || checked.payload.showInNav,
+        // 0017 — بيتكتب بس لما المحرر يبعته؛ تاب قديم = القيمة المحفوظة زي ما هي
+        ...(checked.payload.catalogLayout !== null ? { catalog_layout: checked.payload.catalogLayout } : {}),
       },
       select: COLLECTION_SELECT,
     })
