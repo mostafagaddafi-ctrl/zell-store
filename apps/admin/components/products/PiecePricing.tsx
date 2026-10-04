@@ -19,19 +19,19 @@ export type PieceForm = {
 
 export function pieceProblem(form: PieceForm): string | null {
   const price = poundsToPiastres(form.pricePounds)
-  if (form.pricePounds.trim() === '' || price <= 0) return 'اكتب سعر القطعة'
+  if (form.pricePounds.trim() === '' || price <= 0) return 'اكتب سعر الوحدة'
   if (form.comparePounds.trim() !== '' && poundsToPiastres(form.comparePounds) <= price) {
-    return 'السعر قبل الخصم لازم يكون أكبر من سعر القطعة'
+    return 'السعر قبل الخصم لازم يكون أكبر من سعر الوحدة'
   }
   const max = Number(form.maxQuantity)
-  if (!Number.isInteger(max) || max < 1 || max > 999) return 'أقصى عدد لازم يكون من ١ لـ ٩٩٩'
+  if (!Number.isInteger(max) || max < 1 || max > 999) return 'أقصى كمية للطلب لازم تكون من ١ لـ ٩٩٩'
   return null
 }
 
 export function SaleUnitSwitch({ value, onChange }: { value: SaleUnit; onChange: (next: SaleUnit) => void }) {
   const options: Array<{ key: SaleUnit; title: string; hint: string }> = [
     { key: 'meter', title: 'بالمتر', hint: 'أفلام — عرض رول وطول' },
-    { key: 'piece', title: 'بالقطعة', hint: 'إضافات وأدوات — عدد' },
+    { key: 'piece', title: 'بالعدد — سعر ثابت', hint: 'سعر الوحدة × الكمية' },
   ]
   return (
     <Card title="نوع البيع">
@@ -80,10 +80,11 @@ export function PiecePricing({
   }
 
   return (
-    <Card title="سعر القطعة">
+    <Card title="سعر الوحدة">
       <div className="space-y-3">
+        <p className="text-xs text-muted">للمنتجات الجاهزة بسعر ثابت، زي الرول الكامل، الفوطة، الكرتونة أو الباكدج.</p>
         <div className="grid grid-cols-3 gap-2">
-          <Field htmlFor="piece-price" label="سعر القطعة (ج.م)">
+          <Field htmlFor="piece-price" label="سعر الوحدة (ج.م)">
             <input
               id="piece-price"
               type="number"
@@ -105,7 +106,7 @@ export function PiecePricing({
               placeholder="فاضي = مفيش"
             />
           </Field>
-          <Field htmlFor="piece-max" label="أقصى عدد">
+          <Field htmlFor="piece-max" label="أقصى كمية للطلب">
             <input
               id="piece-max"
               type="number"
@@ -153,7 +154,7 @@ export function PiecePricing({
         </label>
 
         <p className="rounded border border-border bg-bg p-2 text-xs text-fg">
-          الزبون بيختار العدد (من ١ لـ {form.maxQuantity || '—'}) والسعر = سعر القطعة × العدد. عشان يظهر كإضافة مع فيلم،
+          الزبون بيختار الكمية (من ١ لـ {form.maxQuantity || '—'}) والإجمالي = سعر الوحدة × الكمية. عشان يظهر كإضافة مع فيلم،
           افتح الفيلم واختاره من كارت «الإضافات».
         </p>
 
