@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { hasInstallerRequest, publicImageUrl } from '@zell/core'
+import { catalogLayoutOf, hasInstallerRequest, publicImageUrl } from '@zell/core'
 import type {
   AdminCollection,
   AdminImage,
@@ -79,6 +79,7 @@ export type CollectionRow = {
   cover_object_path: string | null
   cover_width_px: number | null
   cover_height_px: number | null
+  catalog_layout: string | null
   updated_at: string
 }
 
@@ -99,6 +100,7 @@ export const COLLECTION_SELECT = [
   'cover_object_path',
   'cover_width_px',
   'cover_height_px',
+  'catalog_layout',
   'updated_at',
 ].join(',')
 
@@ -256,6 +258,7 @@ export function toAdminCollection(
     productCount: counts.total,
     activeProductCount: counts.active,
     cover,
+    catalogLayout: catalogLayoutOf(row.catalog_layout),
     updatedAt: row.updated_at,
   }
 }
