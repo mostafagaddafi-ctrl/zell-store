@@ -52,6 +52,9 @@ export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]
     setAdded(0)
   }
 
+  // السلة جاهزة وفاضية → «شوف الأفلام» بدل «كمّل لإتمام الطلب» (مفيش حاجة تتطلب). «افتح السلة» ظاهر دايمًا.
+  const cartEmpty = cart.ready && cart.count === 0
+
   const totalQuantity = rows.reduce((sum, row) => sum + quantityOf(row), 0)
   const totalPiastres = rows.reduce((sum, row) => sum + quantityOf(row) * row.pricePiastres, 0)
 
@@ -162,10 +165,17 @@ export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]
         ) : null}
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <Link href="/checkout" className={buttonClasses('primary', 'md', 'w-full')}>
-            {checkoutLabel}
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          </Link>
+          {cartEmpty ? (
+            <Link href="/products" className={buttonClasses('primary', 'md', 'w-full')}>
+              شوف الأفلام
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          ) : (
+            <Link href="/checkout" className={buttonClasses('primary', 'md', 'w-full')}>
+              {checkoutLabel}
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          )}
           <Link href="/cart" className={buttonClasses('secondary', 'md', 'w-full')}>
             افتح السلة
           </Link>
