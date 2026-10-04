@@ -124,6 +124,13 @@ export type OrderRow = {
   subtotal_piastres: number
   shipping_piastres: number
   total_piastres: number
+  // 0018 — لقطات الفني والمنطقة
+  shipping_area?: string | null
+  installation_requested?: boolean
+  installation_rate_piastres?: number | null
+  installation_length_cm?: number | null
+  installation_piastres?: number
+  installation_travel_piastres?: number
   notified_at: string | null
   notify_error: string | null
   created_at: string
@@ -276,7 +283,12 @@ export function toAdminOrder(row: OrderRow, itemCount: number): AdminOrder {
     notifiedAt: row.notified_at,
     notifyError: row.notify_error,
     createdAt: row.created_at,
-    needsInstaller: hasInstallerRequest(row.notes),
+    shippingArea: typeof row.shipping_area === 'string' && row.shipping_area !== '' ? row.shipping_area : null,
+    installationRequested: row.installation_requested === true,
+    installationPiastres: typeof row.installation_piastres === 'number' ? row.installation_piastres : 0,
+    installationTravelPiastres: typeof row.installation_travel_piastres === 'number' ? row.installation_travel_piastres : 0,
+    // 0018: العمود هو المصدر؛ العلامة في الملاحظات للأوردرات القديمة (بالتواصل)
+    needsInstaller: row.installation_requested === true || hasInstallerRequest(row.notes),
   }
 }
 
