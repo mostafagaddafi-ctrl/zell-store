@@ -1,83 +1,209 @@
 import 'server-only'
 
-import { restGet, restInsert, restPatch } from '../data/client'
+import {
+  INSTALLATION_LIMITS,
+  installationGovernorates,
+  isInstallationMoney,
+  orderGovernorates,
+  parseInstallationConfig,
+  parseShippingAreas,
+  type InstallationAreas,
+  type InstallationConfig,
+} from '@zell/core'
+import { restGet, restInsert } from '../data/client'
 import type { MutationResult } from '../mutations'
-import { orderGovernorates } from '@zell/core'
+import { timestamp } from '../validation/shared'
+import { CONFLICT_MESSAGE, patchGuarded } from './concurrency'
 import { toInternalFailure } from './errors'
 
 /**
- * إعداد «فني التركيب» (settings.installation) — بالتواصل، مفيش أسعار هنا.
+ * فني التركيب — settings.installation (0018).
  *
- *   enabled       الخيار ظاهر في صفحة الطلب ولا لأ
- *   note          السطر اللي بيظهر تحت الزرار (السعر بيبدأ من… وهكذا)
- *   governorates  المحافظات اللي فيها تركيب — فاضية = مش ظاهر في أي حتة
+ *   enabled              تشغيل الخدمة
+ *   note                 سطر توضيح تحت خيار الفني في صفحة الطلب
+ *   feePerMeterPiastres  أجر التركيب لكل متر طولي من أفلام المقاس (1..1,000,000 قرش)
+ *   areas                { محافظة: { منطقة: انتقال الفني بالقرش (0..1,000,000) } }
+ *   governorates         مشتق من areas — للنسخة الحالية من المتجر بس
  *
- * صف واحد — مش محتاج دالة ذرّية. النجاح بيتأكد بالقراءة.
+ * ⚠️ أسماء المحافظات والمناطق من إعدادات الشحن بس (shipping_rates + shipping_areas).
+ *    السيرفر بيرفض أي منطقة مش موجودة هناك — مفيش كتابة أسماء بإيد.
+ * ⚠️ تزامن تفاؤلي بـ settings.updated_at (patchGuarded) + قراءة تأكيد.
+ *    الحساب نفسه في zell_create_order — هنا إعداد بس.
  */
 
-export type InstallationSettings = { enabled: boolean; note: string; governorates: string[] }
-
 const KEY = 'installation'
-const MAX_NOTE = 300
 
-export function parseInstallation(value: unknown): InstallationSettings {
-  const raw = typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
-  const governorates = Array.isArray(raw['governorates'])
-    ? raw['governorates'].filter((item): item is string => typeof item === 'string' && item.trim() !== '')
-    : []
-  return {
-    enabled: raw['enabled'] === true,
-    note: typeof raw['note'] === 'string' ? raw['note'] : '',
-    governorates,
-  }
+export type InstallationRecord = { config: InstallationConfig; updatedAt: string | null }
+
+export type InstallationInput = {
+  enabled: boolean
+  note: string
+  feePerMeterPiastres: number | null
+  areas: InstallationAreas
 }
 
-/** محافظات جدول الشحن بنفس ترتيب صفحة الشحن. */
-async function shippingGovernorates(): Promise<string[]> {
-  const rows = await restGet<{ key: string; value: unknown }>('settings', 'select=key,value&key=in.(shipping_rates,shipping_order)')
-  const rates = rows.rows.find((row) => row.key === 'shipping_rates')?.value
-  const saved = rows.rows.find((row) => row.key === 'shipping_order')?.value
+/** محافظة من الشحن ومناطقها، بنفس ترتيب صفحة الشحن. */
+export type ShippingAreaGroup = { governorate: string; areas: string[]; shippingDisabled: boolean }
+
+/** منطقة متحفظة للفني ومش موجودة في الشحن (اتشالت أو اتغير اسمها). */
+export type OrphanArea = { governorate: string; area: string }
+
+type SettingRow = { key: string; value: unknown }
+
+export async function readShippingAreaGroups(): Promise<ShippingAreaGroup[]> {
+  const rows = await restGet<SettingRow>(
+    'settings',
+    'select=key,value&key=in.(shipping_rates,shipping_order,shipping_areas,shipping_disabled_governorates)',
+  )
+  const read = (key: string): unknown => rows.rows.find((row) => row.key === key)?.value
+  const rates = read('shipping_rates')
   if (typeof rates !== 'object' || rates === null || Array.isArray(rates)) return []
-  const order = Array.isArray(saved) ? saved.filter((item): item is string => typeof item === 'string') : []
-  return orderGovernorates(Object.keys(rates as Record<string, unknown>), order)
+  const savedOrder = read('shipping_order')
+  const order = Array.isArray(savedOrder) ? savedOrder.filter((item): item is string => typeof item === 'string') : []
+  const disabledRaw = read('shipping_disabled_governorates')
+  const disabled = Array.isArray(disabledRaw) ? disabledRaw.filter((item): item is string => typeof item === 'string') : []
+  const areas = parseShippingAreas(read('shipping_areas'))
+  return orderGovernorates(Object.keys(rates as Record<string, unknown>), order).map((governorate) => ({
+    governorate,
+    areas: areas[governorate] ?? [],
+    shippingDisabled: disabled.includes(governorate),
+  }))
 }
 
-export async function readInstallation(): Promise<{ settings: InstallationSettings; governorates: string[] }> {
-  const [rows, governorates] = await Promise.all([
-    restGet<{ value: unknown }>('settings', 'select=value&key=eq.' + KEY + '&limit=1'),
-    shippingGovernorates(),
-  ])
-  return { settings: parseInstallation(rows.rows[0]?.value), governorates }
+export async function readInstallationRecord(): Promise<InstallationRecord> {
+  const rows = await restGet<{ value: unknown; updated_at: string }>(
+    'settings',
+    'select=value,updated_at&key=eq.' + KEY + '&limit=1',
+  )
+  const row = rows.rows[0]
+  return { config: parseInstallationConfig(row?.value), updatedAt: row ? row.updated_at : null }
 }
 
-export async function saveInstallation(raw: unknown): Promise<MutationResult<InstallationSettings>> {
-  if (typeof raw !== 'object' || raw === null) return { ok: false, code: 'VALIDATION', message: 'البيانات مش صحيحة' }
+export async function readInstallation(): Promise<{ record: InstallationRecord; groups: ShippingAreaGroup[] }> {
+  const [record, groups] = await Promise.all([readInstallationRecord(), readShippingAreaGroups()])
+  return { record, groups }
+}
+
+/** المناطق المفعّلة للفني اللي مش في مناطق الشحن. */
+export function orphanAreas(areas: InstallationAreas, groups: ShippingAreaGroup[]): OrphanArea[] {
+  const shipping = new Map(groups.map((group) => [group.governorate, group.areas]))
+  const out: OrphanArea[] = []
+  for (const [governorate, list] of Object.entries(areas)) {
+    const known = shipping.get(governorate) ?? []
+    for (const area of Object.keys(list)) if (!known.includes(area)) out.push({ governorate, area })
+  }
+  return out
+}
+
+/** بعد حفظ الشحن: مناطق الفني اللي مابقتش موجودة في الشحن. */
+export async function installerAreasMissingFromShipping(): Promise<OrphanArea[]> {
+  const [record, groups] = await Promise.all([readInstallationRecord(), readShippingAreaGroups()])
+  return orphanAreas(record.config.areas, groups)
+}
+
+function sameConfig(a: InstallationConfig, b: InstallationConfig): boolean {
+  if (a.enabled !== b.enabled || a.note !== b.note || a.feePerMeterPiastres !== b.feePerMeterPiastres) return false
+  const flat = (areas: InstallationAreas): string =>
+    Object.entries(areas)
+      .flatMap(([governorate, list]) => Object.entries(list).map(([area, travel]) => governorate + '|' + area + '|' + String(travel)))
+      .sort()
+      .join('\n')
+  return flat(a.areas) === flat(b.areas)
+}
+
+const MAX_POUNDS = String(INSTALLATION_LIMITS.maxPiastres / 100)
+
+/** rawExpected: updated_at اللي اللوحة شافته، أو null لو الصف مكانش موجود. */
+export async function saveInstallation(raw: unknown, rawExpected: unknown): Promise<MutationResult<InstallationRecord>> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return { ok: false, code: 'VALIDATION', message: 'البيانات مش صحيحة' }
+  }
   const input = raw as Record<string, unknown>
-  if (typeof input['enabled'] !== 'boolean') return { ok: false, code: 'VALIDATION', message: 'مفتاح التشغيل مش صحيح' }
+  const enabled = input['enabled']
+  if (typeof enabled !== 'boolean') return { ok: false, code: 'VALIDATION', message: 'مفتاح التشغيل مش صحيح' }
   const note = typeof input['note'] === 'string' ? input['note'].trim() : ''
-  if (note.length > MAX_NOTE) return { ok: false, code: 'VALIDATION', message: 'سطر التوضيح أطول من ' + String(MAX_NOTE) + ' حرف' }
-  if (!Array.isArray(input['governorates'])) return { ok: false, code: 'VALIDATION', message: 'قايمة المحافظات مش صحيحة' }
+  if (note.length > INSTALLATION_LIMITS.note) {
+    return { ok: false, code: 'VALIDATION', message: 'سطر التوضيح أطول من ' + String(INSTALLATION_LIMITS.note) + ' حرف' }
+  }
+
+  let fee: number | null = null
+  const feeRaw = input['feePerMeterPiastres']
+  if (feeRaw !== null && feeRaw !== undefined) {
+    if (!isInstallationMoney(feeRaw, 1)) {
+      return { ok: false, code: 'VALIDATION', message: 'سعر تركيب المتر لازم يكون من 0.01 لـ ' + MAX_POUNDS + ' جنيه' }
+    }
+    fee = feeRaw
+  }
+
+  const areasRaw = input['areas']
+  if (typeof areasRaw !== 'object' || areasRaw === null || Array.isArray(areasRaw)) {
+    return { ok: false, code: 'VALIDATION', message: 'المناطق مش صحيحة' }
+  }
 
   try {
-    const known = new Set(await shippingGovernorates())
-    const governorates: string[] = []
-    for (const item of input['governorates']) {
-      if (typeof item !== 'string' || !known.has(item)) {
-        return { ok: false, code: 'VALIDATION', message: 'في محافظة مش موجودة في جدول الشحن. اعمل تحديث للصفحة.' }
+    const groups = await readShippingAreaGroups()
+    const shipping = new Map(groups.map((group) => [group.governorate, group.areas]))
+    const areas: InstallationAreas = {}
+    let count = 0
+    for (const [governorate, list] of Object.entries(areasRaw as Record<string, unknown>)) {
+      const known = shipping.get(governorate)
+      if (known === undefined) {
+        return { ok: false, code: 'VALIDATION', message: 'محافظة «' + governorate + '» مش موجودة في الشحن — اعمل تحديث للصفحة.' }
       }
-      if (!governorates.includes(item)) governorates.push(item)
+      if (typeof list !== 'object' || list === null || Array.isArray(list)) {
+        return { ok: false, code: 'VALIDATION', message: 'مناطق ' + governorate + ' مش صحيحة' }
+      }
+      const out: Record<string, number> = {}
+      for (const [area, travel] of Object.entries(list as Record<string, unknown>)) {
+        if (!known.includes(area)) {
+          return {
+            ok: false,
+            code: 'VALIDATION',
+            message: 'منطقة «' + area + '» مش موجودة في مناطق الشحن لـ' + governorate + ' — اعمل تحديث للصفحة.',
+          }
+        }
+        if (!isInstallationMoney(travel, 0)) {
+          return { ok: false, code: 'VALIDATION', message: 'انتقال الفني لـ«' + area + '» لازم يكون من 0 لـ ' + MAX_POUNDS + ' جنيه' }
+        }
+        out[area] = travel
+        count += 1
+      }
+      if (Object.keys(out).length > 0) areas[governorate] = out
+    }
+    if (fee === null && (enabled || count > 0)) {
+      return { ok: false, code: 'VALIDATION', message: 'اكتب سعر تركيب المتر' }
     }
 
-    const value: InstallationSettings = { enabled: input['enabled'], note, governorates }
-    const changed = await restPatch<{ key: string }>('settings', 'key=eq.' + KEY, { value, updated_at: new Date().toISOString() })
-    if (changed.length === 0) await restInsert('settings', { key: KEY, value })
+    const value: Record<string, unknown> = { enabled, note, areas, governorates: installationGovernorates(areas) }
+    if (fee !== null) value['feePerMeterPiastres'] = fee
 
-    const stored = await restGet<{ value: unknown }>('settings', 'select=value&key=eq.' + KEY + '&limit=1')
-    const saved = parseInstallation(stored.rows[0]?.value)
-    if (saved.enabled !== value.enabled || saved.note !== value.note || saved.governorates.length !== value.governorates.length) {
-      return toInternalFailure(null)
+    if (rawExpected === null) {
+      try {
+        await restInsert('settings', { key: KEY, value })
+      } catch (error) {
+        // حد تاني عمل الصف في نفس اللحظة → تعارض حقيقي، مش كتابة فوقه
+        const now = await readInstallationRecord()
+        if (now.updatedAt !== null) return { ok: false, code: 'CONFLICT', message: CONFLICT_MESSAGE }
+        return toInternalFailure(error)
+      }
+    } else {
+      const stamp = timestamp(rawExpected, 'طابع آخر تعديل')
+      if (!stamp.ok) return stamp
+      const result = await patchGuarded<{ key: string }>({
+        table: 'settings',
+        idColumn: 'key',
+        idValue: KEY,
+        expectedUpdatedAt: stamp.value,
+        changes: { value },
+        select: 'key',
+      })
+      if (!result.ok) return result
     }
-    return { ok: true, data: saved }
+
+    const stored = await readInstallationRecord()
+    const expected: InstallationConfig = { enabled, note, feePerMeterPiastres: fee, areas }
+    if (stored.updatedAt === null || !sameConfig(stored.config, expected)) return toInternalFailure(null)
+    return { ok: true, data: stored }
   } catch (error) {
     return toInternalFailure(error)
   }
