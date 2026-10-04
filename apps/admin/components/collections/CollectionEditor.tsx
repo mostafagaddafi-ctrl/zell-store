@@ -3,7 +3,8 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronDown, ChevronUp, Trash2, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, LayoutGrid, LayoutList, Trash2, X } from 'lucide-react'
+import type { CatalogLayout } from '@zell/core'
 import {
   createCollectionAction,
   deleteCollectionAction,
@@ -43,6 +44,12 @@ import { CollectionCoverCard } from './CollectionCoverCard'
 function normalizeSlug(value: string): string {
   return value.trim().toLowerCase()
 }
+
+/** 0017 — شكل عرض المنتجات في صفحة القسم. بيتحفظ مع «بيانات القسم». */
+const LAYOUT_OPTIONS: Array<{ key: CatalogLayout; title: string; hint: string; icon: typeof LayoutList }> = [
+  { key: 'cards', title: 'كروت كبيرة', hint: 'الشكل الحالي — منتج في الصف على الموبايل', icon: LayoutList },
+  { key: 'compact', title: 'شبكة مدمجة', hint: 'منتجين في الصف على الموبايل، و٣–٤ على الشاشات الأكبر', icon: LayoutGrid },
+]
 
 function PlacementRow({
   title,
@@ -89,13 +96,14 @@ export function CollectionEditor({
   const [subtitle, setSubtitle] = useState(collection?.subtitle ?? '')
   const [showOnHome, setShowOnHome] = useState(collection?.showOnHome ?? true)
   const [showInNav, setShowInNav] = useState(collection?.showInNav ?? true)
+  const [catalogLayout, setCatalogLayout] = useState<CatalogLayout>(collection?.catalogLayout ?? 'cards')
   const [selected, setSelected] = useState<number[]>(collection?.productIds ?? [])
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmSlug, setConfirmSlug] = useState(false)
 
   // «حاول تاني» لازم تبعت أحدث قيم — مش نسخة من وقت الضغط
-  const draftRef = useRef({ title, slug, subtitle, showOnHome, showInNav })
-  draftRef.current = { title, slug, subtitle, showOnHome, showInNav }
+  const draftRef = useRef({ title, slug, subtitle, showOnHome, showInNav, catalogLayout })
+  draftRef.current = { title, slug, subtitle, showOnHome, showInNav, catalogLayout }
   const selectedRef = useRef(selected)
   selectedRef.current = selected
 
@@ -138,7 +146,7 @@ export function CollectionEditor({
       return
     }
 
-    void details.run(() => updateCollectionAction(collection.id, input, collection.updatedAt), {
+    void details.run(() => updateCollectionAction(collection.id, { ...input, catalogLayout: draft.catalogLayout }, collection.updatedAt), {
       onSuccess: () => router.refresh(),
     })
   }
@@ -272,6 +280,47 @@ export function CollectionEditor({
               </p>
             ) : null}
           </div>
+
+          {collection === null ? (
+            <p className="text-xs text-muted">تقدر تختار شكل عرض المنتجات في صفحة القسم بعد ما تحفظ القسم.</p>
+          ) : (
+            <div className="space-y-2 rounded border border-border p-3">
+              <p id="catalog-layout-label" className="text-sm font-semibold text-fg">
+                شكل عرض المنتجات في صفحة القسم
+              </p>
+              <div role="group" aria-labelledby="catalog-layout-label" className="grid grid-cols-2 gap-2">
+                {LAYOUT_OPTIONS.map((option) => {
+                  const active = catalogLayout === option.key
+                  const Icon = option.icon
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      aria-pressed={active}
+                      disabled={!mutationsOn || detailsBusy}
+                      onClick={() => {
+                        setCatalogLayout(option.key)
+                        touchDetails()
+                      }}
+                      className={
+                        'rounded border-2 p-2.5 text-right transition-colors disabled:opacity-50 ' +
+                        (active ? 'border-brand bg-brand/5' : 'border-border hover:border-muted')
+                      }
+                    >
+                      <span className="flex items-center gap-1.5 text-sm font-bold text-fg">
+                        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        {option.title}
+                      </span>
+                      <span className="block text-xs text-muted">{option.hint}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-xs text-muted">
+                لو القسم فيه منتج واحد ظاهر بس، هيتعرض بالكروت الكبيرة. صف القسم في الرئيسية مابيتأثرش.
+              </p>
+            </div>
+          )}
 
           <FailureBanner
             failure={details.failure}
