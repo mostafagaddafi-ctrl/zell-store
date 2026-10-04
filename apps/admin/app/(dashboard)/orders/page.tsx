@@ -65,7 +65,9 @@ export default async function OrdersPage({ searchParams }: PageProps) {
                         </span>
                         {order.needsInstaller ? (
                           <span className="mt-1 block w-fit rounded bg-accent/10 px-1.5 py-0.5 text-[11px] font-bold text-accent">
-                            🔧 فني تركيب
+                            {order.installationRequested
+                              ? '🔧 فني · ' + formatPiastres(order.installationPiastres + order.installationTravelPiastres)
+                              : '🔧 فني (بالتواصل)'}
                           </span>
                         ) : null}
                       </div>
@@ -73,7 +75,8 @@ export default async function OrdersPage({ searchParams }: PageProps) {
                     </div>
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border pt-2 text-xs text-muted">
                       <span>
-                        {order.governorate} · {order.itemCount} صنف
+                        {order.governorate}
+                        {order.shippingArea ? ' — ' + order.shippingArea : ''} · {order.itemCount} صنف
                       </span>
                       <span className="text-sm font-bold text-fg">{formatPiastres(order.totalPiastres)}</span>
                     </div>
@@ -117,14 +120,19 @@ export default async function OrdersPage({ searchParams }: PageProps) {
                         {order.customerPhone}
                       </span>
                     </TD>
-                    <TD className="text-xs">{order.governorate}</TD>
+                    <TD className="text-xs">
+                      {order.governorate}
+                      {order.shippingArea ? <span className="block text-muted">{order.shippingArea}</span> : null}
+                    </TD>
                     <TD className="text-xs">{order.itemCount}</TD>
                     <TD className="font-semibold">{formatPiastres(order.totalPiastres)}</TD>
                     <TD>
                       <StatusBadge status={order.status} />
                       {order.needsInstaller ? (
                         <span className="ms-1.5 inline-block rounded bg-accent/10 px-1.5 py-0.5 align-middle text-[11px] font-bold text-accent">
-                          🔧 فني
+                          {order.installationRequested
+                            ? '🔧 فني · ' + formatPiastres(order.installationPiastres + order.installationTravelPiastres)
+                            : '🔧 فني (بالتواصل)'}
                         </span>
                       ) : null}
                     </TD>
