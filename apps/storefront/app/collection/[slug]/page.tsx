@@ -51,6 +51,8 @@ export default async function CollectionPage({ params }: { params: Promise<Param
   // نفس البيانات المكاشة — مفيش طلب زيادة
   const { collections } = await getStorefrontData()
   const image = collection.image
+  // 0017 — شكل العرض من اللوحة. قسم فيه منتج ظاهر واحد بيتعرض كروت كبيرة دايمًا.
+  const compact = collection.catalogLayout === 'compact' && items.length > 1
 
   return (
     <Container className="pb-8">
@@ -96,11 +98,19 @@ export default async function CollectionPage({ params }: { params: Promise<Param
         ) : null}
       </header>
 
-      <div className="grid gap-5 pb-6 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((product) => (
-          <ProductCard key={product.id} product={product} />
-        ))}
-      </div>
+      {compact ? (
+        <div className="grid grid-cols-2 gap-2.5 pb-6 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+          {items.map((product) => (
+            <ProductCard key={product.id} product={product} density="compact" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-5 pb-6 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      )}
     </Container>
   )
 }
