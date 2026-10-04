@@ -1,5 +1,6 @@
 import 'server-only'
 
+import type { CatalogLayout } from '@zell/core'
 import { invalid, optionalText, requiredText, timestamp, flag, type ValidationFailure } from './shared'
 
 /**
@@ -27,6 +28,8 @@ export type CollectionInput = {
   subtitle: unknown
   showOnHome: unknown
   showInNav: unknown
+  /** 0017 — مش موجود = القيمة المحفوظة مابتتغيّرش (إنشاء، أو تاب قديم وقت النشر). */
+  catalogLayout?: unknown
   expectedUpdatedAt?: unknown
 }
 
@@ -36,6 +39,8 @@ export type CollectionPayload = {
   subtitle: string | null
   showOnHome: boolean
   showInNav: boolean
+  /** null = ماتتكتبش. */
+  catalogLayout: CatalogLayout | null
 }
 
 export type CollectionPlacement = {
@@ -80,6 +85,15 @@ export function validateCollection(
   const placement = validateCollectionPlacement(input.showOnHome, input.showInNav)
   if (!placement.ok) return placement
 
+  // 0017 — القيمتين بس، زي القيد في الداتابيز
+  let catalogLayout: CatalogLayout | null = null
+  if (input.catalogLayout !== undefined) {
+    if (input.catalogLayout !== 'cards' && input.catalogLayout !== 'compact') {
+      return invalid('شكل عرض المنتجات مش صحيح')
+    }
+    catalogLayout = input.catalogLayout
+  }
+
   return {
     ok: true,
     payload: {
@@ -88,6 +102,7 @@ export function validateCollection(
       subtitle: subtitle.value,
       showOnHome: placement.value.showOnHome,
       showInNav: placement.value.showInNav,
+      catalogLayout,
     },
   }
 }
