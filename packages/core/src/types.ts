@@ -102,6 +102,19 @@ export type StoreSettings = {
 }
 
 /**
+ * شكل عرض المنتجات في صفحة القسم (0017 — collections.catalog_layout).
+ *   cards   = كروت كبيرة (الشكل الأصلي)
+ *   compact = شبكة مدمجة: ٢ على الموبايل، ٣ من sm، ٤ من lg
+ * صاحب المتجر بيختاره من اللوحة. صف القسم في الرئيسية مابيتأثرش.
+ */
+export type CatalogLayout = 'cards' | 'compact'
+
+/** أي قيمة ناقصة أو مش معروفة = cards — الشكل الحالي، من غير مفاجآت. */
+export function catalogLayoutOf(value: unknown): CatalogLayout {
+  return value === 'compact' ? 'compact' : 'cards'
+}
+
+/**
  * مجموعة منتجات (0010).
  *
  * productIds مرتّبة بـ sort_order من جدول الربط. المنتجات نفسها
@@ -125,6 +138,8 @@ export type StoreCollection = {
   image: StoreImage | null
   /** true = الصورة غلاف مرفوع من اللوحة، false = بديل تلقائي من منتج. */
   hasCover: boolean
+  /** 0017 — شكل عرض المنتجات في صفحة القسم. */
+  catalogLayout: CatalogLayout
 }
 
 /** شريط الإعلان العلوي — مفتاح settings واحد (0008). */
