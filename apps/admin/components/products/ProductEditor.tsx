@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2 } from 'lucide-react'
 import { saveAddonsTitleAction, saveProductAction, saveProductAddonsAction, saveProductWidthsAction } from '../../lib/actions'
@@ -81,7 +81,9 @@ export function ProductEditor({
   initialSaleUnit?: SaleUnit
 }) {
   const router = useRouter()
-  const { state: saveState, failure, warning, run, retry, markDirty } = useSaveAction()
+  const { state: saveState, failure, warning, run, retry, markDirty, reset } = useSaveAction()
+  /** «تجاهل وحدّث» شغال: الحقول والحفظ مقفولين لحد ما نسخة السيرفر توصل. */
+  const [refreshing, startRefresh] = useTransition()
   const [tab, setTab] = useState<Tab>('details')
 
   const [form, setForm] = useState(
@@ -110,6 +112,7 @@ export function ProductEditor({
   )
 
   const set = (patch: Partial<typeof form>) => {
+    if (refreshing) return
     editsRef.current += 1
     setForm({ ...form, ...patch })
     markDirty()
@@ -137,28 +140,36 @@ export function ProductEditor({
   const pendingEditsRef = useRef(0)
   /** تحذيرات آخر حفظ — بتتنقل لصفحة المنتج بعد الإنشاء. */
   const lastWarningRef = useRef<string | null>(null)
+  /**
+   * تحذير ثابت لحد الحفظ الجاي: تحذيرات الإنشاء اللي اتنقلت، أو تحذير حفظ جزئي.
+   * markDirty بيمسح تحذير useSaveAction مع أول كتابة، فده اللي بيفضل ظاهر.
+   */
   const [carriedWarning, setCarriedWarning] = useState<string | null>(null)
+  /**
+   * حفظ جزئي: المنتج الأساسي اتحفظ (وطابعه الجديد اتاخد) بس خطوة فرعية
+   * (عروض · إضافات · عنوان) فشلت. المسودة **مش** محفوظة: الحالة بتفضل Dirty
+   * والمزامنة من السيرفر مابتكتبش فوقها.
+   */
+  const partialRef = useRef(false)
+  const [partialSave, setPartialSave] = useState(false)
+  /** نتيجة آخر thunk: فيه خطوة فرعية فشلت؟ */
+  const lastPartialRef = useRef(false)
+  /** «تجاهل وحدّث» مستني نسخة السيرفر. */
+  const discardingRef = useRef(false)
 
   /**
-   * مزامنة من السيرفر لما الـ props تيجي بطابع مختلف (مثلًا router.refresh بعد
-   * عملية صورة):
-   *   - الطابع = آخر حفظ لينا        -> الـ props لحقتنا، الفورم مايتلمسش
-   *   - فيه تعديلات مش محفوظة         -> الفورم والطابع زي ما هم؛ لو حد تاني
-   *                                       عدّل فعلًا، الحفظ يطلع CONFLICT حقيقي
-   *   - مفيش تعديلات                  -> ناخد نسخة السيرفر
+   * ناخد نسخة السيرفر من الـ props الحالية: الفورم والطابع والمنتج، والمسودة
+   * بتتعتبر نضيفة. بتتنادى من المزامنة (لو مفيش تعديلات) ومن «تجاهل وحدّث».
    */
-  useEffect(() => {
-    const latest = product?.updatedAt ?? ''
-    if (sameStamp(latest, seenStampRef.current)) return
-    seenStampRef.current = latest
+  function adoptServer() {
     if (!product) return
-    if (sameStamp(latest, stampRef.current)) {
-      productRef.current = product
-      return
-    }
-    if (editsRef.current !== savedEditsRef.current) return
     productRef.current = product
-    stampRef.current = latest
+    stampRef.current = product.updatedAt
+    seenStampRef.current = product.updatedAt
+    savedEditsRef.current = editsRef.current
+    partialRef.current = false
+    setPartialSave(false)
+    titleRef.current = addonsTitle
     setForm({
       nameAr: product.nameAr,
       nameEn: product.nameEn,
@@ -179,6 +190,27 @@ export function ProductEditor({
       addonIds,
       addonsTitle,
     })
+  }
+
+  /**
+   * مزامنة من السيرفر لما الـ props تيجي بطابع مختلف (مثلًا router.refresh بعد
+   * عملية صورة):
+   *   - الطابع = آخر حفظ لينا        -> الـ props لحقتنا، الفورم مايتلمسش
+   *   - فيه تعديلات مش محفوظة أو      -> الفورم والطابع زي ما هم؛ لو حد تاني
+   *     حفظ جزئي                         عدّل فعلًا، الحفظ يطلع CONFLICT حقيقي
+   *   - مفيش تعديلات                  -> ناخد نسخة السيرفر
+   */
+  useEffect(() => {
+    const latest = product?.updatedAt ?? ''
+    if (sameStamp(latest, seenStampRef.current)) return
+    seenStampRef.current = latest
+    if (!product) return
+    if (sameStamp(latest, stampRef.current)) {
+      productRef.current = product
+      return
+    }
+    if (partialRef.current || editsRef.current !== savedEditsRef.current) return
+    adoptServer()
   }, [product, widths, addonIds, addonsTitle])
 
   // تحذيرات الإنشاء اللي اتنقلت مع الانتقال لصفحة المنتج — بتتقرا مرة وتتمسح
@@ -197,14 +229,25 @@ export function ProductEditor({
   }, [productId])
 
   /**
-   * «تجاهل وحدّث»: التعديلات المحلية بتتساب صراحة، والمزامنة بتتجبر تاخد
-   * نسخة السيرفر حتى لو الطابع ده اتشاف قبل كده (مثلًا بعد CONFLICT حقيقي).
+   * «تجاهل وحدّث»: يمسح بانر الفشل (reset)، يقفل الحقول والحفظ، ويستنى
+   * router.refresh جوه transition. أول ما الـ transition يخلص (والـ props
+   * الجديدة وصلت في نفس الـ render)، نسخة السيرفر بتتاخد **من غير شروط** —
+   * حتى لو الطابع اتشاف قبل كده أو فيه تعديلات.
    */
   function discardAndRefresh() {
-    savedEditsRef.current = editsRef.current
-    seenStampRef.current = ''
-    router.refresh()
+    reset()
+    setCarriedWarning(null)
+    discardingRef.current = true
+    startRefresh(() => {
+      router.refresh()
+    })
   }
+
+  useEffect(() => {
+    if (refreshing || !discardingRef.current) return
+    discardingRef.current = false
+    adoptServer()
+  }, [refreshing, product, widths, addonIds, addonsTitle])
 
   /**
    * ⚠️ **كل** قيمة في الـ payload بتتقرا من ref، ولا حاجة من closure
@@ -261,6 +304,7 @@ export function ProductEditor({
   const titleRef = useRef(addonsTitle)
 
   function save() {
+    if (refreshing) return
     const draftNow = formRef.current
     const problem = draftNow.saleUnit === 'piece' ? pieceProblem(draftNow) : pricingProblem(draftNow)
     if (problem !== null) {
@@ -279,6 +323,7 @@ export function ProductEditor({
       const meter = draft.saleUnit !== 'piece'
       pendingEditsRef.current = editsRef.current
       lastWarningRef.current = null
+      lastPartialRef.current = false
       const result = await saveProductAction(buildInput(), productRef.current ? undefined : collectionId)
       if (!result.ok) return result
       const problems: string[] = []
@@ -306,11 +351,21 @@ export function ProductEditor({
       if (all.length === 0) return result
       const warning = all.join(' · ')
       lastWarningRef.current = warning
+      lastPartialRef.current = problems.length > 0
       return { ...result, warning }
     }
     void run(thunk, {
       onSuccess: (saved) => {
-        savedEditsRef.current = pendingEditsRef.current
+        // حفظ جزئي: المسودة مش محفوظة كلها — مانعلّمهاش نضيفة، والتحذير بيفضل ثابت
+        if (lastPartialRef.current) {
+          partialRef.current = true
+          setPartialSave(true)
+          setCarriedWarning(lastWarningRef.current)
+        } else {
+          partialRef.current = false
+          setPartialSave(false)
+          savedEditsRef.current = pendingEditsRef.current
+        }
         // إنشاء: replace مش push عشان زرار Back مايرجعش لفورم إنشاء قديم.
         // التحذيرات بتتنقل لصفحة المنتج عشان ماتضيعش مع الانتقال.
         if (!productRef.current) {
@@ -333,7 +388,7 @@ export function ProductEditor({
   }
 
   return (
-    <div>
+    <fieldset disabled={refreshing} className="min-w-0">
       <div className="mb-4 flex gap-1 border-b border-border">
         {TABS.map((item) => (
           <button
@@ -458,9 +513,14 @@ export function ProductEditor({
 
       <div className="mt-4">
         <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={discardAndRefresh} />
+        {refreshing ? <p className="mt-2 text-xs text-muted">بيحمّل آخر نسخة من السيرفر…</p> : null}
       </div>
 
-      <SaveBar state={saveState} onSave={save} warning={warning ?? carriedWarning} />
-    </div>
+      <SaveBar
+        state={partialSave && (saveState === 'saved' || saveState === 'idle') ? 'dirty' : saveState}
+        onSave={save}
+        warning={warning ?? carriedWarning}
+      />
+    </fieldset>
   )
 }
