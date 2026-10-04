@@ -57,6 +57,16 @@ export default async function ProductPage({ params }: PageProps) {
   const addons = (product.addon_ids ?? [])
     .map((id) => catalog.find((item) => item.id === id))
     .filter((item): item is StoreProduct => item !== undefined && isPiece(item))
+  // صفحة «أدوات التركيب»: الزرار بس لو الصفحة مفعّلة والفيلم ليه أدوات نشطة مربوطة
+  const toolsPage = settings.installationToolsPage
+  const tools =
+    !piece && toolsPage.enabled && addons.length > 0
+      ? {
+          href: '/installation-tools?for=' + String(product.id),
+          browseLabel: toolsPage.browseButtonLabel,
+          checkoutLabel: toolsPage.checkoutButtonLabel,
+        }
+      : null
   const widths = widthOptionsOf(product)
 
   return (
@@ -130,7 +140,7 @@ export default async function ProductPage({ params }: PageProps) {
           {piece ? (
             <PieceBuy product={product} />
           ) : (
-            <ProductBuy product={product} gift={gift} addons={addons} addonsTitle={settings.addonsTitle} />
+            <ProductBuy product={product} gift={gift} addons={addons} addonsTitle={settings.addonsTitle} tools={tools} />
           )}
         </div>
       </div>

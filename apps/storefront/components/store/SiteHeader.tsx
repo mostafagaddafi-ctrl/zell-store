@@ -38,6 +38,7 @@ export function SiteHeader({
   whatsappMessage,
   allLabel,
   social,
+  toolsLink = null,
 }: {
   storeName: string
   logo: StoreImage | null
@@ -48,6 +49,8 @@ export function SiteHeader({
   allLabel: string
   /** روابط السوشيال — بتظهر تحت في قائمة الموبايل. */
   social: SocialLink[]
+  /** لينك صفحة «أدوات التركيب» في قائمة الموبايل — null = مخفي. */
+  toolsLink?: { href: string; label: string } | null
 }) {
   const cart = useCart()
   // أيقونة السلة: إجمالي الكمية (سطر المتر = ١، والمنتج بالعدد = كميته)
@@ -157,7 +160,7 @@ export function SiteHeader({
             ) : null}
           </Link>
 
-          <MobileMenu collections={navCollections} whatsappHref={whatsappHref} allLabel={allLabel} social={social} />
+          <MobileMenu collections={navCollections} whatsappHref={whatsappHref} allLabel={allLabel} social={social} toolsLink={toolsLink} />
         </div>
       </Container>
     </header>

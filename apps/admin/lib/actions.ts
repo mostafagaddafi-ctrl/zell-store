@@ -47,9 +47,10 @@ import { removeCollectionCover } from './mutations/collectionCover'
 import { setOfferEnabled } from './mutations/offer'
 import { testTelegram } from './systemHealth'
 import { saveInstallation, type InstallationSettings } from './mutations/installation'
+import { saveInstallationToolsPage, type ToolsPageRecord } from './mutations/installationToolsPage'
 import { saveShippingAreas } from './mutations/shippingAreas'
 import { saveHomeProducts } from './mutations/homeProducts'
-import type { HomeProducts } from '@zell/core'
+import type { HomeProducts, InstallationToolsPage } from '@zell/core'
 import { saveSocialLinks, type SocialLinksInput } from './mutations/socialLinks'
 import { saveProductWidths, type AdminWidth } from './mutations/productWidths'
 import { saveProductAddons } from './mutations/productAddons'
@@ -451,4 +452,17 @@ export async function saveAddonsTitleAction(title: string): Promise<MutationResu
   const gate = guardMutations()
   if (gate) return gate
   return refreshAfter(await saveAddonsTitle(title))
+}
+
+// ── صفحة «أدوات التركيب» ─────────────────────────────────────
+/** المحتوى بس (صف settings واحد بـ updated_at). الربط من صفحة الفيلم. */
+export async function saveInstallationToolsPageAction(
+  input: InstallationToolsPage,
+  expectedUpdatedAt: string | null,
+): Promise<MutationResult<ToolsPageRecord>> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return auth
+  const gate = guardMutations()
+  if (gate) return gate
+  return refreshAfter(await saveInstallationToolsPage(input, expectedUpdatedAt))
 }

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Cairo } from 'next/font/google'
 import type { ReactNode } from 'react'
+import { hasInstallationTools } from '@zell/core'
 import { AnnouncementBar } from '../components/store/AnnouncementBar'
 import { SiteFooter } from '../components/store/SiteFooter'
 import { SiteHeader } from '../components/store/SiteHeader'
@@ -36,7 +37,10 @@ export const viewport: Viewport = {
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const { settings, collections } = await getStorefrontData()
+  const { settings, collections, products } = await getStorefrontData()
+  // لينك «أدوات التركيب» في قائمة الموبايل: الصفحة مفعّلة وفيه أداة نشطة مربوطة بفيلم نشط
+  const toolsPage = settings.installationToolsPage
+  const toolsLink = toolsPage.enabled && hasInstallationTools(products) ? { href: '/installation-tools', label: toolsPage.title } : null
 
   return (
     <html lang="ar" dir="rtl" className={cairo.variable}>
@@ -52,6 +56,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             social={settings.socialLinks}
             whatsappNumber={settings.whatsappNumber}
             whatsappMessage={settings.whatsappMessage}
+            toolsLink={toolsLink}
           />
           {/*
             ⚠️ الحشو السفلي على الموبايل مش تزيين: الزرار العائم fixed،

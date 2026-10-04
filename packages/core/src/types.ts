@@ -96,6 +96,8 @@ export type StoreSettings = {
   socialLinks: SocialLink[]
   /** 0016 — عنوان جزء الإضافات في صفحة المنتج (settings.addons_title). */
   addonsTitle: string
+  /** صفحة «أدوات التركيب» (installation_tools_page). مش موجود/غلط = مقفولة بالنصوص الافتراضية. */
+  installationToolsPage: InstallationToolsPage
   announcement: Announcement
   /** محتوى الصفحة من «المحتوى» في اللوحة. */
   content: StoreContent
@@ -228,7 +230,7 @@ export const DEFAULT_STORE_CONTENT: StoreContent = {
   ],
   faqs: [
     { question: 'الفيلم بيتباع إزاي؟', answer: 'بالمتر الطولي. لو الشباك أعرض من عرض الرول بنقسمه شرايح والطول بيتحسب تلقائي. إنت بس تدخل مقاس الشباك.' },
-    { question: 'التركيب بيتم إزاي؟', answer: 'أدوات التركيب بتيجي مع الطلب مع شرح بالخطوات. الفيلم بيتركب بالمياه والصابون ومحتاجش فني.' },
+    { question: 'التركيب بيتم إزاي؟', answer: 'الفيلم بيتركب بالمياه والصابون. أدوات التركيب بتتباع لوحدها لو محتاجها، وتقدر تكمّل طلبك من غيرها. ولو محتاج مساعدة كلّمنا على واتساب.' },
     { question: 'الدفع إزاي؟', answer: 'الدفع عند الاستلام لكل المحافظات. تشوف الشحنة وتدفع للمندوب.' },
     { question: 'لو المقاس غلط؟', answer: 'كلّمنا على واتساب قبل ما تطلب وإحنا نحسبهولك.' },
   ],
@@ -465,6 +467,64 @@ export type SaleUnit = 'meter' | 'piece'
 
 export const DEFAULT_ADDONS_TITLE = 'أدوات التركيب'
 export const MAX_PIECE_QUANTITY = 999
+
+/**
+ * صفحة «أدوات التركيب» — settings.installation_tools_page (صف واحد jsonb).
+ * المحتوى بس. الربط بين الفيلم وأدواته من صفحة الفيلم (product_addons) — مصدر واحد.
+ *
+ * ⚠️ مش موجود أو مش object أو enabled مش true = **مقفولة** بالنصوص الافتراضية.
+ *    بتتفتح يدوي من اللوحة بعد إنشاء الأدوات وربطها وتعديل الأسئلة.
+ * ⚠️ videoNote نص اختياري بس — مفيش أي افتراض إن فيديو بيتبعت تلقائي.
+ */
+export type InstallationToolsPage = {
+  enabled: boolean
+  title: string
+  description: string
+  videoNote: string
+  browseButtonLabel: string
+  checkoutButtonLabel: string
+}
+
+export const INSTALLATION_TOOLS_PAGE_LIMITS = {
+  title: 60,
+  description: 300,
+  videoNote: 200,
+  browseButtonLabel: 40,
+  checkoutButtonLabel: 40,
+} as const
+
+export const DEFAULT_INSTALLATION_TOOLS_PAGE: InstallationToolsPage = {
+  enabled: false,
+  title: 'أدوات التركيب',
+  description: 'اختار الأدوات اللي محتاجها لتركيب الفيلم، أو الباكدج كاملة — وتقدر تكمّل طلبك من غيرها.',
+  videoNote: '',
+  browseButtonLabel: 'اختار أدوات التركيب',
+  checkoutButtonLabel: 'كمّل لإتمام الطلب',
+}
+
+/** نص من الإعداد: مش string أو أطول من الحد = الافتراضي. الفاضي مسموح للاختياري بس. */
+function toolsPageText(value: unknown, max: number, fallback: string, allowEmpty: boolean): string {
+  if (typeof value !== 'string') return fallback
+  const text = value.trim()
+  if (text.length > max) return fallback
+  if (text === '' && !allowEmpty) return fallback
+  return text
+}
+
+export function parseInstallationToolsPage(value: unknown): InstallationToolsPage {
+  const fallback = DEFAULT_INSTALLATION_TOOLS_PAGE
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return { ...fallback }
+  const raw = value as Record<string, unknown>
+  const limits = INSTALLATION_TOOLS_PAGE_LIMITS
+  return {
+    enabled: raw['enabled'] === true,
+    title: toolsPageText(raw['title'], limits.title, fallback.title, false),
+    description: toolsPageText(raw['description'], limits.description, fallback.description, true),
+    videoNote: toolsPageText(raw['videoNote'], limits.videoNote, fallback.videoNote, true),
+    browseButtonLabel: toolsPageText(raw['browseButtonLabel'], limits.browseButtonLabel, fallback.browseButtonLabel, false),
+    checkoutButtonLabel: toolsPageText(raw['checkoutButtonLabel'], limits.checkoutButtonLabel, fallback.checkoutButtonLabel, false),
+  }
+}
 
 export function isPiece(product: { sale_unit?: SaleUnit }): boolean {
   return product.sale_unit === 'piece'

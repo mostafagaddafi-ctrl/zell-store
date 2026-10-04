@@ -1,4 +1,5 @@
 export * from './types'
+export * from './addons'
 export * from './images'
 export * from './pricing'
 export * from './validation'

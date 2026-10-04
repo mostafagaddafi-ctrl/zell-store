@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react'
+import { Minus, Plus, ShoppingBag, Trash2, Wrench } from 'lucide-react'
 import {
   describeLine,
   formatPiastres,
@@ -24,10 +24,13 @@ export function CartView({
   products,
   trustLine,
   gift,
+  tools = null,
 }: {
   products: StoreProduct[]
   trustLine?: string
   gift?: string
+  /** صفحة «أدوات التركيب» مفعّلة — الزرار بيظهر بس لو في السلة فيلم ليه أدوات نشطة. */
+  tools?: { browseLabel: string } | null
 }) {
   const cart = useCart()
   const [pruned, setPruned] = useState(false)
@@ -78,6 +81,15 @@ export function CartView({
       </div>
     )
   }
+
+  // أفلام بالمقاس في السلة ليها أدوات نشطة → زرار واحد لصفحة الأدوات (قايمة واحدة من غير تكرار)
+  const toolFilmIds: number[] = []
+  for (const entry of entries) {
+    const base = byId.get(entry.line.productId)
+    if (!base || isPiece(base) || !(base.addon_ids ?? []).some((id) => byId.has(id))) continue
+    if (!toolFilmIds.includes(base.id)) toolFilmIds.push(base.id)
+  }
+  const toolsHref = tools && toolFilmIds.length > 0 ? '/installation-tools?for=' + toolFilmIds.slice(0, 10).join(',') : null
 
   const subtotal = entries.reduce(
     (sum, entry) => sum + lineTotalPiastres(entry.product, entry.line),
@@ -170,6 +182,15 @@ export function CartView({
             </li>
           )
         })}
+
+        {tools && toolsHref ? (
+          <li>
+            <Link href={toolsHref} className={buttonClasses('secondary', 'md', 'w-full')}>
+              <Wrench className="h-4 w-4" aria-hidden="true" />
+              {tools.browseLabel}
+            </Link>
+          </li>
+        ) : null}
 
         <li>
           <Link href="/" className="inline-block py-2 text-sm font-semibold text-accent">

@@ -12,6 +12,7 @@ import {
   parseShippingAreas,
   parseSocialLinks,
   catalogLayoutOf,
+  parseInstallationToolsPage,
   DEFAULT_ADDONS_TITLE,
   DEFAULT_STORE_CONTENT,
   type HomeSection,
@@ -287,6 +288,8 @@ export const PUBLIC_SETTING_KEYS = [
   'home_products',
   'social_links',
   'addons_title',
+  // صفحة «أدوات التركيب» — المحتوى بس، الربط من product_addons
+  'installation_tools_page',
   'whatsapp_number',
   'whatsapp_message',
   'shipping_rates',
@@ -388,6 +391,7 @@ export function toStoreSettings(rows: SettingRow[], logo: StoreImage | null = nu
     homeProducts: parseHomeProducts(map.get('home_products')),
     socialLinks: parseSocialLinks(map.get('social_links')),
     addonsTitle: settingString(map, 'addons_title').trim() || DEFAULT_ADDONS_TITLE,
+    installationToolsPage: parseInstallationToolsPage(map.get('installation_tools_page')),
     announcement: settingAnnouncement(map),
     content: settingContent(map),
   }

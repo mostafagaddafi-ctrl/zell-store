@@ -29,11 +29,14 @@ export function MobileMenu({
   whatsappHref,
   allLabel,
   social,
+  toolsLink = null,
 }: {
   collections: StoreCollection[]
   whatsappHref: string | null
   allLabel: string
   social: SocialLink[]
+  /** صفحة «أدوات التركيب» — بس لما تكون مفعّلة وفيه أداة نشطة مربوطة بفيلم نشط. */
+  toolsLink?: { href: string; label: string } | null
 }) {
   const dialogRef = useRef<HTMLDialogElement | null>(null)
   const [open, setOpen] = useState(false)
@@ -101,6 +104,7 @@ export function MobileMenu({
       href: '/collection/' + collection.slug,
       label: collection.title,
     })),
+    ...(toolsLink ? [toolsLink] : []),
     { href: '/#how', label: 'إزاي أطلب' },
     { href: '/#faq', label: 'أسئلة متكررة' },
   ]

@@ -12,7 +12,7 @@
  * الروابط الحقيقية بتتبنى في طبقة القراءة المعتمدة على السيرفر.
  */
 import type { StoreProduct, StoreCollection, StoreSettings } from '@zell/core'
-import { DEFAULT_STORE_CONTENT } from '@zell/core'
+import { DEFAULT_INSTALLATION_TOOLS_PAGE, DEFAULT_STORE_CONTENT } from '@zell/core'
 
 export const FALLBACK_PRODUCTS: StoreProduct[] = [
   {
@@ -121,6 +121,7 @@ export const FALLBACK_SETTINGS: StoreSettings = {
   homeProducts: { mode: 'all', ids: [], allLabel: 'كل الأفلام' },
   socialLinks: [],
   addonsTitle: 'أدوات التركيب',
+  installationToolsPage: DEFAULT_INSTALLATION_TOOLS_PAGE,
   // الكتالوج المؤقت مابيعرضش شريط — الشريط بيانات حقيقية من settings بس
   announcement: { enabled: false, text: '', href: '', ctaLabel: '' },
   content: DEFAULT_STORE_CONTENT,
