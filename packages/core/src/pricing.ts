@@ -214,7 +214,7 @@ export function lineTotalPiastres(product: StoreProduct, line: { lengthCm: numbe
   return computeSubtotalPiastres(product.price_per_meter_piastres, line.lengthCm)
 }
 
-/** وصف السطر للزبون: «٣ متر» أو «٢ قطعة». */
+/** وصف السطر للزبون: «٣ متر» أو «الكمية ٢». عرض بس — مش داخل في الهاش ولا الحساب. */
 export function describeLine(product: StoreProduct, line: { lengthCm: number; quantity?: number }): string {
-  return isPiece(product) ? String(line.quantity ?? 1) + ' قطعة' : formatLength(line.lengthCm)
+  return isPiece(product) ? 'الكمية ' + String(line.quantity ?? 1) : formatLength(line.lengthCm)
 }

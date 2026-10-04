@@ -93,7 +93,7 @@ function buildMessage(order: NotifyOrder): string {
     lines.push(
       '• ' + escapeHtml(item.product_name_ar) +
         (item.sale_unit === 'piece'
-          ? ' × ' + String(item.quantity ?? 1) + ' قطعة'
+          ? ' — الكمية ' + String(item.quantity ?? 1)
           : ' — ' + String(item.length_cm) + ' سم × ' + String(item.width_cm) + ' سم') +
         ' = ' + escapeHtml(money(item.line_total_piastres)),
     )

@@ -33,8 +33,8 @@ export default async function NewProductPage({ searchParams }: PageProps) {
           المنتجات
         </Link>
         <PageHeader
-          title="إضافة / منتج بالقطعة"
-          description="أدوات أو أي حاجة من غير مقاسات — بتتباع بالعدد ومش لازم تبقى في قسم"
+          title="إضافة / منتج بالعدد"
+          description="منتج جاهز بسعر ثابت (رول كامل، فوطة، كرتونة، باكدج أو أداة) — بيتباع بالكمية ومش لازم يبقى في قسم"
         />
         <ProductEditor product={null} initialSaleUnit="piece" />
       </>
@@ -56,7 +56,7 @@ export default async function NewProductPage({ searchParams }: PageProps) {
 
         <Link href="/products/new?kind=piece" className={buttonClasses('secondary', 'sm', 'mb-4')}>
           <Plus className="h-4 w-4" />
-          إضافة / منتج بالقطعة (من غير قسم)
+          إضافة / منتج بالعدد (من غير قسم)
         </Link>
 
         {collections.length === 0 ? (

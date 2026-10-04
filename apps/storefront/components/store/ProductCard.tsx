@@ -62,7 +62,7 @@ export function ProductCard({ product }: { product: StoreProduct }) {
                 <Num>{formatPiastres(discount.compareAtPiastres)}</Num>
               </span>
             ) : null}
-            <span className="ms-1.5 text-xs text-muted">{isPiece(product) ? 'للقطعة' : 'للمتر'}</span>
+            <span className="ms-1.5 text-xs text-muted">{isPiece(product) ? 'للوحدة' : 'للمتر'}</span>
           </div>
 
           <span className={buttonClasses('primary', 'md', 'w-full px-2 text-xs sm:px-4 sm:text-sm')}>التفاصيل{' '}

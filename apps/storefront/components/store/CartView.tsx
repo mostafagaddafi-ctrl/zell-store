@@ -126,7 +126,7 @@ export function CartView({
                       {entry.product.name_ar}
                     </Link>
                     <p className="mt-0.5 text-xs text-muted">
-                      <Num>{formatPiastres(entry.product.price_per_meter_piastres)}</Num> {isPiece(entry.product) ? 'للقطعة' : 'للمتر'}
+                      <Num>{formatPiastres(entry.product.price_per_meter_piastres)}</Num> {isPiece(entry.product) ? 'للوحدة' : 'للمتر'}
                       {entry.multi ? (
                         <>
                           {' · عرض '}

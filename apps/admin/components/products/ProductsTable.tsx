@@ -95,7 +95,7 @@ export function ProductsTable({
                 )}
                 <p className="mt-1 text-sm font-semibold text-fg">
                   {formatPiastres(product.pricePerMeterPiastres)}{' '}
-                  <span className="text-xs font-normal text-muted">{product.saleUnit === 'piece' ? 'للقطعة' : 'للمتر'}</span>
+                  <span className="text-xs font-normal text-muted">{product.saleUnit === 'piece' ? 'للوحدة' : 'للمتر'}</span>
                 </p>
                 <p className="text-xs text-muted">
                   {formatLength(product.minLengthCm)} – {formatLength(product.maxLengthCm)} · خطوة{' '}
@@ -212,7 +212,7 @@ export function ProductsTable({
 
               <TD className="font-semibold">
                 {formatPiastres(product.pricePerMeterPiastres)}
-                {product.saleUnit === 'piece' ? <span className="block text-xs font-normal text-muted">للقطعة</span> : null}
+                {product.saleUnit === 'piece' ? <span className="block text-xs font-normal text-muted">للوحدة</span> : null}
               </TD>
 
               <TD className="text-xs text-muted">

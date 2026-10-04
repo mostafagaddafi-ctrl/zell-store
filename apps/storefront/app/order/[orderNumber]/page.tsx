@@ -179,7 +179,7 @@ export default async function OrderReceiptPage({
                 <p className="text-xs text-muted">
                   <Num>
                     {item.sale_unit === 'piece'
-                      ? String(item.quantity ?? 1) + ' قطعة'
+                      ? 'الكمية ' + String(item.quantity ?? 1)
                       : formatLength(item.length_cm ?? 0)}
                   </Num>
                 </p>

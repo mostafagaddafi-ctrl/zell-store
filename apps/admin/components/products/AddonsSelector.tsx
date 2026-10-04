@@ -45,7 +45,7 @@ export function AddonsSelector({
     <Card title={'الإضافات (' + String(value.length) + ')'}>
       <div className="space-y-3">
         <p className="text-xs text-muted">
-          منتجات بالقطعة (زي أدوات التركيب) بتظهر في صفحة الفيلم ده، والزبون يضيف منها بالعدد. الترتيب هنا هو ترتيب الظهور.
+          منتجات بالعدد (زي أدوات التركيب) بتظهر في صفحة الفيلم ده، والزبون يضيف منها بالكمية. الترتيب هنا هو ترتيب الظهور.
         </p>
 
         <Field htmlFor="addons-title" label="عنوان الجزء (واحد لكل المنتجات)" hint="مثلًا: أدوات التركيب">
@@ -61,17 +61,17 @@ export function AddonsSelector({
 
         {options.length === 0 ? (
           <div className="space-y-2 rounded border border-dashed border-border p-3 text-xs text-muted">
-            <p>مفيش منتجات بالقطعة لسه.</p>
+            <p>مفيش منتجات بالعدد لسه.</p>
             <Link href="/products/new?kind=piece" className={buttonClasses('secondary', 'sm')}>
               <Plus className="h-4 w-4" />
-              إضافة / منتج بالقطعة
+              إضافة / منتج بالعدد
             </Link>
           </div>
         ) : null}
 
         {unavailable > 0 ? (
           <p className="rounded border border-danger/40 bg-danger/5 px-2.5 py-2 text-xs text-danger">
-            {'في ' + String(unavailable) + ' إضافة مابقتش منتج بالقطعة. شيلها من هنا عشان الإضافات تتحفظ.'}
+            {'في ' + String(unavailable) + ' إضافة مابقتش منتج بالعدد. شيلها من هنا عشان الإضافات تتحفظ.'}
           </p>
         ) : null}
 
@@ -91,7 +91,7 @@ export function AddonsSelector({
                 >
                   <span className="min-w-0 flex-1 truncate font-semibold text-fg">{name}</span>
                   {option ? (
-                    <span className="shrink-0 text-xs text-muted">{formatPiastres(option.pricePiastres) + ' للقطعة'}</span>
+                    <span className="shrink-0 text-xs text-muted">{formatPiastres(option.pricePiastres) + ' للوحدة'}</span>
                   ) : (
                     <span className="shrink-0 text-xs font-semibold text-danger">غير متاحة</span>
                   )}
