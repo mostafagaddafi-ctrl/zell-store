@@ -93,7 +93,7 @@ export function AddonsPicker({
                   <span className="font-semibold text-fg">
                     <Num>{formatPiastres(addon.price_per_meter_piastres)}</Num>
                   </span>{' '}
-                  للقطعة
+                  للوحدة
                 </p>
               </div>
               {quantity === 0 ? (
