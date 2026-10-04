@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Check, ShoppingBag } from 'lucide-react'
+import { ArrowLeft, Check, ShoppingBag, Wrench } from 'lucide-react'
 import { formatLength, maxQuantityOf, validateLength, widthOptionsOf, withWidth, type StoreProduct } from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { buttonClasses, Button } from '../ui/Button'
@@ -12,18 +12,24 @@ import { GiftNote } from './GiftNote'
 import { SizePanel } from './SizePanel'
 import { AddonsPicker } from './AddonsPicker'
 
+/** رابط صفحة «أدوات التركيب» بعد الإضافة — null = الأزرار القديمة زي ما هي. */
+export type ToolsLink = { href: string; browseLabel: string; checkoutLabel: string }
+
 /** gift: «نص العرض» لو ظاهر — بيظهر كهدية فوق زرار الإضافة. */
 export function ProductBuy({
   product,
   gift = '',
   addons = [],
   addonsTitle = '',
+  tools = null,
 }: {
   product: StoreProduct
   gift?: string
   /** 0016 — منتجات قطعة بتتضاف مع الفيلم (بعددها). */
   addons?: StoreProduct[]
   addonsTitle?: string
+  /** صفحة الأدوات مفعّلة والفيلم ليه أدوات نشطة مربوطة — مفيش تحويل، اختيار بس. */
+  tools?: ToolsLink | null
 }) {
   const cart = useCart()
   const router = useRouter()
@@ -116,18 +122,37 @@ export function ProductBuy({
               </>
             ) : null}
           </p>
-          <Link href="/checkout" className={buttonClasses('primary', 'md', 'w-full')}>
-            إتمام الطلب
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div className="grid grid-cols-2 gap-2">
-            <Link href="/cart" className={buttonClasses('secondary', 'md', 'w-full')}>
-              افتح السلة
-            </Link>
-            <Link href="/" className={buttonClasses('secondary', 'md', 'w-full')}>
-              كمّل تسوّق
-            </Link>
-          </div>
+          {tools ? (
+            <>
+              <Link href={tools.href} className={buttonClasses('primary', 'md', 'w-full')}>
+                <Wrench className="h-4 w-4" aria-hidden="true" />
+                {tools.browseLabel}
+              </Link>
+              <div className="grid grid-cols-2 gap-2">
+                <Link href="/checkout" className={buttonClasses('secondary', 'md', 'w-full')}>
+                  {tools.checkoutLabel}
+                </Link>
+                <Link href="/cart" className={buttonClasses('secondary', 'md', 'w-full')}>
+                  افتح السلة
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <Link href="/checkout" className={buttonClasses('primary', 'md', 'w-full')}>
+                إتمام الطلب
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+              <div className="grid grid-cols-2 gap-2">
+                <Link href="/cart" className={buttonClasses('secondary', 'md', 'w-full')}>
+                  افتح السلة
+                </Link>
+                <Link href="/" className={buttonClasses('secondary', 'md', 'w-full')}>
+                  كمّل تسوّق
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       ) : null}
     </div>
