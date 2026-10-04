@@ -15,6 +15,7 @@ import {
   Store,
   Truck,
   Wrench,
+  PackageOpen,
   X,
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
@@ -69,13 +70,15 @@ export function AdminShell({
         { href: '/content', label: 'المحتوى', icon: ImageIcon },
         { href: '/shipping', label: 'الشحن', icon: Truck },
         { href: '/installation', label: 'فني التركيب', icon: Wrench },
+        { href: '/installation-tools', label: 'أدوات التركيب', icon: PackageOpen },
         { href: '/identity', label: 'الهوية', icon: Store },
       ],
     },
     { title: 'النظام', items: [{ href: '/settings', label: 'الإعدادات', icon: Settings }] },
   ]
 
-  const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href))
+  // المطابقة على الرابط أو اللي بعده «/» — عشان «/installation» مايتعلّمش في «/installation-tools»
+  const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/'))
 
   const nav = (
     <nav className="flex h-full flex-col gap-5 overflow-y-auto p-3">
