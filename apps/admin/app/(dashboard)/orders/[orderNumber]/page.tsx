@@ -53,7 +53,21 @@ export default async function OrderDetailPage({ params }: PageProps) {
           </span>
           <div className="min-w-0">
             <p className="text-sm font-bold text-fg">العميل طالب فني تركيب</p>
-            <p className="text-xs text-muted">كلّمه واتفق على معاد وسعر التركيب قبل الشحن. عنوانه وملاحظاته في كارت العميل.</p>
+            {order.installationRequested ? (
+              <p className="text-xs text-muted">
+                {'أجر التركيب ' +
+                  formatPiastres(order.installationPiastres) +
+                  (order.installationLengthCm !== null && order.installationRatePiastres !== null
+                    ? ' (' + formatLength(order.installationLengthCm) + ' × ' + formatPiastres(order.installationRatePiastres) + ' للمتر)'
+                    : '') +
+                  ' · انتقال الفني ' +
+                  (order.installationTravelPiastres === 0 ? 'مجاني' : formatPiastres(order.installationTravelPiastres)) +
+                  (order.shippingArea ? ' · ' + order.shippingArea : '') +
+                  ' — الاتنين داخلين في الإجمالي. كلّمه واتفق على المعاد.'}
+              </p>
+            ) : (
+              <p className="text-xs text-muted">كلّمه واتفق على معاد وسعر التركيب قبل الشحن. عنوانه وملاحظاته في كارت العميل.</p>
+            )}
           </div>
         </div>
       ) : null}
@@ -102,6 +116,15 @@ export default async function OrderDetailPage({ params }: PageProps) {
             <dl className="mt-4 space-y-1.5 text-sm">
               <Row label="الأصناف" value={formatPiastres(order.subtotalPiastres)} />
               <Row label="الشحن" value={formatPiastres(order.shippingPiastres)} />
+              {order.installationRequested ? (
+                <>
+                  <Row label="أجر التركيب" value={formatPiastres(order.installationPiastres)} />
+                  <Row
+                    label="انتقال الفني"
+                    value={order.installationTravelPiastres === 0 ? 'مجاني' : formatPiastres(order.installationTravelPiastres)}
+                  />
+                </>
+              ) : null}
               <div className="flex items-center justify-between border-t border-border pt-2">
                 <dt className="font-bold text-fg">الإجمالي</dt>
                 <dd className="text-base font-extrabold text-brand">{formatPiastres(order.totalPiastres)}</dd>
@@ -122,6 +145,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
               <Row label="الاسم" value={order.customerName} />
               <Row label="الموبايل" value={order.customerPhone} ltr />
               <Row label="المحافظة" value={order.governorate} />
+              {order.shippingArea ? <Row label="المنطقة" value={order.shippingArea} /> : null}
             </dl>
             <p className="mt-3 text-xs leading-relaxed text-muted">{order.address}</p>
             {order.notes ? (
