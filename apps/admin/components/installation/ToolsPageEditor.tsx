@@ -170,10 +170,10 @@ export function ToolsPageEditor({ initial, summary }: { initial: ToolsPageRecord
           </ul>
         )}
         {summary.unlinkedPieces.length > 0 ? (
-          <p className="mt-3 rounded border border-border bg-bg p-2 text-xs text-muted">
-            {'منتجات بالعدد مش مربوطة بأي فيلم (مش هتظهر في صفحة الأدوات): ' +
-              summary.unlinkedPieces.map((piece) => piece.name).join(' · ')}
-          </p>
+          <div className="mt-3 rounded border border-border bg-bg p-2 text-xs text-muted">
+            <p>منتجات بالعدد مش مربوطة بفيلم نشط — طبيعي لو المنتج مش أداة، زي رول كامل.</p>
+            <p className="mt-1">{summary.unlinkedPieces.map((piece) => piece.name).join(' · ')}</p>
+          </div>
         ) : null}
       </Card>
     </div>
