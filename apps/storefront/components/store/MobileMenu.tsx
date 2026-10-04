@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, MessageCircle, ShoppingBag, X } from 'lucide-react'
 import type { SocialLink, StoreCollection } from '@zell/core'
+import { useCart } from '../../lib/cart'
+import { Num } from './Num'
 import { SocialLinks } from './SocialLinks'
 
 /**
@@ -36,6 +38,8 @@ export function MobileMenu({
   const dialogRef = useRef<HTMLDialogElement | null>(null)
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
+  const cart = useCart()
+  const items = cart.ready ? cart.itemCount : 0
   const titleId = useId()
 
   function openMenu() {
@@ -167,6 +171,11 @@ export function MobileMenu({
                 >
                   <ShoppingBag className="h-5 w-5" />
                   السلة
+                  {items > 0 ? (
+                    <span className="ms-auto flex h-6 min-w-6 items-center justify-center rounded-full bg-brand px-1.5 text-xs font-bold text-brand-fg">
+                      <Num>{items > 99 ? '99+' : String(items)}</Num>
+                    </span>
+                  ) : null}
                 </Link>
               </li>
             </ul>
