@@ -42,8 +42,8 @@ export function PieceBuy({ product }: { product: StoreProduct }) {
       {/* صف مدمج: الكمية بأزرار كبيرة للموبايل (٤٤px)، وتحتها سعر الوحدة والإجمالي */}
       <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-bold text-fg">الكمية</h2>
-          <div className="flex items-center gap-1 rounded-lg border border-border p-1">
+          <h2 id="piece-quantity-label" className="text-sm font-bold text-fg">الكمية</h2>
+          <div role="group" aria-labelledby="piece-quantity-label" className="flex items-center gap-1 rounded-lg border border-border p-1">
             <button
               type="button"
               aria-label="قلّل الكمية"
