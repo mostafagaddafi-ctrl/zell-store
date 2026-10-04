@@ -21,6 +21,17 @@ import { PiecePricing, pieceProblem, SaleUnitSwitch, type SaleUnit } from './Pie
 
 type Tab = 'details' | 'pricing' | 'images'
 
+/** تحذيرات إنشاء المنتج بتتنقل لصفحته عن طريق sessionStorage عشان ماتضيعش مع الانتقال. */
+const WARNING_KEY = 'zell-admin:product-warning:'
+
+/** نفس اللحظة؟ النص الأول، وبعدين الميلي ثانية — نفس منطق sameInstant في السيرفر. */
+function sameStamp(left: string, right: string): boolean {
+  if (left === right) return true
+  const a = Date.parse(left)
+  const b = Date.parse(right)
+  return Number.isFinite(a) && a === b
+}
+
 const TABS: Array<{ key: Tab; label: string }> = [
   { key: 'details', label: 'بيانات' },
   { key: 'pricing', label: 'التسعير والعروض' },
@@ -99,6 +110,7 @@ export function ProductEditor({
   )
 
   const set = (patch: Partial<typeof form>) => {
+    editsRef.current += 1
     setForm({ ...form, ...patch })
     markDirty()
   }
@@ -110,19 +122,43 @@ export function ProductEditor({
    */
   const formRef = useRef(form)
   formRef.current = form
+  /**
+   * النسخة المعتمدة للحفظ (الطابع + المنتج). بتتحدّث من رد الحفظ الناجح، أو من
+   * props بطابع جديد (المزامنة تحت) — **مش** في كل render. الـ props بتفضل قديمة
+   * بعد الحفظ لحد أي refresh، والرجوع ليها كان بيخلّي تاني حفظ يطلع CONFLICT وهمي.
+   */
   const stampRef = useRef(product?.updatedAt ?? '')
-  stampRef.current = product?.updatedAt ?? ''
   const productRef = useRef(product)
-  productRef.current = product
+  /** آخر طابع شفناه في الـ props — عشان المزامنة تشتغل بس لما الـ props تتغيّر فعلًا. */
+  const seenStampRef = useRef(product?.updatedAt ?? '')
+  /** عدّاد التعديلات: آخر قيمة اتحفظت، والقيمة وقت بداية الحفظ الجاري. */
+  const editsRef = useRef(0)
+  const savedEditsRef = useRef(0)
+  const pendingEditsRef = useRef(0)
+  /** تحذيرات آخر حفظ — بتتنقل لصفحة المنتج بعد الإنشاء. */
+  const lastWarningRef = useRef<string | null>(null)
+  const [carriedWarning, setCarriedWarning] = useState<string | null>(null)
 
-  // بعد نجاح الحفظ الـ props بتتغيّر فالفورم بيتزامن من السيرفر.
-  // لو الحفظ فشل مفيش حاجة بتتغيّر والتعديلات بتفضل زي ما هي.
-  const [syncedAt, setSyncedAt] = useState(product?.updatedAt ?? '')
+  /**
+   * مزامنة من السيرفر لما الـ props تيجي بطابع مختلف (مثلًا router.refresh بعد
+   * عملية صورة):
+   *   - الطابع = آخر حفظ لينا        -> الـ props لحقتنا، الفورم مايتلمسش
+   *   - فيه تعديلات مش محفوظة         -> الفورم والطابع زي ما هم؛ لو حد تاني
+   *                                       عدّل فعلًا، الحفظ يطلع CONFLICT حقيقي
+   *   - مفيش تعديلات                  -> ناخد نسخة السيرفر
+   */
   useEffect(() => {
     const latest = product?.updatedAt ?? ''
-    if (latest === syncedAt) return
-    setSyncedAt(latest)
+    if (sameStamp(latest, seenStampRef.current)) return
+    seenStampRef.current = latest
     if (!product) return
+    if (sameStamp(latest, stampRef.current)) {
+      productRef.current = product
+      return
+    }
+    if (editsRef.current !== savedEditsRef.current) return
+    productRef.current = product
+    stampRef.current = latest
     setForm({
       nameAr: product.nameAr,
       nameEn: product.nameEn,
@@ -143,7 +179,32 @@ export function ProductEditor({
       addonIds,
       addonsTitle,
     })
-  }, [product, syncedAt, widths, addonIds, addonsTitle])
+  }, [product, widths, addonIds, addonsTitle])
+
+  // تحذيرات الإنشاء اللي اتنقلت مع الانتقال لصفحة المنتج — بتتقرا مرة وتتمسح
+  const productId = product?.id
+  useEffect(() => {
+    if (productId === undefined) return
+    const key = WARNING_KEY + String(productId)
+    try {
+      const stored = window.sessionStorage.getItem(key)
+      if (stored === null) return
+      window.sessionStorage.removeItem(key)
+      setCarriedWarning(stored)
+    } catch {
+      // sessionStorage مقفول — التحذير بيضيع بس الحفظ نفسه تمام
+    }
+  }, [productId])
+
+  /**
+   * «تجاهل وحدّث»: التعديلات المحلية بتتساب صراحة، والمزامنة بتتجبر تاخد
+   * نسخة السيرفر حتى لو الطابع ده اتشاف قبل كده (مثلًا بعد CONFLICT حقيقي).
+   */
+  function discardAndRefresh() {
+    savedEditsRef.current = editsRef.current
+    seenStampRef.current = ''
+    router.refresh()
+  }
 
   /**
    * ⚠️ **كل** قيمة في الـ payload بتتقرا من ref، ولا حاجة من closure
@@ -169,6 +230,8 @@ export function ProductEditor({
     const base = {
       nameAr: draft.nameAr,
       nameEn: draft.nameEn,
+      // مالوش خانة في الفورم — بيتبعت زي ما هو، وإلا التحقق بيحوّله null
+      brand: current?.brand ?? '',
       descriptionAr: draft.descriptionAr,
       shortBenefit: draft.shortBenefit,
       benefits: draft.benefits,
@@ -210,34 +273,61 @@ export function ProductEditor({
      * حفظ واحد بالترتيب: المنتج ← عروض الرول ← الإضافات ← عنوان الإضافات.
      * القطعة: مفيش عروض ولا إضافات (بتتفضّى). فشل أي خطوة بعد المنتج = تحذير.
      */
+    setCarriedWarning(null)
     const thunk = async () => {
       const draft = formRef.current
       const meter = draft.saleUnit !== 'piece'
+      pendingEditsRef.current = editsRef.current
+      lastWarningRef.current = null
       const result = await saveProductAction(buildInput(), productRef.current ? undefined : collectionId)
       if (!result.ok) return result
       const problems: string[] = []
+      // كل التحذيرات بتتجمع (من غير تكرار) بدل ما الأخير يكتب فوق اللي قبله
+      const notes: string[] = []
+      const note = (text: string | undefined) => {
+        if (text !== undefined && text !== '' && !notes.includes(text)) notes.push(text)
+      }
+      note(result.warning)
       const widthsSaved = await saveProductWidthsAction(result.data.id, meter ? extraWidthsPayload(draft) : [])
-      if (!widthsSaved.ok) problems.push('عروض الرول (' + widthsSaved.message + ')')
+      if (widthsSaved.ok) note(widthsSaved.warning)
+      else problems.push('عروض الرول (' + widthsSaved.message + ')')
       const addonsSaved = await saveProductAddonsAction(result.data.id, meter ? draft.addonIds : [])
-      if (!addonsSaved.ok) problems.push('الإضافات (' + addonsSaved.message + ')')
+      if (addonsSaved.ok) note(addonsSaved.warning)
+      else problems.push('الإضافات (' + addonsSaved.message + ')')
       const title = draft.addonsTitle.trim()
       if (meter && title !== '' && title !== titleRef.current) {
         const titleSaved = await saveAddonsTitleAction(title)
-        if (titleSaved.ok) titleRef.current = titleSaved.data
-        else problems.push('عنوان الإضافات (' + titleSaved.message + ')')
+        if (titleSaved.ok) {
+          titleRef.current = titleSaved.data
+          note(titleSaved.warning)
+        } else problems.push('عنوان الإضافات (' + titleSaved.message + ')')
       }
-      if (problems.length > 0) return { ...result, warning: 'المنتج اتحفظ، بس ' + problems.join(' و') + ' ما اتحفظش.' }
-      return result
+      const all = problems.length > 0 ? ['المنتج اتحفظ، بس ' + problems.join(' و') + ' ما اتحفظش.', ...notes] : notes
+      if (all.length === 0) return result
+      const warning = all.join(' · ')
+      lastWarningRef.current = warning
+      return { ...result, warning }
     }
     void run(thunk, {
       onSuccess: (saved) => {
-        // إنشاء: replace مش push عشان زرار Back مايرجعش لفورم إنشاء قديم
+        savedEditsRef.current = pendingEditsRef.current
+        // إنشاء: replace مش push عشان زرار Back مايرجعش لفورم إنشاء قديم.
+        // التحذيرات بتتنقل لصفحة المنتج عشان ماتضيعش مع الانتقال.
         if (!productRef.current) {
+          const carried = lastWarningRef.current
+          if (carried !== null) {
+            try {
+              window.sessionStorage.setItem(WARNING_KEY + String(saved.id), carried)
+            } catch {
+              // sessionStorage مقفول — مفيش بديل آمن، التحذير بيضيع
+            }
+          }
           router.replace('/products/' + String(saved.id))
           return
         }
         productRef.current = { ...productRef.current, ...saved }
         stampRef.current = saved.updatedAt
+        seenStampRef.current = saved.updatedAt
       },
     })
   }
@@ -367,10 +457,10 @@ export function ProductEditor({
       ) : null}
 
       <div className="mt-4">
-        <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
+        <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={discardAndRefresh} />
       </div>
 
-      <SaveBar state={saveState} onSave={save} warning={warning} />
+      <SaveBar state={saveState} onSave={save} warning={warning ?? carriedWarning} />
     </div>
   )
 }
