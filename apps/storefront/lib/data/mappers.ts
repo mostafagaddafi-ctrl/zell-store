@@ -11,6 +11,7 @@ import {
   parseHomeProducts,
   parseShippingAreas,
   parseSocialLinks,
+  catalogLayoutOf,
   DEFAULT_ADDONS_TITLE,
   DEFAULT_STORE_CONTENT,
   type HomeSection,
@@ -91,6 +92,7 @@ export type CollectionRow = {
   cover_object_path: string | null
   cover_width_px: number | null
   cover_height_px: number | null
+  catalog_layout: string | null
 }
 
 /** صف public.product_collections */
@@ -148,6 +150,7 @@ export function toStoreCollections(
       showInNav: row.show_in_nav,
       image: cover ?? firstProductImage(productIds, byProduct),
       hasCover: cover !== null,
+      catalogLayout: catalogLayoutOf(row.catalog_layout),
     })
   }
   return out
