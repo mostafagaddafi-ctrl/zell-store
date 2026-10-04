@@ -50,7 +50,7 @@ export async function saveProductAddons(productId: unknown, raw: unknown): Promi
     if (ids.length > 0) {
       const pieces = new Set((await readAddonOptions()).map((option) => option.id))
       if (ids.some((id) => !pieces.has(id))) {
-        return { ok: false, code: 'VALIDATION', message: 'في إضافة مابقتش منتج بالقطعة. اعمل تحديث للصفحة.' }
+        return { ok: false, code: 'VALIDATION', message: 'في إضافة مابقتش منتج بالعدد. اعمل تحديث للصفحة.' }
       }
     }
     await restRpc<number>('zell_set_product_addons', { p_product_id: productId, p_addon_ids: ids })
