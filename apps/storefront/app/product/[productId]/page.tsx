@@ -92,11 +92,11 @@ export default async function ProductPage({ params }: PageProps) {
                   <Num>{formatPiastres(discount.compareAtPiastres)}</Num>
                 </span>
               ) : null}
-              <span className="ms-2 text-sm text-muted">{piece ? 'للقطعة' : 'للمتر الطولي'}</span>
+              <span className="ms-2 text-sm text-muted">{piece ? 'للوحدة' : 'للمتر الطولي'}</span>
               {discount ? (
                 <p className="mt-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-brand px-3 py-1 text-xs font-bold text-brand-fg">
-                    خصم <Num>{String(discount.percent)}</Num>٪ · وفّر <Num>{formatPiastres(discount.savePiastres)}</Num> {piece ? 'في القطعة' : 'في المتر'}
+                    خصم <Num>{String(discount.percent)}</Num>٪ · وفّر <Num>{formatPiastres(discount.savePiastres)}</Num> {piece ? 'في الوحدة' : 'في المتر'}
                   </span>
                 </p>
               ) : null}
