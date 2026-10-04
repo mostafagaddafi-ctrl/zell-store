@@ -47,7 +47,13 @@ type CartApi = {
   lines: CartLine[]
   /** false لحد ما نقرا localStorage — يمنع وميض «السلة فاضية» بعد الـ hydration */
   ready: boolean
+  /** عدد السطور (زي ما هو — بيستخدمه أي كود قديم). */
   count: number
+  /**
+   * إجمالي الكمية للعرض (أيقونة السلة): سطر المتر = ١، والمنتج بالعدد = كميته.
+   * محسوب بس — مابيتخزّنش ومابيغيّرش السلة ولا الطلب.
+   */
+  itemCount: number
   /** widthCm: العرض المختار — ناقص = العرض الأساسي. */
   add: (productId: number, lengthCm: number, widthCm?: number) => void
   setLength: (id: string, lengthCm: number) => void
@@ -117,9 +123,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clear = useCallback(() => setLines([]), [])
 
+  const itemCount = useMemo(
+    () => lines.reduce((sum, line) => sum + (line.quantity !== undefined ? line.quantity : 1), 0),
+    [lines],
+  )
+
   const value = useMemo<CartApi>(
-    () => ({ lines, ready, count: lines.length, add, setLength, addPiece, setQuantity, remove, removeByProduct, clear }),
-    [lines, ready, add, setLength, addPiece, setQuantity, remove, removeByProduct, clear],
+    () => ({ lines, ready, count: lines.length, itemCount, add, setLength, addPiece, setQuantity, remove, removeByProduct, clear }),
+    [lines, ready, itemCount, add, setLength, addPiece, setQuantity, remove, removeByProduct, clear],
   )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>

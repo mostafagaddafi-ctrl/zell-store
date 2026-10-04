@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { MessageCircle, ShoppingBag } from 'lucide-react'
@@ -49,6 +50,23 @@ export function SiteHeader({
   social: SocialLink[]
 }) {
   const cart = useCart()
+  // أيقونة السلة: إجمالي الكمية (سطر المتر = ١، والمنتج بالعدد = كميته)
+  const items = cart.itemCount
+  const cartLabel = !cart.ready ? 'السلة' : items === 0 ? 'السلة — فاضية' : 'السلة — فيها ' + itemsPhrase(items)
+  // نبضة خفيفة لما الكمية تزيد بس — مش وقت فتح الصفحة، ومش مع تقليل الحركة
+  const [bump, setBump] = useState(false)
+  const previousItems = useRef<number | null>(null)
+  const bumpTimer = useRef<number | undefined>(undefined)
+  useEffect(() => {
+    if (!cart.ready) return
+    const previous = previousItems.current
+    previousItems.current = items
+    if (previous === null || items <= previous) return
+    setBump(true)
+    window.clearTimeout(bumpTimer.current)
+    bumpTimer.current = window.setTimeout(() => setBump(false), 220)
+  }, [cart.ready, items])
+  useEffect(() => () => window.clearTimeout(bumpTimer.current), [])
   const navCollections = collections.filter((collection) => collection.showInNav)
   const overflow = navCollections.length > DESKTOP_LINKS
   const desktopLinks = overflow ? navCollections.slice(0, DESKTOP_LINKS - 1) : navCollections
@@ -122,13 +140,19 @@ export function SiteHeader({
 
           <Link
             href="/cart"
-            aria-label="السلة"
-            className="relative flex h-11 w-11 border border-transparent hover:border-border hover:bg-card items-center justify-center rounded-lg text-fg transition-colors hover:text-accent"
+            aria-label={cartLabel}
+            className="relative flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-card text-fg transition-colors hover:border-accent/40 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
           >
-            <ShoppingBag className="h-5 w-5" />
-            {cart.ready && cart.count > 0 ? (
-              <span className="absolute right-1 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-[11px] font-bold leading-none text-brand-fg">
-                <Num>{cart.count}</Num>
+            <ShoppingBag className="h-6 w-6" aria-hidden="true" />
+            {cart.ready && items > 0 ? (
+              <span
+                aria-hidden="true"
+                className={
+                  'pointer-events-none absolute -left-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-[11px] font-bold leading-none text-brand-fg ring-2 ring-bg motion-safe:transition-transform motion-safe:duration-200' +
+                  (bump ? ' motion-safe:scale-125' : '')
+                }
+              >
+                <Num>{items > 99 ? '99+' : String(items)}</Num>
               </span>
             ) : null}
           </Link>
@@ -138,4 +162,12 @@ export function SiteHeader({
       </Container>
     </header>
   )
+}
+
+/** «منتج واحد» · «منتجين» · «٣ منتجات» (٣–١٠) · «١١ منتج» (١١+). العدد الحقيقي — من غير 99+. */
+function itemsPhrase(count: number): string {
+  if (count === 1) return 'منتج واحد'
+  if (count === 2) return 'منتجين'
+  if (count <= 10) return String(count) + ' منتجات'
+  return String(count) + ' منتج'
 }

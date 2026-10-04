@@ -104,62 +104,64 @@ export function CartView({
           }
 
           return (
-            <li key={entry.line.id} className="flex gap-4 rounded-lg border border-border bg-card p-3 sm:p-4">
-              <Link href={'/product/' + String(entry.product.id)} className="shrink-0">
-                <ImageSlot
-                  ratio="1/1"
-                  fit="cover"
-                  src={preview?.url ?? null}
-                  alt={preview?.alt ?? entry.product.name_ar}
-                  sizes="96px"
-                  className="h-24 w-24"
-                />
-              </Link>
+            <li key={entry.line.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
+              <div className="flex gap-3 sm:gap-4">
+                <Link href={'/product/' + String(entry.product.id)} className="shrink-0">
+                  <ImageSlot
+                    ratio="1/1"
+                    fit="cover"
+                    src={preview?.url ?? null}
+                    alt={preview?.alt ?? entry.product.name_ar}
+                    sizes="(min-width: 640px) 96px, 80px"
+                    className="h-20 w-20 sm:h-24 sm:w-24"
+                  />
+                </Link>
 
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link
-                      href={'/product/' + String(entry.product.id)}
-                      className="block truncate text-sm font-bold text-fg hover:text-accent"
-                    >
-                      {entry.product.name_ar}
-                    </Link>
-                    <p className="mt-0.5 text-xs text-muted">
-                      <Num>{formatPiastres(entry.product.price_per_meter_piastres)}</Num> {isPiece(entry.product) ? 'للوحدة' : 'للمتر'}
-                      {entry.multi ? (
-                        <>
-                          {' · عرض '}
-                          <Num>{String(entry.product.width_cm)}</Num>
-                          {' سم'}
-                        </>
-                      ) : null}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => cart.remove(entry.line.id)}
-                    aria-label="شيل الصنف"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted transition-colors hover:text-danger"
+                <div className="min-w-0 flex-1">
+                  <Link
+                    href={'/product/' + String(entry.product.id)}
+                    className="line-clamp-2 text-sm font-bold leading-5 text-fg hover:text-accent"
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                    {entry.product.name_ar}
+                  </Link>
+                  <p className="mt-1 text-xs text-muted">
+                    <Num>{formatPiastres(entry.product.price_per_meter_piastres)}</Num> {isPiece(entry.product) ? 'للوحدة' : 'للمتر'}
+                    {entry.multi ? (
+                      <>
+                        {' · عرض '}
+                        <Num>{String(entry.product.width_cm)}</Num>
+                        {' سم'}
+                      </>
+                    ) : null}
+                  </p>
                 </div>
 
-                <div className="mt-auto flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-1">
-                    <StepButton onClick={() => stepBy(-1)} label="قلّل">
-                      <Minus className="h-4 w-4" />
-                    </StepButton>
-                    <span className="min-w-[5.5rem] text-center text-sm font-semibold text-fg">
-                      <Num>{describeLine(entry.product, entry.line)}</Num>
-                    </span>
-                    <StepButton onClick={() => stepBy(1)} label="زوّد">
-                      <Plus className="h-4 w-4" />
-                    </StepButton>
-                  </div>
+                <button
+                  type="button"
+                  onClick={() => cart.remove(entry.line.id)}
+                  aria-label={'شيل ' + entry.product.name_ar + ' من السلة'}
+                  className="-me-1.5 -mt-1.5 flex h-11 w-11 shrink-0 items-center justify-center rounded text-muted transition-colors hover:text-danger"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
 
+              {/* سطر تاني بعرض الكارت: المقاس/الكمية يمين، والإجمالي شمال — بيلف على الشاشات الضيقة جدًا */}
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border pt-3">
+                <div className="flex items-center gap-1">
+                  <StepButton onClick={() => stepBy(-1)} label={'قلّل ' + entry.product.name_ar}>
+                    <Minus className="h-4 w-4" aria-hidden="true" />
+                  </StepButton>
+                  <span className="min-w-[4.5rem] text-center text-sm font-semibold text-fg">
+                    <Num>{describeLine(entry.product, entry.line)}</Num>
+                  </span>
+                  <StepButton onClick={() => stepBy(1)} label={'زوّد ' + entry.product.name_ar}>
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                  </StepButton>
+                </div>
+
+                <div className="ms-auto text-end">
+                  <span className="block text-[11px] text-muted">الإجمالي</span>
                   <span className="text-base font-extrabold text-fg">
                     <Num>{formatPiastres(lineTotal)}</Num>
                   </span>
@@ -209,7 +211,7 @@ function StepButton({
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="flex h-9 w-9 items-center justify-center rounded border border-border text-fg transition-colors hover:border-muted"
+      className="flex h-11 w-11 items-center justify-center rounded border border-border text-fg transition-colors hover:border-muted"
     >
       {children}
     </button>

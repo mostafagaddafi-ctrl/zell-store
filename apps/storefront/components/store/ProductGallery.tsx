@@ -61,6 +61,8 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
 
   return (
     <div className="space-y-3">
+      {/* الموبايل: إطار 4:3 بحد ٥٠vh والصورة كاملة (contain) — مفيش قص، والاسم والسعر بيطلعوا أسرع.
+          من sm: نفس الشكل القديم (مربع، والصورة الأولى cover). زرار التكبير زي ما هو. */}
       <div className="relative mx-auto w-full max-w-[560px]">
         <ImageSlot
           ratio="1/1"
@@ -70,7 +72,8 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
           sizes="(min-width: 1024px) 560px, 100vw"
           priority
           label="صورة المنتج"
-          className="max-h-[380px] border border-border sm:max-h-none"
+          className="aspect-[4/3] max-h-[50vh] border border-border max-sm:bg-bg sm:aspect-square sm:max-h-none"
+          imageClassName="max-sm:object-contain"
         />
 
         {canZoom ? (
@@ -94,16 +97,16 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
       </div>
 
       {hasMany ? (
-        <ul className="mx-auto flex max-w-[560px] flex-wrap gap-2">
+        <ul className="mx-auto flex max-w-[560px] gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
           {shots.map((shot, shotIndex) => (
-            <li key={shotIndex}>
+            <li key={shotIndex} className="shrink-0">
               <button
                 type="button"
                 onClick={() => setIndex(shotIndex)}
                 aria-label={'صورة رقم ' + String(shotIndex + 1)}
                 aria-current={shotIndex === index}
                 className={cn(
-                  'block h-[76px] w-[76px] overflow-hidden rounded border transition-colors',
+                  'block h-14 w-14 overflow-hidden rounded border transition-colors sm:h-[76px] sm:w-[76px]',
                   shotIndex === index ? 'border-brand' : 'border-border hover:border-muted',
                 )}
               >
