@@ -69,7 +69,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
                     <p className="text-sm font-medium text-fg">{item.productNameAr}</p>
                     <p className="text-xs text-muted">
                       {item.saleUnit === 'piece'
-                        ? String(item.quantity) + ' قطعة × ' + formatPiastres(item.unitPricePiastres)
+                        ? 'الكمية ' + String(item.quantity) + ' × ' + formatPiastres(item.unitPricePiastres) + ' للوحدة'
                         : formatLength(item.lengthCm ?? 0) + ' × ' + formatPiastres(item.unitPricePiastres) + ' للمتر'}
                     </p>
                   </div>
@@ -82,7 +82,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
               <THead>
                 <TR>
                   <TH>المنتج</TH>
-                  <TH>الطول / العدد</TH>
+                  <TH>الطول / الكمية</TH>
                   <TH>السعر</TH>
                   <TH>الإجمالي</TH>
                 </TR>
@@ -91,7 +91,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
                 {order.items.map((item, index) => (
                   <TR key={index}>
                     <TD className="font-medium">{item.productNameAr}</TD>
-                    <TD>{item.saleUnit === 'piece' ? String(item.quantity) + ' قطعة' : formatLength(item.lengthCm ?? 0)}</TD>
+                    <TD>{item.saleUnit === 'piece' ? String(item.quantity) : formatLength(item.lengthCm ?? 0)}</TD>
                     <TD>{formatPiastres(item.unitPricePiastres)}</TD>
                     <TD className="font-semibold">{formatPiastres(item.lineTotalPiastres)}</TD>
                   </TR>
