@@ -1,34 +1,31 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import { MessageCircle } from 'lucide-react'
-import { useCart } from '../../lib/cart'
 
 /**
- * زرار واتساب عائم — **موبايل بس**.
+ * زرار واتساب عائم — **تحت شمال** على الموبايل والكمبيوتر.
  *
- * على الديسكتوب مخفي (md:hidden) لأن التواصل موجود في الهيدر بنصّه،
- * فزرار عائم كمان بيبقى تكرار بصري.
+ *   الموبايل:  دايرة ٥٢px بالأيقونة (اسمها للوصول «استفسر على واتساب»)
+ *   الكمبيوتر: الأيقونة + النص
  *
- * ⚠️ **مايغطّيش CartBar.** الاتنين fixed تحت. CartBar بيظهر بس لما
- *    يكون في حاجة في السلة، فالارتفاع بيتحسب من نفس الشرط:
- *      سلة فاضية  -> فوق الحد السفلي بمسافة صغيرة
- *      سلة فيها حاجة -> فوق CartBar بالكامل (ارتفاعه h-14 + حشوه)
- *    ولو حسبناها بـCSS بس، كنا هنحتاج نخمّن ظهور CartBar — والتخمين
- *    ده هو اللي بيخلّي الزرار يقعد فوق زرار «إتمام الطلب».
+ * ⚠️ left/bottom مكتوبين inline جوه calc مع env(safe-area-inset-*) —
+ *    عشان حافة iPhone السفلية والـnotch في الوضع العرضي. Tailwind
+ *    مابيولّدش كلاسات لقيم env() بتتحسب وقت التشغيل.
  *
- * ⚠️ env(safe-area-inset-bottom) جوه calc — عشان شرائح iPhone السفلية.
- *    مكتوب كـinline style مش كـarbitrary class: القيمة بتتغير بالحالة،
- *    وTailwind مابيولّدش كلاسات لقيم بتتحسب في وقت التشغيل.
+ * ⚠️ مخفي في /checkout بس: زرار «إرسال الطلب» جوه الفورم، والزرار العائم
+ *    ممكن يعدّي فوقه وقت الـscroll. واتساب لسه موجود هناك في الهيدر
+ *    (الكمبيوتر) وآخر قائمة الموبايل. في /cart والمنتج والإيصال ظاهر.
  *
- * ⚠️ الحشو السفلي للمحتوى في layout هو اللي بيمنع الزرار من تغطية
- *    آخر عنصر في الصفحة. الزرار لوحده مش كفاية.
+ * ⚠️ مفيش رفع فوق شريط سلة: CartBar مش متركّب في أي صفحة. حشو الفوتر
+ *    السفلي (SiteFooter) هو اللي بيمنع الزرار يغطي آخر الصفحة.
  */
 export function WhatsAppFab({ number, message }: { number: string; message: string }) {
-  const cart = useCart()
+  const pathname = usePathname() ?? ''
   if (!number) return null
+  if (pathname === '/checkout' || pathname.startsWith('/checkout/')) return null
 
   const href = 'https://wa.me/' + number + '?text=' + encodeURIComponent(message)
-  const aboveCartBar = cart.ready && cart.count > 0
 
   return (
     <a
@@ -36,15 +33,15 @@ export function WhatsAppFab({ number, message }: { number: string; message: stri
       target="_blank"
       rel="noopener noreferrer"
       aria-label="استفسر على واتساب"
+      title="استفسر على واتساب"
       style={{
-        bottom: aboveCartBar
-          ? 'calc(env(safe-area-inset-bottom) + 6rem)'
-          : 'calc(env(safe-area-inset-bottom) + 1rem)',
+        left: 'calc(env(safe-area-inset-left) + 1rem)',
+        bottom: 'calc(env(safe-area-inset-bottom) + 1rem)',
       }}
-      className="fixed start-4 z-30 flex h-12 items-center gap-2 rounded-full border border-whatsapp-fg/20 bg-whatsapp px-4 text-sm font-bold text-whatsapp-fg shadow-lg transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:hidden"
+      className="fixed z-30 flex h-[52px] w-[52px] items-center justify-center rounded-full border border-whatsapp-fg/20 bg-whatsapp text-whatsapp-fg shadow-lg transition-transform active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:h-12 md:w-auto md:gap-2 md:px-4 md:text-sm md:font-bold"
     >
-      <MessageCircle className="h-5 w-5 shrink-0" />
-      استفسر على واتساب
+      <MessageCircle className="h-6 w-6 shrink-0 md:h-5 md:w-5" aria-hidden="true" />
+      <span className="hidden md:inline">استفسر على واتساب</span>
     </a>
   )
 }
