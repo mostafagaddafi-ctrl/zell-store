@@ -5,12 +5,14 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Loader2, Wrench } from 'lucide-react'
 import {
-  composeAddress,
-  composeOrderNotes,
   computeShippingPiastres,
   describeLine,
   formatPiastres,
   hasErrors,
+  installationAreasIn,
+  installationFeePiastres,
+  installationLengthCm,
+  installationTravelPiastres,
   lineTotalPiastres,
   resolveCartLine,
   validateCheckout,
@@ -129,18 +131,16 @@ const EMPTY: CheckoutValues = {
 export function CheckoutForm({ products, settings }: { products: StoreProduct[]; settings: StoreSettings }) {
   const cart = useCart()
   const [values, setValues] = useState<CheckoutValues>(EMPTY)
-  // فني التركيب بالتواصل: بيظهر بس لو مفعّل من اللوحة والمحافظة من ضمن قايمته.
-  // الطلب بيتبعت بالعلامة أول سطر في الملاحظات (composeOrderNotes) — فهي
-  // داخلة في نفس التطبيع والهاش ومفتاح الـidempotency زي أي ملاحظة.
+  // 0018 — فني التركيب بالسعر: أجر لكل متر من أفلام المقاس + انتقال حسب المنطقة،
+  // والاتنين داخلين في الإجمالي. الحساب هنا للعرض؛ المعتمد من zell_create_order.
   const [installation, setInstallation] = useState(false)
-  const installationOffered =
-    settings.installation.enabled && values.governorate !== '' && settings.installation.governorates.includes(values.governorate)
-  const wantsInstallation = installation && installationOffered
-  // المنطقة: اختيار سريع من قايمة اللوحة، وبتتكتب أول العنوان (composeAddress)
-  // — فهي جوه نفس التطبيع والهاش ومفتاح الـidempotency زي باقي العنوان.
+  // المنطقة: معامل صريح في الطلب (area) — مابقتش بتتلزق في العنوان.
   const [area, setArea] = useState('')
   const areas = values.governorate !== '' ? (settings.shippingAreas[values.governorate] ?? []) : []
   const selectedArea = areas.includes(area) ? area : ''
+  const installerAreas = values.governorate !== '' ? installationAreasIn(settings.installation, values.governorate) : []
+  // بترتيب قايمة الشحن، والمتاح للفني بس
+  const installerChoices = areas.filter((name) => installerAreas.includes(name))
   const [touched, setTouched] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -176,6 +176,22 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
       )
     : null
 
+  // 0018 — الفني لأفلام المقاس بس، والشحن المجاني بيتحسب على الأصناف بس (فوق).
+  const meterLengthCm = installationLengthCm(entries)
+  const installationOffered = installerChoices.length > 0 && meterLengthCm > 0
+  const installationChosen = installation && installationOffered
+  const travel =
+    installationChosen && selectedArea !== ''
+      ? installationTravelPiastres(settings.installation, values.governorate, selectedArea)
+      : null
+  const installationReady = installationChosen && travel !== null
+  const installationFee =
+    installationReady && settings.installation.feePerMeterPiastres !== null
+      ? installationFeePiastres(settings.installation.feePerMeterPiastres, meterLengthCm)
+      : null
+  // مختار فني والمنطقة ناقصة أو مش متاحة → الإرسال مقفول لحد ما يختار متاحة أو «هركّبه بنفسي»
+  const installationBlocked = installationChosen && !installationReady
+
   const errors = validateCheckout(values, settings.governorates)
   const invalid = hasErrors(errors)
 
@@ -195,15 +211,19 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   async function submit(): Promise<void> {
     setTouched(true)
     setFailure(null)
-    if (invalid || submitting || items.length === 0) return
+    if (invalid || submitting || items.length === 0 || installationBlocked) return
 
+    // 0018 — العنوان زي ما الزبون كتبه، والمنطقة والفني حقول لوحدهم (داخلين في الهاش).
+    // الملاحظات من غير أي علامة — العلامة القديمة للأوردرات القديمة بس.
     const payload = {
       customerName: values.customerName,
       customerPhone: values.customerPhone,
       governorate: values.governorate,
-      address: composeAddress(selectedArea, values.address),
-      notes: composeOrderNotes(values.notes, wantsInstallation),
+      address: values.address,
+      notes: values.notes.trim() === '' ? null : values.notes,
       items,
+      ...(selectedArea !== '' ? { area: selectedArea } : {}),
+      ...(installationReady ? { installation: true as const } : {}),
     }
     const body = JSON.stringify(payload)
 
@@ -322,7 +342,11 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
           </Field>
 
           {areas.length > 0 ? (
-            <Field htmlFor="area" label="المنطقة">
+            <Field
+              htmlFor="area"
+              label="المنطقة"
+              error={installationChosen && touched && selectedArea === '' ? 'المنطقة مطلوبة لفني التركيب' : undefined}
+            >
               <select
                 id="area"
                 name="area"
@@ -334,7 +358,7 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
                 <option value="">اختار المنطقة (أو اكتبها في العنوان)</option>
                 {areas.map((name) => (
                   <option key={name} value={name}>
-                    {name}
+                    {name + (installationChosen && installerAreas.includes(name) ? ' — فني متاح' : '')}
                   </option>
                 ))}
               </select>
@@ -342,47 +366,66 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
           ) : null}
 
           {installationOffered ? (
-            <button
-              type="button"
-              onClick={() => setInstallation((current) => !current)}
-              aria-pressed={wantsInstallation}
-              className={
-                'flex w-full items-center gap-3 rounded-lg border-2 p-4 text-right transition-colors ' +
-                (wantsInstallation ? 'border-brand bg-brand text-brand-fg shadow-card' : 'border-brand/40 bg-card hover:border-brand')
-              }
-            >
-              <span
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setInstallation((current) => !current)}
+                aria-pressed={installationChosen}
                 className={
-                  'grid h-10 w-10 shrink-0 place-items-center rounded-full ' +
-                  (wantsInstallation ? 'bg-brand-fg/15 text-brand-fg' : 'bg-brand/10 text-brand')
+                  'flex w-full items-center gap-3 rounded-lg border-2 p-4 text-right transition-colors ' +
+                  (installationChosen ? 'border-brand bg-brand text-brand-fg shadow-card' : 'border-brand/40 bg-card hover:border-brand')
                 }
               >
-                {wantsInstallation ? <CheckCircle2 className="h-5 w-5" /> : <Wrench className="h-5 w-5" />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className={'block text-base font-bold ' + (wantsInstallation ? 'text-brand-fg' : 'text-fg')}>
-                  {wantsInstallation ? 'تمام، هنبعتلك فني تركيب' : 'محتاج فني تركيب؟'}
+                <span
+                  className={
+                    'grid h-10 w-10 shrink-0 place-items-center rounded-full ' +
+                    (installationChosen ? 'bg-brand-fg/15 text-brand-fg' : 'bg-brand/10 text-brand')
+                  }
+                >
+                  {installationChosen ? <CheckCircle2 className="h-5 w-5" /> : <Wrench className="h-5 w-5" />}
                 </span>
-                <span className={'mt-0.5 block text-sm ' + (wantsInstallation ? 'text-brand-fg/85' : 'text-muted')}>
-                  {wantsInstallation
-                    ? 'هنكلمك نتفق على معاد وسعر التركيب قبل الشحن'
-                    : 'دوس هنا ونبعتلك فني يركّبهولك'}
-                </span>
-                {settings.installation.note ? (
-                  <span className={'mt-2 block text-xs ' + (wantsInstallation ? 'text-brand-fg/75' : 'text-muted')}>
-                    {settings.installation.note}
+                <span className="min-w-0 flex-1">
+                  <span className={'block text-base font-bold ' + (installationChosen ? 'text-brand-fg' : 'text-fg')}>
+                    {installationChosen ? 'تمام، هنبعتلك فني تركيب' : 'محتاج فني تركيب؟'}
                   </span>
-                ) : null}
-              </span>
-              <span
-                className={
-                  'shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ' +
-                  (wantsInstallation ? 'bg-brand-fg text-brand' : 'bg-brand text-brand-fg')
-                }
-              >
-                {wantsInstallation ? 'مضاف ✓' : 'اطلب فني'}
-              </span>
-            </button>
+                  <span className={'mt-0.5 block text-sm ' + (installationChosen ? 'text-brand-fg/85' : 'text-muted')}>
+                    {settings.installation.feePerMeterPiastres !== null
+                      ? formatPiastres(settings.installation.feePerMeterPiastres) + ' للمتر من أفلام المقاس + انتقال حسب المنطقة'
+                      : 'فني يركّبهولك'}
+                  </span>
+                  {settings.installation.note ? (
+                    <span className={'mt-2 block text-xs ' + (installationChosen ? 'text-brand-fg/75' : 'text-muted')}>
+                      {settings.installation.note}
+                    </span>
+                  ) : null}
+                </span>
+                <span
+                  className={
+                    'shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ' +
+                    (installationChosen ? 'bg-brand-fg text-brand' : 'bg-brand text-brand-fg')
+                  }
+                >
+                  {installationChosen ? 'مضاف ✓' : 'اطلب فني'}
+                </span>
+              </button>
+              {installationBlocked ? (
+                <div role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-xs text-fg">
+                  <p className="font-semibold">
+                    {selectedArea === ''
+                      ? 'اختار منطقتك من القايمة عشان نحسب انتقال الفني.'
+                      : 'الفني مش متاح في ' + selectedArea + ' حاليًا.'}
+                  </p>
+                  <p className="mt-1 text-muted">متاح في: {installerChoices.join('، ')}</p>
+                  <button
+                    type="button"
+                    onClick={() => setInstallation(false)}
+                    className="mt-2 text-sm font-semibold text-accent"
+                  >
+                    هركّبه بنفسي
+                  </button>
+                </div>
+              ) : null}
+            </div>
           ) : null}
 
           <Field htmlFor="address" label="عنوان التوصيل" error={show('address')}>
@@ -439,11 +482,13 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
           <OrderSummary
             subtotalPiastres={subtotal}
             shippingPiastres={shipping}
+            installationPiastres={installationFee}
+            installationTravelPiastres={installationReady ? travel : null}
             trustLine={settings.content.trustLine}
             gift={settings.offerEnabled ? settings.offerText : ''}
           />
 
-          <Button type="submit" size="lg" disabled={submitting}>
+          <Button type="submit" size="lg" disabled={submitting || installationBlocked}>
             {submitting ? (
               <span className="inline-flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -460,6 +505,8 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
           */}
           {failure !== null ? (
             <p className="text-center text-xs font-medium text-danger">{failure}</p>
+          ) : installationBlocked ? (
+            <p className="text-center text-xs font-medium text-danger">اختار منطقة متاح فيها الفني، أو «هركّبه بنفسي».</p>
           ) : touched && invalid ? (
             <p className="text-center text-xs font-medium text-danger">راجع البيانات المطلوبة</p>
           ) : null}

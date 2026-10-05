@@ -55,6 +55,12 @@ function isReceipt(value: unknown): value is Receipt {
   if (!isFiniteInteger(candidate['shipping_piastres'])) return false
   if (!isFiniteInteger(candidate['total_piastres'])) return false
 
+  // 0018 — أرقام التركيب لازم تكون صحيحة لو الطلب فيه فني
+  if (candidate['installation_requested'] === true) {
+    if (!isFiniteInteger(candidate['installation_piastres'])) return false
+    if (!isFiniteInteger(candidate['installation_travel_piastres'])) return false
+  }
+
   const items = candidate['items']
   if (!Array.isArray(items)) return false
   for (const entry of items) {
@@ -147,6 +153,9 @@ export default async function OrderReceiptPage({
               هنكلّمك على الرقم المنتهي بـ<Num>{receipt.phone_last4}</Num> لتأكيد الطلب والتوصيل. الدفع عند
               الاستلام.
             </p>
+            {receipt.installation_requested === true ? (
+              <p className="text-xs leading-relaxed text-muted">وهنتفق معاك على معاد فني التركيب.</p>
+            ) : null}
           </div>
         </div>
 
@@ -200,6 +209,33 @@ export default async function OrderReceiptPage({
             <span>الشحن</span>
             <span><Num>{formatPiastres(receipt.shipping_piastres)}</Num></span>
           </div>
+          {receipt.installation_requested === true ? (
+            <>
+              <div className="flex justify-between gap-3 text-muted">
+                <span>
+                  أجر التركيب
+                  {typeof receipt.installation_length_cm === 'number' && typeof receipt.installation_rate_piastres === 'number' ? (
+                    <span className="text-xs">
+                      {' '}
+                      (<Num>{formatLength(receipt.installation_length_cm) + ' × ' + formatPiastres(receipt.installation_rate_piastres)}</Num>{' '}
+                      للمتر)
+                    </span>
+                  ) : null}
+                </span>
+                <span><Num>{formatPiastres(receipt.installation_piastres ?? 0)}</Num></span>
+              </div>
+              <div className="flex justify-between text-muted">
+                <span>انتقال الفني</span>
+                <span>
+                  {(receipt.installation_travel_piastres ?? 0) === 0 ? (
+                    'مجاني'
+                  ) : (
+                    <Num>{formatPiastres(receipt.installation_travel_piastres ?? 0)}</Num>
+                  )}
+                </span>
+              </div>
+            </>
+          ) : null}
           <div className="flex justify-between border-t border-border pt-2 text-base font-bold text-fg">
             <span>الإجمالي</span>
             <span><Num>{formatPiastres(receipt.total_piastres)}</Num></span>

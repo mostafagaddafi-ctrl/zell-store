@@ -61,3 +61,44 @@ export function parseInstallationConfig(value: unknown): InstallationConfig {
 export function installationGovernorates(areas: InstallationAreas): string[] {
   return Object.keys(areas).filter((governorate) => Object.keys(areas[governorate] ?? {}).length > 0)
 }
+
+/**
+ * طول التركيب = مجموع أطوال سطور المقاس بالسنتيمتر. المنتجات بالعدد مش داخلة —
+ * نفس zell_create_order (sum(length_cm) filter (where sale_unit = 'meter')).
+ */
+export function installationLengthCm(
+  entries: ReadonlyArray<{ product: { sale_unit?: string }; line: { lengthCm: number } }>,
+): number {
+  let total = 0
+  for (const entry of entries) {
+    if (entry.product.sale_unit === 'piece') continue
+    if (Number.isInteger(entry.line.lengthCm) && entry.line.lengthCm > 0) total += entry.line.lengthCm
+  }
+  return total
+}
+
+/**
+ * أجر التركيب بالقرش = round(سعر المتر × الطول ÷ ١٠٠) بأرقام صحيحة من غير float.
+ * القيم موجبة، فالنص بيتقرب لفوق — نفس round(numeric) في zell_create_order بالحرف.
+ * للعرض بس؛ الرقم المعتمد من الداتابيز.
+ */
+export function installationFeePiastres(feePerMeterPiastres: number, lengthCm: number): number {
+  if (!Number.isInteger(feePerMeterPiastres) || !Number.isInteger(lengthCm)) return 0
+  if (feePerMeterPiastres <= 0 || lengthCm <= 0) return 0
+  const product = feePerMeterPiastres * lengthCm
+  const rest = product % 100
+  return (product - rest) / 100 + (rest >= 50 ? 1 : 0)
+}
+
+/** المناطق المتاحة للفني في محافظة — فاضية لو الفني مقفول أو سعر المتر ناقص. */
+export function installationAreasIn(config: InstallationConfig, governorate: string): string[] {
+  if (!config.enabled || config.feePerMeterPiastres === null) return []
+  return Object.keys(config.areas[governorate] ?? {})
+}
+
+/** انتقال الفني لمنطقة بالقرش — null = الفني مش متاح هناك. */
+export function installationTravelPiastres(config: InstallationConfig, governorate: string, area: string): number | null {
+  if (!config.enabled || config.feePerMeterPiastres === null) return null
+  const travel = config.areas[governorate]?.[area]
+  return travel === undefined ? null : travel
+}

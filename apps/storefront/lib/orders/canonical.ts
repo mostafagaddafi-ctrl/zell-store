@@ -30,6 +30,10 @@ export type NormalizedOrder = {
   governorate: string
   address: string
   notes: string | null
+  /** 0018 — null = مفيش منطقة. */
+  area: string | null
+  /** 0018 — فني تركيب بالسعر. */
+  installation: boolean
   items: Array<{ productId: number; lengthCm?: number; widthCm?: number; quantity?: number }>
 }
 
@@ -39,6 +43,7 @@ export type NormalizedOrder = {
  */
 export function normalizeOrder(input: OrderRequest): NormalizedOrder {
   const notes = normalizeText(input.notes ?? '')
+  const area = normalizeText(input.area ?? '')
   const items = input.items
     .map((item): { productId: number; lengthCm?: number; widthCm?: number; quantity?: number } =>
       item.quantity !== undefined
@@ -62,6 +67,8 @@ export function normalizeOrder(input: OrderRequest): NormalizedOrder {
     governorate: normalizeText(input.governorate),
     address: normalizeText(input.address),
     notes: notes === '' ? null : notes,
+    area: area === '' ? null : area,
+    installation: input.installation === true,
     items,
   }
 }
@@ -71,7 +78,7 @@ export function normalizeOrder(input: OrderRequest): NormalizedOrder {
  * فمفيش اعتماد على ترتيب مفاتيح JSON.stringify.
  */
 export function canonicalOrderJson(order: NormalizedOrder): string {
-  return JSON.stringify([
+  const shape: unknown[] = [
     order.customerName,
     order.customerPhone,
     order.governorate,
@@ -86,5 +93,9 @@ export function canonicalOrderJson(order: NormalizedOrder): string {
           ? [item.productId, item.lengthCm ?? 0]
           : [item.productId, item.lengthCm ?? 0, item.widthCm],
     ),
-  ])
+  ]
+  // 0018 — منطقة أو فني: عنصر سابع بعلامة 'v2'. من غيرهم الصيغة القديمة بالحرف،
+  // فمفاتيح الـidempotency اللي في sessionStorage للطلبات العادية مابتتغيرش.
+  if (order.area !== null || order.installation) shape.push(['v2', order.area ?? '', order.installation ? 1 : 0])
+  return JSON.stringify(shape)
 }
