@@ -218,3 +218,21 @@ export function lineTotalPiastres(product: StoreProduct, line: { lengthCm: numbe
 export function describeLine(product: StoreProduct, line: { lengthCm: number; quantity?: number }): string {
   return isPiece(product) ? 'الكمية ' + String(line.quantity ?? 1) : formatLength(line.lengthCm)
 }
+
+/** مواصفة واحدة في سطر السلة: «الطول» · «عرض الرول» · «الكمية». */
+export type LineSpec = { label: string; value: string }
+
+/**
+ * مواصفات السطر للعرض في السلة وCheckout — نفس الكلمات في المكانين.
+ *   فيلم المقاس → الطول (بنفس formatLength) + عرض الرول
+ *   منتج بالعدد → الكمية
+ * ⚠️ product لازم يكون بعد resolveCartLine، فعرض الرول = width_cm بتاعه (العرض المختار في السطر).
+ *    ده عرض الرول نفسه، مش عرض المكان. من القيم المحفوظة في السطر بس — عرض، مش داخل في الهاش ولا الحساب.
+ */
+export function lineSpecs(product: StoreProduct, line: { lengthCm: number; quantity?: number }): LineSpec[] {
+  if (isPiece(product)) return [{ label: 'الكمية', value: String(line.quantity ?? 1) }]
+  return [
+    { label: 'الطول', value: formatLength(line.lengthCm) },
+    { label: 'عرض الرول', value: String(product.width_cm) + ' سم' },
+  ]
+}
