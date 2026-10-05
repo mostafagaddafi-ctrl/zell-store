@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Minus, Plus, ShoppingBag, Trash2, Wrench } from 'lucide-react'
 import {
+  cartToolFilmIds,
   describeLine,
   formatPiastres,
   installationLengthCm,
+  installationToolsHref,
   installationReadyGovernorates,
   isPiece,
   lineTotalPiastres,
@@ -90,13 +92,12 @@ export function CartView({
   }
 
   // أفلام بالمقاس في السلة ليها أدوات نشطة → زرار واحد لصفحة الأدوات (قايمة واحدة من غير تكرار)
-  const toolFilmIds: number[] = []
-  for (const entry of entries) {
-    const base = byId.get(entry.line.productId)
-    if (!base || isPiece(base) || !(base.addon_ids ?? []).some((id) => byId.has(id))) continue
-    if (!toolFilmIds.includes(base.id)) toolFilmIds.push(base.id)
-  }
-  const toolsHref = tools && toolFilmIds.length > 0 ? '/installation-tools?for=' + toolFilmIds.slice(0, 10).join(',') : null
+  // نفس الدالة اللي Checkout بيستخدمها لـ«هركّبه بنفسي وشوف أدوات التركيب»
+  const toolFilmIds = cartToolFilmIds(
+    entries.map((entry) => entry.line),
+    byId,
+  )
+  const toolsHref = tools ? installationToolsHref(toolFilmIds) : null
 
   // PR4 — «هتركّبه إزاي؟» لأفلام المقاس في السلة. الأجر هنا تقدير؛ الانتقال والمعتمد في Checkout.
   const meterCm = installationLengthCm(entries)
