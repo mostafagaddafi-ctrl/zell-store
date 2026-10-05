@@ -188,7 +188,8 @@ export function SizePanel({
           <CmInput
             id="window-height"
             label="ارتفاع المكان"
-            placeholder="150"
+            placeholder="500"
+            hint="مثال: 500 سم"
             value={height}
             onChange={(next) => {
               setHeight(next)
@@ -380,10 +381,13 @@ function CmInput({
   placeholder,
   value,
   onChange,
+  hint,
 }: {
   id: string
   label: string
   placeholder: string
+  /** سطر مثال تحت الخانة — عرض بس. */
+  hint?: string
   value: string
   onChange: (next: string) => void
 }) {
@@ -408,6 +412,7 @@ function CmInput({
           سم
         </span>
       </div>
+      {hint ? <p className="text-xs text-muted">{hint}</p> : null}
     </div>
   )
 }

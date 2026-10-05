@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, Minus, Plus, Wrench } from 'lucide-react'
 import { discountInfo, formatPiastres, maxQuantityOf, primaryImage, type StoreProduct } from '@zell/core'
 import { ImageSlot } from '../ui/ImageSlot'
@@ -17,14 +17,24 @@ export function AddonsPicker({
   title,
   quantities,
   onChange,
+  defaultOpen = false,
 }: {
   addons: StoreProduct[]
   title: string
   quantities: Record<number, number>
   onChange: (next: Record<number, number>) => void
+  /** مفتوحة من الأول — لما العميل يرجع لـ«هركّبه بنفسي». */
+  defaultOpen?: boolean
 }) {
   // مقفولة الأول: الزبون اللي محتاج أدوات بيفتحها ويختار — الباقي مابتطوّلش الصفحة عليه
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
+  // عقد defaultOpen: انتقاله false → true (أول mount أو بعده) بيفتح المنتقي مرة واحدة.
+  // رجوعه false مابيقفلش، وأي render عادي مابيعيدش الفتح — القفل اليدوي بيفضل زي ما هو.
+  const lastDefaultOpen = useRef(defaultOpen)
+  useEffect(() => {
+    if (defaultOpen && !lastDefaultOpen.current) setOpen(true)
+    lastDefaultOpen.current = defaultOpen
+  }, [defaultOpen])
   if (addons.length === 0) return null
 
   const qty = (id: number) => quantities[id] ?? 0

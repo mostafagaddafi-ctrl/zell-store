@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Minus, Plus, ShoppingBag, Trash2, Wrench } from 'lucide-react'
 import {
@@ -43,6 +43,8 @@ export function CartView({
 }) {
   const cart = useCart()
   const [pruned, setPruned] = useState(false)
+  const [revealTools, setRevealTools] = useState(false)
+  const toolsLinkRef = useRef<HTMLAnchorElement>(null)
 
   const byId = useMemo(() => {
     const map = new Map<number, StoreProduct>()
@@ -60,6 +62,18 @@ export function CartView({
     }
     setPruned(true)
   }, [cart, byId, pruned])
+
+  // «هركّبه بنفسي» بعد «فني»: الأدوات بتظهر والتركيز يروح لها (سلس، وفوري مع reduced motion).
+  // مفيش أدوات = مفيش عنصر = مفيش scroll.
+  useEffect(() => {
+    if (!revealTools) return
+    setRevealTools(false)
+    const node = toolsLinkRef.current
+    if (!node) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    node.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+    node.focus({ preventScroll: true })
+  }, [revealTools])
 
   if (!cart.ready) {
     return <div className="h-40 animate-pulse rounded-lg border border-border bg-card" />
@@ -134,6 +148,9 @@ export function CartView({
             cart.setLength(entry.line.id, next)
           }
 
+          // أداة تركيب = قطعة مربوطة كإضافة لفيلم مقاس (addon_ids) — تحكم كمية أصغر وأهدى
+          const tool = isPiece(entry.product) && toolIds.has(entry.product.id)
+
           return (
             <li key={entry.line.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
               <div className="flex gap-3 sm:gap-4">
@@ -179,15 +196,21 @@ export function CartView({
 
               {/* سطر تاني بعرض الكارت: المقاس/الكمية يمين، والإجمالي شمال — بيلف على الشاشات الضيقة جدًا */}
               <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border pt-3">
-                <div className="flex items-center gap-1">
-                  <StepButton onClick={() => stepBy(-1)} label={'قلّل ' + entry.product.name_ar}>
-                    <Minus className="h-4 w-4" aria-hidden="true" />
+                <div className={tool ? 'flex items-center gap-0.5 rounded border border-border' : 'flex items-center gap-1'}>
+                  <StepButton onClick={() => stepBy(-1)} label={'قلّل ' + entry.product.name_ar} compact={tool}>
+                    <Minus className={tool ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden="true" />
                   </StepButton>
-                  <span className="min-w-[4.5rem] text-center text-sm font-semibold text-fg">
+                  <span
+                    className={
+                      tool
+                        ? 'min-w-[3.5rem] text-center text-xs font-semibold text-fg'
+                        : 'min-w-[4.5rem] text-center text-sm font-semibold text-fg'
+                    }
+                  >
                     <Num>{describeLine(entry.product, entry.line)}</Num>
                   </span>
-                  <StepButton onClick={() => stepBy(1)} label={'زوّد ' + entry.product.name_ar}>
-                    <Plus className="h-4 w-4" aria-hidden="true" />
+                  <StepButton onClick={() => stepBy(1)} label={'زوّد ' + entry.product.name_ar} compact={tool}>
+                    <Plus className={tool ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden="true" />
                   </StepButton>
                 </div>
 
@@ -204,7 +227,8 @@ export function CartView({
 
         {tools && toolsHref && !installer ? (
           <li>
-            <Link href={toolsHref} className={buttonClasses('secondary', 'md', 'w-full')}>
+            {showChoice ? <p className="mb-2 text-sm font-semibold text-fg">اختار أدوات التركيب اللي محتاجها</p> : null}
+            <Link ref={toolsLinkRef} href={toolsHref} className={buttonClasses('secondary', 'md', 'w-full scroll-mt-24')}>
               <Wrench className="h-4 w-4" aria-hidden="true" />
               {tools.browseLabel}
             </Link>
@@ -223,7 +247,10 @@ export function CartView({
           {showChoice && fee !== null ? (
             <InstallChoice
               mode={cart.installMode}
-              onChange={cart.setInstallMode}
+              onChange={(next) => {
+                if (next === 'self' && cart.installMode === 'installer') setRevealTools(true)
+                cart.setInstallMode(next)
+              }}
               feePerMeterPiastres={fee}
               lengthCm={meterCm}
               governorates={installerGovernorates}
@@ -269,17 +296,24 @@ function StepButton({
   onClick,
   label,
   children,
+  compact = false,
 }: {
   onClick: () => void
   label: string
   children: React.ReactNode
+  /** أدوات التركيب: أصغر وجوه إطار واحد مع الكمية. */
+  compact?: boolean
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="flex h-11 w-11 items-center justify-center rounded border border-border text-fg transition-colors hover:border-muted"
+      className={
+        compact
+          ? 'flex h-9 w-9 items-center justify-center rounded text-muted transition-colors hover:bg-border/40 hover:text-fg'
+          : 'flex h-11 w-11 items-center justify-center rounded border border-border text-fg transition-colors hover:border-muted'
+      }
     >
       {children}
     </button>
