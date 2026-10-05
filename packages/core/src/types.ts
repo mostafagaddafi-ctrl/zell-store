@@ -3,6 +3,8 @@
  * مطابقة لأعمدة الداتابيز — الفلوس بالقرش، الأطوال بالسنتيمتر، كلها integer.
  */
 
+import type { InstallationConfig } from './installation'
+
 export type ProductRules = {
   price_per_meter_piastres: number
   min_length_cm: number
@@ -80,8 +82,8 @@ export type StoreSettings = {
   offerText: string
   /** مفتاح «إظهار نص العرض» في الهوية. المفتاح مش موجود = ظاهر. */
   offerEnabled: boolean
-  /** «فني التركيب» بالتواصل — من صفحة «فني التركيب» في اللوحة. */
-  installation: { enabled: boolean; note: string; governorates: string[] }
+  /** «فني التركيب» (0018) — سعر المتر والمناطق وانتقالها من صفحة «فني التركيب» في اللوحة. */
+  installation: InstallationConfig
   whatsappNumber: string
   whatsappMessage: string
   shippingRates: Record<string, number>
