@@ -12,7 +12,10 @@ const OPTIONS: Array<{ value: InstallMode; title: string; hint: string }> = [
 ]
 
 /**
- * «هتركّبه إزاي؟» — اختيار واحد من اتنين (radio) لأفلام المقاس، في صفحة المنتج والسلة.
+ * «هتركّبه إزاي؟» — اختيار واحد من اتنين (radio حقيقي) لأفلام المقاس، في صفحة المنتج والسلة.
+ *
+ * الخياران بنفس الارتفاع (grid stretch + h-full)، والأيقونة والعنوان على سطر واحد والوصف تحتهم.
+ * على الشاشات الضيقة جدًا بيبقوا صفين بدل ما النص يتزنق.
  *
  * ⚠️ ده نية بس على مستوى السلة (cart.installMode). مش بيغيّر سعر أي صنف ولا الطلب.
  *    Checkout هو اللي بيقرر التوفر حسب المحافظة والمنطقة، والداتابيز بتحسب المعتمد.
@@ -40,7 +43,7 @@ export function InstallChoice({
   return (
     <fieldset className="rounded-lg border border-border bg-card p-4">
       <legend className="px-1 text-sm font-bold text-fg">هتركّبه إزاي؟</legend>
-      <div className="mt-1 grid grid-cols-2 gap-2">
+      <div className="mt-1 grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
         {OPTIONS.map((option) => {
           const selected = mode === option.value
           const Icon = option.value === 'installer' ? HardHat : Wrench
@@ -48,7 +51,8 @@ export function InstallChoice({
             <label
               key={option.value}
               className={
-                'flex cursor-pointer items-start gap-2 rounded-lg border-2 p-3 text-sm transition-colors ' +
+                'flex h-full cursor-pointer items-start gap-2.5 rounded-lg border-2 p-3 text-sm transition-colors ' +
+                'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40 ' +
                 (selected ? 'border-brand bg-brand/5' : 'border-border hover:border-brand/50')
               }
             >
@@ -60,12 +64,12 @@ export function InstallChoice({
                 onChange={() => onChange(option.value)}
                 className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
               />
-              <span className="min-w-0">
-                <span className="flex items-center gap-1.5 font-semibold text-fg">
+              <span className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="flex items-center gap-1.5 font-semibold leading-5 text-fg">
                   <Icon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
-                  {option.title}
+                  <span>{option.title}</span>
                 </span>
-                <span className="mt-0.5 block text-xs text-muted">{option.hint}</span>
+                <span className="text-xs leading-5 text-muted">{option.hint}</span>
               </span>
             </label>
           )
