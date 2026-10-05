@@ -8,19 +8,24 @@ const STORAGE_KEY = 'zell-cart-v2'
 
 /**
  * PR4 — «هتركّبه إزاي؟» على مستوى السلة كلها. مفتاح لوحده جنب السلة عشان شكل
- * zell-cart-v2 مايتغيرش، والسلات القديمة (من غير المفتاح) = «هركّبه بنفسي».
+ * zell-cart-v2 مايتغيرش. من غير المفتاح أو بقيمة مش معروفة = «unset»: العميل لازم يختار صراحة،
+ * ومفيش «هركّبه بنفسي» افتراضي. القيم القديمة self/installer بتفضل زي ما هي.
  * نية بس: مش داخلة في الهاش ولا الطلب — Checkout بيحوّلها لـinstallation: true
  * بعد ما المنطقة تبقى متاحة (PR3).
  */
 const INSTALL_MODE_KEY = 'zell-install-mode-v1'
 
-export type InstallMode = 'self' | 'installer'
+/** اختيار العميل الصريح. */
+export type ChosenInstallMode = 'self' | 'installer'
+/** unset = لسه ما اختارش — مفيش اختيار افتراضي. */
+export type InstallMode = 'unset' | ChosenInstallMode
 
 function readInstallMode(): InstallMode {
   try {
-    return window.localStorage.getItem(INSTALL_MODE_KEY) === 'installer' ? 'installer' : 'self'
+    const stored = window.localStorage.getItem(INSTALL_MODE_KEY)
+    return stored === 'self' || stored === 'installer' ? stored : 'unset'
   } catch {
-    return 'self'
+    return 'unset'
   }
 }
 
@@ -91,7 +96,7 @@ const CartContext = createContext<CartApi | null>(null)
 export function CartProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([])
   const [ready, setReady] = useState(false)
-  const [installMode, setInstallMode] = useState<InstallMode>('self')
+  const [installMode, setInstallMode] = useState<InstallMode>('unset')
 
   // القراءة بعد التركيب فقط — السيرفر مالوش localStorage
   useEffect(() => {
@@ -103,7 +108,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!ready) return
     try {
-      window.localStorage.setItem(INSTALL_MODE_KEY, installMode)
+      // unset مابيتكتبش — المفتاح بيتشال، فأي قراءة جاية ترجع «لسه ما اختارش»
+      if (installMode === 'unset') window.localStorage.removeItem(INSTALL_MODE_KEY)
+      else window.localStorage.setItem(INSTALL_MODE_KEY, installMode)
     } catch {
       // التخزين مقفول — الاختيار يفضل في الذاكرة بس
     }
@@ -153,10 +160,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setLines((prev) => prev.filter((line) => line.productId !== productId))
   }, [])
 
-  // بعد الطلب: السلة فاضية والاختيار يرجع «هركّبه بنفسي»
+  // بعد الطلب: السلة فاضية والاختيار يرجع «لسه ما اختارش» (unset)
   const clear = useCallback(() => {
     setLines([])
-    setInstallMode('self')
+    setInstallMode('unset')
   }, [])
 
   const itemCount = useMemo(
