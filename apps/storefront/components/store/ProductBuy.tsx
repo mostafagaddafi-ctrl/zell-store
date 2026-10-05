@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check, ShoppingBag, Wrench } from 'lucide-react'
@@ -53,6 +53,10 @@ export function ProductBuy({
   const installer = showChoice && cart.installMode === 'installer'
   // قبل قراءة الاختيار المحفوظ (cart.ready) مانعرضش «بنفسي» الافتراضي — كان بيظهر الأدوات لحظة ويخفيها
   const choicePending = showChoice && !cart.ready
+  // «هتركّبه إزاي؟» لازم يبقى اختيار صريح: قبل ما العميل يختار (unset) الإضافة والطلب مقفولين
+  // والسبب ظاهر جنب الأزرار. فيلم من غير الكارت أو منتج بالقطعة مابيتأثروش.
+  const choiceRequired = showChoice && cart.ready && cart.installMode === 'unset'
+  const choiceHintId = useId()
   const [revealTools, setRevealTools] = useState(false)
   const toolsRef = useRef<HTMLParagraphElement>(null)
   // «هركّبه بنفسي» بعد «فني»: الأدوات بتظهر والتركيز يروح لها (سلس، وفوري مع reduced motion).
@@ -77,7 +81,7 @@ export function ProductBuy({
   const chosenWidth = effective.width_cm === product.width_cm ? undefined : effective.width_cm
 
   // حارس أخير قبل السلة — حتى لو حالة الواجهة اتلخبطت
-  const canAdd = !blocked && validateLength(lengthCm, effective).ok
+  const canAdd = !blocked && !choiceRequired && validateLength(lengthCm, effective).ok
 
   const handleAdd = () => {
     if (!canAdd) return
@@ -137,7 +141,7 @@ export function ProductBuy({
         <InstallChoice
           mode={cart.installMode}
           onChange={(next) => {
-            if (next === 'self' && cart.installMode === 'installer' && addons.length > 0) setRevealTools(true)
+            if (next === 'self' && cart.installMode !== 'self' && addons.length > 0) setRevealTools(true)
             cart.setInstallMode(next)
             // أدوات مختارة ولسه مااتضافتش بتتصفّر — مابتتضافش من غير ما العميل يشوفها
             if (next === 'installer') setAddonQty({})
@@ -149,8 +153,8 @@ export function ProductBuy({
         />
       ) : null}
 
-      {/* مع الفني اقتراحات الأدوات بتختفي — مش محتاجها */}
-      {installer || choicePending || addons.length === 0 ? null : (
+      {/* مع الفني اقتراحات الأدوات بتختفي — مش محتاجها. وقبل الاختيار مابتظهرش عشان «بنفسي» مايبانش افتراضي */}
+      {installer || choicePending || choiceRequired || addons.length === 0 ? null : (
         <div className="space-y-2">
           {showChoice ? (
             <p ref={toolsRef} tabIndex={-1} className="scroll-mt-24 text-sm font-semibold text-fg outline-none">
@@ -168,14 +172,30 @@ export function ProductBuy({
       )}
 
       <div className="grid gap-2">
-        <Button size="lg" onClick={handleBuyNow} disabled={!canAdd}>
+        <Button
+          size="lg"
+          onClick={handleBuyNow}
+          disabled={!canAdd}
+          {...(choiceRequired ? { 'aria-describedby': choiceHintId } : {})}
+        >
           اطلب دلوقتي
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <Button size="lg" variant="secondary" onClick={handleAdd} disabled={!canAdd}>
+        <Button
+          size="lg"
+          variant="secondary"
+          onClick={handleAdd}
+          disabled={!canAdd}
+          {...(choiceRequired ? { 'aria-describedby': choiceHintId } : {})}
+        >
           <ShoppingBag className="h-5 w-5" />
           ضيف للسلة
         </Button>
+        {choiceRequired ? (
+          <p id={choiceHintId} className="text-center text-xs font-semibold text-fg">
+            اختار «هتركّبه إزاي؟» فوق الأول — بنفسي ولا مع فني — عشان تضيف أو تطلب.
+          </p>
+        ) : null}
       </div>
 
       {justAdded ? (
