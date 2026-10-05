@@ -17,14 +17,17 @@ export function AddonsPicker({
   title,
   quantities,
   onChange,
+  defaultOpen = false,
 }: {
   addons: StoreProduct[]
   title: string
   quantities: Record<number, number>
   onChange: (next: Record<number, number>) => void
+  /** مفتوحة من الأول — لما العميل يرجع لـ«هركّبه بنفسي». */
+  defaultOpen?: boolean
 }) {
   // مقفولة الأول: الزبون اللي محتاج أدوات بيفتحها ويختار — الباقي مابتطوّلش الصفحة عليه
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   if (addons.length === 0) return null
 
   const qty = (id: number) => quantities[id] ?? 0
