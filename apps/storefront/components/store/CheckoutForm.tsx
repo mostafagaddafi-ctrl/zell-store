@@ -8,7 +8,6 @@ import {
   cartInstallationTools,
   cartToolFilmIds,
   computeShippingPiastres,
-  describeLine,
   formatPiastres,
   hasErrors,
   installationAreasIn,
@@ -33,6 +32,7 @@ import { Button, buttonClasses } from '../ui/Button'
 import { Field, inputClasses, textareaClasses } from '../ui/Field'
 import { ImageSlot } from '../ui/ImageSlot'
 import { InstallChoice } from './InstallChoice'
+import { LineSpecs } from './LineSpecs'
 import { Num } from './Num'
 import { OrderSummary } from './OrderSummary'
 
@@ -626,10 +626,9 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
                     className="h-14 w-14 shrink-0"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-fg">{entry.product.name_ar}</p>
-                    <p className="text-xs text-muted">
-                      <Num>{describeLine(entry.product, entry.line)}</Num>
-                    </p>
+                    {/* الاسم والمواصفات بيلفّوا بأمان، والسعر جنبهم shrink-0 مايتزنقش */}
+                    <p className="line-clamp-2 font-semibold leading-5 text-fg">{entry.product.name_ar}</p>
+                    <LineSpecs product={entry.product} line={entry.line} className="mt-0.5" />
                   </div>
                   <span className="shrink-0 font-semibold text-fg">
                     <Num>
