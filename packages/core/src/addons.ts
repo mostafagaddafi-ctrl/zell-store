@@ -55,6 +55,49 @@ export function cartToolFilmIds(
   return out.slice(0, MAX_TOOL_FILM_IDS)
 }
 
+/** سطر أداة تركيب موجود في السلة، ومعاه المنتج والكمية. */
+export type CartInstallationTool<L> = { line: L; tool: StoreProduct; quantity: number }
+
+/**
+ * أدوات التركيب الموجودة فعلًا في السلة — التعريف الواحد للسلة وCheckout:
+ *   سطر بالعدد · لمنتج بالعدد · رقمه في addon_ids لفيلم بالمقاس موجود في **نفس السلة**.
+ * منتج بالعدد مش مربوط بفيلم في السلة (زي رول كامل، أو أداة فيلمها اتشال) مش أداة ومابيرجعش.
+ * بترتيب السلة. مابتغيّرش السلة ومابتحسبش أسعار.
+ */
+export function cartInstallationTools<L extends { productId: number; quantity?: number }>(
+  lines: readonly L[],
+  byId: ReadonlyMap<number, StoreProduct>,
+): Array<CartInstallationTool<L>> {
+  const linked = new Set<number>()
+  for (const line of lines) {
+    if (line.quantity !== undefined) continue
+    const film = byId.get(line.productId)
+    if (!film) continue
+    for (const tool of toolsOf(film, byId)) linked.add(tool.id)
+  }
+  const out: Array<CartInstallationTool<L>> = []
+  for (const line of lines) {
+    const quantity: number | undefined = line.quantity
+    if (quantity === undefined || !linked.has(line.productId)) continue
+    const tool = byId.get(line.productId)
+    if (!tool || !isPiece(tool)) continue
+    out.push({ line, tool, quantity })
+  }
+  return out
+}
+
+/**
+ * بصمة ثابتة لمحتويات الأدوات: productId + quantity بس، بترتيب ثابت. أي إضافة أو شيل أو تغيير
+ * كمية بيغيّرها. حالة واجهة بس — مش داخلة في canonical ولا الطلب، ومفيها أسعار ولا بيانات عميل.
+ */
+export function installationToolsFingerprint(tools: ReadonlyArray<{ tool: StoreProduct; quantity: number }>): string {
+  return tools
+    .map((entry) => [entry.tool.id, entry.quantity] as const)
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1])
+    .map(([id, quantity]) => String(id) + 'x' + String(quantity))
+    .join(',')
+}
+
 /** رابط صفحة «أدوات التركيب» لأفلام معيّنة — null لو مفيش أفلام (مفيش رابط ميت). */
 export function installationToolsHref(filmIds: readonly number[]): string | null {
   return filmIds.length > 0 ? '/installation-tools?for=' + filmIds.slice(0, MAX_TOOL_FILM_IDS).join(',') : null
