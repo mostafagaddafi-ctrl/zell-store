@@ -12,6 +12,7 @@ import {
   installationAreasIn,
   installationFeePiastres,
   installationLengthCm,
+  installationReadyGovernorates,
   installationTravelPiastres,
   lineTotalPiastres,
   resolveCartLine,
@@ -133,7 +134,13 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   const [values, setValues] = useState<CheckoutValues>(EMPTY)
   // 0018 — فني التركيب بالسعر: أجر لكل متر من أفلام المقاس + انتقال حسب المنطقة،
   // والاتنين داخلين في الإجمالي. الحساب هنا للعرض؛ المعتمد من zell_create_order.
-  const [installation, setInstallation] = useState(false)
+  // PR4 — نية الفني جاية من صفحة المنتج/السلة (cart.installMode)، وهنا الحكم النهائي حسب المحافظة والمنطقة.
+  // تغييرها هنا بيرجع للسلة، فالاختيار واحد في كل الصفحات.
+  const installation = cart.installMode === 'installer'
+  const setInstallation = (next: boolean | ((current: boolean) => boolean)) => {
+    const value = typeof next === 'function' ? next(installation) : next
+    cart.setInstallMode(value ? 'installer' : 'self')
+  }
   // المنطقة: معامل صريح في الطلب (area) — مابقتش بتتلزق في العنوان.
   const [area, setArea] = useState('')
   const areas = values.governorate !== '' ? (settings.shippingAreas[values.governorate] ?? []) : []
@@ -191,6 +198,10 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
       : null
   // مختار فني والمنطقة ناقصة أو مش متاحة → الإرسال مقفول لحد ما يختار متاحة أو «هركّبه بنفسي»
   const installationBlocked = installationChosen && !installationReady
+  // PR4 — نية فني والمحافظة مالهاش فني: الطلب مايكملش من غير ما العميل يختار «هركّبه بنفسي»
+  const installerGovernorates = installationReadyGovernorates(settings.installation)
+  const intentStranded = installation && values.governorate !== '' && meterLengthCm > 0 && installerChoices.length === 0
+  const submitBlocked = installationBlocked || intentStranded
 
   const errors = validateCheckout(values, settings.governorates)
   const invalid = hasErrors(errors)
@@ -211,7 +222,7 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   async function submit(): Promise<void> {
     setTouched(true)
     setFailure(null)
-    if (invalid || submitting || items.length === 0 || installationBlocked) return
+    if (invalid || submitting || items.length === 0 || submitBlocked) return
 
     // 0018 — العنوان زي ما الزبون كتبه، والمنطقة والفني حقول لوحدهم (داخلين في الهاش).
     // الملاحظات من غير أي علامة — العلامة القديمة للأوردرات القديمة بس.
@@ -365,6 +376,18 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
             </Field>
           ) : null}
 
+          {intentStranded ? (
+            <div role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-xs text-fg">
+              <p className="font-semibold">فني التركيب مش متاح في {values.governorate} حاليًا.</p>
+              {installerGovernorates.length > 0 ? (
+                <p className="mt-1 text-muted">متاح في: {installerGovernorates.join('، ')}</p>
+              ) : null}
+              <button type="button" onClick={() => setInstallation(false)} className="mt-2 text-sm font-semibold text-accent">
+                هركّبه بنفسي
+              </button>
+            </div>
+          ) : null}
+
           {installationOffered ? (
             <div className="space-y-2">
               <button
@@ -488,7 +511,7 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
             gift={settings.offerEnabled ? settings.offerText : ''}
           />
 
-          <Button type="submit" size="lg" disabled={submitting || installationBlocked}>
+          <Button type="submit" size="lg" disabled={submitting || submitBlocked}>
             {submitting ? (
               <span className="inline-flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -505,7 +528,7 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
           */}
           {failure !== null ? (
             <p className="text-center text-xs font-medium text-danger">{failure}</p>
-          ) : installationBlocked ? (
+          ) : submitBlocked ? (
             <p className="text-center text-xs font-medium text-danger">اختار منطقة متاح فيها الفني، أو «هركّبه بنفسي».</p>
           ) : touched && invalid ? (
             <p className="text-center text-xs font-medium text-danger">راجع البيانات المطلوبة</p>
