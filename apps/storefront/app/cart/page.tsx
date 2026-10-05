@@ -17,6 +17,7 @@ export default async function CartPage() {
           trustLine={settings.content.trustLine}
           gift={settings.offerEnabled ? settings.offerText : ''}
           tools={settings.installationToolsPage.enabled ? { browseLabel: settings.installationToolsPage.browseButtonLabel } : null}
+          installation={settings.installation}
         />
       </div>
     </Container>

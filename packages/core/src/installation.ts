@@ -102,3 +102,9 @@ export function installationTravelPiastres(config: InstallationConfig, governora
   const travel = config.areas[governorate]?.[area]
   return travel === undefined ? null : travel
 }
+
+/** المحافظات اللي فيها منطقة متاحة للفني — فاضية لو الفني مقفول أو سعر المتر ناقص. */
+export function installationReadyGovernorates(config: InstallationConfig): string[] {
+  if (!config.enabled || config.feePerMeterPiastres === null) return []
+  return installationGovernorates(config.areas)
+}

@@ -6,6 +6,24 @@ import type { CartLine } from '@zell/core'
 /** نفس مفتاح التخزين القديم — سلات الزباين الحالية ما تضيعش عند التحويل. */
 const STORAGE_KEY = 'zell-cart-v2'
 
+/**
+ * PR4 — «هتركّبه إزاي؟» على مستوى السلة كلها. مفتاح لوحده جنب السلة عشان شكل
+ * zell-cart-v2 مايتغيرش، والسلات القديمة (من غير المفتاح) = «هركّبه بنفسي».
+ * نية بس: مش داخلة في الهاش ولا الطلب — Checkout بيحوّلها لـinstallation: true
+ * بعد ما المنطقة تبقى متاحة (PR3).
+ */
+const INSTALL_MODE_KEY = 'zell-install-mode-v1'
+
+export type InstallMode = 'self' | 'installer'
+
+function readInstallMode(): InstallMode {
+  try {
+    return window.localStorage.getItem(INSTALL_MODE_KEY) === 'installer' ? 'installer' : 'self'
+  } catch {
+    return 'self'
+  }
+}
+
 function newId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
   return 'line-' + String(Date.now()) + '-' + Math.random().toString(36).slice(2)
@@ -63,6 +81,9 @@ type CartApi = {
   remove: (id: string) => void
   removeByProduct: (productId: number) => void
   clear: () => void
+  /** PR4 — طريقة التركيب المختارة (نية بس). */
+  installMode: InstallMode
+  setInstallMode: (mode: InstallMode) => void
 }
 
 const CartContext = createContext<CartApi | null>(null)
@@ -70,12 +91,23 @@ const CartContext = createContext<CartApi | null>(null)
 export function CartProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([])
   const [ready, setReady] = useState(false)
+  const [installMode, setInstallMode] = useState<InstallMode>('self')
 
   // القراءة بعد التركيب فقط — السيرفر مالوش localStorage
   useEffect(() => {
     setLines(readStorage())
+    setInstallMode(readInstallMode())
     setReady(true)
   }, [])
+
+  useEffect(() => {
+    if (!ready) return
+    try {
+      window.localStorage.setItem(INSTALL_MODE_KEY, installMode)
+    } catch {
+      // التخزين مقفول — الاختيار يفضل في الذاكرة بس
+    }
+  }, [installMode, ready])
 
   useEffect(() => {
     if (!ready) return
@@ -121,7 +153,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setLines((prev) => prev.filter((line) => line.productId !== productId))
   }, [])
 
-  const clear = useCallback(() => setLines([]), [])
+  // بعد الطلب: السلة فاضية والاختيار يرجع «هركّبه بنفسي»
+  const clear = useCallback(() => {
+    setLines([])
+    setInstallMode('self')
+  }, [])
 
   const itemCount = useMemo(
     () => lines.reduce((sum, line) => sum + (line.quantity !== undefined ? line.quantity : 1), 0),
@@ -129,8 +165,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
   )
 
   const value = useMemo<CartApi>(
-    () => ({ lines, ready, count: lines.length, itemCount, add, setLength, addPiece, setQuantity, remove, removeByProduct, clear }),
-    [lines, ready, itemCount, add, setLength, addPiece, setQuantity, remove, removeByProduct, clear],
+    () => ({
+      lines,
+      ready,
+      count: lines.length,
+      itemCount,
+      add,
+      setLength,
+      addPiece,
+      setQuantity,
+      remove,
+      removeByProduct,
+      clear,
+      installMode,
+      setInstallMode,
+    }),
+    [lines, ready, itemCount, add, setLength, addPiece, setQuantity, remove, removeByProduct, clear, installMode],
   )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>

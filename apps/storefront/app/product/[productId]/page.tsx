@@ -140,7 +140,14 @@ export default async function ProductPage({ params }: PageProps) {
           {piece ? (
             <PieceBuy product={product} />
           ) : (
-            <ProductBuy product={product} gift={gift} addons={addons} addonsTitle={settings.addonsTitle} tools={tools} />
+            <ProductBuy
+              product={product}
+              gift={gift}
+              addons={addons}
+              addonsTitle={settings.addonsTitle}
+              tools={tools}
+              installation={settings.installation}
+            />
           )}
         </div>
       </div>

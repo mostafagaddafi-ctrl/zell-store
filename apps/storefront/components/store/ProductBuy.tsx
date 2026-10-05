@@ -4,13 +4,23 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check, ShoppingBag, Wrench } from 'lucide-react'
-import { formatLength, maxQuantityOf, validateLength, widthOptionsOf, withWidth, type StoreProduct } from '@zell/core'
+import {
+  formatLength,
+  installationReadyGovernorates,
+  maxQuantityOf,
+  validateLength,
+  widthOptionsOf,
+  withWidth,
+  type InstallationConfig,
+  type StoreProduct,
+} from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { buttonClasses, Button } from '../ui/Button'
 import { Num } from './Num'
 import { GiftNote } from './GiftNote'
 import { SizePanel } from './SizePanel'
 import { AddonsPicker } from './AddonsPicker'
+import { InstallChoice } from './InstallChoice'
 
 /** رابط صفحة «أدوات التركيب» بعد الإضافة — null = الأزرار القديمة زي ما هي. */
 export type ToolsLink = { href: string; browseLabel: string; checkoutLabel: string }
@@ -22,6 +32,7 @@ export function ProductBuy({
   addons = [],
   addonsTitle = '',
   tools = null,
+  installation = null,
 }: {
   product: StoreProduct
   gift?: string
@@ -30,9 +41,16 @@ export function ProductBuy({
   addonsTitle?: string
   /** صفحة الأدوات مفعّلة والفيلم ليه أدوات نشطة مربوطة — مفيش تحويل، اختيار بس. */
   tools?: ToolsLink | null
+  /** PR4 — إعداد الفني (0018). null = من غير «هتركّبه إزاي؟». */
+  installation?: InstallationConfig | null
 }) {
   const cart = useCart()
   const router = useRouter()
+  // PR4 — «هتركّبه إزاي؟»: النية على مستوى السلة (cart.installMode)، وCheckout الحكم النهائي
+  const installerGovernorates = installation ? installationReadyGovernorates(installation) : []
+  const fee = installation?.feePerMeterPiastres ?? null
+  const showChoice = installerGovernorates.length > 0 && fee !== null
+  const installer = showChoice && cart.installMode === 'installer'
   const [lengthCm, setLengthCm] = useState(product.min_length_cm)
   const [justAdded, setJustAdded] = useState(false)
   const [blocked, setBlocked] = useState(false)
@@ -96,7 +114,23 @@ export function ProductBuy({
 
       <GiftNote text={gift} />
 
-      <AddonsPicker addons={addons} title={addonsTitle} quantities={addonQty} onChange={setAddonQty} />
+      {showChoice && fee !== null ? (
+        <InstallChoice
+          mode={cart.installMode}
+          onChange={(next) => {
+            cart.setInstallMode(next)
+            // أدوات مختارة ولسه مااتضافتش بتتصفّر — مابتتضافش من غير ما العميل يشوفها
+            if (next === 'installer') setAddonQty({})
+          }}
+          feePerMeterPiastres={fee}
+          lengthCm={lengthCm}
+          governorates={installerGovernorates}
+          context="product"
+        />
+      ) : null}
+
+      {/* مع الفني اقتراحات الأدوات بتختفي — مش محتاجها */}
+      {installer ? null : <AddonsPicker addons={addons} title={addonsTitle} quantities={addonQty} onChange={setAddonQty} />}
 
       <div className="grid gap-2">
         <Button size="lg" onClick={handleBuyNow} disabled={!canAdd}>
@@ -122,7 +156,7 @@ export function ProductBuy({
               </>
             ) : null}
           </p>
-          {tools ? (
+          {tools && !installer ? (
             <>
               <Link href={tools.href} className={buttonClasses('primary', 'md', 'w-full')}>
                 <Wrench className="h-4 w-4" aria-hidden="true" />
