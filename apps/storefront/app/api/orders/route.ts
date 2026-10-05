@@ -34,6 +34,8 @@ export const dynamic = 'force-dynamic'
 const MAX_BODY_BYTES = 16 * 1024
 const MAX_ITEMS = 20
 const MAX_NOTES = 500
+/** 0018 — نفس حد zell_create_order (c_max_area) وحد اللوحة. */
+const MAX_AREA = 40
 const MIN_KEY_LENGTH = 16
 const MAX_KEY_LENGTH = 128
 
@@ -119,10 +121,28 @@ function parseRequest(payload: unknown): { ok: true; value: OrderRequest } | { o
     }
   }
 
-  return {
-    ok: true,
-    value: { customerName: name, customerPhone: phone, governorate, address, notes, items },
+  // 0018 — المنطقة معامل صريح (NFC + trim، فاضي = مفيش). الداتابيز بتتأكد إنها من مناطق المحافظة.
+  const rawArea = payload['area']
+  let area: string | undefined
+  if (rawArea !== undefined && rawArea !== null) {
+    if (typeof rawArea !== 'string') return { ok: false, code: 'AREA_INVALID' }
+    const trimmed = rawArea.normalize('NFC').trim()
+    if (trimmed.length > MAX_AREA) return { ok: false, code: 'AREA_INVALID' }
+    if (trimmed !== '') area = trimmed
   }
+
+  // 0018 — الفني true أو مش موجود. الداتابيز هي اللي بتقرر هو متاح ولا لأ.
+  const rawInstallation = payload['installation']
+  if (rawInstallation !== undefined && rawInstallation !== null && typeof rawInstallation !== 'boolean') {
+    return { ok: false, code: 'CART_INVALID' }
+  }
+  const installation = rawInstallation === true
+  if (installation && area === undefined) return { ok: false, code: 'INSTALLATION_NOT_AVAILABLE' }
+
+  const value: OrderRequest = { customerName: name, customerPhone: phone, governorate, address, notes, items }
+  if (area !== undefined) value.area = area
+  if (installation) value.installation = true
+  return { ok: true, value }
 }
 
 function isCreateOrderResult(value: unknown): value is CreateOrderResult {
@@ -221,6 +241,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       p_request_hash: requestHashHex,
       p_checkout_session_hash: sessionHashHex,
       p_receipt_token_hash: receiptHashHex,
+      // 0018 — بيتبعتوا بس لما يكونوا موجودين، فالطلب العادي نفس النداء القديم بالحرف
+      ...(normalized.area !== null ? { p_area: normalized.area } : {}),
+      ...(normalized.installation ? { p_installation: true } : {}),
     })
   } catch (error) {
     // اسم الاستثناء بس — مفيش مفتاح ولا رابط ولا بيانات عميل في اللوج
@@ -263,6 +286,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         subtotalPiastres: order.subtotal_piastres,
         shippingPiastres: order.shipping_piastres,
         totalPiastres: order.total_piastres,
+        installationPiastres: typeof order.installation_piastres === 'number' ? order.installation_piastres : 0,
+        installationTravelPiastres:
+          typeof order.installation_travel_piastres === 'number' ? order.installation_travel_piastres : 0,
         replayed: order.replayed,
       },
     },
