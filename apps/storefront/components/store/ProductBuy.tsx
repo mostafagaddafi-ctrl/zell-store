@@ -171,25 +171,26 @@ export function ProductBuy({
         </div>
       )}
 
+      {/* «ضيف للسلة» الأساسي وفوق (المسار الأوضح مع الأدوات والفني)، و«اطلب دلوقتي» تحته ثانوي — السلوك زي ما هو */}
       <div className="grid gap-2">
         <Button
           size="lg"
-          onClick={handleBuyNow}
-          disabled={!canAdd}
-          {...(choiceRequired ? { 'aria-describedby': choiceHintId } : {})}
-        >
-          اطلب دلوقتي
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <Button
-          size="lg"
-          variant="secondary"
           onClick={handleAdd}
           disabled={!canAdd}
           {...(choiceRequired ? { 'aria-describedby': choiceHintId } : {})}
         >
           <ShoppingBag className="h-5 w-5" />
           ضيف للسلة
+        </Button>
+        <Button
+          size="lg"
+          variant="secondary"
+          onClick={handleBuyNow}
+          disabled={!canAdd}
+          {...(choiceRequired ? { 'aria-describedby': choiceHintId } : {})}
+        >
+          اطلب دلوقتي
+          <ArrowLeft className="h-5 w-5" />
         </Button>
         {choiceRequired ? (
           <p id={choiceHintId} className="text-center text-xs font-semibold text-fg">
