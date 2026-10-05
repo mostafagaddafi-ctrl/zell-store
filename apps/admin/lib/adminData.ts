@@ -25,8 +25,14 @@ export type AdminOrder = {
   notifiedAt: string | null
   notifyError: string | null
   createdAt: string
-  /** الزبون طلب فني تركيب (علامة أول سطر في الملاحظات). */
+  /** الزبون طلب فني تركيب — بالسعر (0018) أو بالعلامة القديمة في الملاحظات. */
   needsInstaller?: boolean
+  /** المنطقة اللي اختارها الزبون (0018) — null للأوردرات القديمة. */
+  shippingArea: string | null
+  /** فني بأجر وانتقال داخلين في الإجمالي (0018). */
+  installationRequested: boolean
+  installationPiastres: number
+  installationTravelPiastres: number
 }
 
 export type AdminOrderItem = {
@@ -47,6 +53,9 @@ export type AdminOrderDetail = AdminOrder & {
   internalNotes: string | null
   subtotalPiastres: number
   shippingPiastres: number
+  /** لقطة سعر المتر والطول وقت الطلب — null لو مفيش فني بالسعر. */
+  installationRatePiastres: number | null
+  installationLengthCm: number | null
   items: AdminOrderItem[]
   /** رمز التعارض لتعديل الحالة والملاحظات الداخلية. */
   updatedAt: string

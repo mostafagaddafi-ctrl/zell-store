@@ -46,7 +46,13 @@ import {
 import { removeCollectionCover } from './mutations/collectionCover'
 import { setOfferEnabled } from './mutations/offer'
 import { testTelegram } from './systemHealth'
-import { saveInstallation, type InstallationSettings } from './mutations/installation'
+import {
+  installerAreasMissingFromShipping,
+  saveInstallation,
+  type InstallationInput,
+  type InstallationRecord,
+  type OrphanArea,
+} from './mutations/installation'
 import { saveInstallationToolsPage, type ToolsPageRecord } from './mutations/installationToolsPage'
 import { saveShippingAreas } from './mutations/shippingAreas'
 import { saveHomeProducts } from './mutations/homeProducts'
@@ -241,13 +247,26 @@ export async function saveShippingAction(
     const ordered = await saveShippingOrder(order, known)
     if (!ordered.ok) problems.push('ترتيب المحافظات')
   }
+  const notices: string[] = []
   if (areas !== undefined) {
     const saved = await saveShippingAreas(areas, known)
     if (!saved.ok) problems.push('المناطق (' + saved.message + ')')
+    else {
+      // منطقة متاحة لفني التركيب اتشالت أو اتغير اسمها → الفني مش متاح فيها
+      const lost = await installerAreasMissingFromShipping().catch((): OrphanArea[] => [])
+      if (lost.length > 0) {
+        notices.push(
+          'مناطق متاحة لفني التركيب مابقتش في الشحن: ' +
+            lost.map((item) => item.area + ' (' + item.governorate + ')').join('، ') +
+            ' — الفني مش متاح فيها لحد ما تفعّل الاسم الجديد من صفحة فني التركيب.',
+        )
+      }
+    }
   }
   if (problems.length > 0) {
-    return refreshAfter({ ...result, warning: 'الأسعار اتحفظت، بس ' + problems.join(' و') + ' ما اتحفظش — دوس حفظ تاني.' })
+    notices.unshift('الأسعار اتحفظت، بس ' + problems.join(' و') + ' ما اتحفظش — دوس حفظ تاني.')
   }
+  if (notices.length > 0) return refreshAfter({ ...result, warning: notices.join(' ') })
   return refreshAfter(result)
 }
 
@@ -396,13 +415,19 @@ export async function refreshStorefrontAction(): Promise<MutationResult<null>> {
     : { ok: false, code: 'INTERNAL', message: 'تحديث المتجر فشل — راجع «الاتصال بالمتجر» في حالة النظام فوق' }
 }
 
-/** فني التركيب — تشغيل وسطر توضيح ومحافظات. */
-export async function saveInstallationAction(input: InstallationSettings): Promise<MutationResult<InstallationSettings>> {
+/**
+ * فني التركيب — التشغيل وسعر المتر والمناطق وانتقالها (settings.installation).
+ * expectedUpdatedAt: طابع الصف اللي اللوحة شافته، أو null لو مكانش موجود.
+ */
+export async function saveInstallationAction(
+  input: InstallationInput,
+  expectedUpdatedAt: string | null,
+): Promise<MutationResult<InstallationRecord>> {
   const auth = await requireAdminAction()
   if (!auth.ok) return auth
   const gate = guardMutations()
   if (gate) return gate
-  return refreshAfter(await saveInstallation(input))
+  return refreshAfter(await saveInstallation(input, expectedUpdatedAt))
 }
 
 // ── الصفحة الرئيسية ──────────────────────────────────────────

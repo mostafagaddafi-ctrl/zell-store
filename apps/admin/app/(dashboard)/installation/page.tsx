@@ -9,15 +9,16 @@ export const dynamic = 'force-dynamic'
 
 export default async function InstallationPage() {
   await requireAdminPage()
-  const { settings, governorates } = await readInstallation()
+  const { record, groups } = await readInstallation()
 
   return (
     <>
       <PageHeader
         title="فني التركيب"
-        description="الزبون بيطلب فني من صفحة الطلب، والطلب بيوصلك عليه علامة 🔧 — والسعر والمعاد بالتواصل"
+        description="سعر تركيب المتر، والمناطق المتاحة للفني، ومصاريف انتقاله لكل منطقة — أسماء المناطق من صفحة الشحن"
       />
-      <InstallationEditor initial={settings} governorates={governorates} />
+      {/* key = الطابع: «تجاهل وحدّث» بيجيب نسخة السيرفر في محرر جديد */}
+      <InstallationEditor key={record.updatedAt ?? 'new'} initial={record} groups={groups} />
     </>
   )
 }

@@ -6,17 +6,23 @@ import { adminData } from '../../../lib/adminData'
 import { requireAdminPage } from '../../../lib/auth/guards'
 import { readShippingOrder } from '../../../lib/mutations/shippingOrder'
 import { readShippingAreas } from '../../../lib/mutations/shippingAreas'
+import { readInstallationRecord } from '../../../lib/mutations/installation'
 
 export const metadata: Metadata = { title: 'الشحن' }
 
 export default async function ShippingPage() {
   await requireAdminPage()
 
-  const [shipping, order, areas] = await Promise.all([
+  const [shipping, order, areas, installation] = await Promise.all([
     adminData.getShipping(),
     readShippingOrder(),
     readShippingAreas(),
+    readInstallationRecord(),
   ])
+  // مناطق متاحة لفني التركيب — للتحذير قبل مسحها أو تغيير اسمها
+  const installerAreas = Object.fromEntries(
+    Object.entries(installation.config.areas).map(([governorate, list]) => [governorate, Object.keys(list)]),
+  )
 
   return (
     <>
@@ -24,7 +30,7 @@ export default async function ShippingPage() {
       <div className="mb-4">
         <PreviewNotice what="تعديل أسعار الشحن والمحافظات والمناطق" />
       </div>
-      <ShippingEditor shipping={shipping} order={order} areas={areas} />
+      <ShippingEditor shipping={shipping} order={order} areas={areas} installerAreas={installerAreas} />
     </>
   )
 }

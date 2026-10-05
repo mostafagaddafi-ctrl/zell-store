@@ -38,7 +38,18 @@ function splitAreas(text: string): string[] {
  *
  * ⚠️ قايمة كروت مش جدول: الجدول كان بيعمل سكرول جانبي على الموبايل.
  */
-export function ShippingEditor({ shipping, order, areas }: { shipping: ShippingSettings; order: string[]; areas: Areas }) {
+export function ShippingEditor({
+  shipping,
+  order,
+  areas,
+  installerAreas = {},
+}: {
+  shipping: ShippingSettings
+  order: string[]
+  areas: Areas
+  /** مناطق متاحة لفني التركيب (من settings.installation) — للتحذير بس. */
+  installerAreas?: Areas
+}) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
   const { state, failure, warning, run, retry, markDirty } = useSaveAction()
@@ -118,7 +129,11 @@ export function ShippingEditor({ shipping, order, areas }: { shipping: ShippingS
   }
 
   function removeGovernorate(name: string) {
-    const sure = window.confirm('تمسح «' + name + '» من الشحن؟ الزباين مش هيقدروا يختاروها. الأوردرات القديمة مش هتتأثر.')
+    const installer = (installerAreas[name] ?? []).length > 0
+    const sure = window.confirm(
+      'تمسح «' + name + '» من الشحن؟ الزباين مش هيقدروا يختاروها. الأوردرات القديمة مش هتتأثر.' +
+        (installer ? ' فيها مناطق متاحة لفني التركيب، والفني هيبقى مش متاح فيها.' : ''),
+    )
     if (!sure) return
     const rates = { ...draft.rates }
     delete rates[name]
@@ -145,6 +160,12 @@ export function ShippingEditor({ shipping, order, areas }: { shipping: ShippingS
   }
 
   function removeArea(governorate: string, area: string) {
+    if ((installerAreas[governorate] ?? []).includes(area)) {
+      const sure = window.confirm(
+        '«' + area + '» متاحة لفني التركيب. لو مسحتها أو غيّرت اسمها، الفني هيبقى مش متاح فيها لحد ما تفعّلها تاني من صفحة فني التركيب. تكمّل؟',
+      )
+      if (!sure) return
+    }
     setAreaDraft((current) => ({ ...current, [governorate]: (current[governorate] ?? []).filter((item) => item !== area) }))
     markDirty()
   }
@@ -152,6 +173,13 @@ export function ShippingEditor({ shipping, order, areas }: { shipping: ShippingS
   function toggleAreas(governorate: string) {
     setOpenAreas((current) => (current === governorate ? null : governorate))
     setAreaInput('')
+  }
+
+  // مناطق الفني اللي هتتشال من الشحن لو اتحفظ التعديل ده (مسح أو تغيير اسم)
+  const lostInstaller: string[] = []
+  for (const [governorate, list] of Object.entries(installerAreas)) {
+    const current = governorate in draft.rates ? (areaDraft[governorate] ?? []) : []
+    for (const area of list) if (!current.includes(area)) lostInstaller.push(area + ' (' + governorate + ')')
   }
 
   function save() {
@@ -294,6 +322,9 @@ export function ShippingEditor({ shipping, order, areas }: { shipping: ShippingS
                               className="inline-flex items-center gap-1 rounded-full border border-border bg-surface py-1 pe-1.5 ps-2.5 text-xs text-fg"
                             >
                               {area}
+                              {(installerAreas[name] ?? []).includes(area) ? (
+                                <span className="rounded bg-accent/10 px-1 text-[10px] font-bold text-accent">فني</span>
+                              ) : null}
                               <button
                                 type="button"
                                 aria-label={'امسح ' + area}
@@ -377,6 +408,15 @@ export function ShippingEditor({ shipping, order, areas }: { shipping: ShippingS
         <p className="mt-2 text-xs text-muted">بتتضاف آخر القايمة — حرّكها بالأسهم ودوس «حفظ».</p>
       </Card>
 
+      {lostInstaller.length > 0 ? (
+        <div className="rounded-lg border-2 border-gold bg-gold/10 p-3 text-xs text-fg">
+          <p className="font-bold">مناطق متاحة لفني التركيب هتتشال من الشحن</p>
+          <p className="mt-1">{lostInstaller.join('، ')}</p>
+          <p className="mt-1 text-muted">
+            بعد الحفظ الفني هيبقى مش متاح فيها. لو بتغيّر الاسم، فعّل الاسم الجديد من صفحة فني التركيب.
+          </p>
+        </div>
+      ) : null}
       <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
 
       <SaveBar state={state} onSave={save} warning={warning} />
