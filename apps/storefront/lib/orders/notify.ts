@@ -41,6 +41,13 @@ type NotifyOrder = {
   subtotal_piastres: number
   shipping_piastres: number
   total_piastres: number
+  /** 0018 */
+  shipping_area?: string | null
+  installation_requested?: boolean
+  installation_rate_piastres?: number | null
+  installation_length_cm?: number | null
+  installation_piastres?: number
+  installation_travel_piastres?: number
   created_at: string
   order_items: NotifyItem[]
 }
@@ -48,6 +55,8 @@ type NotifyOrder = {
 const ORDER_SELECT =
   'id,order_number,customer_name,customer_phone,governorate,address,notes,' +
   'subtotal_piastres,shipping_piastres,total_piastres,created_at,' +
+  'shipping_area,installation_requested,installation_rate_piastres,installation_length_cm,' +
+  'installation_piastres,installation_travel_piastres,' +
   'order_items(product_name_ar,length_cm,width_cm,line_total_piastres,sale_unit,quantity)'
 
 /** تهريب HTML لكل قيمة — parse_mode: 'HTML' (§7.3). */
@@ -84,6 +93,7 @@ function buildMessage(order: NotifyOrder): string {
     '<b>الاسم:</b> ' + escapeHtml(order.customer_name),
     '<b>الموبايل:</b> ' + escapeHtml(order.customer_phone),
     '<b>المحافظة:</b> ' + escapeHtml(order.governorate),
+    ...(order.shipping_area ? ['<b>المنطقة:</b> ' + escapeHtml(order.shipping_area)] : []),
     '<b>العنوان:</b> ' + escapeHtml(order.address),
     '',
     '<b>الأصناف:</b>',
@@ -99,21 +109,38 @@ function buildMessage(order: NotifyOrder): string {
     )
   }
 
+  // 0018 — فني بالسعر: الأجر والانتقال من لقطة الأوردر وداخلين في الإجمالي
+  const priced = order.installation_requested === true
   lines.push(
     '',
     '<b>الإجمالي الفرعي:</b> ' + escapeHtml(money(order.subtotal_piastres)),
     '<b>الشحن:</b> ' + escapeHtml(money(order.shipping_piastres)),
-    '<b>الإجمالي:</b> ' + escapeHtml(money(order.total_piastres)),
   )
+  if (priced) {
+    const travel = order.installation_travel_piastres ?? 0
+    const breakdown =
+      typeof order.installation_length_cm === 'number' && typeof order.installation_rate_piastres === 'number'
+        ? ' (' + String(order.installation_length_cm) + ' سم × ' + money(order.installation_rate_piastres) + ' للمتر)'
+        : ''
+    lines.push(
+      '<b>أجر التركيب:</b> ' + escapeHtml(money(order.installation_piastres ?? 0) + breakdown),
+      '<b>انتقال الفني:</b> ' + escapeHtml(travel === 0 ? 'مجاني' : money(travel)),
+    )
+  }
+  lines.push('<b>الإجمالي:</b> ' + escapeHtml(money(order.total_piastres)))
 
-  // فني التركيب: سطر واضح أول الرسالة، والعلامة تتشال من الملاحظات
-  const wantsInstaller = hasInstallerRequest(order.notes)
+  // العلامة القديمة في الملاحظات للأوردرات القديمة بس (بالتواصل) — بتتشال من الملاحظات
+  const legacyInstaller = !priced && hasInstallerRequest(order.notes)
   const rawNotes = (order.notes ?? '').trim()
-  const notes = wantsInstaller ? rawNotes.slice(INSTALLATION_NOTE_MARKER.length).trim() : rawNotes
+  const notes = legacyInstaller ? rawNotes.slice(INSTALLATION_NOTE_MARKER.length).trim() : rawNotes
   if (notes !== '') lines.push('', '<b>ملاحظات:</b> ' + escapeHtml(notes))
 
   lines.push('', '<b>الوقت:</b> ' + escapeHtml(when), '', '💵 الدفع عند الاستلام')
-  if (wantsInstaller) lines.unshift('🔧 <b>الطلب ده محتاج فني تركيب</b> — كلّم العميل واتفق على المعاد والسعر', '')
+  if (priced) {
+    lines.unshift('🔧 <b>الطلب ده فيه فني تركيب</b> — الأجر والانتقال داخلين في الإجمالي. كلّم العميل واتفق على المعاد', '')
+  } else if (legacyInstaller) {
+    lines.unshift('🔧 <b>الطلب ده محتاج فني تركيب</b> — كلّم العميل واتفق على المعاد والسعر', '')
+  }
   return lines.join('\n')
 }
 
