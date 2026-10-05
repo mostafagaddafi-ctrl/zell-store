@@ -19,6 +19,7 @@ import {
   installationToolsHref,
   installationTravelPiastres,
   lineTotalPiastres,
+  primaryImage,
   resolveCartLine,
   validateCheckout,
   type CheckoutValues,
@@ -30,6 +31,7 @@ import { useCart } from '../../lib/cart'
 import { clearCheckoutDraft, readCheckoutDraft, saveCheckoutDraft } from '../../lib/drafts'
 import { Button, buttonClasses } from '../ui/Button'
 import { Field, inputClasses, textareaClasses } from '../ui/Field'
+import { ImageSlot } from '../ui/ImageSlot'
 import { InstallChoice } from './InstallChoice'
 import { Num } from './Num'
 import { OrderSummary } from './OrderSummary'
@@ -609,21 +611,34 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
         <div className="space-y-4 lg:sticky lg:top-24">
           {/* الأصناف */}
           <ul className="divide-y divide-border rounded-lg border border-border bg-card px-4">
-            {entries.map((entry) => (
-              <li key={entry.line.id} className="flex items-center justify-between gap-3 py-3 text-sm">
-                <div className="min-w-0">
-                  <p className="truncate font-semibold text-fg">{entry.product.name_ar}</p>
-                  <p className="text-xs text-muted">
-                    <Num>{describeLine(entry.product, entry.line)}</Num>
-                  </p>
-                </div>
-                <span className="shrink-0 font-semibold text-fg">
-                  <Num>
-                    {formatPiastres(lineTotalPiastres(entry.product, entry.line))}
-                  </Num>
-                </span>
-              </li>
-            ))}
+            {entries.map((entry) => {
+              // صورة مصغرة للتأكد البصري — نفس صورة السلة (primaryImage + ImageSlot) ومن المنتجات الموجودة.
+              // للعرض بس (alt فاضي لأن الاسم جنبها)، ومن غير صورة = خلفية ImageSlot العادية.
+              const preview = primaryImage(entry.product)
+              return (
+                <li key={entry.line.id} className="flex items-center gap-3 py-3 text-sm">
+                  <ImageSlot
+                    ratio="1/1"
+                    fit="cover"
+                    src={preview?.url ?? null}
+                    alt=""
+                    sizes="56px"
+                    className="h-14 w-14 shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-fg">{entry.product.name_ar}</p>
+                    <p className="text-xs text-muted">
+                      <Num>{describeLine(entry.product, entry.line)}</Num>
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-semibold text-fg">
+                    <Num>
+                      {formatPiastres(lineTotalPiastres(entry.product, entry.line))}
+                    </Num>
+                  </span>
+                </li>
+              )
+            })}
           </ul>
 
           {toolsDecisionPending ? (
