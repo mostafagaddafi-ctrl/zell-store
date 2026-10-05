@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AlertTriangle, Lock, Maximize, Minus, Plus, Ruler } from 'lucide-react'
 import {
   areRulesUsable,
@@ -9,11 +9,13 @@ import {
   formatPiastres,
   lengthOptions,
   requiredLength,
+  validateLength,
   widthOptionsOf,
   withWidth,
   type StoreProduct,
 } from '@zell/core'
 import { cn } from '../../lib/cn'
+import { clearSizeDraft, readSizeDraft, saveSizeDraft } from '../../lib/drafts'
 import { inputClasses } from '../ui/Field'
 import { Num } from './Num'
 
@@ -34,6 +36,18 @@ type Mode = 'window' | 'length'
  * 🔒 سلوك محفوظ: لو المقاس أكبر من الحد المتاح بنقول كده صراحة
  * وبنمنع الإضافة للسلة. ممنوع القص الصامت للحد الأقصى.
  */
+/** بصمة قواعد المقاس — أي تغيير فيها من اللوحة بيلغي مسودة المقاس القديمة. */
+function sizeRulesKey(product: StoreProduct): string {
+  return [
+    product.width_cm,
+    product.min_length_cm,
+    product.step_cm,
+    product.max_length_cm,
+    product.lock_width === true ? 1 : 0,
+    widthOptionsOf(product).map((option) => option.width_cm).join(','),
+  ].join('|')
+}
+
 export function SizePanel({
   product,
   widthCm,
@@ -114,6 +128,51 @@ export function SizePanel({
     if (next < current.min_length_cm || next > current.max_length_cm) return
     onLengthChange(next)
   }
+
+  /**
+   * مسودة المقاس (sessionStorage، للمنتج ده في التاب ده): لو العميل راح للسلة ورجع يلاقي اللي كتبه.
+   * بترجع بس لو بصمة القواعد زي ما هي والمقاس لسه صالح على قواعد المنتج الحالية؛ غير كده بتتجاهل
+   * والقيم الافتراضية بتفضل. مابتلمسش السلة، ومثال «500 سم» يفضل placeholder بس.
+   * القراءة بعد التركيب (السيرفر مالوش sessionStorage)، والحفظ بعد القراءة بس.
+   */
+  const rulesKey = sizeRulesKey(product)
+  const [draftLoaded, setDraftLoaded] = useState(false)
+  useEffect(() => {
+    const draft = readSizeDraft(product.id)
+    const rules = draft !== null && draft.rules === rulesKey ? withWidth(product, draft.widthCm) : null
+    if (draft !== null && rules && areRulesUsable(rules)) {
+      const windowWidth = widthLocked ? String(rules.width_cm) : draft.windowWidth
+      const complete = windowWidth.trim() !== '' && draft.windowHeight.trim() !== ''
+      const usable =
+        draft.mode === 'window' && complete
+          ? requiredLength(Number(windowWidth), Number(draft.windowHeight), rules).ok
+          : validateLength(draft.lengthCm, rules).ok
+      if (usable) {
+        onWidthChange(rules.width_cm)
+        setMode(draft.mode)
+        setWidth(draft.windowWidth)
+        setHeight(draft.windowHeight)
+        if (draft.mode === 'window' && complete) applyWindow(rules, windowWidth, draft.windowHeight)
+        else onLengthChange(draft.lengthCm)
+      }
+    }
+    setDraftLoaded(true)
+  }, [])
+
+  useEffect(() => {
+    if (!draftLoaded) return
+    const untouched =
+      mode === 'window' &&
+      width === '' &&
+      height === '' &&
+      widthCm === product.width_cm &&
+      lengthCm === product.min_length_cm
+    if (untouched) {
+      clearSizeDraft(product.id)
+      return
+    }
+    saveSizeDraft(product.id, { rules: rulesKey, widthCm, mode, windowWidth: width, windowHeight: height, lengthCm })
+  }, [draftLoaded, mode, width, height, widthCm, lengthCm, rulesKey, product.id, product.width_cm, product.min_length_cm])
 
   if (!areRulesUsable(current)) {
     return (

@@ -115,17 +115,18 @@ export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]
 
               <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
                 <span className="text-xs text-muted">{left === 0 ? 'وصلت لأقصى كمية' : 'الكمية'}</span>
-                <div role="group" aria-labelledby={nameId} className="flex items-center gap-1 rounded-lg border border-border p-1">
+                {/* مدمج زي أدوات السلة: الإطار والأيقونات صغيرين بصريًا، ومساحة اللمس 44px عن طريق before */}
+                <div role="group" aria-labelledby={nameId} className="flex items-center gap-0.5 rounded border border-border">
                   <button
                     type="button"
                     aria-label={'قلّل ' + row.name}
                     disabled={quantity <= 0}
                     onClick={() => change(row, quantity - 1)}
-                    className="flex h-11 w-11 items-center justify-center rounded text-fg transition-colors hover:bg-bg disabled:opacity-40"
+                    className="relative flex h-8 w-8 items-center justify-center rounded text-muted transition-colors before:absolute before:-inset-1.5 before:content-[''] hover:bg-border/40 hover:text-fg disabled:opacity-40"
                   >
-                    <Minus className="h-5 w-5" aria-hidden="true" />
+                    <Minus className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
-                  <output aria-live="polite" className="min-w-[2.5rem] text-center text-base font-extrabold text-fg">
+                  <output aria-live="polite" className="min-w-[2.5rem] text-center text-sm font-bold text-fg">
                     <Num>{String(quantity)}</Num>
                   </output>
                   <button
@@ -133,9 +134,9 @@ export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]
                     aria-label={'زوّد ' + row.name}
                     disabled={quantity >= left}
                     onClick={() => change(row, quantity + 1)}
-                    className="flex h-11 w-11 items-center justify-center rounded text-fg transition-colors hover:bg-bg disabled:opacity-40"
+                    className="relative flex h-8 w-8 items-center justify-center rounded text-muted transition-colors before:absolute before:-inset-1.5 before:content-[''] hover:bg-border/40 hover:text-fg disabled:opacity-40"
                   >
-                    <Plus className="h-5 w-5" aria-hidden="true" />
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                 </div>
               </div>

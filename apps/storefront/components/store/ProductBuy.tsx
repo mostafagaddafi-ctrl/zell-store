@@ -51,6 +51,8 @@ export function ProductBuy({
   const fee = installation?.feePerMeterPiastres ?? null
   const showChoice = installerGovernorates.length > 0 && fee !== null
   const installer = showChoice && cart.installMode === 'installer'
+  // قبل قراءة الاختيار المحفوظ (cart.ready) مانعرضش «بنفسي» الافتراضي — كان بيظهر الأدوات لحظة ويخفيها
+  const choicePending = showChoice && !cart.ready
   const [revealTools, setRevealTools] = useState(false)
   const toolsRef = useRef<HTMLParagraphElement>(null)
   // «هركّبه بنفسي» بعد «فني»: الأدوات بتظهر والتركيز يروح لها (سلس، وفوري مع reduced motion).
@@ -127,7 +129,11 @@ export function ProductBuy({
 
       <GiftNote text={gift} />
 
-      {showChoice && fee !== null ? (
+      {showChoice && fee !== null && choicePending ? (
+        // مكان ثابت لحد ما الاختيار المحفوظ يتقري — من غير وميض ولا قفزة في الصفحة
+        <div aria-hidden="true" className="h-36 rounded-lg border border-border bg-card" />
+      ) : null}
+      {showChoice && fee !== null && !choicePending ? (
         <InstallChoice
           mode={cart.installMode}
           onChange={(next) => {
@@ -144,7 +150,7 @@ export function ProductBuy({
       ) : null}
 
       {/* مع الفني اقتراحات الأدوات بتختفي — مش محتاجها */}
-      {installer || addons.length === 0 ? null : (
+      {installer || choicePending || addons.length === 0 ? null : (
         <div className="space-y-2">
           {showChoice ? (
             <p ref={toolsRef} tabIndex={-1} className="scroll-mt-24 text-sm font-semibold text-fg outline-none">
