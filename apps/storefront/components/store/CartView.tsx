@@ -6,18 +6,22 @@ import { Minus, Plus, ShoppingBag, Trash2, Wrench } from 'lucide-react'
 import {
   describeLine,
   formatPiastres,
+  installationLengthCm,
+  installationReadyGovernorates,
   isPiece,
   lineTotalPiastres,
   maxQuantityOf,
   primaryImage,
   resolveCartLine,
   widthOptionsOf,
+  type InstallationConfig,
   type StoreProduct,
 } from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { buttonClasses } from '../ui/Button'
 import { ImageSlot } from '../ui/ImageSlot'
 import { Num } from './Num'
+import { InstallChoice } from './InstallChoice'
 import { OrderSummary } from './OrderSummary'
 
 export function CartView({
@@ -25,12 +29,15 @@ export function CartView({
   trustLine,
   gift,
   tools = null,
+  installation = null,
 }: {
   products: StoreProduct[]
   trustLine?: string
   gift?: string
   /** صفحة «أدوات التركيب» مفعّلة — الزرار بيظهر بس لو في السلة فيلم ليه أدوات نشطة. */
   tools?: { browseLabel: string } | null
+  /** PR4 — إعداد الفني (0018). null = من غير «هتركّبه إزاي؟». */
+  installation?: InstallationConfig | null
 }) {
   const cart = useCart()
   const [pruned, setPruned] = useState(false)
@@ -90,6 +97,17 @@ export function CartView({
     if (!toolFilmIds.includes(base.id)) toolFilmIds.push(base.id)
   }
   const toolsHref = tools && toolFilmIds.length > 0 ? '/installation-tools?for=' + toolFilmIds.slice(0, 10).join(',') : null
+
+  // PR4 — «هتركّبه إزاي؟» لأفلام المقاس في السلة. الأجر هنا تقدير؛ الانتقال والمعتمد في Checkout.
+  const meterCm = installationLengthCm(entries)
+  const installerGovernorates = installation ? installationReadyGovernorates(installation) : []
+  const fee = installation?.feePerMeterPiastres ?? null
+  const showChoice = meterCm > 0 && installerGovernorates.length > 0 && fee !== null
+  const installer = showChoice && cart.installMode === 'installer'
+  // أدوات التركيب = قطع مربوطة كإضافة لأي فيلم بالمقاس. مع الفني بتتوضّح بس — مابتتشالش لوحدها.
+  const toolIds = new Set<number>()
+  for (const product of products) if (!isPiece(product)) for (const id of product.addon_ids ?? []) toolIds.add(id)
+  const toolEntries = installer ? entries.filter((entry) => isPiece(entry.product) && toolIds.has(entry.product.id)) : []
 
   const subtotal = entries.reduce(
     (sum, entry) => sum + lineTotalPiastres(entry.product, entry.line),
@@ -183,7 +201,7 @@ export function CartView({
           )
         })}
 
-        {tools && toolsHref ? (
+        {tools && toolsHref && !installer ? (
           <li>
             <Link href={toolsHref} className={buttonClasses('secondary', 'md', 'w-full')}>
               <Wrench className="h-4 w-4" aria-hidden="true" />
@@ -200,7 +218,35 @@ export function CartView({
       </ul>
 
       <div className="lg:col-span-5">
-        <div className="lg:sticky lg:top-24">
+        <div className="space-y-4 lg:sticky lg:top-24">
+          {showChoice && fee !== null ? (
+            <InstallChoice
+              mode={cart.installMode}
+              onChange={cart.setInstallMode}
+              feePerMeterPiastres={fee}
+              lengthCm={meterCm}
+              governorates={installerGovernorates}
+              context="cart"
+            />
+          ) : null}
+          {toolEntries.length > 0 ? (
+            <div role="status" className="rounded-lg border border-border bg-card p-4 text-xs text-fg">
+              <p className="font-semibold">
+                عندك أدوات تركيب في السلة:{' '}
+                {toolEntries.map((entry) => entry.product.name_ar + ' ×' + String(entry.line.quantity ?? 1)).join('، ')}
+              </p>
+              <p className="mt-1 text-muted">الفني مش محتاجها. هتفضل في الطلب لحد ما تشيلها بنفسك.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  for (const entry of toolEntries) cart.remove(entry.line.id)
+                }}
+                className="mt-2 text-sm font-semibold text-accent"
+              >
+                شيل الأدوات من السلة
+              </button>
+            </div>
+          ) : null}
           <OrderSummary
             trustLine={trustLine}
             gift={gift}
