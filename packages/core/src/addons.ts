@@ -37,6 +37,29 @@ export function toolsOf(film: StoreProduct, byId: ReadonlyMap<number, StoreProdu
   return out
 }
 
+/**
+ * أفلام المقاس في السلة اللي ليها أدوات موجودة — معيار زرار السلة بالحرف:
+ * فيلم مش قطعة، وفي addon_ids رقم لمنتج موجود في القايمة. بترتيب السلة، من غير تكرار،
+ * وبحد MAX_TOOL_FILM_IDS. السلة وCheckout بيستخدموها عشان الرابط يبقى واحد.
+ */
+export function cartToolFilmIds(
+  lines: ReadonlyArray<{ productId: number }>,
+  byId: ReadonlyMap<number, StoreProduct>,
+): number[] {
+  const out: number[] = []
+  for (const line of lines) {
+    const base = byId.get(line.productId)
+    if (!base || isPiece(base) || !(base.addon_ids ?? []).some((id) => byId.has(id))) continue
+    if (!out.includes(base.id)) out.push(base.id)
+  }
+  return out.slice(0, MAX_TOOL_FILM_IDS)
+}
+
+/** رابط صفحة «أدوات التركيب» لأفلام معيّنة — null لو مفيش أفلام (مفيش رابط ميت). */
+export function installationToolsHref(filmIds: readonly number[]): string | null {
+  return filmIds.length > 0 ? '/installation-tools?for=' + filmIds.slice(0, MAX_TOOL_FILM_IDS).join(',') : null
+}
+
 /** ?for=1,3 → [1, 3]: أرقام صحيحة موجبة بس، من غير تكرار، وبحد أقصى. أي حاجة تانية بتتشال. */
 export function parseToolFilmIds(raw: unknown): number[] {
   const text: unknown = Array.isArray(raw) ? raw[0] : raw

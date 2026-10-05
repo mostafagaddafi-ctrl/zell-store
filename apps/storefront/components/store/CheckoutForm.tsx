@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Loader2, Wrench } from 'lucide-react'
 import {
+  cartToolFilmIds,
   computeShippingPiastres,
   describeLine,
   formatPiastres,
@@ -13,6 +14,7 @@ import {
   installationFeePiastres,
   installationLengthCm,
   installationReadyGovernorates,
+  installationToolsHref,
   installationTravelPiastres,
   lineTotalPiastres,
   resolveCartLine,
@@ -152,6 +154,8 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   const [showNotes, setShowNotes] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
+  // «هركّبه بنفسي» من غير صفحة أدوات متاحة → نفضل هنا برسالة واضحة
+  const [selfNotice, setSelfNotice] = useState(false)
   const router = useRouter()
   const abortRef = useRef<AbortController | null>(null)
 
@@ -202,6 +206,27 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   const installerGovernorates = installationReadyGovernorates(settings.installation)
   const intentStranded = installation && values.governorate !== '' && meterLengthCm > 0 && installerChoices.length === 0
   const submitBlocked = installationBlocked || intentStranded
+
+  // «هركّبه بنفسي وشوف أدوات التركيب»: الاختيار يرجع «بنفسي» (بيتحفظ في السلة)، والعميل يروح لأدوات
+  // أفلام سلته بنفس معيار زرار السلة. مفيش صفحة أدوات أو مفيش أدوات → يفضل هنا برسالة، من غير رابط ميت.
+  // ⚠️ ده الطريق الوحيد اللي بيغيّر النية هنا — الرجوع العادي مابيفترضش حاجة.
+  const selfToolsHref = settings.installationToolsPage.enabled
+    ? installationToolsHref(
+        cartToolFilmIds(
+          entries.map((entry) => entry.line),
+          byId,
+        ),
+      )
+    : null
+  const selfLabel = selfToolsHref !== null ? 'هركّبه بنفسي وشوف أدوات التركيب' : 'هركّبه بنفسي وكمّل من غير فني'
+  function chooseSelf() {
+    setInstallation(false)
+    if (selfToolsHref !== null) {
+      router.push(selfToolsHref)
+      return
+    }
+    setSelfNotice(true)
+  }
 
   const errors = validateCheckout(values, settings.governorates)
   const invalid = hasErrors(errors)
@@ -382,9 +407,17 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
               {installerGovernorates.length > 0 ? (
                 <p className="mt-1 text-muted">متاح في: {installerGovernorates.join('، ')}</p>
               ) : null}
-              <button type="button" onClick={() => setInstallation(false)} className="mt-2 text-sm font-semibold text-accent">
-                هركّبه بنفسي
+              <p className="mt-1 text-muted">ممكن تكمل الطلب من غير فني وتختار أدوات التركيب المناسبة.</p>
+              <button type="button" onClick={chooseSelf} className={buttonClasses('secondary', 'md', 'mt-2 w-full')}>
+                {selfLabel}
               </button>
+            </div>
+          ) : null}
+
+          {selfNotice && !installation ? (
+            <div role="status" className="rounded-lg border border-border bg-card p-3 text-xs text-fg">
+              <p className="font-semibold">تمام — الطلب هيكمل من غير فني تركيب.</p>
+              <p className="mt-1 text-muted">كمّل بيانات التوصيل وأكّد الطلب.</p>
             </div>
           ) : null}
 
@@ -439,12 +472,9 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
                       : 'الفني مش متاح في ' + selectedArea + ' حاليًا.'}
                   </p>
                   <p className="mt-1 text-muted">متاح في: {installerChoices.join('، ')}</p>
-                  <button
-                    type="button"
-                    onClick={() => setInstallation(false)}
-                    className="mt-2 text-sm font-semibold text-accent"
-                  >
-                    هركّبه بنفسي
+                  <p className="mt-1 text-muted">ممكن تكمل الطلب من غير فني وتختار أدوات التركيب المناسبة.</p>
+                  <button type="button" onClick={chooseSelf} className={buttonClasses('secondary', 'md', 'mt-2 w-full')}>
+                    {selfLabel}
                   </button>
                 </div>
               ) : null}
