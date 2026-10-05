@@ -83,14 +83,15 @@ export function PieceBuy({ product }: { product: StoreProduct }) {
         </dl>
       </div>
 
+      {/* نفس أولوية صفحة الفيلم: «ضيف للسلة» الأساسي وفوق، و«اطلب دلوقتي» تحته ثانوي */}
       <div className="grid gap-2">
-        <Button size="lg" onClick={handleBuyNow}>
-          اطلب دلوقتي
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <Button size="lg" variant="secondary" onClick={handleAdd}>
+        <Button size="lg" onClick={handleAdd}>
           <ShoppingBag className="h-5 w-5" />
           ضيف للسلة
+        </Button>
+        <Button size="lg" variant="secondary" onClick={handleBuyNow}>
+          اطلب دلوقتي
+          <ArrowLeft className="h-5 w-5" />
         </Button>
       </div>
 
