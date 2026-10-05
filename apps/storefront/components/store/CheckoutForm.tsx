@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Loader2, Wrench } from 'lucide-react'
@@ -25,6 +25,7 @@ import {
 } from '@zell/core'
 import { canonicalOrderJson, normalizeOrder } from '../../lib/orders/canonical'
 import { useCart } from '../../lib/cart'
+import { clearCheckoutDraft, readCheckoutDraft, saveCheckoutDraft } from '../../lib/drafts'
 import { Button, buttonClasses } from '../ui/Button'
 import { Field, inputClasses, textareaClasses } from '../ui/Field'
 import { Num } from './Num'
@@ -159,6 +160,47 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   const router = useRouter()
   const abortRef = useRef<AbortController | null>(null)
 
+  /**
+   * مسودة Checkout (sessionStorage، التاب ده بس): لو العميل راح لأدوات التركيب ورجع
+   * يلاقي بياناته. بتتمسح بعد نجاح الطلب، وبتنتهي لوحدها مع قفل التاب.
+   * 🔒 اللي العميل كتبه بس — مفتاح النية والهاشات وأخطاء السيرفر مابتتحفظش هنا.
+   * القراءة بعد التركيب (السيرفر مالوش sessionStorage)، والحفظ بعد القراءة بس عشان
+   * القيم الفاضية الأولى ماتكتبش فوق المسودة.
+   */
+  const [draftLoaded, setDraftLoaded] = useState(false)
+  const orderPlacedRef = useRef(false)
+  useEffect(() => {
+    const draft = readCheckoutDraft()
+    if (draft !== null) {
+      // محافظة اتشالت من اللوحة → فاضية، ومنطقة مش من قايمة المحافظة دي → فاضية
+      const governorate = settings.governorates.includes(draft.governorate) ? draft.governorate : ''
+      const governorateAreas = governorate !== '' ? (settings.shippingAreas[governorate] ?? []) : []
+      setValues({
+        customerName: draft.customerName,
+        customerPhone: draft.customerPhone,
+        governorate,
+        address: draft.address,
+        notes: draft.notes,
+      })
+      setArea(governorateAreas.includes(draft.area) ? draft.area : '')
+      setShowNotes(draft.showNotes || draft.notes.trim() !== '')
+    }
+    setDraftLoaded(true)
+  }, [])
+
+  useEffect(() => {
+    if (!draftLoaded || orderPlacedRef.current) return
+    saveCheckoutDraft({
+      customerName: values.customerName,
+      customerPhone: values.customerPhone,
+      governorate: values.governorate,
+      area: selectedArea,
+      address: values.address,
+      notes: values.notes,
+      showNotes,
+    })
+  }, [draftLoaded, values, selectedArea, showNotes])
+
   const byId = useMemo(() => {
     const map = new Map<number, StoreProduct>()
     for (const product of products) map.set(product.id, product)
@@ -289,6 +331,9 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
         // السلة تتنضّف **بعد** الرد الناجح بس
         forgetIntent(canonical)
         cart.clear()
+        // المسودة بتتمسح بعد نجاح الطلب والسلة، ومفيش حفظ تاني بعدها
+        orderPlacedRef.current = true
+        clearCheckoutDraft()
         router.push('/order/' + result.order.orderNumber)
         return
       }
