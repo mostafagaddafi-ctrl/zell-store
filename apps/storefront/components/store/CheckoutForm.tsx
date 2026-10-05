@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Loader2, Wrench } from 'lucide-react'
 import {
+  cartInstallationTools,
   cartToolFilmIds,
   computeShippingPiastres,
   describeLine,
@@ -14,6 +15,7 @@ import {
   installationFeePiastres,
   installationLengthCm,
   installationReadyGovernorates,
+  installationToolsFingerprint,
   installationToolsHref,
   installationTravelPiastres,
   lineTotalPiastres,
@@ -258,7 +260,33 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   useEffect(() => {
     if (choiceRequired) setAskChoice(true)
   }, [choiceRequired])
-  const submitBlocked = installationBlocked || intentStranded || choiceRequired
+
+  // أدوات تركيب في السلة مع اختيار «فني»: غالبًا مش محتاجها، بس ممنوع نشيلها لوحدنا — العميل لازم
+  // يقرر صراحة (شيلها / خليها) قبل التأكيد. «خليها» مربوط ببصمة الأدوات والكميات: أي تغيير يبطله.
+  // التحويل لـ«بنفسي» بيلغي القرار ومابيمنعش. حالة واجهة بس — مش داخلة في الطلب ولا الهاش.
+  const cartTools = cartInstallationTools(
+    entries.map((entry) => entry.line),
+    byId,
+  )
+  const toolLineIds = new Set(cartTools.map((entry) => entry.line.id))
+  const toolsTotal = entries
+    .filter((entry) => toolLineIds.has(entry.line.id))
+    .reduce((sum, entry) => sum + lineTotalPiastres(entry.product, entry.line), 0)
+  const toolsFingerprint = installationToolsFingerprint(cartTools)
+  const [keptToolsFingerprint, setKeptToolsFingerprint] = useState<string | null>(null)
+  const [toolsRemovedNote, setToolsRemovedNote] = useState<string | null>(null)
+  useEffect(() => {
+    if (!installation) setKeptToolsFingerprint(null)
+  }, [installation])
+  const toolsDecisionPending = installation && cartTools.length > 0 && keptToolsFingerprint !== toolsFingerprint
+  function removeTools() {
+    // الأدوات المربوطة بس — الفيلم والقطع التانية والفني والمنطقة والبيانات زي ما هم
+    const saved = toolsTotal
+    for (const entry of cartTools) cart.remove(entry.line.id)
+    setToolsRemovedNote('اتشالت أدوات التركيب من الطلب — وفّرت ' + formatPiastres(saved) + '.')
+  }
+
+  const submitBlocked = installationBlocked || intentStranded || choiceRequired || toolsDecisionPending
 
   // «هركّبه بنفسي وشوف أدوات التركيب»: الاختيار يرجع «بنفسي» (بيتحفظ في السلة)، والعميل يروح لأدوات
   // أفلام سلته بنفس معيار زرار السلة. مفيش صفحة أدوات أو مفيش أدوات → يفضل هنا برسالة، من غير رابط ميت.
@@ -598,6 +626,40 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
             ))}
           </ul>
 
+          {toolsDecisionPending ? (
+            <section aria-labelledby="installer-tools-title" className="space-y-3 rounded-lg border border-danger/30 bg-danger/5 p-4 text-sm text-fg">
+              <p id="installer-tools-title" className="font-semibold">
+                عندك أدوات تركيب في السلة، وغالبًا مش هتحتاجها مع الفني.
+              </p>
+              <ul className="space-y-1 text-xs text-muted">
+                {cartTools.map((entry) => (
+                  <li key={entry.line.id}>
+                    {entry.tool.name_ar + ' ×'}
+                    <Num>{String(entry.quantity)}</Num>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs">
+                ثمن الأدوات: <Num>{formatPiastres(toolsTotal)}</Num>
+              </p>
+              <div className="grid gap-2">
+                <Button size="md" className="w-full" onClick={removeTools}>
+                  {'شيل أدوات التركيب ووفر '}
+                  <Num>{formatPiastres(toolsTotal)}</Num>
+                </Button>
+                <Button variant="secondary" size="md" className="w-full" onClick={() => setKeptToolsFingerprint(toolsFingerprint)}>
+                  خليها في الطلب
+                </Button>
+              </div>
+            </section>
+          ) : null}
+
+          {toolsRemovedNote !== null && cartTools.length === 0 ? (
+            <p role="status" className="rounded-lg border border-border bg-card p-3 text-xs font-semibold text-fg">
+              {toolsRemovedNote}
+            </p>
+          ) : null}
+
           <OrderSummary
             subtotalPiastres={subtotal}
             shippingPiastres={shipping}
@@ -626,6 +688,8 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
             <p className="text-center text-xs font-medium text-danger">{failure}</p>
           ) : choiceRequired ? (
             <p className="text-center text-xs font-medium text-danger">اختار «هتركّبه إزاي؟» فوق الأول عشان نكمل.</p>
+          ) : toolsDecisionPending ? (
+            <p className="text-center text-xs font-medium text-danger">قرّر الأول: تشيل أدوات التركيب ولا تخليها في الطلب.</p>
           ) : submitBlocked ? (
             <p className="text-center text-xs font-medium text-danger">اختار منطقة متاح فيها الفني، أو «هركّبه بنفسي».</p>
           ) : touched && invalid ? (
