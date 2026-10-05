@@ -22,6 +22,10 @@ export type OrderRequest = {
   address: string
   notes: string | null
   items: OrderItemInput[]
+  /** 0018 — المنطقة من قايمة الشحن، معامل صريح (مابتتلزقش في العنوان). */
+  area?: string
+  /** 0018 — فني تركيب بالسعر. بيتبعت بس لو true والمنطقة متاحة. */
+  installation?: true
 }
 
 export type OrderSuccess = {
@@ -31,6 +35,9 @@ export type OrderSuccess = {
     subtotalPiastres: number
     shippingPiastres: number
     totalPiastres: number
+    /** 0018 — من الداتابيز (0 لو مفيش فني). */
+    installationPiastres: number
+    installationTravelPiastres: number
     replayed: boolean
   }
 }
@@ -52,6 +59,11 @@ export type CreateOrderResult = {
   subtotal_piastres: number
   shipping_piastres: number
   total_piastres: number
+  /** 0018 — لقطة الفني والمنطقة (الطلب الجديد والـreplay). */
+  shipping_area?: string | null
+  installation_requested?: boolean
+  installation_piastres?: number
+  installation_travel_piastres?: number
   /**
    * بيتكتب مرة واحدة عند الإنشاء و**ما بيتمدّش** — لا على replay ولا غيره.
    * الراوت بيحسب منه Max-Age المتبقي للكوكي (§6.4ب). مضاف في 0006c.
@@ -79,6 +91,12 @@ export type Receipt = {
   subtotal_piastres: number
   shipping_piastres: number
   total_piastres: number
+  /** 0018 — أرقام التركيب بس. المنطقة مش بترجع (جزء من العنوان). */
+  installation_requested?: boolean
+  installation_rate_piastres?: number | null
+  installation_length_cm?: number | null
+  installation_piastres?: number
+  installation_travel_piastres?: number
   items: ReceiptItem[]
 }
 
@@ -100,6 +118,9 @@ export type OrderErrorCode =
   | 'INVALID_ADDRESS'
   | 'NOTES_TOO_LONG'
   | 'GOVERNORATE_NOT_SERVED'
+  | 'AREA_INVALID'
+  | 'INSTALLATION_NOT_AVAILABLE'
+  | 'INSTALLATION_NO_METERS'
   | 'ITEM_UNAVAILABLE'
   | 'CONCURRENT_SUBMIT'
   | 'PHONE_DAILY_LIMIT'
