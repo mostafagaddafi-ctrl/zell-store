@@ -11,6 +11,8 @@ export function OrderSummary({
   note,
   trustLine,
   gift,
+  installationPiastres,
+  installationTravelPiastres,
 }: {
   subtotalPiastres: number
   /** null = المحافظة لسه مش متحددة */
@@ -21,9 +23,19 @@ export function OrderSummary({
   trustLine?: string
   /** «نص العرض» لو ظاهر — سطر «هدية» في الحساب، مش بيأثر على الإجمالي. */
   gift?: string
+  /**
+   * 0018 — أجر التركيب وانتقال الفني (للعرض؛ المعتمد من الداتابيز).
+   * الاتنين أرقام = فني مختار ومنطقته متاحة. غير كده مابيظهروش.
+   */
+  installationPiastres?: number | null
+  installationTravelPiastres?: number | null
 }) {
   const line = trustLine ?? 'الدفع عند الاستلام · توصيل لكل محافظات مصر'
-  const total = subtotalPiastres + (shippingPiastres ?? 0)
+  const installationTotal =
+    typeof installationPiastres === 'number' && typeof installationTravelPiastres === 'number'
+      ? installationPiastres + installationTravelPiastres
+      : 0
+  const total = subtotalPiastres + (shippingPiastres ?? 0) + installationTotal
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
@@ -41,6 +53,21 @@ export function OrderSummary({
             )
           }
         />
+        {typeof installationPiastres === 'number' && typeof installationTravelPiastres === 'number' ? (
+          <>
+            <Row label="أجر التركيب" value={<Num>{formatPiastres(installationPiastres)}</Num>} />
+            <Row
+              label="انتقال الفني"
+              value={
+                installationTravelPiastres === 0 ? (
+                  <span className="text-accent">مجاني</span>
+                ) : (
+                  <Num>{formatPiastres(installationTravelPiastres)}</Num>
+                )
+              }
+            />
+          </>
+        ) : null}
         {gift ? (
           <div className="flex items-center justify-between gap-3">
             <dt className="flex min-w-0 items-center gap-1.5 text-muted">
