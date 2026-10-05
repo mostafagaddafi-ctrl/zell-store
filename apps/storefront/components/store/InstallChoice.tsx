@@ -3,10 +3,10 @@
 import { useId } from 'react'
 import { HardHat, Wrench } from 'lucide-react'
 import { formatLength, formatPiastres, installationFeePiastres } from '@zell/core'
-import type { InstallMode } from '../../lib/cart'
+import type { ChosenInstallMode, InstallMode } from '../../lib/cart'
 import { Num } from './Num'
 
-const OPTIONS: Array<{ value: InstallMode; title: string; hint: string }> = [
+const OPTIONS: Array<{ value: ChosenInstallMode; title: string; hint: string }> = [
   { value: 'self', title: 'هركّبه بنفسي', hint: 'تختار أدوات التركيب اللي محتاجها' },
   { value: 'installer', title: 'محتاج فني تركيب', hint: 'فني يركّبهولك — أجر بالمتر + انتقال' },
 ]
@@ -19,6 +19,8 @@ const OPTIONS: Array<{ value: InstallMode; title: string; hint: string }> = [
  *
  * ⚠️ ده نية بس على مستوى السلة (cart.installMode). مش بيغيّر سعر أي صنف ولا الطلب.
  *    Checkout هو اللي بيقرر التوفر حسب المحافظة والمنطقة، والداتابيز بتحسب المعتمد.
+ *
+ * «unset» (لسه ما اختارش): ولا radio متحدد، وسطر بيطلب الاختيار — مفيش اختيار افتراضي.
  */
 export function InstallChoice({
   mode,
@@ -29,7 +31,7 @@ export function InstallChoice({
   context,
 }: {
   mode: InstallMode
-  onChange: (next: InstallMode) => void
+  onChange: (next: ChosenInstallMode) => void
   feePerMeterPiastres: number
   /** طول أفلام المقاس بالسنتيمتر — في صفحة المنتج الطول الحالي، وفي السلة مجموع الأفلام. */
   lengthCm: number
@@ -38,10 +40,12 @@ export function InstallChoice({
   context: 'product' | 'cart'
 }) {
   const name = useId()
+  const hintId = useId()
+  const unset = mode === 'unset'
   const estimate = installationFeePiastres(feePerMeterPiastres, lengthCm)
 
   return (
-    <fieldset className="rounded-lg border border-border bg-card p-4">
+    <fieldset className="rounded-lg border border-border bg-card p-4" {...(unset ? { 'aria-describedby': hintId } : {})}>
       <legend className="px-1 text-sm font-bold text-fg">هتركّبه إزاي؟</legend>
       <div className="mt-1 grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
         {OPTIONS.map((option) => {
@@ -66,7 +70,11 @@ export function InstallChoice({
               />
               <span className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className="flex items-center gap-1.5 font-semibold leading-5 text-fg">
-                  <Icon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+                  {/* الخوذة شكلها نازل لتحت وأقرب للعنوان من المفتاح — رفعة ١px ومسافة صغيرة عشان يبانوا زي بعض */}
+                  <Icon
+                    className={'h-4 w-4 shrink-0 text-brand' + (option.value === 'installer' ? ' -translate-y-px me-0.5' : '')}
+                    aria-hidden="true"
+                  />
                   <span>{option.title}</span>
                 </span>
                 <span className="text-xs leading-5 text-muted">{option.hint}</span>
@@ -75,6 +83,12 @@ export function InstallChoice({
           )
         })}
       </div>
+
+      {unset ? (
+        <p id={hintId} className="mt-2 text-xs font-semibold text-fg">
+          اختار هتركّبه إزاي عشان نكمل
+        </p>
+      ) : null}
 
       {mode === 'installer' ? (
         <div className="mt-3 space-y-1 rounded border border-dashed border-border p-3 text-xs text-muted">

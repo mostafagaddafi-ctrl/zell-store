@@ -119,6 +119,8 @@ export function CartView({
   const fee = installation?.feePerMeterPiastres ?? null
   const showChoice = meterCm > 0 && installerGovernorates.length > 0 && fee !== null
   const installer = showChoice && cart.installMode === 'installer'
+  // أفلام بالمقاس والخدمة ظاهرة والعميل لسه ما اختارش → مفيش انتقال لـCheckout لحد ما يختار
+  const choiceRequired = showChoice && cart.installMode === 'unset'
   // أدوات التركيب = قطع مربوطة كإضافة لأي فيلم بالمقاس. مع الفني بتتوضّح بس — مابتتشالش لوحدها.
   const toolIds = new Set<number>()
   for (const product of products) if (!isPiece(product)) for (const id of product.addon_ids ?? []) toolIds.add(id)
@@ -225,7 +227,7 @@ export function CartView({
           )
         })}
 
-        {tools && toolsHref && !installer ? (
+        {tools && toolsHref && !installer && !choiceRequired ? (
           <li>
             {showChoice ? <p className="mb-2 text-sm font-semibold text-fg">اختار أدوات التركيب اللي محتاجها</p> : null}
             <Link ref={toolsLinkRef} href={toolsHref} className={buttonClasses('secondary', 'md', 'w-full scroll-mt-24')}>
@@ -248,7 +250,7 @@ export function CartView({
             <InstallChoice
               mode={cart.installMode}
               onChange={(next) => {
-                if (next === 'self' && cart.installMode === 'installer') setRevealTools(true)
+                if (next === 'self' && cart.installMode !== 'self') setRevealTools(true)
                 cart.setInstallMode(next)
               }}
               feePerMeterPiastres={fee}
@@ -281,9 +283,26 @@ export function CartView({
             subtotalPiastres={subtotal}
             shippingPiastres={null}
             action={
-              <Link href="/checkout" className={buttonClasses('primary', 'lg')}>
-                كمّل بيانات التوصيل
-              </Link>
+              choiceRequired ? (
+                // قبل اختيار طريقة التركيب: الزرار مقفول وجنبه السبب
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    disabled
+                    aria-describedby="cart-install-choice-required"
+                    className={buttonClasses('primary', 'lg')}
+                  >
+                    كمّل بيانات التوصيل
+                  </button>
+                  <p id="cart-install-choice-required" className="text-center text-xs font-semibold text-fg">
+                    اختار «هتركّبه إزاي؟» الأول — بنفسي ولا مع فني — عشان نكمل.
+                  </p>
+                </div>
+              ) : (
+                <Link href="/checkout" className={buttonClasses('primary', 'lg')}>
+                  كمّل بيانات التوصيل
+                </Link>
+              )
             }
           />
         </div>

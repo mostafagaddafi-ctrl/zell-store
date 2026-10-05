@@ -28,6 +28,7 @@ import { useCart } from '../../lib/cart'
 import { clearCheckoutDraft, readCheckoutDraft, saveCheckoutDraft } from '../../lib/drafts'
 import { Button, buttonClasses } from '../ui/Button'
 import { Field, inputClasses, textareaClasses } from '../ui/Field'
+import { InstallChoice } from './InstallChoice'
 import { Num } from './Num'
 import { OrderSummary } from './OrderSummary'
 
@@ -247,7 +248,17 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   // PR4 — نية فني والمحافظة مالهاش فني: الطلب مايكملش من غير ما العميل يختار «هركّبه بنفسي»
   const installerGovernorates = installationReadyGovernorates(settings.installation)
   const intentStranded = installation && values.governorate !== '' && meterLengthCm > 0 && installerChoices.length === 0
-  const submitBlocked = installationBlocked || intentStranded
+  // «هتركّبه إزاي؟» لسه ما اتختارش (unset) وفي أفلام بالمقاس والخدمة ظاهرة → مانفترضش «بنفسي»:
+  // الكارت بيظهر والتأكيد مقفول لحد ما العميل يختار. بعد قراءة السلة بس (cart.ready).
+  const installFee = settings.installation.feePerMeterPiastres
+  const choiceAvailable = meterLengthCm > 0 && installerGovernorates.length > 0 && installFee !== null
+  const choiceRequired = cart.ready && choiceAvailable && cart.installMode === 'unset'
+  // الكارت بيفضل ظاهر بعد الاختيار — مايختفيش من تحت إيد العميل وهو بيتنقّل بالأسهم
+  const [askChoice, setAskChoice] = useState(false)
+  useEffect(() => {
+    if (choiceRequired) setAskChoice(true)
+  }, [choiceRequired])
+  const submitBlocked = installationBlocked || intentStranded || choiceRequired
 
   // «هركّبه بنفسي وشوف أدوات التركيب»: الاختيار يرجع «بنفسي» (بيتحفظ في السلة)، والعميل يروح لأدوات
   // أفلام سلته بنفس معيار زرار السلة. مفيش صفحة أدوات أو مفيش أدوات → يفضل هنا برسالة، من غير رابط ميت.
@@ -373,6 +384,16 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
       }}
     >
       <div className="space-y-6 lg:col-span-7">
+        {askChoice && choiceAvailable && installFee !== null ? (
+          <InstallChoice
+            mode={cart.installMode}
+            onChange={(next) => cart.setInstallMode(next)}
+            feePerMeterPiastres={installFee}
+            lengthCm={meterLengthCm}
+            governorates={installerGovernorates}
+            context="cart"
+          />
+        ) : null}
         <div className="space-y-5 rounded-lg border border-border bg-card p-4 sm:p-6">
           <Field htmlFor="name" label="الاسم بالكامل" error={show('customerName')}>
             <input
@@ -603,6 +624,8 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
           */}
           {failure !== null ? (
             <p className="text-center text-xs font-medium text-danger">{failure}</p>
+          ) : choiceRequired ? (
+            <p className="text-center text-xs font-medium text-danger">اختار «هتركّبه إزاي؟» فوق الأول عشان نكمل.</p>
           ) : submitBlocked ? (
             <p className="text-center text-xs font-medium text-danger">اختار منطقة متاح فيها الفني، أو «هركّبه بنفسي».</p>
           ) : touched && invalid ? (
