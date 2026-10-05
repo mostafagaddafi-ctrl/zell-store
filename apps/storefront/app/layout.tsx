@@ -6,6 +6,7 @@ import { AnnouncementBar } from '../components/store/AnnouncementBar'
 import { SiteFooter } from '../components/store/SiteFooter'
 import { SiteHeader } from '../components/store/SiteHeader'
 import { WhatsAppFab } from '../components/store/WhatsAppFab'
+import { NavHistory } from '../components/ui/BackButton'
 import { CartProvider } from '../lib/cart'
 import { getStorefrontData } from '../lib/data/source'
 import './globals.css'
@@ -46,6 +47,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="ar" dir="rtl" className={cairo.variable}>
       <body className="flex min-h-dvh flex-col bg-bg font-sans text-fg antialiased">
         <CartProvider>
+          {/* مسارات التاب ده لزرار «رجوع» — مابيعرضش حاجة */}
+          <NavHistory />
           {/* فوق الهيدر — settings متاحة هنا أصلاً، فمفيش fetch زيادة */}
           <AnnouncementBar announcement={settings.announcement} />
           <SiteHeader
