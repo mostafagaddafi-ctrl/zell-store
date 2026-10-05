@@ -6,7 +6,7 @@ import { Minus, Plus, ShoppingBag, Trash2, Wrench } from 'lucide-react'
 import {
   cartInstallationTools,
   cartToolFilmIds,
-  describeLine,
+  formatLength,
   formatPiastres,
   installationLengthCm,
   installationToolsHref,
@@ -16,7 +16,6 @@ import {
   maxQuantityOf,
   primaryImage,
   resolveCartLine,
-  widthOptionsOf,
   type InstallationConfig,
   type StoreProduct,
 } from '@zell/core'
@@ -25,6 +24,7 @@ import { buttonClasses } from '../ui/Button'
 import { ImageSlot } from '../ui/ImageSlot'
 import { Num } from './Num'
 import { InstallChoice } from './InstallChoice'
+import { LineSpecs } from './LineSpecs'
 import { OrderSummary } from './OrderSummary'
 
 export function CartView({
@@ -86,11 +86,10 @@ export function CartView({
       return {
         line,
         product: base ? (resolveCartLine(base, line) ?? undefined) : undefined,
-        multi: base ? widthOptionsOf(base).length > 1 : false,
       }
     })
     .filter(
-      (entry): entry is { line: (typeof cart.lines)[number]; product: StoreProduct; multi: boolean } =>
+      (entry): entry is { line: (typeof cart.lines)[number]; product: StoreProduct } =>
         Boolean(entry.product),
     )
 
@@ -181,14 +180,9 @@ export function CartView({
                   </Link>
                   <p className="mt-1 text-xs text-muted">
                     <Num>{formatPiastres(entry.product.price_per_meter_piastres)}</Num> {isPiece(entry.product) ? 'للوحدة' : 'للمتر'}
-                    {entry.multi ? (
-                      <>
-                        {' · عرض '}
-                        <Num>{String(entry.product.width_cm)}</Num>
-                        {' سم'}
-                      </>
-                    ) : null}
                   </p>
+                  {/* نفس مواصفات Checkout: الطول وعرض الرول، أو الكمية */}
+                  <LineSpecs product={entry.product} line={entry.line} className="mt-0.5" />
                 </div>
 
                 <button
@@ -214,7 +208,8 @@ export function CartView({
                         : 'min-w-[4.5rem] text-center text-sm font-semibold text-fg'
                     }
                   >
-                    <Num>{describeLine(entry.product, entry.line)}</Num>
+                    {/* القيمة بس جوه التحكم — الوصف الكامل في سطر المواصفات فوق */}
+                    <Num>{isPiece(entry.product) ? String(entry.line.quantity ?? 1) : formatLength(entry.line.lengthCm)}</Num>
                   </span>
                   <StepButton onClick={() => stepBy(1)} label={'زوّد ' + entry.product.name_ar} compact={tool}>
                     <Plus className={tool ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden="true" />
