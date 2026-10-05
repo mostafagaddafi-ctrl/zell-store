@@ -13,6 +13,7 @@ import {
   parseSocialLinks,
   catalogLayoutOf,
   parseInstallationToolsPage,
+  parseInstallationConfig,
   DEFAULT_ADDONS_TITLE,
   DEFAULT_STORE_CONTENT,
   type HomeSection,
@@ -486,14 +487,13 @@ function settingContent(map: Map<string, unknown>): StoreContent {
   return { hero, homeSections, orderSteps, faqs, footerLinks, trustLine }
 }
 
-/** settings.installation -> فني التركيب. مش موجود أو مش مقروء = مقفول. */
+/**
+ * settings.installation -> فني التركيب (0018) بنفس قارئ اللوحة (@zell/core).
+ * مش موجود أو مش مقروء = مقفول. سعر/انتقال بره حدود zell_create_order بيتشال هنا.
+ */
 function settingInstallation(map: Map<string, unknown>): StoreSettings['installation'] {
-  const raw = asObject(map.get('installation'))
-  if (!raw) return { enabled: false, note: '', governorates: [] }
-  const governorates = Array.isArray(raw['governorates'])
-    ? raw['governorates'].filter((item): item is string => typeof item === 'string' && item.trim() !== '')
-    : []
-  return { enabled: raw['enabled'] === true, note: cleanText(raw['note']), governorates }
+  const config = parseInstallationConfig(map.get('installation'))
+  return { ...config, note: cleanText(config.note) }
 }
 
 // ── عروض الرول (0015) ─────────────────────────────────────────
