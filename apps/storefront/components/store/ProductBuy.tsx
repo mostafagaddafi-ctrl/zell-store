@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check, ShoppingBag, Wrench } from 'lucide-react'
@@ -51,6 +51,19 @@ export function ProductBuy({
   const fee = installation?.feePerMeterPiastres ?? null
   const showChoice = installerGovernorates.length > 0 && fee !== null
   const installer = showChoice && cart.installMode === 'installer'
+  const [revealTools, setRevealTools] = useState(false)
+  const toolsRef = useRef<HTMLParagraphElement>(null)
+  // «هركّبه بنفسي» بعد «فني»: الأدوات بتظهر والتركيز يروح لها (سلس، وفوري مع reduced motion).
+  // مفيش أدوات = مفيش عنصر = مفيش scroll.
+  useEffect(() => {
+    if (!revealTools) return
+    setRevealTools(false)
+    const node = toolsRef.current
+    if (!node) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    node.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+    node.focus({ preventScroll: true })
+  }, [revealTools])
   const [lengthCm, setLengthCm] = useState(product.min_length_cm)
   const [justAdded, setJustAdded] = useState(false)
   const [blocked, setBlocked] = useState(false)
@@ -118,6 +131,7 @@ export function ProductBuy({
         <InstallChoice
           mode={cart.installMode}
           onChange={(next) => {
+            if (next === 'self' && cart.installMode === 'installer' && addons.length > 0) setRevealTools(true)
             cart.setInstallMode(next)
             // أدوات مختارة ولسه مااتضافتش بتتصفّر — مابتتضافش من غير ما العميل يشوفها
             if (next === 'installer') setAddonQty({})
@@ -130,7 +144,22 @@ export function ProductBuy({
       ) : null}
 
       {/* مع الفني اقتراحات الأدوات بتختفي — مش محتاجها */}
-      {installer ? null : <AddonsPicker addons={addons} title={addonsTitle} quantities={addonQty} onChange={setAddonQty} />}
+      {installer || addons.length === 0 ? null : (
+        <div className="space-y-2">
+          {showChoice ? (
+            <p ref={toolsRef} tabIndex={-1} className="scroll-mt-24 text-sm font-semibold text-fg outline-none">
+              اختار أدوات التركيب اللي محتاجها
+            </p>
+          ) : null}
+          <AddonsPicker
+            addons={addons}
+            title={addonsTitle}
+            quantities={addonQty}
+            onChange={setAddonQty}
+            defaultOpen={revealTools}
+          />
+        </div>
+      )}
 
       <div className="grid gap-2">
         <Button size="lg" onClick={handleBuyNow} disabled={!canAdd}>
