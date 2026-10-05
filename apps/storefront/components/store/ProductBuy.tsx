@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Check, ShoppingBag, Wrench } from 'lucide-react'
+import { ArrowLeft, Check, ShoppingBag } from 'lucide-react'
 import {
   formatLength,
   installationReadyGovernorates,
@@ -22,16 +22,12 @@ import { SizePanel } from './SizePanel'
 import { AddonsPicker } from './AddonsPicker'
 import { InstallChoice } from './InstallChoice'
 
-/** رابط صفحة «أدوات التركيب» بعد الإضافة — null = الأزرار القديمة زي ما هي. */
-export type ToolsLink = { href: string; browseLabel: string; checkoutLabel: string }
-
 /** gift: «نص العرض» لو ظاهر — بيظهر كهدية فوق زرار الإضافة. */
 export function ProductBuy({
   product,
   gift = '',
   addons = [],
   addonsTitle = '',
-  tools = null,
   installation = null,
 }: {
   product: StoreProduct
@@ -39,8 +35,6 @@ export function ProductBuy({
   /** 0016 — منتجات قطعة بتتضاف مع الفيلم (بعددها). */
   addons?: StoreProduct[]
   addonsTitle?: string
-  /** صفحة الأدوات مفعّلة والفيلم ليه أدوات نشطة مربوطة — مفيش تحويل، اختيار بس. */
-  tools?: ToolsLink | null
   /** PR4 — إعداد الفني (0018). null = من غير «هتركّبه إزاي؟». */
   installation?: InstallationConfig | null
 }) {
@@ -74,6 +68,8 @@ export function ProductBuy({
   const [justAdded, setJustAdded] = useState(false)
   const [blocked, setBlocked] = useState(false)
   const [addonQty, setAddonQty] = useState<Record<number, number>>({})
+  // عدد الأدوات اللي اتضافت فعلًا في آخر «ضيف للسلة» — للرسالة بس، بيتسجّل لحظة الإضافة (قبل ما addonQty يتصفّر)
+  const [addedToolsCount, setAddedToolsCount] = useState(0)
   // 0015 — العرض المختار. المنتج بعرض واحد = مفيش اختيار ومفيش تغيير.
   const options = widthOptionsOf(product)
   const [widthCm, setWidthCm] = useState(product.width_cm)
@@ -86,17 +82,25 @@ export function ProductBuy({
   const handleAdd = () => {
     if (!canAdd) return
     cart.add(product.id, lengthCm, chosenWidth)
-    addSelectedAddons()
+    setAddedToolsCount(addSelectedAddons())
     setJustAdded(true)
   }
 
-  /** الإضافات المختارة بتتضاف كسطور قطعة، والاختيار بيتصفّر عشان ماتتكررش. */
-  function addSelectedAddons() {
+  /**
+   * الإضافات المختارة بتتضاف كسطور قطعة، والاختيار بيتصفّر عشان ماتتكررش.
+   * بترجّع عدد الأدوات اللي اتضافت فعلًا في العملية دي (للرسالة بس).
+   */
+  function addSelectedAddons(): number {
+    let added = 0
     for (const addon of addons) {
       const quantity = addonQty[addon.id] ?? 0
-      if (quantity > 0) cart.addPiece(addon.id, quantity, maxQuantityOf(addon))
+      if (quantity > 0) {
+        cart.addPiece(addon.id, quantity, maxQuantityOf(addon))
+        added += 1
+      }
     }
     setAddonQty({})
+    return added
   }
 
   // «اطلب دلوقتي»: يضيف ويروح للبيانات على طول. لو نفس الاختيار اتضاف
@@ -212,37 +216,23 @@ export function ProductBuy({
               </>
             ) : null}
           </p>
-          {tools && !installer ? (
-            <>
-              <Link href={tools.href} className={buttonClasses('primary', 'md', 'w-full')}>
-                <Wrench className="h-4 w-4" aria-hidden="true" />
-                {tools.browseLabel}
-              </Link>
-              <div className="grid grid-cols-2 gap-2">
-                <Link href="/checkout" className={buttonClasses('secondary', 'md', 'w-full')}>
-                  {tools.checkoutLabel}
-                </Link>
-                <Link href="/cart" className={buttonClasses('secondary', 'md', 'w-full')}>
-                  افتح السلة
-                </Link>
-              </div>
-            </>
-          ) : (
-            <>
-              <Link href="/checkout" className={buttonClasses('primary', 'md', 'w-full')}>
-                إتمام الطلب
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-              <div className="grid grid-cols-2 gap-2">
-                <Link href="/cart" className={buttonClasses('secondary', 'md', 'w-full')}>
-                  افتح السلة
-                </Link>
-                <Link href="/" className={buttonClasses('secondary', 'md', 'w-full')}>
-                  كمّل تسوّق
-                </Link>
-              </div>
-            </>
-          )}
+          {/* تأكيد بس لو أدوات اتضافت فعلًا في الضغطة دي — ومع الفني مفيش أي كلام عن الأدوات */}
+          {!installer && addedToolsCount > 0 ? (
+            <p className="text-xs font-semibold text-fg">اتضافت أدوات التركيب المختارة مع المنتج.</p>
+          ) : null}
+          {/* من غير دعوة تانية لصفحة الأدوات: الاختيار اتعمل فوق، والأدوات متاحة من السلة */}
+          <Link href="/cart" className={buttonClasses('primary', 'md', 'w-full')}>
+            روح للسلة
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div className="grid grid-cols-2 gap-2">
+            <Link href="/checkout" className={buttonClasses('secondary', 'md', 'w-full')}>
+              إتمام الطلب
+            </Link>
+            <Link href="/" className={buttonClasses('secondary', 'md', 'w-full')}>
+              كمّل تسوّق
+            </Link>
+          </div>
         </div>
       ) : null}
     </div>
