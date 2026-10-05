@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Minus, Plus, ShoppingBag, Trash2, Wrench } from 'lucide-react'
 import {
+  cartInstallationTools,
   cartToolFilmIds,
   describeLine,
   formatPiastres,
@@ -121,10 +122,14 @@ export function CartView({
   const installer = showChoice && cart.installMode === 'installer'
   // أفلام بالمقاس والخدمة ظاهرة والعميل لسه ما اختارش → مفيش انتقال لـCheckout لحد ما يختار
   const choiceRequired = showChoice && cart.installMode === 'unset'
-  // أدوات التركيب = قطع مربوطة كإضافة لأي فيلم بالمقاس. مع الفني بتتوضّح بس — مابتتشالش لوحدها.
-  const toolIds = new Set<number>()
-  for (const product of products) if (!isPiece(product)) for (const id of product.addon_ids ?? []) toolIds.add(id)
-  const toolEntries = installer ? entries.filter((entry) => isPiece(entry.product) && toolIds.has(entry.product.id)) : []
+  // أدوات التركيب = نفس تعريف Checkout (cartInstallationTools): قطعة في السلة مربوطة كإضافة بفيلم
+  // بالمقاس موجود في نفس السلة. مع الفني بتتوضّح بس — مابتتشالش لوحدها (القرار الإلزامي في Checkout).
+  const cartTools = cartInstallationTools(
+    entries.map((entry) => entry.line),
+    byId,
+  )
+  const toolLineIds = new Set(cartTools.map((entry) => entry.line.id))
+  const toolEntries = installer ? cartTools : []
 
   const subtotal = entries.reduce(
     (sum, entry) => sum + lineTotalPiastres(entry.product, entry.line),
@@ -150,8 +155,8 @@ export function CartView({
             cart.setLength(entry.line.id, next)
           }
 
-          // أداة تركيب = قطعة مربوطة كإضافة لفيلم مقاس (addon_ids) — تحكم كمية أصغر وأهدى
-          const tool = isPiece(entry.product) && toolIds.has(entry.product.id)
+          // أداة تركيب (مربوطة بفيلم مقاس في نفس السلة) — تحكم كمية أصغر وأهدى
+          const tool = toolLineIds.has(entry.line.id)
 
           return (
             <li key={entry.line.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
@@ -263,7 +268,7 @@ export function CartView({
             <div role="status" className="rounded-lg border border-border bg-card p-4 text-xs text-fg">
               <p className="font-semibold">
                 عندك أدوات تركيب في السلة:{' '}
-                {toolEntries.map((entry) => entry.product.name_ar + ' ×' + String(entry.line.quantity ?? 1)).join('، ')}
+                {toolEntries.map((entry) => entry.tool.name_ar + ' ×' + String(entry.quantity)).join('، ')}
               </p>
               <p className="mt-1 text-muted">الفني مش محتاجها. هتفضل في الطلب لحد ما تشيلها بنفسك.</p>
               <button
