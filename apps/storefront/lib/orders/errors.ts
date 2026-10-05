@@ -44,6 +44,13 @@ export const ORDER_ERRORS: Record<OrderErrorCode, ErrorSpec> = {
   INVALID_ADDRESS: { status: 400, message: 'من فضلك اكتب عنوان التوصيل بالتفصيل.', retryable: false },
   NOTES_TOO_LONG: { status: 400, message: 'الملاحظات طويلة جداً.', retryable: false },
   GOVERNORATE_NOT_SERVED: { status: 400, message: 'المحافظة دي مش ضمن مناطق الشحن المتاحة.', retryable: false },
+  AREA_INVALID: { status: 400, message: 'المنطقة مش ضمن مناطق المحافظة. اختارها تاني من القايمة.', retryable: false },
+  INSTALLATION_NOT_AVAILABLE: {
+    status: 409,
+    message: 'فني التركيب مش متاح في المنطقة دي دلوقتي. اختار منطقة تانية أو «هركّبه بنفسي».',
+    retryable: false,
+  },
+  INSTALLATION_NO_METERS: { status: 400, message: 'فني التركيب للأفلام بالمقاس بس — السلة مافيهاش أفلام بالمقاس.', retryable: false },
   ITEM_UNAVAILABLE: {
     status: 409,
     message: 'في صنف في السلة مش متاح أو الطول مش مسموح. حدّث الصفحة.',
