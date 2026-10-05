@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowRight } from 'lucide-react'
 import { discountInfo, installationTools, maxQuantityOf, parseToolFilmIds, primaryImage } from '@zell/core'
 import { InstallationToolsList, type ToolRow } from '../../components/store/InstallationToolsList'
 import { buttonClasses } from '../../components/ui/Button'
+import { BackButton } from '../../components/ui/BackButton'
 import { Container } from '../../components/ui/Container'
 import { getStorefrontData } from '../../lib/data/source'
 
@@ -38,6 +38,8 @@ export default async function InstallationToolsPage({ searchParams }: PageProps)
 
   const params = await searchParams
   const view = installationTools(products, parseToolFilmIds(params['for']))
+  const onlyFilm = view.mode === 'films' && view.films.length === 1 ? view.films[0] : undefined
+  const backFallback = onlyFilm ? '/product/' + String(onlyFilm.id) : '/cart'
   const rows: ToolRow[] = view.tools.map(({ tool, films }) => {
     const image = primaryImage(tool)
     const discount = discountInfo(tool)
@@ -56,10 +58,8 @@ export default async function InstallationToolsPage({ searchParams }: PageProps)
   return (
     <Container className="pb-8">
       <nav aria-label="مسار التنقل" className="pt-6">
-        <Link href="/" className="inline-flex items-center gap-1 text-sm font-semibold text-accent">
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          الرئيسية
-        </Link>
+        {/* رجوع بسجل المتصفح، وإلا لصفحة الفيلم (لو فيلم واحد) أو السلة */}
+        <BackButton fallback={backFallback} />
       </nav>
 
       <div className="mx-auto max-w-app">
