@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { sentinelOf } from '../data/client'
+import { ORDER_CANCELLED_FINAL_MESSAGE } from '../enums'
 import type { MutationResult } from '../mutations'
 import { validateInternalNote, validateOrderId, validateOrderStatus } from '../validation/order'
 import { timestamp } from '../validation/shared'
@@ -34,6 +36,10 @@ export async function updateOrderStatus(
     if (!result.ok) return result
     return { ok: true, data: null }
   } catch (error) {
+    // 0019 — الإلغاء نهائي في الداتابيز (45080): رسالة عربية واضحة بدل «خطأ غير متوقع»
+    if (sentinelOf(error) === 'ZELL_ORDER_CANCELLED_FINAL') {
+      return { ok: false, code: 'VALIDATION', message: ORDER_CANCELLED_FINAL_MESSAGE }
+    }
     return toInternalFailure(error)
   }
 }
