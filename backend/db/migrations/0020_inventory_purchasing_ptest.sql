@@ -4042,7 +4042,7 @@ begin
                   where g.tgrelid = 'public.products'::regclass and g.tgname = 'zinv_products_sale_unit'
                     and f.proname = 'zell_inv_trg_products_sale_unit' and g.tgtype = 19 and g.tgenabled = 'O'
                     and g.tgqual is not null
-                    and g.tgattr::int2[] = array[(select a.attnum from pg_catalog.pg_attribute a
+                    and (select array_agg(u.k) from unnest(g.tgattr::int2[]) as u(k)) = array[(select a.attnum from pg_catalog.pg_attribute a
                                                    where a.attrelid = 'public.products'::regclass
                                                      and a.attname = 'sale_unit')]::int2[]) then
     raise exception 'ZELL_0020_PRODUCTS_TRIGGER';
