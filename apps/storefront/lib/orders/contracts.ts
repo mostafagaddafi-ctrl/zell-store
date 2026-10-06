@@ -5,6 +5,8 @@
  *    السر الخام بيتسلّم في Set-Cookie بس، في نفس استجابة POST /api/orders.
  */
 
+import type { CouponTerms } from '@zell/core'
+
 /** صنف متر (lengthCm ± widthCm) أو صنف قطعة (quantity) — واحد بس منهم. */
 export type OrderItemInput = {
   productId: number
@@ -26,6 +28,8 @@ export type OrderRequest = {
   area?: string
   /** 0018 — فني تركيب بالسعر. بيتبعت بس لو true والمنطقة متاحة. */
   installation?: true
+  /** 0019 — كود الخصم بس، من غير أي مبلغ. الراوت بيطبّعه تاني بـnormalizeCouponCode؛ فاضي = مفيش. */
+  couponCode?: string
 }
 
 export type OrderSuccess = {
@@ -38,6 +42,9 @@ export type OrderSuccess = {
     /** 0018 — من الداتابيز (0 لو مفيش فني). */
     installationPiastres: number
     installationTravelPiastres: number
+    /** 0019 — من لقطة الداتابيز (null و 0 لو مفيش كوبون). */
+    couponCode: string | null
+    discountPiastres: number
     replayed: boolean
   }
 }
@@ -64,6 +71,9 @@ export type CreateOrderResult = {
   installation_requested?: boolean
   installation_piastres?: number
   installation_travel_piastres?: number
+  /** 0019 — لقطة الخصم (الطلب الجديد والـreplay) — مابتتحسبش تاني. */
+  coupon_code?: string | null
+  discount_piastres?: number
   /**
    * بيتكتب مرة واحدة عند الإنشاء و**ما بيتمدّش** — لا على replay ولا غيره.
    * الراوت بيحسب منه Max-Age المتبقي للكوكي (§6.4ب). مضاف في 0006c.
@@ -97,6 +107,9 @@ export type Receipt = {
   installation_length_cm?: number | null
   installation_piastres?: number
   installation_travel_piastres?: number
+  /** 0019 — null و 0 لو مفيش كوبون. */
+  coupon_code?: string | null
+  discount_piastres?: number
   items: ReceiptItem[]
 }
 
@@ -124,7 +137,33 @@ export type OrderErrorCode =
   | 'ITEM_UNAVAILABLE'
   | 'CONCURRENT_SUBMIT'
   | 'PHONE_DAILY_LIMIT'
+  | 'COUPON_INVALID'
+  | 'COUPON_EXPIRED'
+  | 'COUPON_EXHAUSTED'
+  | 'COUPON_MIN_SUBTOTAL'
+  | 'COUPON_PHONE_LIMIT'
+  | 'COUPON_NOT_APPLICABLE'
+  | 'COUPONS_DISABLED'
   | 'SETTINGS_MISSING'
   | 'PRICE_OUT_OF_RANGE'
   | 'ORDER_NUMBER_EXHAUSTED'
   | 'INTERNAL'
+
+/** 0019 — أكواد رد POST /api/coupons/preview (المعاينة مابتفحصش الموبايل ولا الحد الأدنى). */
+export type CouponPreviewErrorCode = Extract<
+  OrderErrorCode,
+  | 'ORDERS_DISABLED'
+  | 'BAD_ORIGIN'
+  | 'BAD_CONTENT_TYPE'
+  | 'BODY_TOO_LARGE'
+  | 'BAD_JSON'
+  | 'CHECKOUT_SESSION_MISSING'
+  | 'COUPONS_DISABLED'
+  | 'COUPON_INVALID'
+  | 'COUPON_EXPIRED'
+  | 'COUPON_EXHAUSTED'
+  | 'INTERNAL'
+>
+
+/** شروط الكوبون بس (camelCase) — مفيش id ولا عدّادات ولا تواريخ ولا ملاحظات ولا مبلغ خصم جاهز. */
+export type CouponPreviewResponse = { ok: true; coupon: CouponTerms } | OrderFailure
