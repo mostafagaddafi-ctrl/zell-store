@@ -4324,8 +4324,16 @@ begin
   perform pg_temp.ok('A', 'body (migration + postflight) applied inside the transaction', true);
   perform pg_temp.ok('A', 'has_stock_refs is false before any data',
                      not public.zell_inv_product_has_stock_refs(pg_temp.ci('F_PIECE')::integer));
-  perform pg_temp.expect_sql('A', 'postgres cannot DROP a definer-owned function without SET ROLE (no INHERIT)',
-                             'drop function public.zell_inv_void_contract_version()', null, array['42501']);
+  -- معلومة بيئية (مش شرط نجاح): على Supabase، postgres عضو في supabase_privileged_role (supautils)، فممكن يقدر يعمل
+  -- DROP لدالة مملوكة للدور الجديد رغم NOINHERIT. NOINHERIT مابيعزلش مشغّل الـmigrations المميز.
+  -- الإلزامي: الدور NOINHERIT، وشكل العضوية (مفيش INHERIT + فيه ADMIN وSET)، وبروتوكول الإدارة والـrollback بـ SET LOCAL ROLE (تحت).
+  perform pg_temp.mark('A', 'environment: postgres DROP of a definer-owned function without SET ROLE', 'NOTE',
+    'result=' || pg_temp.try_sql('drop function public.zell_inv_void_contract_version()', null)
+    || '; postgres member of supabase_privileged_role='
+    || coalesce((select pg_catalog.pg_has_role('postgres', r.oid, 'MEMBER')::text
+                   from pg_catalog.pg_roles r where r.rolname = 'supabase_privileged_role'), 'n/a'));
+  perform pg_temp.ok('A', 'definer role is NOINHERIT',
+                     not (select r.rolinherit from pg_catalog.pg_roles r where r.rolname = 'zell_inventory_definer'));
   perform pg_temp.ok('A', 'membership rows: no inherit, has admin, has set',
     not exists (select 1 from pg_catalog.pg_auth_members m
                  where m.roleid = 'zell_inventory_definer'::regrole and m.member = 'postgres'::regrole and m.inherit_option)
@@ -5177,6 +5185,9 @@ begin
   perform pg_temp.expect_sql('F', 'change supplier created_by → 45216',
     'update public.suppliers set created_by = gen_random_uuid() where ctid = (select ctid from public.suppliers limit 1)', null, array['45216']);
 
+  -- فحوص الـFK المؤجّل ده بالذات بتخلص الأول (مش ALL)، عشان TRUNCATE يوصل للـtrigger بدل 55006
+  -- (pending trigger events). بيرجع DEFERRED في آخر القسم، ولو المجموعة وقعت الـsubtransaction بيرجّعه.
+  set constraints public.inventory_audit_log_command_fk immediate;
   -- TRUNCATE: الـcatalog + جداول مفيش FK جاي عليها + الباقي (FK ممكن يرفض قبل الـtrigger)
   perform pg_temp.ok('F', 'every 0020 table has an enabled BEFORE TRUNCATE FOR EACH STATEMENT trigger',
     (select count(*) from pg_catalog.pg_trigger g join pg_catalog.pg_proc f on f.oid = g.tgfoid
@@ -5196,6 +5207,7 @@ begin
     perform pg_temp.ok('F', 'TRUNCATE (no cascade) does not succeed: ' || v_t, v_state in ('0A000', '45216'), v_state);
     perform pg_temp.expect_sql('F', 'TRUNCATE CASCADE blocked by trigger: ' || v_t, 'truncate public.' || v_t || ' cascade', null, array['45216']);
   end loop;
+  set constraints public.inventory_audit_log_command_fk deferred;
 exception when others then
   perform pg_temp.ok('F', 'group crashed', false, sqlstate || ' ' || sqlerrm);
 end
