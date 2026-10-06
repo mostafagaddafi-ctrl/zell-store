@@ -13,6 +13,7 @@ import {
   Settings,
   ShoppingCart,
   Store,
+  Tag,
   Truck,
   Wrench,
   PackageOpen,
@@ -72,6 +73,8 @@ export function AdminShell({
         { href: '/installation', label: 'فني التركيب', icon: Wrench },
         { href: '/installation-tools', label: 'أدوات التركيب', icon: PackageOpen },
         { href: '/identity', label: 'الهوية', icon: Store },
+        // 0019 — أكواد الخصم للمالك بس (والصفحة والـactions بيتحققوا من الدور على السيرفر)
+        ...(identity.role === 'owner' ? [{ href: '/coupons', label: 'أكواد الخصم', icon: Tag }] : []),
       ],
     },
     { title: 'النظام', items: [{ href: '/settings', label: 'الإعدادات', icon: Settings }] },

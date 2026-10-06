@@ -11,6 +11,7 @@ import { PreviewNotice } from '../../../../components/ui/PreviewNotice'
 import { Table, TD, TH, THead, TR } from '../../../../components/ui/Table'
 import { adminData } from '../../../../lib/adminData'
 import { formatDateTime, formatLength, formatPiastres } from '../../../../lib/format'
+import { couponValueLabel, discountRowLabel, discountRowValue, orderTotalFormula } from '../../../../lib/coupons/form'
 import { requireAdminPage } from '../../../../lib/auth/guards'
 
 type PageProps = { params: Promise<{ orderNumber: string }> }
@@ -115,6 +116,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
 
             <dl className="mt-4 space-y-1.5 text-sm">
               <Row label="الأصناف" value={formatPiastres(order.subtotalPiastres)} />
+              {order.coupon ? <Row label={discountRowLabel(order.coupon.code)} value={discountRowValue(order.coupon.discountPiastres)} /> : null}
               <Row label="الشحن" value={formatPiastres(order.shippingPiastres)} />
               {order.installationRequested ? (
                 <>
@@ -130,6 +132,36 @@ export default async function OrderDetailPage({ params }: PageProps) {
                 <dd className="text-base font-extrabold text-brand">{formatPiastres(order.totalPiastres)}</dd>
               </div>
             </dl>
+
+            {/* 0019 — لقطة الكوبون وقت الطلب ومعادلة الإجمالي. الأوردر من غيره بيتعرض زي ما هو. */}
+            {order.coupon ? (
+              <div className="mt-3 space-y-1 rounded border border-border bg-bg p-2.5 text-xs">
+                <p className="text-fg">
+                  <span className="font-semibold">
+                    {'كوبون '}
+                    <bdi dir="ltr" className="font-mono">
+                      {order.coupon.code}
+                    </bdi>
+                  </span>
+                  {' · '}
+                  {order.coupon.kind === 'percent' ? 'نسبة ' : order.coupon.kind === 'fixed' ? 'مبلغ ثابت ' : ''}
+                  {couponValueLabel(order.coupon)}
+                  {order.coupon.kind === 'percent' && order.coupon.maxDiscountPiastres === null ? ' · من غير حد أقصى' : ''}
+                </p>
+                <p className="text-muted">
+                  {orderTotalFormula({
+                    subtotalPiastres: order.subtotalPiastres,
+                    discountPiastres: order.coupon.discountPiastres,
+                    shippingPiastres: order.shippingPiastres,
+                    installationRequested: order.installationRequested,
+                    installationPiastres: order.installationPiastres,
+                    installationTravelPiastres: order.installationTravelPiastres,
+                    totalPiastres: order.totalPiastres,
+                  })}
+                </p>
+                <p className="text-muted">لقطة وقت الطلب — تعديل الكوبون بعد كده مابيغيّرهاش.</p>
+              </div>
+            ) : null}
           </Card>
 
           <OrderNotes

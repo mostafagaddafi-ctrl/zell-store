@@ -13,6 +13,7 @@ import type {
   OrderStep,
   StoreSection,
 } from '../adminData'
+import { orderCouponSnapshot } from '../coupons/form'
 import { ORDER_STATUSES, SECTION_KEYS, type ImageFit, type OrderStatus, type SectionKey } from '../enums'
 
 // ── صفوف الداتابيز ───────────────────────────────────────────
@@ -131,6 +132,13 @@ export type OrderRow = {
   installation_length_cm?: number | null
   installation_piastres?: number
   installation_travel_piastres?: number
+  // 0019 — لقطة الكوبون وقت الطلب
+  coupon_code?: string | null
+  coupon_kind?: string | null
+  coupon_percent?: number | null
+  coupon_amount_piastres?: number | null
+  coupon_max_discount_piastres?: number | null
+  discount_piastres?: number
   notified_at: string | null
   notify_error: string | null
   created_at: string
@@ -289,6 +297,9 @@ export function toAdminOrder(row: OrderRow, itemCount: number): AdminOrder {
     installationTravelPiastres: typeof row.installation_travel_piastres === 'number' ? row.installation_travel_piastres : 0,
     // 0018: العمود هو المصدر؛ العلامة في الملاحظات للأوردرات القديمة (بالتواصل)
     needsInstaller: row.installation_requested === true || hasInstallerRequest(row.notes),
+    // 0019 — من لقطة الأوردر؛ null و 0 للأوردر القديم أو من غير كوبون
+    couponCode: orderCouponSnapshot(row)?.code ?? null,
+    discountPiastres: orderCouponSnapshot(row)?.discountPiastres ?? 0,
   }
 }
 

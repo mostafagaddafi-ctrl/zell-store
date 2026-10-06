@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { addOrderNoteAction, updateOrderStatusAction } from '../../lib/actions'
 import { useSaveAction } from '../../lib/client/useSaveAction'
-import { ORDER_STATUSES, ORDER_STATUS_LABELS, type OrderStatus } from '../../lib/enums'
+import { ORDER_CANCELLED_FINAL_MESSAGE, ORDER_STATUSES, ORDER_STATUS_LABELS, type OrderStatus } from '../../lib/enums'
 import { useMutationsEnabled } from '../../lib/readiness'
 import { Button } from '../ui/Button'
 import { Card, textareaClasses } from '../ui/Field'
@@ -47,6 +47,17 @@ export function OrderStatusControls({
     void run(() => updateOrderStatusAction(orderId, targetRef.current ?? next, stampRef.current), {
       onSuccess: () => router.refresh(),
     })
+  }
+
+  // 0019 — الإلغاء نهائي: مفيش أزرار انتقال خالص (والداتابيز بترفض أي محاولة برضه)
+  if (status === 'cancelled') {
+    return (
+      <Card title="الحالة">
+        <p role="status" className="rounded border border-border bg-bg p-2.5 text-xs font-medium text-fg">
+          {ORDER_CANCELLED_FINAL_MESSAGE}
+        </p>
+      </Card>
+    )
   }
 
   return (

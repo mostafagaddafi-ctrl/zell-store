@@ -18,6 +18,7 @@ import type {
   StoreContent,
   StoreIdentity,
 } from '../adminData'
+import { orderCouponSnapshot } from '../coupons/form'
 import { inFilter, projectUrl, restGet } from './client'
 import {
   latestUpdatedAt,
@@ -107,6 +108,13 @@ const ORDER_COLUMNS = [
   'installation_length_cm',
   'installation_piastres',
   'installation_travel_piastres',
+  // 0019 — لقطة الكوبون
+  'coupon_code',
+  'coupon_kind',
+  'coupon_percent',
+  'coupon_amount_piastres',
+  'coupon_max_discount_piastres',
+  'discount_piastres',
   'notified_at',
   'notify_error',
   'created_at',
@@ -238,6 +246,7 @@ export const supabaseAdminData: AdminDataSource = {
       installationRatePiastres: typeof row.installation_rate_piastres === 'number' ? row.installation_rate_piastres : null,
       installationLengthCm: typeof row.installation_length_cm === 'number' ? row.installation_length_cm : null,
       items: items.rows.map(toAdminOrderItem),
+      coupon: orderCouponSnapshot(row),
     }
   },
 

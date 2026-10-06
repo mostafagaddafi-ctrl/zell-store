@@ -136,6 +136,8 @@ const KNOWN_SENTINELS = [
   'ZELL_INVALID_COLLECTION_PRODUCTS',
   // 0012 — zell_create_collection
   'ZELL_COLLECTION_SLUG_TAKEN',
+  // 0019 — trigger orders_cancelled_final (45080): الطلب الملغي مايرجعش لأي حالة تانية
+  'ZELL_ORDER_CANCELLED_FINAL',
 ] as const
 
 export type DbSentinel = (typeof KNOWN_SENTINELS)[number]

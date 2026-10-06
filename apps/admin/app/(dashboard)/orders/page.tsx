@@ -70,6 +70,11 @@ export default async function OrdersPage({ searchParams }: PageProps) {
                               : '🔧 فني (بالتواصل)'}
                           </span>
                         ) : null}
+                        {order.couponCode ? (
+                          <span className="mt-1 block w-fit">
+                            <Badge tone="info">{'كوبون ' + order.couponCode}</Badge>
+                          </span>
+                        ) : null}
                       </div>
                       <StatusBadge status={order.status} />
                     </div>
@@ -134,6 +139,11 @@ export default async function OrdersPage({ searchParams }: PageProps) {
                             ? '🔧 فني · ' + formatPiastres(order.installationPiastres + order.installationTravelPiastres)
                             : '🔧 فني (بالتواصل)'}
                         </span>
+                      ) : null}
+                      {order.couponCode ? (
+                        <Badge tone="info" className="ms-1.5 align-middle">
+                          {'كوبون ' + order.couponCode}
+                        </Badge>
                       ) : null}
                     </TD>
                     <TD>
