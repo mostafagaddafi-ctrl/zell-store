@@ -1,9 +1,10 @@
 import { NextResponse, after, type NextRequest } from 'next/server'
 import { isValidEgyptianPhone } from '@zell/core'
 import { restRpc, type RpcResult } from '../../../lib/data/rpc'
-import type { CreateOrderResult, OrderErrorCode, OrderItemInput, OrderRequest } from '../../../lib/orders/contracts'
+import type { OrderErrorCode, OrderItemInput, OrderRequest } from '../../../lib/orders/contracts'
 import { codeFromSqlError, orderFailure, statusFor } from '../../../lib/orders/errors'
 import { CHECKOUT_SESSION_COOKIE, checkoutSessionHash } from '../../../lib/orders/checkoutSession'
+import { parseCouponCodeField } from '../../../lib/orders/coupon'
 import { notifyNewOrder } from '../../../lib/orders/notify'
 import { normalizeOrder, requestHash } from '../../../lib/orders/requestHash'
 import {
@@ -13,6 +14,8 @@ import {
   receiptCookiePath,
   receiptTokenHash,
 } from '../../../lib/orders/receiptToken'
+import { isSameOrigin, readJsonBody } from '../../../lib/orders/requestGuards'
+import { isCreateOrderResult, orderSuccessBody } from '../../../lib/orders/result'
 
 /**
  * POST /api/orders — نقطة إنشاء الطلب الوحيدة (ORDER-FLOW-PLAN.md §3 · §5.2 · §6.3).
@@ -41,26 +44,6 @@ const MAX_KEY_LENGTH = 128
 
 function fail(code: OrderErrorCode): NextResponse {
   return NextResponse.json(orderFailure(code), { status: statusFor(code) })
-}
-
-/** فحص المنشأ: Sec-Fetch-Site لو موجود، و Origin إلزامي ولازم يطابق المضيف. */
-function isSameOrigin(request: NextRequest): boolean {
-  const site = request.headers.get('sec-fetch-site')
-  if (site !== null && site !== 'same-origin') return false
-
-  const origin = request.headers.get('origin')
-  if (origin === null) return false
-
-  let originHost: string
-  try {
-    originHost = new URL(origin).host
-  } catch {
-    return false
-  }
-
-  const host = request.headers.get('host')
-  if (host !== null && host !== '') return originHost === host
-  return originHost === request.nextUrl.host
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -139,22 +122,15 @@ function parseRequest(payload: unknown): { ok: true; value: OrderRequest } | { o
   const installation = rawInstallation === true
   if (installation && area === undefined) return { ok: false, code: 'INSTALLATION_NOT_AVAILABLE' }
 
+  // 0019 — كود الخصم بس (مفيش أي مبلغ بيتقري). فاضي = مفيش كوبون. غير صالح = COUPON_INVALID قبل أي نداء داتابيز.
+  const coupon = parseCouponCodeField(payload['couponCode'])
+  if (!coupon.ok) return { ok: false, code: 'COUPON_INVALID' }
+
   const value: OrderRequest = { customerName: name, customerPhone: phone, governorate, address, notes, items }
   if (area !== undefined) value.area = area
   if (installation) value.installation = true
+  if (coupon.code !== null) value.couponCode = coupon.code
   return { ok: true, value }
-}
-
-function isCreateOrderResult(value: unknown): value is CreateOrderResult {
-  if (!isPlainObject(value)) return false
-  return (
-    typeof value['order_number'] === 'string' &&
-    typeof value['replayed'] === 'boolean' &&
-    typeof value['subtotal_piastres'] === 'number' &&
-    typeof value['shipping_piastres'] === 'number' &&
-    typeof value['total_piastres'] === 'number' &&
-    typeof value['receipt_expires_at'] === 'string'
-  )
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -162,31 +138,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if ((process.env['ORDERS_ENABLED'] ?? '').trim() !== 'true') return fail('ORDERS_DISABLED')
 
   // (٢) شكل الطلب — قاطع ورخيص
-  if (!isSameOrigin(request)) return fail('BAD_ORIGIN')
+  if (!isSameOrigin(request.headers, request.nextUrl.host)) return fail('BAD_ORIGIN')
 
-  const contentType = (request.headers.get('content-type') ?? '').toLowerCase()
-  if (!contentType.startsWith('application/json')) return fail('BAD_CONTENT_TYPE')
-
-  // فحص مبكر على Content-Length لو موجود — بيرفض قبل قراءة الـbody خالص.
-  // الهيدر **مش موثوق** وممكن يبقى غايب أو كذب، فالفحص الحقيقي بعد القراءة
-  // باقي زي ما هو. الاتنين مطلوبين: ده بيوفّر القراءة، وده بيضمن الحد.
-  const declaredLength = Number.parseInt(request.headers.get('content-length') ?? '', 10)
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) return fail('BODY_TOO_LARGE')
-
-  let raw: string
-  try {
-    raw = await request.text()
-  } catch {
-    return fail('BAD_JSON')
-  }
-  if (new TextEncoder().encode(raw).length > MAX_BODY_BYTES) return fail('BODY_TOO_LARGE')
-
-  let payload: unknown
-  try {
-    payload = JSON.parse(raw)
-  } catch {
-    return fail('BAD_JSON')
-  }
+  // JSON بس وبحد MAX_BODY_BYTES: Content-Length المبكر + الفحص الحقيقي بعد القراءة (lib/orders/requestGuards)
+  const body = await readJsonBody(request, MAX_BODY_BYTES)
+  if (!body.ok) return fail(body.code)
+  const payload = body.value
 
   // (٣) المفتاح — مش سر، بس إلزامي
   const idempotencyKey = (request.headers.get('idempotency-key') ?? '').trim()
@@ -244,6 +201,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // 0018 — بيتبعتوا بس لما يكونوا موجودين، فالطلب العادي نفس النداء القديم بالحرف
       ...(normalized.area !== null ? { p_area: normalized.area } : {}),
       ...(normalized.installation ? { p_installation: true } : {}),
+      // 0019 — الكود المطبّع بس ولو موجود بس، فالطلب من غير كوبون نفس النداء القديم بالحرف
+      ...(normalized.couponCode !== null ? { p_coupon_code: normalized.couponCode } : {}),
     })
   } catch (error) {
     // اسم الاستثناء بس — مفيش مفتاح ولا رابط ولا بيانات عميل في اللوج
@@ -278,22 +237,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const remainingSeconds = Math.floor((expiresAtMs - Date.now()) / 1000)
   const receiptMaxAge = Math.min(RECEIPT_MAX_AGE_SECONDS, Math.max(0, remainingSeconds))
 
-  const response = NextResponse.json(
-    {
-      ok: true,
-      order: {
-        orderNumber: order.order_number,
-        subtotalPiastres: order.subtotal_piastres,
-        shippingPiastres: order.shipping_piastres,
-        totalPiastres: order.total_piastres,
-        installationPiastres: typeof order.installation_piastres === 'number' ? order.installation_piastres : 0,
-        installationTravelPiastres:
-          typeof order.installation_travel_piastres === 'number' ? order.installation_travel_piastres : 0,
-        replayed: order.replayed,
-      },
-    },
-    { status: order.replayed ? 200 : 201 },
-  )
+  // الرد من لقطة الداتابيز كما هي — جديد أو replay، من غير أي إعادة حساب (lib/orders/result)
+  const response = NextResponse.json(orderSuccessBody(order), { status: order.replayed ? 200 : 201 })
 
   if (receiptMaxAge > 0) {
     // السر الخام بيسافر هنا وبس — HttpOnly ومقيّد بمسار الطلب (ب٨ + ب٩).
