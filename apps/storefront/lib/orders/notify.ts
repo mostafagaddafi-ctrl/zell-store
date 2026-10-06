@@ -15,6 +15,7 @@ import 'server-only'
 
 import { INSTALLATION_NOTE_MARKER, hasInstallerRequest } from '@zell/core'
 import { restPatch, restSelect } from '../data/rpc'
+import { DISCOUNT_SIGN, discountLabel, discountLine } from './coupon'
 
 const TELEGRAM_TIMEOUT_MS = 5000
 const MAX_NOTIFY_ERROR = 200
@@ -48,6 +49,9 @@ type NotifyOrder = {
   installation_length_cm?: number | null
   installation_piastres?: number
   installation_travel_piastres?: number
+  /** 0019 */
+  coupon_code?: string | null
+  discount_piastres?: number
   created_at: string
   order_items: NotifyItem[]
 }
@@ -57,6 +61,7 @@ const ORDER_SELECT =
   'subtotal_piastres,shipping_piastres,total_piastres,created_at,' +
   'shipping_area,installation_requested,installation_rate_piastres,installation_length_cm,' +
   'installation_piastres,installation_travel_piastres,' +
+  'discount_piastres,coupon_code,' +
   'order_items(product_name_ar,length_cm,width_cm,line_total_piastres,sale_unit,quantity)'
 
 /** تهريب HTML لكل قيمة — parse_mode: 'HTML' (§7.3). */
@@ -126,6 +131,11 @@ function buildMessage(order: NotifyOrder): string {
       '<b>أجر التركيب:</b> ' + escapeHtml(money(order.installation_piastres ?? 0) + breakdown),
       '<b>انتقال الفني:</b> ' + escapeHtml(travel === 0 ? 'مجاني' : money(travel)),
     )
+  }
+  // 0019 — الخصم من لقطة الأوردر قبل الإجمالي. من غير كوبون مفيش سطر والرسالة زي ما هي بالظبط.
+  const discount = discountLine(order.coupon_code, order.discount_piastres)
+  if (discount !== null) {
+    lines.push('<b>' + escapeHtml(discountLabel(discount.code)) + ':</b> ' + escapeHtml(DISCOUNT_SIGN + money(discount.piastres)))
   }
   lines.push('<b>الإجمالي:</b> ' + escapeHtml(money(order.total_piastres)))
 

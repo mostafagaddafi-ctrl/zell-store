@@ -4,6 +4,7 @@ import { CheckCircle2 } from 'lucide-react'
 import { formatLength, formatPiastres, isValidOrderNumber } from '@zell/core'
 import { restRpc, type RpcResult } from '../../../lib/data/rpc'
 import type { Receipt } from '../../../lib/orders/contracts'
+import { DISCOUNT_SIGN, discountLine } from '../../../lib/orders/coupon'
 import { receiptCookieName, receiptTokenHash } from '../../../lib/orders/receiptToken'
 import { Container } from '../../../components/ui/Container'
 import { buttonClasses } from '../../../components/ui/Button'
@@ -60,6 +61,12 @@ function isReceipt(value: unknown): value is Receipt {
     if (!isFiniteInteger(candidate['installation_piastres'])) return false
     if (!isFiniteInteger(candidate['installation_travel_piastres'])) return false
   }
+
+  // 0019 — الخصم لو موجود لازم رقم صحيح مش سالب، والكود نص أو null
+  const discount = candidate['discount_piastres']
+  if (discount !== undefined && !(isFiniteInteger(discount) && discount >= 0)) return false
+  const couponCode = candidate['coupon_code']
+  if (couponCode !== undefined && couponCode !== null && typeof couponCode !== 'string') return false
 
   const items = candidate['items']
   if (!Array.isArray(items)) return false
@@ -141,6 +148,8 @@ export default async function OrderReceiptPage({
   }
 
   const receipt = result.data
+  // 0019 — سطر الخصم من اللقطة؛ null للأوردر القديم أو من غير كوبون (العرض زي ما هو بالظبط)
+  const discount = discountLine(receipt.coupon_code, receipt.discount_piastres)
 
   return (
     <Container className="py-10 sm:py-14">
@@ -235,6 +244,14 @@ export default async function OrderReceiptPage({
                 </span>
               </div>
             </>
+          ) : null}
+          {discount !== null ? (
+            <div className="flex justify-between gap-3 text-muted">
+              <span>
+                خصم (<bdi>{discount.code}</bdi>)
+              </span>
+              <span><Num>{DISCOUNT_SIGN + formatPiastres(discount.piastres)}</Num></span>
+            </div>
           ) : null}
           <div className="flex justify-between border-t border-border pt-2 text-base font-bold text-fg">
             <span>الإجمالي</span>

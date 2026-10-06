@@ -10,7 +10,7 @@
  *     فالربط ميكانيكي بشيل البادئة.
  */
 
-import type { OrderErrorCode, OrderFailure } from './contracts'
+import type { CouponPreviewErrorCode, OrderErrorCode, OrderFailure } from './contracts'
 
 type ErrorSpec = {
   status: number
@@ -62,6 +62,14 @@ export const ORDER_ERRORS: Record<OrderErrorCode, ErrorSpec> = {
     message: 'وصلت لأقصى عدد طلبات لنفس الرقم في اليوم. كلّمنا على واتساب.',
     retryable: false,
   },
+  // 0019 — أكواد الخصم. رسايل عامة؛ رسالة الحد الأدنى بالرقم بتتبني في الواجهة من المعاينة (PR4).
+  COUPON_INVALID: { status: 400, message: 'كود الخصم غير صحيح.', retryable: false },
+  COUPON_EXPIRED: { status: 409, message: 'كود الخصم ده مش ساري دلوقتي.', retryable: false },
+  COUPON_EXHAUSTED: { status: 409, message: 'كود الخصم ده خلص.', retryable: false },
+  COUPON_MIN_SUBTOTAL: { status: 409, message: 'إجمالي الأصناف أقل من الحد الأدنى لكود الخصم ده.', retryable: false },
+  COUPON_PHONE_LIMIT: { status: 409, message: 'كود الخصم ده اتستخدم قبل كده برقم الموبايل ده.', retryable: false },
+  COUPON_NOT_APPLICABLE: { status: 409, message: 'كود الخصم ده مالوش خصم على الطلب ده.', retryable: false },
+  COUPONS_DISABLED: { status: 409, message: 'أكواد الخصم مش متاحة دلوقتي. شيل الكود وكمّل طلبك.', retryable: false },
   SETTINGS_MISSING: { status: 503, message: 'في مشكلة مؤقتة في إعدادات الشحن. كلّمنا على واتساب.', retryable: true },
   PRICE_OUT_OF_RANGE: { status: 503, message: 'في مشكلة في إعدادات الأسعار. كلّمنا على واتساب.', retryable: false },
   ORDER_NUMBER_EXHAUSTED: { status: 503, message: 'مشكلة مؤقتة. جرّب تاني بعد لحظة.', retryable: true },
@@ -95,6 +103,25 @@ export function codeFromSqlError(sqlMessage: string): OrderErrorCode {
   if (INTERNAL_ONLY_CODES.has(bare)) return 'INTERNAL'
   if (isKnownCode(bare)) return bare
   return 'INTERNAL'
+}
+
+/**
+ * 0019 — أكواد zell_preview_coupon بس. أي كود تاني (حتى لو معروف لمسار الطلب) → INTERNAL،
+ * لأن المعاينة مابتفحصش الموبايل ولا الحد الأدنى ومش المفروض ترجّع غير دول.
+ *
+ * ⚠️ 45080 ZELL_ORDER_CANCELLED_FINAL مش في العقد هنا عن قصد: بييجي من trigger تغيير حالة الأوردر
+ *    في اللوحة بس، ومابيوصلش لمسار إنشاء الطلب ولا المعاينة. لو ظهر بيتقنّع INTERNAL.
+ */
+const PREVIEW_SQL_CODES: ReadonlyArray<CouponPreviewErrorCode> = [
+  'COUPONS_DISABLED',
+  'COUPON_INVALID',
+  'COUPON_EXPIRED',
+  'COUPON_EXHAUSTED',
+]
+
+export function previewCodeFromSqlError(sqlMessage: string): CouponPreviewErrorCode {
+  const code = codeFromSqlError(sqlMessage)
+  return PREVIEW_SQL_CODES.find((known) => known === code) ?? 'INTERNAL'
 }
 
 export function orderFailure(code: OrderErrorCode): OrderFailure {

@@ -10,7 +10,7 @@
  *    النية — فأول إرسال نجح وضاع رده يتحوّل لطلب تاني بدل replay.
  */
 
-import { normalizePhone } from '@zell/core'
+import { normalizeCouponCode, normalizePhone } from '@zell/core'
 import type { OrderRequest } from './contracts'
 
 /**
@@ -34,6 +34,8 @@ export type NormalizedOrder = {
   area: string | null
   /** 0018 — فني تركيب بالسعر. */
   installation: boolean
+  /** 0019 — الكود بعد normalizeCouponCode؛ null = مفيش كوبون. */
+  couponCode: string | null
   items: Array<{ productId: number; lengthCm?: number; widthCm?: number; quantity?: number }>
 }
 
@@ -69,6 +71,8 @@ export function normalizeOrder(input: OrderRequest): NormalizedOrder {
     notes: notes === '' ? null : notes,
     area: area === '' ? null : area,
     installation: input.installation === true,
+    // 0019 — فاضي = null. الراوت بيرفض غير الصالح (COUPON_INVALID) قبل ما يوصل هنا
+    couponCode: normalizeCouponCode(input.couponCode),
     items,
   }
 }
@@ -97,5 +101,8 @@ export function canonicalOrderJson(order: NormalizedOrder): string {
   // 0018 — منطقة أو فني: عنصر سابع بعلامة 'v2'. من غيرهم الصيغة القديمة بالحرف،
   // فمفاتيح الـidempotency اللي في sessionStorage للطلبات العادية مابتتغيرش.
   if (order.area !== null || order.installation) shape.push(['v2', order.area ?? '', order.installation ? 1 : 0])
+  // 0019 — كوبون: عنصر بعلامة 'c1' بعد 'v2' (لو موجود). من غير كوبون الصيغة اللي فوق بالحرف،
+  // وتغيير الكود أو شيله = canonical جديد = مفتاح جديد (مش IDEMPOTENCY_MISMATCH).
+  if (order.couponCode !== null) shape.push(['c1', order.couponCode])
   return JSON.stringify(shape)
 }
