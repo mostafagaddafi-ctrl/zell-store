@@ -9,6 +9,7 @@
 import { supabaseAdminData } from './data/reads'
 import type { ImageFit, OrderStatus, SectionKey } from './enums'
 import type { CatalogLayout } from '@zell/core'
+import type { OrderCouponSnapshot } from './coupons/form'
 
 export * from './enums'
 
@@ -33,6 +34,9 @@ export type AdminOrder = {
   installationRequested: boolean
   installationPiastres: number
   installationTravelPiastres: number
+  /** 0019 — كود الكوبون من لقطة الأوردر (null للقديم أو من غير كوبون). */
+  couponCode: string | null
+  discountPiastres: number
 }
 
 export type AdminOrderItem = {
@@ -57,6 +61,8 @@ export type AdminOrderDetail = AdminOrder & {
   installationRatePiastres: number | null
   installationLengthCm: number | null
   items: AdminOrderItem[]
+  /** 0019 — لقطة الكوبون كاملة (النوع والقيمة والحد الأقصى والخصم). null = مفيش. */
+  coupon: OrderCouponSnapshot | null
   /** رمز التعارض لتعديل الحالة والملاحظات الداخلية. */
   updatedAt: string
 }
