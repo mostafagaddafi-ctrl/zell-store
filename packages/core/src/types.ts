@@ -100,6 +100,8 @@ export type StoreSettings = {
   addonsTitle: string
   /** صفحة «أدوات التركيب» (installation_tools_page). مش موجود/غلط = مقفولة بالنصوص الافتراضية. */
   installationToolsPage: InstallationToolsPage
+  /** 0019 — مفتاح «أكواد الخصم» (settings.coupons_enabled). ناقص أو مش true = مقفولة. السيرفر والداتابيز هما الحكم. */
+  couponsEnabled: boolean
   announcement: Announcement
   /** محتوى الصفحة من «المحتوى» في اللوحة. */
   content: StoreContent

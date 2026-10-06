@@ -28,9 +28,12 @@ import {
 import { canonicalOrderJson, normalizeOrder } from '../../lib/orders/canonical'
 import { useCart } from '../../lib/cart'
 import { clearCheckoutDraft, readCheckoutDraft, saveCheckoutDraft } from '../../lib/drafts'
+import { couponBlockReason, couponDraftCode, couponPayloadField, estimateCoupon, isCouponErrorCode } from '../../lib/orders/couponCheckout'
+import { useCheckoutCoupon } from '../../lib/useCheckoutCoupon'
 import { Button, buttonClasses } from '../ui/Button'
 import { Field, inputClasses, textareaClasses } from '../ui/Field'
 import { ImageSlot } from '../ui/ImageSlot'
+import { CouponBox } from './CouponBox'
 import { InstallChoice } from './InstallChoice'
 import { LineSpecs } from './LineSpecs'
 import { Num } from './Num'
@@ -123,7 +126,7 @@ function isOrderSuccess(value: unknown): value is { ok: true; order: { orderNumb
   return candidate.ok === true && typeof candidate.order?.orderNumber === 'string'
 }
 
-function isOrderFailure(value: unknown): value is { ok: false; code: string; message: string } {
+function isOrderFailure(value: unknown): value is { ok: false; code: string; message: string; retryable?: unknown } {
   if (typeof value !== 'object' || value === null) return false
   const candidate = value as { ok?: unknown; code?: unknown; message?: unknown }
   return candidate.ok === false && typeof candidate.code === 'string' && typeof candidate.message === 'string'
@@ -164,6 +167,10 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
   const [selfNotice, setSelfNotice] = useState(false)
   const router = useRouter()
   const abortRef = useRef<AbortController | null>(null)
+  // 0019 — كود الخصم: بيظهر بس لو coupons_enabled = true. السيرفر والداتابيز هما الحكم.
+  const couponsEnabled = settings.couponsEnabled
+  const coupon = useCheckoutCoupon()
+  const draftCouponCode = couponsEnabled ? couponDraftCode(coupon.state) : undefined
 
   /**
    * مسودة Checkout (sessionStorage، التاب ده بس): لو العميل راح لأدوات التركيب ورجع
@@ -189,6 +196,8 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
       })
       setArea(governorateAreas.includes(draft.area) ? draft.area : '')
       setShowNotes(draft.showNotes || draft.notes.trim() !== '')
+      // 0019 — الكود المحفوظ بيتعاين تاني مرة واحدة، ومش مطبّق قبل نجاح المعاينة
+      if (settings.couponsEnabled && draft.couponCode !== undefined) coupon.restore(draft.couponCode)
     }
     setDraftLoaded(true)
   }, [])
@@ -203,8 +212,10 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
       address: values.address,
       notes: values.notes,
       showNotes,
+      // 0019 — الكود بس (من غير مبلغ ولا شروط)
+      ...(draftCouponCode !== undefined ? { couponCode: draftCouponCode } : {}),
     })
-  }, [draftLoaded, values, selectedArea, showNotes])
+  }, [draftLoaded, values, selectedArea, showNotes, draftCouponCode])
 
   const byId = useMemo(() => {
     const map = new Map<number, StoreProduct>()
@@ -288,7 +299,16 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
     setToolsRemovedNote('اتشالت أدوات التركيب من الطلب — وفّرت ' + formatPiastres(saved) + '.')
   }
 
-  const submitBlocked = installationBlocked || intentStranded || choiceRequired || toolsDecisionPending
+  // 0019 — التقدير من شروط المعاينة على subtotal الحالي، فبيتحسب تاني مع أي تغيير في السلة (ومنه
+  // «شيل الأدوات»). الحاجز بيقفل التأكيد لو الحد الأدنى اتكسر أو الخصم مابقاش ينفع أو المعاينة شغالة.
+  const couponState = couponsEnabled ? coupon.state : null
+  const couponEstimate = estimateCoupon(couponState, subtotal)
+  const couponBlock = couponBlockReason(couponState, couponEstimate)
+  const couponDiscount =
+    couponEstimate.kind === 'ok' ? { code: couponEstimate.code, piastres: couponEstimate.discountPiastres } : null
+
+  const submitBlocked =
+    installationBlocked || intentStranded || choiceRequired || toolsDecisionPending || couponBlock !== null
 
   // «هركّبه بنفسي وشوف أدوات التركيب»: الاختيار يرجع «بنفسي» (بيتحفظ في السلة)، والعميل يروح لأدوات
   // أفلام سلته بنفس معيار زرار السلة. مفيش صفحة أدوات أو مفيش أدوات → يفضل هنا برسالة، من غير رابط ميت.
@@ -332,6 +352,10 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
     setFailure(null)
     if (invalid || submitting || items.length === 0 || submitBlocked) return
 
+    coupon.submitStart()
+    // 0019 — الكود المطبّق بس (بعد معاينة ناجحة)
+    const couponCode = couponsEnabled ? (coupon.state.applied?.code ?? null) : null
+
     // 0018 — العنوان زي ما الزبون كتبه، والمنطقة والفني حقول لوحدهم (داخلين في الهاش).
     // الملاحظات من غير أي علامة — العلامة القديمة للأوردرات القديمة بس.
     const payload = {
@@ -343,6 +367,8 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
       items,
       ...(selectedArea !== '' ? { area: selectedArea } : {}),
       ...(installationReady ? { installation: true as const } : {}),
+      // 0019 — الكود بس، من غير أي مبلغ. من غير كوبون الـbody القديم بالحرف
+      ...couponPayloadField(couponCode),
     }
     const body = JSON.stringify(payload)
 
@@ -371,6 +397,7 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
       if (response.ok && isOrderSuccess(result)) {
         // السلة تتنضّف **بعد** الرد الناجح بس
         forgetIntent(canonical)
+        coupon.submitOutcome({ kind: 'success' })
         cart.clear()
         // المسودة بتتمسح بعد نجاح الطلب والسلة، ومفيش حفظ تاني بعدها
         orderPlacedRef.current = true
@@ -382,12 +409,16 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
       if (isOrderFailure(result)) {
         // البيانات اتغيّرت على نفس المفتاح — النية الجاية تاخد مفتاح جديد
         if (result.code === 'IDEMPOTENCY_MISMATCH') forgetIntent(canonical)
-        setFailure(result.message)
+        // 0019 — retryable = نتيجة مش محسومة (قفل الكود)، ورفض الكوبون بيظهر عند الكود بزر «شيل الكود»
+        coupon.submitOutcome({ kind: 'failure', code: result.code, retryable: result.retryable !== false })
+        if (couponCode === null || !isCouponErrorCode(result.code)) setFailure(result.message)
       } else {
+        coupon.submitOutcome({ kind: 'unexpected' })
         setFailure('حصلت مشكلة غير متوقّعة. كلّمنا على واتساب.')
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return
+      coupon.submitOutcome({ kind: 'network' })
       setFailure('الشبكة وقعت. جرّب تاني — الطلب مش بيتكرر.')
     }
 
@@ -674,11 +705,14 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
             </p>
           ) : null}
 
+          {couponsEnabled ? <CouponBox coupon={coupon} estimate={couponEstimate} /> : null}
+
           <OrderSummary
             subtotalPiastres={subtotal}
             shippingPiastres={shipping}
             installationPiastres={installationFee}
             installationTravelPiastres={installationReady ? travel : null}
+            discount={couponDiscount}
             trustLine={settings.content.trustLine}
             gift={settings.offerEnabled ? settings.offerText : ''}
           />
@@ -700,10 +734,14 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
           */}
           {failure !== null ? (
             <p className="text-center text-xs font-medium text-danger">{failure}</p>
+          ) : coupon.state.rejection !== null ? (
+            <p className="text-center text-xs font-medium text-danger">{coupon.state.rejection}</p>
           ) : choiceRequired ? (
             <p className="text-center text-xs font-medium text-danger">اختار «هتركّبه إزاي؟» فوق الأول عشان نكمل.</p>
           ) : toolsDecisionPending ? (
             <p className="text-center text-xs font-medium text-danger">قرّر الأول: تشيل أدوات التركيب ولا تخليها في الطلب.</p>
+          ) : couponBlock !== null ? (
+            <p className="text-center text-xs font-medium text-danger">{couponBlock}</p>
           ) : submitBlocked ? (
             <p className="text-center text-xs font-medium text-danger">اختار منطقة متاح فيها الفني، أو «هركّبه بنفسي».</p>
           ) : touched && invalid ? (

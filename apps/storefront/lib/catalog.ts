@@ -122,6 +122,8 @@ export const FALLBACK_SETTINGS: StoreSettings = {
   socialLinks: [],
   addonsTitle: 'أدوات التركيب',
   installationToolsPage: DEFAULT_INSTALLATION_TOOLS_PAGE,
+  // الكتالوج المؤقت مافيهوش أكواد خصم
+  couponsEnabled: false,
   // الكتالوج المؤقت مابيعرضش شريط — الشريط بيانات حقيقية من settings بس
   announcement: { enabled: false, text: '', href: '', ctaLabel: '' },
   content: DEFAULT_STORE_CONTENT,

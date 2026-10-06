@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { Gift } from 'lucide-react'
 import { formatPiastres } from '@zell/core'
+import { DISCOUNT_SIGN } from '../../lib/orders/coupon'
+import { estimatedTotalPiastres } from '../../lib/orders/couponCheckout'
 import { Num } from './Num'
 
 /** ملخص الحساب — نفس الصندوق في السلة وفي بيانات التوصيل. */
@@ -13,6 +15,7 @@ export function OrderSummary({
   gift,
   installationPiastres,
   installationTravelPiastres,
+  discount,
 }: {
   subtotalPiastres: number
   /** null = المحافظة لسه مش متحددة */
@@ -29,13 +32,19 @@ export function OrderSummary({
    */
   installationPiastres?: number | null
   installationTravelPiastres?: number | null
+  /** 0019 — تقدير الخصم من شروط المعاينة (المعتمد من الداتابيز وقت الطلب). ناقص/null = مفيش سطر. */
+  discount?: { code: string; piastres: number } | null
 }) {
   const line = trustLine ?? 'الدفع عند الاستلام · توصيل لكل محافظات مصر'
-  const installationTotal =
-    typeof installationPiastres === 'number' && typeof installationTravelPiastres === 'number'
-      ? installationPiastres + installationTravelPiastres
-      : 0
-  const total = subtotalPiastres + (shippingPiastres ?? 0) + installationTotal
+  const installationShown = typeof installationPiastres === 'number' && typeof installationTravelPiastres === 'number'
+  // 0019 — الخصم على الأصناف بس: subtotal − الخصم + الشحن + الفني + الانتقال (من غير خصم = نفس الحساب القديم)
+  const total = estimatedTotalPiastres({
+    subtotalPiastres,
+    discountPiastres: discount ? discount.piastres : 0,
+    shippingPiastres,
+    installationPiastres: installationShown ? (installationPiastres ?? null) : null,
+    travelPiastres: installationShown ? (installationTravelPiastres ?? null) : null,
+  })
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
@@ -43,6 +52,16 @@ export function OrderSummary({
 
       <dl className="mt-4 space-y-2.5 text-sm">
         <Row label="الأصناف" value={<Num>{formatPiastres(subtotalPiastres)}</Num>} />
+        {discount ? (
+          <div className="flex items-center justify-between gap-3">
+            <dt className="min-w-0 truncate text-muted">
+              خصم (<bdi className="font-mono">{discount.code}</bdi>)
+            </dt>
+            <dd className="shrink-0 font-semibold text-accent">
+              <Num>{DISCOUNT_SIGN + formatPiastres(discount.piastres)}</Num>
+            </dd>
+          </div>
+        ) : null}
         <Row
           label="الشحن"
           value={
