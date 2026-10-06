@@ -13,6 +13,7 @@ import {
   ENABLE_NEEDS_LIVE_MESSAGE,
   KIND_LOCKED_MESSAGE,
   OWNER_ONLY_MESSAGE,
+  couponIdentityLocked,
   couponLimitLabel,
   couponToForm,
   couponValueLabel,
@@ -109,7 +110,8 @@ const ROW: CouponRow = {
   internal_note: 'حملة يناير',
   created_at: '2029-12-01T00:00:00Z',
   updated_at: '2029-12-02T00:00:00Z',
-  orders: [{ count: 3 }],
+  uses: [{ count: 3 }],
+  references: [{ count: 4 }],
 }
 
 export function runAdminCouponCases(): AdminCouponCaseFailure[] {
@@ -175,7 +177,26 @@ export function runAdminCouponCases(): AdminCouponCaseFailure[] {
   const coupon = toAdminCoupon(ROW)
   check('list: uses from embedded count', '3', String(coupon.uses))
   check('list: id as text', '7', coupon.id)
-  check('list: no count = 0', '0', String(toAdminCoupon({ ...ROW, orders: undefined }).uses))
+  check('list: references incl. cancelled', '4', String(coupon.references))
+  const noCounts = toAdminCoupon({ ...ROW, uses: undefined, references: undefined })
+  check('list: no counts = 0', '0|0', String(noCounts.uses) + '|' + String(noCounts.references))
+
+  // ── قفل الهوية في النموذج = قاعدة السيرفر (كل المراجع، حتى الملغية) ──
+  for (const [name, uses, references, locked] of [
+    ['live use', 1, 1, true],
+    ['cancelled use only', 0, 1, true],
+    ['no orders', 0, 0, false],
+  ] as const) {
+    const row = toAdminCoupon({ ...ROW, uses: [{ count: uses }], references: [{ count: references }] })
+    check('identity: ' + name + ' uses', String(uses), String(row.uses))
+    check('identity: ' + name + ' references', String(references), String(row.references))
+    check('identity: ' + name + ' form lock', String(locked), String(couponIdentityLocked(row)))
+    check(
+      'identity: ' + name + ' server lock',
+      String(locked),
+      String(lockedFieldsError({ code: row.code, kind: row.kind }, { code: 'NEWCODE1', kind: row.kind }, row.references) !== null),
+    )
+  }
   check('list: value label with cap', '50% · أقصى خصم 100 ج.م', couponValueLabel(coupon))
   check('list: fixed label', '50 ج.م', couponValueLabel({ kind: 'fixed', percentOff: null, amountOffPiastres: 5000, maxDiscountPiastres: null }))
   check('list: unlimited label', 'من غير حد', couponLimitLabel(coupon.maxUsesPerPhone))
