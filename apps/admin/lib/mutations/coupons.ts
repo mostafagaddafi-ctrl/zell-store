@@ -30,8 +30,11 @@ const TABLE = 'coupons'
 const COLUMNS =
   'id,code,kind,percent_off,amount_off_piastres,max_discount_piastres,min_subtotal_piastres,' +
   'starts_at,ends_at,max_uses,max_uses_per_phone,is_active,internal_note,created_at,updated_at'
-/** الاستخدامات في نفس الطلب: orders(count) مع فلتر الحالة على الجدول المضمّن — مفيش N+1. */
-const USES = 'orders(count)&orders.status=neq.cancelled'
+/**
+ * العدّادين في نفس الطلب (مفيش N+1) — نفس العلاقة باسمين، والفلتر على الاسم الأول بس:
+ *   uses = غير الملغية (العرض) · references = كل الأوردرات حتى الملغية (قفل الكود والنوع في النموذج)
+ */
+const USES = 'uses:orders(count),references:orders(count)&uses.status=neq.cancelled'
 export const COUPONS_PAGE_SIZE = 20
 const SWITCH_KEY = 'coupons_enabled'
 /** سقف قراءة الكوبونات الفعّالة لفحص التشغيل — الجدول صغير، والفحص على ده بس. */
@@ -102,7 +105,7 @@ export async function createCoupon(raw: unknown): Promise<MutationResult<AdminCo
     const rows = await restInsert<CouponRow>(TABLE, { ...input.value }, COLUMNS)
     const row = rows[0]
     if (!row) return toInternalFailure(null)
-    return { ok: true, data: toAdminCoupon({ ...row, orders: [{ count: 0 }] }) }
+    return { ok: true, data: toAdminCoupon({ ...row, uses: [{ count: 0 }], references: [{ count: 0 }] }) }
   } catch (error) {
     return toInternalFailure(error)
   }
@@ -121,7 +124,8 @@ export async function updateCoupon(rawId: unknown, raw: unknown, rawStamp: unkno
     const existing = current.rows[0]
     if (!existing) return { ok: false, code: 'NOT_FOUND', message: NOT_FOUND_MESSAGE }
 
-    // الكود والنوع مقفولين بعد أول استخدام — أي أوردر بيشاور على الكوبون (حتى الملغي)
+    // الكود والنوع مقفولين بعد أول استخدام — أي أوردر بيشاور على الكوبون (حتى الملغي). فحص طازة هنا
+    // مش من القايمة. known limitation v1: أوردر في نفس لحظة الحفظ ممكن يسبق الكتابة — لقطته ثابتة فمفيش ضرر.
     const references = await restGet<{ id: number }>('orders', 'select=id&coupon_id=eq.' + id + '&limit=1', { exactCount: true })
     const locked = lockedFieldsError(existing, input.value, references.total ?? references.rows.length)
     if (locked !== null) return invalid(locked)
