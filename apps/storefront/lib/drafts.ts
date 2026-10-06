@@ -2,7 +2,7 @@
  * مسودات العميل في التاب ده بس (sessionStorage) — بتنتهي لوحدها لما التاب يتقفل،
  * والتاب الجديد مابيورثهاش.
  *
- *   مسودة Checkout  → بيانات التوصيل لو العميل راح لأدوات التركيب ورجع
+ *   مسودة Checkout  → بيانات التوصيل لو العميل راح لأدوات التركيب ورجع (+ كود الخصم المطبّق بس — 0019)
  *   مسودة المقاس    → مقاس كل منتج لو العميل راح للسلة ورجع
  *
  * 🔒 ممنوع هنا أي سر أو حاجة جاية من السيرفر: لا مفتاح النية (idempotency) ولا هاش
@@ -12,6 +12,8 @@
  * ⚠️ الحدود هنا حدود أمان للتخزين — أوسع من حدود الطلب عن قصد عشان مانرميش حاجة
  *    العميل كتبها. التحقق الحقيقي في الفورم والسيرفر زي ما هو.
  */
+
+import { normalizeCouponCode } from '@zell/core'
 
 const CHECKOUT_KEY = 'zell-checkout-draft-v1'
 const SIZE_KEY_PREFIX = 'zell-size-draft-v1:'
@@ -26,6 +28,8 @@ const MAX_GOVERNORATE = 80
 const MAX_AREA = 80
 const MAX_ADDRESS = 2000
 const MAX_NOTES = 2000
+/** 0019 — الكود المطبّق بس (نفس حد الكود في الداتابيز). */
+const MAX_COUPON = 32
 
 function readJson(key: string): Record<string, unknown> | null {
   try {
@@ -74,11 +78,17 @@ export type CheckoutDraft = {
   address: string
   notes: string
   showNotes: boolean
+  /** 0019 — الكود المطبّق بس (من غير مبلغ ولا شروط). ناقص في التخزين القديم. */
+  couponCode?: string
 }
 
 export function readCheckoutDraft(): CheckoutDraft | null {
   const record = readJson(CHECKOUT_KEY)
-  if (record === null) return null
+  return record === null ? null : parseCheckoutDraft(record)
+}
+
+/** فحص المسودة المقروءة (خالص — بيتختبر من غير sessionStorage). أي حقل غلط = المسودة كلها بتتجاهل. */
+export function parseCheckoutDraft(record: Record<string, unknown>): CheckoutDraft | null {
   const customerName = boundedText(record['customerName'], MAX_NAME)
   const customerPhone = boundedText(record['customerPhone'], MAX_PHONE)
   const governorate = boundedText(record['governorate'], MAX_GOVERNORATE)
@@ -97,7 +107,17 @@ export function readCheckoutDraft(): CheckoutDraft | null {
   ) {
     return null
   }
-  return { customerName, customerPhone, governorate, area, address, notes, showNotes }
+  // 0019 — ناقص = تخزين قديم (صالح). موجود لازم يبقى كود متطبّع بالظبط وفي حده، وإلا المسودة كلها بتتجاهل
+  const rawCoupon = record['couponCode']
+  let couponCode: string | undefined
+  if (rawCoupon !== undefined) {
+    const bounded = boundedText(rawCoupon, MAX_COUPON)
+    if (bounded === null || normalizeCouponCode(bounded) !== bounded) return null
+    couponCode = bounded
+  }
+  const draft: CheckoutDraft = { customerName, customerPhone, governorate, area, address, notes, showNotes }
+  if (couponCode !== undefined) draft.couponCode = couponCode
+  return draft
 }
 
 export function saveCheckoutDraft(draft: CheckoutDraft): void {
