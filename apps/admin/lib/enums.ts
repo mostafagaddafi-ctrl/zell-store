@@ -19,6 +19,14 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   cancelled: 'ملغي',
 }
 
+/** 0019 — الإلغاء نهائي (trigger orders_cancelled_final · 45080). نفس الرسالة في الواجهة والسيرفر. */
+export const ORDER_CANCELLED_FINAL_MESSAGE = 'الطلب ده ملغي، والإلغاء نهائي — مينفعش يرجع لأي حالة تانية.'
+
+/** الحالات اللي ينفع الطلب يتنقل لها من حالته. الملغي مالوش انتقالات. */
+export function statusTargets(status: OrderStatus): OrderStatus[] {
+  return status === 'cancelled' ? [] : ORDER_STATUSES.filter((item) => item !== status)
+}
+
 export const SECTION_KEYS = ['hero', 'products', 'how_it_works', 'faq'] as const
 export type SectionKey = (typeof SECTION_KEYS)[number]
 
