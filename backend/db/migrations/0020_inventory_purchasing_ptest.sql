@@ -707,22 +707,26 @@ begin
   if p_total is null or p_total < 0 then
     raise exception 'ZELL_INV_INVALID' using errcode = '45203', detail = 'allocate.total';
   end if;
-  for v_i in 1 .. v_n loop
+  -- مصفوفة فاضية: بتتعالج قبل أي loop (total = 0 ⇒ {} ، total > 0 ⇒ 45210)
+  if v_n = 0 then
+    if p_total = 0 then
+      return '{}'::bigint[];
+    end if;
+    raise exception 'ZELL_INV_ALLOCATION_BASE_ZERO' using errcode = '45210';
+  end if;
+  for v_i in select g from generate_series(1, v_n) as g loop
     if p_weights[v_i] is null or p_weights[v_i] < 0 then
       raise exception 'ZELL_INV_INVALID' using errcode = '45203', detail = 'allocate.weights';
     end if;
     v_sum := v_sum + p_weights[v_i];
   end loop;
   if p_total = 0 then
-    if v_n = 0 then
-      return '{}'::bigint[];
-    end if;
     return array_fill(0::bigint, array[v_n]);
   end if;
-  if v_n = 0 or v_sum = 0 then
+  if v_sum = 0 then
     raise exception 'ZELL_INV_ALLOCATION_BASE_ZERO' using errcode = '45210';
   end if;
-  for v_i in 1 .. v_n loop
+  for v_i in select g from generate_series(1, v_n) as g loop
     v_q[v_i] := div(p_total::numeric * p_weights[v_i], v_sum)::bigint;
     v_r[v_i] := mod(p_total::numeric * p_weights[v_i], v_sum);
   end loop;
@@ -868,7 +872,7 @@ begin
     if jsonb_typeof(v_arr) <> 'array' or jsonb_array_length(v_arr) > 50 then
       raise exception 'ZELL_INV_INVALID' using errcode = '45203', detail = 'charges';
     end if;
-    for v_i in 0 .. jsonb_array_length(v_arr) - 1 loop
+    for v_i in select (o.ord - 1)::integer from jsonb_array_elements(v_arr) with ordinality as o(elem, ord) order by o.ord loop
       v_item := v_arr -> v_i;
       if jsonb_typeof(v_item) <> 'object' then
         raise exception 'ZELL_INV_INVALID' using errcode = '45203', detail = 'charges[' || v_i || ']';
@@ -933,7 +937,7 @@ begin
     if jsonb_typeof(v_arr) <> 'array' or jsonb_array_length(v_arr) > 100 then
       raise exception 'ZELL_INV_INVALID' using errcode = '45203', detail = 'lines';
     end if;
-    for v_i in 0 .. jsonb_array_length(v_arr) - 1 loop
+    for v_i in select (o.ord - 1)::integer from jsonb_array_elements(v_arr) with ordinality as o(elem, ord) order by o.ord loop
       v_item := v_arr -> v_i;
       if jsonb_typeof(v_item) <> 'object' then
         raise exception 'ZELL_INV_INVALID' using errcode = '45203', detail = 'lines[' || v_i || ']';
@@ -1014,7 +1018,7 @@ begin
           raise exception 'ZELL_INV_INVALID' using errcode = '45203', detail = 'lines[' || v_i || '].rolls';
         end if;
         v_rolls := '[]'::jsonb;
-        for v_j in 0 .. jsonb_array_length(v_item -> 'rolls') - 1 loop
+        for v_j in select (o.ord - 1)::integer from jsonb_array_elements(v_item -> 'rolls') with ordinality as o(elem, ord) order by o.ord loop
           v_roll := (v_item -> 'rolls') -> v_j;
           if jsonb_typeof(v_roll) <> 'object' then
             raise exception 'ZELL_INV_INVALID' using errcode = '45203', detail = 'lines[' || v_i || '].rolls[' || v_j || ']';
@@ -1158,7 +1162,7 @@ begin
     if jsonb_typeof(v_arr) <> 'array' or jsonb_array_length(v_arr) > 100 then
       raise exception 'ZELL_INV_INVALID' using errcode = '45203', detail = 'lines';
     end if;
-    for v_i in 0 .. jsonb_array_length(v_arr) - 1 loop
+    for v_i in select (o.ord - 1)::integer from jsonb_array_elements(v_arr) with ordinality as o(elem, ord) order by o.ord loop
       v_item := v_arr -> v_i;
       if jsonb_typeof(v_item) <> 'object' then
         raise exception 'ZELL_INV_INVALID' using errcode = '45203', detail = 'lines[' || v_i || ']';
@@ -1263,7 +1267,7 @@ begin
           raise exception 'ZELL_INV_INVALID' using errcode = '45203', detail = 'lines[' || v_i || '].rolls';
         end if;
         v_rolls := '[]'::jsonb;
-        for v_j in 0 .. jsonb_array_length(v_item -> 'rolls') - 1 loop
+        for v_j in select (o.ord - 1)::integer from jsonb_array_elements(v_item -> 'rolls') with ordinality as o(elem, ord) order by o.ord loop
           v_roll := (v_item -> 'rolls') -> v_j;
           if jsonb_typeof(v_roll) <> 'object' then
             raise exception 'ZELL_INV_INVALID' using errcode = '45203', detail = 'lines[' || v_i || '].rolls[' || v_j || ']';
@@ -1914,7 +1918,7 @@ begin
   select coalesce(jsonb_object_agg(r.product_id::text, jsonb_build_object('name', r.name_ar, 'unit', r.sale_unit, 'base', r.base_width_cm, 'widths', to_jsonb(r.active_widths))), '{}'::jsonb)
     into v_prod
     from public.zell_inv_read_products(array(select distinct (e ->> 'productId')::integer from jsonb_array_elements(v_doc -> 'lines') e order by 1)) r;
-  for v_i in 0 .. jsonb_array_length(v_doc -> 'lines') - 1 loop
+  for v_i in select (o.ord - 1)::integer from jsonb_array_elements(v_doc -> 'lines') with ordinality as o(elem, ord) order by o.ord loop
     v_item := v_doc -> 'lines' -> v_i;
     v_p := v_prod -> (v_item ->> 'productId');
     if v_p is null or (v_p ->> 'unit') is distinct from (case when v_item ->> 'kind' = 'roll' then 'meter' else 'piece' end) then
@@ -2028,7 +2032,7 @@ begin
   select coalesce(jsonb_object_agg(r.product_id::text, jsonb_build_object('name', r.name_ar, 'unit', r.sale_unit, 'base', r.base_width_cm, 'widths', to_jsonb(r.active_widths))), '{}'::jsonb)
     into v_prod
     from public.zell_inv_read_products(array(select distinct (e ->> 'productId')::integer from jsonb_array_elements(v_doc -> 'lines') e order by 1)) r;
-  for v_i in 0 .. jsonb_array_length(v_doc -> 'lines') - 1 loop
+  for v_i in select (o.ord - 1)::integer from jsonb_array_elements(v_doc -> 'lines') with ordinality as o(elem, ord) order by o.ord loop
     v_item := v_doc -> 'lines' -> v_i;
     v_p := v_prod -> (v_item ->> 'productId');
     if v_p is null or (v_p ->> 'unit') is distinct from (case when v_item ->> 'kind' = 'roll' then 'meter' else 'piece' end) then
@@ -2170,7 +2174,7 @@ begin
   select coalesce(jsonb_object_agg(r.product_id::text, jsonb_build_object('name', r.name_ar, 'unit', r.sale_unit, 'base', r.base_width_cm, 'widths', to_jsonb(r.active_widths))), '{}'::jsonb)
     into v_prod
     from public.zell_inv_lock_products(array(select distinct (e ->> 'productId')::integer from jsonb_array_elements(v_lines) e order by 1)) r;
-  for v_i in 0 .. jsonb_array_length(v_lines) - 1 loop
+  for v_i in select (o.ord - 1)::integer from jsonb_array_elements(v_lines) with ordinality as o(elem, ord) order by o.ord loop
     v_item := v_lines -> v_i;
     v_p := v_prod -> (v_item ->> 'productId');
     if v_p is null or (v_p ->> 'unit') is distinct from (case when v_item ->> 'kind' = 'roll' then 'meter' else 'piece' end) then
@@ -2199,7 +2203,7 @@ begin
   end if;
 
   -- (1) قاعدة كل lot: الرول بالطول، والدفعة = إجمالي البند
-  for v_i in 0 .. v_n - 1 loop
+  for v_i in select g from generate_series(0, v_n - 1) as g loop
     v_item := v_lines -> v_i;
     v_total := (v_item ->> 'lineTotalPiastres')::bigint;
     if v_item ->> 'kind' = 'roll' then
@@ -2223,14 +2227,14 @@ begin
   end if;
 
   v_k := 0;
-  for v_i in 0 .. v_n - 1 loop
+  for v_i in select g from generate_series(0, v_n - 1) as g loop
     v_item := v_lines -> v_i;
     v_p := v_prod -> (v_item ->> 'productId');
     v_total := (v_item ->> 'lineTotalPiastres')::bigint;
     v_cnt := case when v_item ->> 'kind' = 'roll' then jsonb_array_length(v_item -> 'rolls') else 1 end;
     v_line_ext := 0;
     v_line_dis := 0;
-    for v_j in 1 .. v_cnt loop
+    for v_j in select g from generate_series(1, v_cnt) as g loop
       v_line_ext := v_line_ext + v_ext[v_k + v_j];
       v_line_dis := v_line_dis + v_dis[v_k + v_j];
     end loop;
@@ -2249,7 +2253,7 @@ begin
       case when v_item ->> 'kind' = 'batch' then (v_item ->> 'quantity')::integer end,
       v_total, v_item ->> 'zeroCostReason', v_line_ext, v_line_dis, v_total + v_line_ext - v_line_dis)
     returning id into v_line_id;
-    for v_j in 1 .. v_cnt loop
+    for v_j in select g from generate_series(1, v_cnt) as g loop
       v_k := v_k + 1;
       if v_item ->> 'kind' = 'roll' then
         v_seq := nextval('public.roll_lot_seq');
@@ -2276,7 +2280,7 @@ begin
     end loop;
   end loop;
 
-  for v_i in 0 .. jsonb_array_length(v_charges) - 1 loop
+  for v_i in select (o.ord - 1)::integer from jsonb_array_elements(v_charges) with ordinality as o(elem, ord) order by o.ord loop
     v_item := v_charges -> v_i;
     insert into public.purchase_doc_charges (doc_id, charge_no, charge_kind, amount_piastres, reference, note)
     values (p_doc_id, v_i + 1, v_item ->> 'kind', (v_item ->> 'amountPiastres')::bigint,
@@ -2529,7 +2533,7 @@ begin
   select coalesce(jsonb_object_agg(r.product_id::text, jsonb_build_object('name', r.name_ar, 'unit', r.sale_unit, 'base', r.base_width_cm, 'widths', to_jsonb(r.active_widths))), '{}'::jsonb)
     into v_prod
     from public.zell_inv_read_products(array(select distinct (e ->> 'productId')::integer from jsonb_array_elements(v_doc -> 'lines') e order by 1)) r;
-  for v_i in 0 .. jsonb_array_length(v_doc -> 'lines') - 1 loop
+  for v_i in select (o.ord - 1)::integer from jsonb_array_elements(v_doc -> 'lines') with ordinality as o(elem, ord) order by o.ord loop
     v_item := v_doc -> 'lines' -> v_i;
     v_p := v_prod -> (v_item ->> 'productId');
     if v_p is null or (v_p ->> 'unit') is distinct from (case when v_item ->> 'kind' = 'roll' then 'meter' else 'piece' end) then
@@ -2630,7 +2634,7 @@ begin
   select coalesce(jsonb_object_agg(r.product_id::text, jsonb_build_object('name', r.name_ar, 'unit', r.sale_unit, 'base', r.base_width_cm, 'widths', to_jsonb(r.active_widths))), '{}'::jsonb)
     into v_prod
     from public.zell_inv_read_products(array(select distinct (e ->> 'productId')::integer from jsonb_array_elements(v_doc -> 'lines') e order by 1)) r;
-  for v_i in 0 .. jsonb_array_length(v_doc -> 'lines') - 1 loop
+  for v_i in select (o.ord - 1)::integer from jsonb_array_elements(v_doc -> 'lines') with ordinality as o(elem, ord) order by o.ord loop
     v_item := v_doc -> 'lines' -> v_i;
     v_p := v_prod -> (v_item ->> 'productId');
     if v_p is null or (v_p ->> 'unit') is distinct from (case when v_item ->> 'kind' = 'roll' then 'meter' else 'piece' end) then
@@ -2750,7 +2754,7 @@ begin
   select coalesce(jsonb_object_agg(r.product_id::text, jsonb_build_object('name', r.name_ar, 'unit', r.sale_unit, 'base', r.base_width_cm, 'widths', to_jsonb(r.active_widths))), '{}'::jsonb)
     into v_prod
     from public.zell_inv_lock_products(array(select distinct (e ->> 'productId')::integer from jsonb_array_elements(v_lines) e order by 1)) r;
-  for v_i in 0 .. jsonb_array_length(v_lines) - 1 loop
+  for v_i in select (o.ord - 1)::integer from jsonb_array_elements(v_lines) with ordinality as o(elem, ord) order by o.ord loop
     v_item := v_lines -> v_i;
     v_p := v_prod -> (v_item ->> 'productId');
     if v_p is null or (v_p ->> 'unit') is distinct from (case when v_item ->> 'kind' = 'roll' then 'meter' else 'piece' end) then
@@ -2770,7 +2774,7 @@ begin
     from jsonb_array_elements(v_lines) e;
 
   v_k := 0;
-  for v_i in 0 .. v_n - 1 loop
+  for v_i in select g from generate_series(0, v_n - 1) as g loop
     v_item := v_lines -> v_i;
     v_p := v_prod -> (v_item ->> 'productId');
     v_total := (v_item ->> 'lineTotalPiastres')::bigint;
@@ -2800,7 +2804,7 @@ begin
       case when v_item ->> 'kind' = 'batch' then (v_item ->> 'quantity')::integer end,
       v_total, v_item ->> 'zeroCostReason', v_estimated, v_item ->> 'estimateNote')
     returning id into v_line_id;
-    for v_j in 1 .. v_cnt loop
+    for v_j in select g from generate_series(1, v_cnt) as g loop
       v_k := v_k + 1;
       if v_item ->> 'kind' = 'roll' then
         v_seq := nextval('public.roll_lot_seq');
@@ -3247,7 +3251,7 @@ begin
   select coalesce(jsonb_object_agg(r.product_id::text, jsonb_build_object('name', r.name_ar, 'unit', r.sale_unit, 'base', r.base_width_cm, 'widths', to_jsonb(r.active_widths))), '{}'::jsonb)
     into v_prod
     from public.zell_inv_read_products(array(select distinct (e ->> 'productId')::integer from jsonb_array_elements(v_doc -> 'lines') e order by 1)) r;
-  for v_i in 0 .. jsonb_array_length(v_doc -> 'lines') - 1 loop
+  for v_i in select (o.ord - 1)::integer from jsonb_array_elements(v_doc -> 'lines') with ordinality as o(elem, ord) order by o.ord loop
     v_item := v_doc -> 'lines' -> v_i;
     v_p := v_prod -> (v_item ->> 'productId');
     if v_p is null or (v_p ->> 'unit') is distinct from (case when v_item ->> 'kind' = 'roll' then 'meter' else 'piece' end) then
@@ -3264,7 +3268,7 @@ begin
   v_bases := '{}';
   v_lot_line := '{}';
   v_lot_seq := '{}';
-  for v_i in 0 .. jsonb_array_length(v_doc -> 'lines') - 1 loop
+  for v_i in select (o.ord - 1)::integer from jsonb_array_elements(v_doc -> 'lines') with ordinality as o(elem, ord) order by o.ord loop
     v_item := (v_doc -> 'lines') -> v_i;
     v_total := (v_item ->> 'lineTotalPiastres')::bigint;
     if v_item ->> 'kind' = 'roll' then
@@ -3292,7 +3296,7 @@ begin
   v_ext := public.zell_inv_allocate_lr(v_e, v_bases);
   v_dis := public.zell_inv_allocate_lr(v_d, v_bases);
   v_out := '[]'::jsonb;
-  for v_j in 1 .. coalesce(array_length(v_bases, 1), 0) loop
+  for v_j in select g from generate_series(1, coalesce(array_length(v_bases, 1), 0)) as g loop
     v_out := v_out || jsonb_build_array(jsonb_build_object(
       'lineNo', v_lot_line[v_j], 'lotSequence', v_lot_seq[v_j], 'baseCostPiastres', v_bases[v_j],
       'allocatedExtrasPiastres', v_ext[v_j], 'allocatedDiscountPiastres', v_dis[v_j],
@@ -3433,7 +3437,7 @@ begin
   select coalesce(jsonb_object_agg(r.product_id::text, jsonb_build_object('name', r.name_ar, 'unit', r.sale_unit, 'base', r.base_width_cm, 'widths', to_jsonb(r.active_widths))), '{}'::jsonb)
     into v_prod
     from public.zell_inv_read_products(array(select distinct (e ->> 'productId')::integer from jsonb_array_elements(v_doc -> 'lines') e order by 1)) r;
-  for v_i in 0 .. jsonb_array_length(v_doc -> 'lines') - 1 loop
+  for v_i in select (o.ord - 1)::integer from jsonb_array_elements(v_doc -> 'lines') with ordinality as o(elem, ord) order by o.ord loop
     v_item := v_doc -> 'lines' -> v_i;
     v_p := v_prod -> (v_item ->> 'productId');
     if v_p is null or (v_p ->> 'unit') is distinct from (case when v_item ->> 'kind' = 'roll' then 'meter' else 'piece' end) then
@@ -3450,7 +3454,7 @@ begin
   v_bases := '{}';
   v_lot_line := '{}';
   v_lot_seq := '{}';
-  for v_i in 0 .. jsonb_array_length(v_doc -> 'lines') - 1 loop
+  for v_i in select (o.ord - 1)::integer from jsonb_array_elements(v_doc -> 'lines') with ordinality as o(elem, ord) order by o.ord loop
     v_item := (v_doc -> 'lines') -> v_i;
     v_total := (v_item ->> 'lineTotalPiastres')::bigint;
     if v_item ->> 'kind' = 'roll' then
@@ -3469,7 +3473,7 @@ begin
   v_ext := array_fill(0::bigint, array[coalesce(array_length(v_bases, 1), 0)]);
   v_dis := v_ext;
   v_out := '[]'::jsonb;
-  for v_j in 1 .. coalesce(array_length(v_bases, 1), 0) loop
+  for v_j in select g from generate_series(1, coalesce(array_length(v_bases, 1), 0)) as g loop
     v_out := v_out || jsonb_build_array(jsonb_build_object(
       'lineNo', v_lot_line[v_j], 'lotSequence', v_lot_seq[v_j], 'baseCostPiastres', v_bases[v_j],
       'allocatedExtrasPiastres', v_ext[v_j], 'allocatedDiscountPiastres', v_dis[v_j],
@@ -4764,6 +4768,75 @@ exception when others then
 end
 $pt_d$;
 
+
+-- ═══ O. المصفوفات الفاضية (charges = [] ، lines = [] ، allocate_lr على '{}') ═══
+do $pt_o$
+declare
+  v_r jsonb;
+  v_id bigint;
+  v_a jsonb;
+  v_pc bigint := pg_temp.ci('F_PIECE');
+  v_doc jsonb;
+begin
+  set local role zell_inventory_definer;
+  v_a := to_jsonb(public.zell_inv_allocate_lr(0, '{}'::bigint[]));
+  reset role;
+  perform pg_temp.ok('O', 'allocate_lr(0, ''{}'') = {}', v_a = '[]'::jsonb, v_a::text);
+  perform pg_temp.expect_sql('O', 'allocate_lr(1, ''{}'') → 45210',
+    'select public.zell_inv_allocate_lr(1, ''{}''::bigint[])', 'zell_inventory_definer', array['45210']);
+
+  -- شراء من غير مفتاح charges خالص
+  v_doc := pg_temp.pdoc(jsonb_build_array(pg_temp.batch(v_pc, 1, 700))) - 'charges';
+  v_r := pg_temp.create_purchase(v_doc);
+  v_id := (v_r ->> 'docId')::bigint;
+  perform pg_temp.ok('O', 'purchase without charges key: draft saved with charges = [] and extras 0',
+    (v_r -> 'totals' ->> 'extrasTotalPiastres')::bigint = 0
+    and exists (select 1 from public.purchase_docs d where d.id = v_id and d.charge_count = 0
+                 and d.draft_payload -> 'charges' = '[]'::jsonb));
+  v_r := pg_temp.post_purchase(v_id, 1);
+  perform pg_temp.ok('O', 'post without charge rows: posted, 0 charge rows, landed = line total',
+    v_r ->> 'status' = 'posted'
+    and (select count(*) from public.purchase_doc_charges c where c.doc_id = v_id) = 0
+    and exists (select 1 from public.purchase_docs d where d.id = v_id and d.charge_count = 0
+                 and d.extras_total_piastres = 0 and d.total_cost_piastres = 700)
+    and (v_r -> 'lots' -> 0 ->> 'landedCostPiastres')::bigint = 700);
+
+  -- شراء بـ charges = [] صريحة
+  v_r := pg_temp.create_purchase(pg_temp.pdoc(jsonb_build_array(pg_temp.batch(v_pc, 2, 900)), '[]'::jsonb));
+  v_r := pg_temp.post_purchase((v_r ->> 'docId')::bigint, 1);
+  perform pg_temp.ok('O', 'purchase with explicit charges = [] posts with zero extras',
+    v_r ->> 'status' = 'posted' and (v_r -> 'totals' ->> 'extrasTotalPiastres')::bigint = 0
+    and (v_r -> 'totals' ->> 'totalCostPiastres')::bigint = 900);
+
+  -- مسودة شراء فاضية (lines = [] و charges = [])
+  v_r := pg_temp.create_purchase(pg_temp.pdoc('[]'::jsonb));
+  perform pg_temp.ok('O', 'empty purchase draft saved (0 lines, totals 0)',
+    v_r ->> 'status' = 'draft' and (v_r -> 'totals' ->> 'totalCostPiastres')::bigint = 0
+    and exists (select 1 from public.purchase_docs d where d.id = (v_r ->> 'docId')::bigint and d.line_count = 0));
+  perform pg_temp.ok('O', 'empty purchase draft cannot be posted → 45209', pg_temp.epost((v_r ->> 'docId')::bigint, 1) = '45209');
+
+  -- مسودة رصيد أول فاضية
+  v_r := pg_temp.create_opening(pg_temp.odoc('[]'::jsonb));
+  perform pg_temp.ok('O', 'empty opening draft saved (0 lines, totals 0)',
+    v_r ->> 'status' = 'draft' and (v_r -> 'totals' ->> 'itemsTotalPiastres')::bigint = 0
+    and (v_r -> 'totals' ->> 'estimatedTotalPiastres')::bigint = 0);
+  perform pg_temp.expect('O', 'empty opening draft cannot be posted → 45209',
+    pg_catalog.format('public.zell_inv_post_opening(%s, gen_random_uuid(), %s, 1)', pg_temp.o(), v_r ->> 'docId'), array['45209']);
+
+  -- معاينة فاضية
+  v_r := pg_temp.rpc(pg_catalog.format('public.zell_inv_preview_purchase(%s, %s)', pg_temp.o(), pg_temp.j(pg_temp.pdoc('[]'::jsonb))));
+  perform pg_temp.ok('O', 'empty purchase preview: lots [] and totals 0',
+    v_r -> 'lots' = '[]'::jsonb and (v_r -> 'totals' ->> 'totalCostPiastres')::bigint = 0);
+  perform pg_temp.expect('O', 'empty purchase preview with charges → 45210',
+    pg_catalog.format('public.zell_inv_preview_purchase(%s, %s)', pg_temp.o(),
+                      pg_temp.j(pg_temp.pdoc('[]'::jsonb, jsonb_build_array(pg_temp.charge('transport', 100))))), array['45210']);
+  v_r := pg_temp.rpc(pg_catalog.format('public.zell_inv_preview_opening(%s, %s)', pg_temp.o(), pg_temp.j(pg_temp.odoc('[]'::jsonb))));
+  perform pg_temp.ok('O', 'empty opening preview: lots [] and totals 0',
+    v_r -> 'lots' = '[]'::jsonb and (v_r -> 'totals' ->> 'itemsTotalPiastres')::bigint = 0);
+exception when others then
+  perform pg_temp.ok('O', 'group crashed', false, sqlstate || ' ' || sqlerrm);
+end
+$pt_o$;
 
 -- ═══ E. دورة الحياة واللقطات ═══
 do $pt_e$
