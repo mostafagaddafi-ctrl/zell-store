@@ -8,6 +8,11 @@
  *
  * 🔒 مفيش حذف نهائي: الكوبون بيتوقف بس (is_active = false).
  * 🔒 الكود والنوع مابيتغيروش بعد أول استخدام (أي أوردر بيشاور على الكوبون، حتى الملغي).
+ *
+ * ⚠️ known limitation (v1): لو أوردر بالكوبون اتسجّل في نفس لحظة حفظ تغيير الكود/النوع، التغيير ممكن
+ *    يعدّي (فحص المراجع قبل الكتابة مش في نفس المعاملة). مقبول: الأوردر بيحفظ لقطة الكوبون كاملة،
+ *    فالحسابات مابتبوظش.
+ * 📝 refactor لاحق: الملف كبر (~500 سطر) — يتقسم (تحقق · عرض · نموذج · لقطة الأوردر) في PR منفصل.
  */
 
 import {
@@ -219,8 +224,13 @@ export type CouponRow = {
   internal_note: string | null
   created_at: string
   updated_at: string
-  /** orders(count) مع orders.status=neq.cancelled — طلب واحد للصفحة كلها (مفيش N+1). */
-  orders?: Array<{ count: number }>
+  /**
+   * عدّادين في نفس طلب PostgREST (مفيش N+1) — نفس العلاقة orders باسمين:
+   *   uses:orders(count) مع uses.status=neq.cancelled → غير الملغية (العرض وحدود الاستخدام)
+   *   references:orders(count) من غير فلتر          → كل الأوردرات، حتى الملغية (قفل الكود والنوع)
+   */
+  uses?: Array<{ count: number }>
+  references?: Array<{ count: number }>
 }
 
 export type AdminCoupon = {
@@ -239,12 +249,23 @@ export type AdminCoupon = {
   internalNote: string
   /** أوردرات غير ملغية بس — للعرض، مفيش عدّاد بيتعدّل. */
   uses: number
+  /** كل الأوردرات اللي بتشاور على الكوبون، حتى الملغية — أكتر من صفر = الكود والنوع مقفولين. */
+  references: number
   createdAt: string
   updatedAt: string
 }
 
+function embeddedCount(value: Array<{ count: number }> | undefined): number {
+  const counted = value?.[0]?.count
+  return typeof counted === 'number' && Number.isSafeInteger(counted) && counted >= 0 ? counted : 0
+}
+
+/** الكود والنوع مقفولين في النموذج — نفس قاعدة السيرفر (كل المراجع، حتى الملغية). */
+export function couponIdentityLocked(coupon: { references: number }): boolean {
+  return coupon.references > 0
+}
+
 export function toAdminCoupon(row: CouponRow): AdminCoupon {
-  const counted = row.orders?.[0]?.count
   return {
     id: String(row.id),
     code: row.code,
@@ -259,7 +280,8 @@ export function toAdminCoupon(row: CouponRow): AdminCoupon {
     maxUsesPerPhone: row.max_uses_per_phone,
     isActive: row.is_active,
     internalNote: row.internal_note ?? '',
-    uses: typeof counted === 'number' && Number.isSafeInteger(counted) && counted >= 0 ? counted : 0,
+    uses: embeddedCount(row.uses),
+    references: embeddedCount(row.references),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
