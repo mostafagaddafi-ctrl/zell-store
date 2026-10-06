@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { createCouponAction, updateCouponAction } from '../../lib/couponActions'
 import {
   COUPON_NOTE_MAX,
+  couponIdentityLocked,
   couponToForm,
   emptyCouponForm,
   formToCouponInput,
@@ -39,7 +40,8 @@ export function CouponForm({
   formRef.current = form
 
   const busy = state === 'saving'
-  const identityLocked = coupon !== null && coupon.uses > 0
+  // نفس قاعدة السيرفر: أي أوردر بيشاور على الكوبون (حتى الملغي) بيقفل الكود والنوع
+  const identityLocked = coupon !== null && couponIdentityLocked(coupon)
   const lockedHint = 'مقفول بعد أول استخدام'
 
   function set(patch: Partial<CouponFormState>) {
