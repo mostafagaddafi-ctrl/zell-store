@@ -16,7 +16,7 @@ check_dir() {
     case "$base" in *_zell_erp_*) continue ;; esac
     n=$((n + 1))
     code="$(sed -e 's/--.*$//' "$f")"
-    if printf '%s\n' "$code" | grep -qE '(^|[^a-z0-9_])zell_|(^|[^a-z0-9_.])(orders|order_items|admin_users|settings|products|product_widths)([^a-z0-9_]|$)'; then
+    if printf '%s\n' "$code" | grep -qE '(^|[^a-z0-9_])zell_|(^|[^a-z0-9_])(orders|order_items|admin_users|settings|products|product_widths)([^a-z0-9_]|$)'; then
       echo "BOUNDARY FAIL $base references application objects"
       bad=1
     fi
