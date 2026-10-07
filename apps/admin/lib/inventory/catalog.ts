@@ -2,7 +2,8 @@
  * كتالوج نماذج المخزون (المنتجات + العروض المسموحة) — منطق خالص.
  *
  * القراءة نفسها في lib/data/reads.ts (readInventoryCatalog): طلبين ثابتين بـ exactCount، من
- * جداول الكتالوج (products / product_widths) — مش جداول 0020، ومن غير أي عمود سعر أو تكلفة.
+ * جداول الكتالوج (products / product_widths) — مش جداول 0020. فيها سعر البيع العام بس (PR-D: مرجعية
+ * للمالك جنب التكلفة، وبيتعدّل من صفحة المنتج بس)، ومن غير أي عمود تكلفة.
  *
  * 🔒 منع الكتالوج الناقص بصمت (ملحق المراجعة · 1):
  *   • total = null            → uncertain (مش مؤكد)
@@ -24,11 +25,16 @@ export type CatalogProductRow = {
   name_ar: string
   sale_unit: string
   width_cm: number | null
+  price_per_meter_piastres: number
   is_active: boolean
   sort_order: number
 }
 
-export type CatalogWidthRow = { product_id: number; width_cm: number }
+/** عروض product_widths **الفعالة بس** (القراءة بتفلتر is_active). */
+export type CatalogWidthRow = { product_id: number; width_cm: number; price_per_meter_piastres: number }
+
+/** عرض إضافي فعّال بسعره (سعر البيع للمتر في العرض ده). */
+export type WidthOption = { widthCm: number; pricePerMeterPiastres: number }
 
 export type CatalogCompleteness = 'complete' | 'uncertain' | 'incomplete'
 
@@ -40,7 +46,11 @@ export type CatalogProduct = {
   saleUnit: SaleUnit
   isActive: boolean
   baseWidthCm: number | null
+  /** سعر البيع الحالي: للمتر في العرض الأساسي، أو سعر القطعة. */
+  basePricePiastres: number
   allowedWidthsCm: number[]
+  /** العروض الإضافية الفعالة بأسعارها (الموقوفة مش هنا). */
+  widthOptions: WidthOption[]
 }
 
 export type InventoryCatalog = {
@@ -83,11 +93,13 @@ export function buildCatalog(
   widths: readonly CatalogWidthRow[],
   status: CatalogCompleteness,
 ): InventoryCatalog {
-  const byProduct = new Map<number, number[]>()
+  const byProduct = new Map<number, WidthOption[]>()
   for (const row of widths) {
+    if (!isPositiveWidth(row.width_cm)) continue
+    const option = { widthCm: row.width_cm, pricePerMeterPiastres: row.price_per_meter_piastres }
     const list = byProduct.get(row.product_id)
-    if (list) list.push(row.width_cm)
-    else byProduct.set(row.product_id, [row.width_cm])
+    if (list) list.push(option)
+    else byProduct.set(row.product_id, [option])
   }
 
   const out: CatalogProduct[] = []
@@ -97,13 +109,19 @@ export function buildCatalog(
       skipped += 1
       continue
     }
+    const options = [...(byProduct.get(row.id) ?? [])].sort((a, b) => a.widthCm - b.widthCm)
     out.push({
       id: row.id,
       nameAr: row.name_ar,
       saleUnit: row.sale_unit,
       isActive: row.is_active,
       baseWidthCm: row.width_cm,
-      allowedWidthsCm: allowedWidths(row.width_cm, byProduct.get(row.id) ?? []),
+      basePricePiastres: row.price_per_meter_piastres,
+      allowedWidthsCm: allowedWidths(
+        row.width_cm,
+        options.map((option) => option.widthCm),
+      ),
+      widthOptions: options,
     })
   }
 
