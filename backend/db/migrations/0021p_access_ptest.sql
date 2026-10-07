@@ -26,6 +26,11 @@ begin
   if pg_catalog.current_setting('zell.ptest_profile', true) not in ('production', 'ci') then
     raise exception 'ZELL_0021P_PTEST_PROFILE';
   end if;
+  -- الـ ptest بيحاكي PostgREST بـ SET ROLE (زي ما Supabase بتوصّي لاختبار RLS)، فلازم postgres يقدر يبدّل للأدوار دي.
+  if not pg_catalog.pg_has_role('postgres', 'authenticated', 'SET') or not pg_catalog.pg_has_role('postgres', 'anon', 'SET')
+     or not pg_catalog.pg_has_role('postgres', 'service_role', 'SET') then
+    raise exception 'ZELL_0021P_PTEST_CALLER_MODEL';
+  end if;
 end
 $zguard$;
 
@@ -2122,7 +2127,8 @@ begin
   -- المطابقة بجلسة المالك (claims محلية جوه المعاملة بس، وبتتمسح بعدها).
   perform pg_catalog.set_config('request.jwt.claims',
     pg_catalog.jsonb_build_object('sub', v_owner, 'role', 'authenticated')::text, true);
-  set local role authenticated;
+  -- كـ مالك الدالة (من غير ما نعتمد على SET ROLE authenticated جوه الـ migration)؛ الصلاحية نفسها اتفحصت فوق.
+  set local role zell_erp_definer;
   v_r := public.zell_erp_access_parity();
   reset role;
   perform pg_catalog.set_config('request.jwt.claims', '', true);
