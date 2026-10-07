@@ -77,7 +77,8 @@ begin
 end
 $r$;
 grant anon, authenticated, service_role to authenticator;
-grant service_role to postgres;
+-- زي Supabase: postgres يقدر SET ROLE للأدوار دي (اختبار RLS والـ ptest).
+grant anon, authenticated, service_role to postgres;
 SQL
 }
 
