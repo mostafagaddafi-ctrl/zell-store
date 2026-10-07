@@ -49,8 +49,6 @@ const EXTRA_KEYS: Readonly<Record<WriteOp, readonly string[]>> = {
   void: ['voidedLots'],
 }
 
-const BASE_KEYS = ['docId', 'docNo', 'status', 'version', 'replayed']
-
 function isRec(value: unknown): value is Rec {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -113,7 +111,7 @@ function postedLotsOk(kind: DocKind, lots: unknown, expectedTotal: number): bool
 export function isDocWriteResult(kind: DocKind, op: WriteOp, value: unknown): value is DocWriteResult {
   if (!isRec(value)) return false
   const extra = EXTRA_KEYS[op]
-  if (!exactKeys(value, ['docId', 'docNo', 'status', 'version', ...extra], ['replayed'].concat(BASE_KEYS.filter(() => false)))) return false
+  if (!exactKeys(value, ['docId', 'docNo', 'status', 'version', ...extra], ['replayed'])) return false
   const docNo = value['docNo']
   if (!int(value['docId'], 1) || typeof docNo !== 'string' || !DOC_NO[kind].test(docNo)) return false
   if (value['status'] !== EXPECTED_STATUS[op] || !int(value['version'], 1, 2147483647)) return false
