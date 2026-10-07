@@ -1,6 +1,12 @@
 import 'server-only'
 
-import { CATALOG_INCOMPLETE_MESSAGE, catalogBlocksDocuments, type CatalogProduct, type InventoryCatalog } from '../inventory/catalog'
+import {
+  CATALOG_INCOMPLETE_MESSAGE,
+  catalogBlocksDocuments,
+  loadViewCatalogWith,
+  type CatalogProduct,
+  type InventoryCatalog,
+} from '../inventory/catalog'
 import type { InventoryLocationOption } from '../inventory/purchases'
 import type { InventorySupplier } from '../inventory/suppliers'
 import { loadLocationOptions, loadSupplierOptions } from '../mutations/inventoryPurchases'
@@ -79,13 +85,8 @@ export async function loadOpeningEditorData(actor: string): Promise<OpeningEdito
 
 /**
  * قايمة المنتجات للعرض بس (سعر البيع الحالي في المستند المرحّل) — نفس قراءة الكتالوج (طلبين).
- * فشل القراءة → null، والعرض بيكمّل من غير الأسعار. منتج مش موجود فيها → «—».
+ * فشل القراءة أو كتالوج incomplete/uncertain → null (loadViewCatalogWith)، والعرض بيكمّل من غير الأسعار.
  */
-export async function loadViewCatalog(): Promise<CatalogProduct[] | null> {
-  try {
-    const catalog = await readInventoryCatalog()
-    return catalog.products
-  } catch {
-    return null
-  }
+export function loadViewCatalog(): Promise<CatalogProduct[] | null> {
+  return loadViewCatalogWith(readInventoryCatalog)
 }
