@@ -7,7 +7,7 @@
 
 import type { InventoryDocStatus } from './labels'
 import { validateOpeningDoc, type OpeningDocPayload } from './openingForm'
-import { isPreviewLot, isPurchaseWriteResult, linesAndLotsConsistent, type PreviewLot, type PurchaseWriteResult } from './purchases'
+import { isPreviewLot, linesAndLotsConsistent, type PreviewLot, type PurchaseWriteResult } from './purchases'
 
 export const OPENINGS_PAGE_SIZE = 25
 
@@ -80,6 +80,7 @@ export type OpeningPreview = {
   lots: PreviewLot[]
 }
 
+/** نتيجة كتابة رصيد أول المدة — الفحص بالحارس المخصص لكل عملية (lib/inventory/writeResults.ts). */
 export type OpeningWriteResult = PurchaseWriteResult
 
 // ── أدوات ─────────────────────────────────────────────────────────
@@ -279,6 +280,3 @@ export function isOpeningPreview(value: unknown): value is OpeningPreview {
   )
 }
 
-export function isOpeningWriteResult(value: unknown): value is OpeningWriteResult {
-  return isPurchaseWriteResult(value)
-}
