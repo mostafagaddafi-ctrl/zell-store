@@ -23,7 +23,7 @@ export default async function NewOpeningPage() {
       {data.ok ? (
         <OpeningEditor draft={null} catalog={data.catalog} locations={data.locations} today={cairoToday(new Date())} />
       ) : (
-        <EditorBlocked reasons={data.reasons} />
+        <EditorBlocked reasons={data.reasons} backHref="/inventory/openings" backLabel="رجوع لرصيد أول المدة" />
       )}
     </>
   )
