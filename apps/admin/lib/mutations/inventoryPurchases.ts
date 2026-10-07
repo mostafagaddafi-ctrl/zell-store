@@ -12,13 +12,14 @@ import {
   isPurchasesPage,
   parsePurchaseDetail,
   type InventoryLocationOption,
+  type LocationsPage,
   type PurchaseDetail,
   type PurchasePreview,
   type PurchaseWriteResult,
   type PurchasesPage,
 } from '../inventory/purchases'
 import { callInventory, callInventoryWith } from '../inventory/rpc'
-import { isSuppliersPage, type InventorySupplier } from '../inventory/suppliers'
+import { isSuppliersPage, type InventorySupplier, type SuppliersPage } from '../inventory/suppliers'
 
 /**
  * فواتير الشراء (0020-UI · PR-B) — سيرفر بس.
@@ -78,7 +79,7 @@ export async function loadSupplierOptions(
   const items: InventorySupplier[] = []
   let after: string | null = null
   for (let page = 0; page < OPTION_PAGES; page += 1) {
-    const result = await callInventory(
+    const result: InventoryResult<SuppliersPage> = await callInventory(
       'listSuppliers',
       { p_actor: actor, p_include_inactive: includeInactive, p_limit: OPTION_PAGE_SIZE, p_after_name_key: after },
       isSuppliersPage,
@@ -96,7 +97,7 @@ export async function loadLocationOptions(actor: string): Promise<InventoryResul
   const items: InventoryLocationOption[] = []
   let after: number | null = null
   for (let page = 0; page < OPTION_PAGES; page += 1) {
-    const result = await callInventory(
+    const result: InventoryResult<LocationsPage> = await callInventory(
       'listLocations',
       { p_actor: actor, p_include_inactive: false, p_limit: OPTION_PAGE_SIZE, p_after_id: after },
       isLocationsPage,
