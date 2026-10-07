@@ -76,3 +76,16 @@ export async function loadOpeningEditorData(actor: string): Promise<OpeningEdito
   }
   return { ok: true, catalog: catalog.products, locations: locations.data.items }
 }
+
+/**
+ * قايمة المنتجات للعرض بس (سعر البيع الحالي في المستند المرحّل) — نفس قراءة الكتالوج (طلبين).
+ * فشل القراءة → null، والعرض بيكمّل من غير الأسعار. منتج مش موجود فيها → «—».
+ */
+export async function loadViewCatalog(): Promise<CatalogProduct[] | null> {
+  try {
+    const catalog = await readInventoryCatalog()
+    return catalog.products
+  } catch {
+    return null
+  }
+}
