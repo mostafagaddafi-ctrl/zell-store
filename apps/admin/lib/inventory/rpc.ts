@@ -31,6 +31,15 @@ const FUNCTIONS = {
   postPurchase: 'zell_inv_post_purchase',
   discardPurchase: 'zell_inv_discard_purchase',
   voidPurchase: 'zell_inv_void_purchase',
+  listOpenings: 'zell_inv_list_openings',
+  getOpening: 'zell_inv_get_opening',
+  previewOpening: 'zell_inv_preview_opening',
+  createOpening: 'zell_inv_create_opening',
+  updateOpening: 'zell_inv_update_opening',
+  postOpening: 'zell_inv_post_opening',
+  discardOpening: 'zell_inv_discard_opening',
+  voidOpening: 'zell_inv_void_opening',
+  listLots: 'zell_inv_list_lots',
 } as const
 
 export type InventoryFunction = keyof typeof FUNCTIONS

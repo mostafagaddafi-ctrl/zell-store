@@ -404,7 +404,16 @@ export function payloadToForm(doc: PurchaseDocPayload, newKey: () => string): Pu
       reference: charge.reference ?? '',
       note: charge.note ?? '',
     })),
-    lines: doc.lines.map((line) =>
+    lines: payloadLinesToForm(doc.lines, newKey),
+  }
+}
+
+/**
+ * بنود payload محفوظة → بنود نموذج (مشتركة بين الشراء ورصيد أول المدة — بنود رصيد أول المدة فيها
+ * نفس الحقول دي وزيادة).
+ */
+export function payloadLinesToForm(lines: readonly PurchaseLinePayload[], newKey: () => string): LineForm[] {
+  return lines.map((line) =>
       line.kind === 'roll'
         ? {
             key: newKey(),
@@ -423,8 +432,7 @@ export function payloadToForm(doc: PurchaseDocPayload, newKey: () => string): Pu
             total: textFromPiastres(line.lineTotalPiastres),
             zeroCostReason: line.zeroCostReason ?? '',
           },
-    ),
-  }
+    )
 }
 
 function optionalId(text: string): number | null | undefined {
@@ -466,9 +474,33 @@ export function buildPurchasePayload(
     charges.push({ kind: charge.kind, amountPiastres: amount.value, reference: charge.reference, note: charge.note })
   }
 
-  const lines: unknown[] = []
-  for (let i = 0; i < form.lines.length; i += 1) {
-    const line = form.lines[i] as LineForm
+  const lines = formLinesToPayload(form.lines, catalog)
+  if (!lines.ok) return lines
+
+  return validatePurchaseDoc({
+    supplierId,
+    supplierRef: form.supplierRef,
+    locationId,
+    docDate,
+    note: form.note,
+    charges,
+    supplierDiscountPiastres: discount.value,
+    lines: lines.value,
+  })
+}
+
+/**
+ * بنود النموذج → بنود payload (من غير تحقق بنيوي نهائي — المستدعي بيعدّيها على validate*Doc).
+ * بيفحص الكتالوج: المنتج موجود، ووحدة البيع مع نوع البند (لفّات للمتر، قطع للعدد)، والعرض المسموح.
+ * مشتركة بين الشراء ورصيد أول المدة. ترتيب الناتج = ترتيب البنود في النموذج.
+ */
+export function formLinesToPayload(
+  formLines: readonly LineForm[],
+  catalog: ReadonlyMap<number, CatalogProduct>,
+): Parsed<Array<Record<string, unknown>>> {
+  const lines: Array<Record<string, unknown>> = []
+  for (let i = 0; i < formLines.length; i += 1) {
+    const line = formLines[i] as LineForm
     const at = 'بند ' + String(i + 1)
     const productId = optionalId(line.productId)
     if (productId === undefined || productId === null) return fail(at + ': اختار المنتج.')
@@ -501,17 +533,7 @@ export function buildPurchasePayload(
       lines.push({ kind: 'batch', productId, quantity: quantity.value, lineTotalPiastres: total.value, zeroCostReason: reason })
     }
   }
-
-  return validatePurchaseDoc({
-    supplierId,
-    supplierRef: form.supplierRef,
-    locationId,
-    docDate,
-    note: form.note,
-    charges,
-    supplierDiscountPiastres: discount.value,
-    lines,
-  })
+  return { ok: true, value: lines }
 }
 
 // ── أسباب الاستبعاد والإبطال ────────────────────────────────────────

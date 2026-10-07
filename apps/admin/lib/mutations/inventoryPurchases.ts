@@ -8,7 +8,6 @@ import {
   PURCHASES_PAGE_SIZE,
   isLocationsPage,
   isPurchasePreview,
-  isPurchaseWriteResult,
   isPurchasesPage,
   parsePurchaseDetail,
   type InventoryLocationOption,
@@ -19,6 +18,7 @@ import {
   type PurchasesPage,
 } from '../inventory/purchases'
 import { callInventory, callInventoryWith } from '../inventory/rpc'
+import { writeResultGuard } from '../inventory/writeResults'
 import { isSuppliersPage, type InventorySupplier, type SuppliersPage } from '../inventory/suppliers'
 
 /**
@@ -92,14 +92,17 @@ export async function loadSupplierOptions(
   return { ok: true, data: { items, complete: false } }
 }
 
-/** المخازن النشطة لاختيار المخزن (keyset بالـid). */
-export async function loadLocationOptions(actor: string): Promise<InventoryResult<OptionList<InventoryLocationOption>>> {
+/** المخازن لاختيار المخزن (النشطة بس، افتراضيًا) أو لأسماء صفحة الدفعات (includeInactive). keyset بالـid. */
+export async function loadLocationOptions(
+  actor: string,
+  includeInactive = false,
+): Promise<InventoryResult<OptionList<InventoryLocationOption>>> {
   const items: InventoryLocationOption[] = []
   let after: number | null = null
   for (let page = 0; page < OPTION_PAGES; page += 1) {
     const result: InventoryResult<LocationsPage> = await callInventory(
       'listLocations',
-      { p_actor: actor, p_include_inactive: false, p_limit: OPTION_PAGE_SIZE, p_after_id: after },
+      { p_actor: actor, p_include_inactive: includeInactive, p_limit: OPTION_PAGE_SIZE, p_after_id: after },
       isLocationsPage,
     )
     if (!result.ok) return result
@@ -123,7 +126,7 @@ export async function createPurchase(
   return callInventory(
     'createPurchase',
     { p_actor: actor, p_command_id: rawCommandId, p_doc: doc.value },
-    isPurchaseWriteResult,
+    writeResultGuard('purchase', 'create'),
   )
 }
 
@@ -144,7 +147,7 @@ export async function updatePurchase(
   return callInventory(
     'updatePurchase',
     { p_actor: actor, p_command_id: rawCommandId, p_doc_id: docId, p_expected_version: expectedVersion, p_doc: doc.value },
-    isPurchaseWriteResult,
+    writeResultGuard('purchase', 'update'),
   )
 }
 
@@ -162,7 +165,7 @@ export async function postPurchase(
   return callInventory(
     'postPurchase',
     { p_actor: actor, p_command_id: rawCommandId, p_doc_id: docId, p_expected_version: expectedVersion },
-    isPurchaseWriteResult,
+    writeResultGuard('purchase', 'post'),
   )
 }
 
@@ -184,7 +187,7 @@ export async function discardPurchase(
   return callInventory(
     'discardPurchase',
     { p_actor: actor, p_command_id: rawCommandId, p_doc_id: docId, p_expected_version: expectedVersion, p_reason: reason.value },
-    isPurchaseWriteResult,
+    writeResultGuard('purchase', 'discard'),
   )
 }
 
@@ -206,6 +209,6 @@ export async function voidPurchase(
   return callInventory(
     'voidPurchase',
     { p_actor: actor, p_command_id: rawCommandId, p_doc_id: docId, p_expected_version: expectedVersion, p_reason: reason.value },
-    isPurchaseWriteResult,
+    writeResultGuard('purchase', 'void'),
   )
 }

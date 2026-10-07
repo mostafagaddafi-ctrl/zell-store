@@ -22,6 +22,8 @@ import {
   type InventoryFailure,
   type InventoryResult,
 } from './inventory/errors'
+import type { OpeningDocPayload } from './inventory/openingForm'
+import type { OpeningPreview, OpeningWriteResult } from './inventory/openings'
 import type { PurchaseDocPayload } from './inventory/purchaseForm'
 import type { PurchasePreview, PurchaseWriteResult } from './inventory/purchases'
 import type { SupplierInput, SupplierUpdateInput, SupplierWriteResult } from './inventory/suppliers'
@@ -35,6 +37,14 @@ import {
   updatePurchase,
   voidPurchase,
 } from './mutations/inventoryPurchases'
+import {
+  createOpening,
+  discardOpening,
+  postOpening,
+  previewOpening,
+  updateOpening,
+  voidOpening,
+} from './mutations/inventoryOpenings'
 
 async function ownerWriter(): Promise<{ ok: true; actor: string } | InventoryFailure> {
   const auth = await requireAdminAction()
@@ -138,4 +148,64 @@ export async function voidPurchaseAction(
   const gate = await ownerWriter()
   if (!gate.ok) return gate
   return voidPurchase(gate.actor, commandId, docId, expectedVersion, reason)
+}
+
+// ── رصيد أول المدة (PR-C) ───────────────────────────────────────
+
+export async function previewOpeningAction(doc: OpeningDocPayload): Promise<InventoryResult<OpeningPreview>> {
+  const gate = await ownerReader()
+  if (!gate.ok) return gate
+  return previewOpening(gate.actor, doc)
+}
+
+export async function createOpeningAction(
+  commandId: string,
+  doc: OpeningDocPayload,
+): Promise<InventoryResult<OpeningWriteResult>> {
+  const gate = await ownerWriter()
+  if (!gate.ok) return gate
+  return createOpening(gate.actor, commandId, doc)
+}
+
+export async function updateOpeningAction(
+  commandId: string,
+  docId: number,
+  expectedVersion: number,
+  doc: OpeningDocPayload,
+): Promise<InventoryResult<OpeningWriteResult>> {
+  const gate = await ownerWriter()
+  if (!gate.ok) return gate
+  return updateOpening(gate.actor, commandId, docId, expectedVersion, doc)
+}
+
+export async function postOpeningAction(
+  commandId: string,
+  docId: number,
+  expectedVersion: number,
+): Promise<InventoryResult<OpeningWriteResult>> {
+  const gate = await ownerWriter()
+  if (!gate.ok) return gate
+  return postOpening(gate.actor, commandId, docId, expectedVersion)
+}
+
+export async function discardOpeningAction(
+  commandId: string,
+  docId: number,
+  expectedVersion: number,
+  reason: string,
+): Promise<InventoryResult<OpeningWriteResult>> {
+  const gate = await ownerWriter()
+  if (!gate.ok) return gate
+  return discardOpening(gate.actor, commandId, docId, expectedVersion, reason)
+}
+
+export async function voidOpeningAction(
+  commandId: string,
+  docId: number,
+  expectedVersion: number,
+  reason: string,
+): Promise<InventoryResult<OpeningWriteResult>> {
+  const gate = await ownerWriter()
+  if (!gate.ok) return gate
+  return voidOpening(gate.actor, commandId, docId, expectedVersion, reason)
 }

@@ -26,6 +26,7 @@ const appRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SUITES = [
   { name: 'inventory', dir: 'lib/inventory', entry: 'inventory.cases.ts', run: 'runInventoryCases' },
   { name: 'purchases', dir: 'lib/inventory', entry: 'purchase.cases.ts', run: 'runPurchaseCases' },
+  { name: 'openings', dir: 'lib/inventory', entry: 'opening.cases.ts', run: 'runOpeningCases' },
 ]
 
 const COMPILER_OPTIONS = {

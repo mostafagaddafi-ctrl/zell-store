@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   ExternalLink,
+  Boxes,
+  ClipboardList,
   Factory,
   Receipt,
   Image as ImageIcon,
@@ -86,6 +88,8 @@ export function AdminShell({
             title: 'المخزون',
             items: [
               { href: '/inventory/purchases', label: 'المشتريات', icon: Receipt },
+              { href: '/inventory/openings', label: 'رصيد أول المدة', icon: ClipboardList },
+              { href: '/inventory/lots', label: 'الدفعات', icon: Boxes },
               { href: '/inventory/suppliers', label: 'الموردين', icon: Factory },
             ],
           },

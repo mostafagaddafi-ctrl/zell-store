@@ -608,6 +608,22 @@ export const supabaseAdminData: AdminDataSource = {
  *    إنشاء/تعديل المستندات (lib/inventory/catalog · catalogBlocksDocuments).
  * أي فشل في القراءة نفسها بيترمي — الصفحة اللي بتستخدمها (PR-B) بتعرض خطأ تشغيلي واضح.
  */
+/**
+ * أسماء المنتجات اللي ظاهرة في صفحة الدفعات بس — طلب واحد بفلتر ids (ملحق المراجعة · 2)، من غير
+ * N+1 ومن غير أعمدة أسعار. الصفحة فيها 50 دفعة بالكتير، فالـids محدودة. فاضية → مفيش طلب.
+ */
+export async function readInventoryProductNames(productIds: readonly number[]): Promise<Map<number, string>> {
+  const ids = [...new Set(productIds.filter((id) => Number.isSafeInteger(id) && id >= 1))]
+  const names = new Map<number, string>()
+  if (ids.length === 0) return names
+  const result = await restGet<{ id: number; name_ar: string }>(
+    'products',
+    'select=id,name_ar&id=in.(' + ids.join(',') + ')&limit=' + String(ids.length),
+  )
+  for (const row of result.rows) names.set(row.id, row.name_ar)
+  return names
+}
+
 export async function readInventoryCatalog(): Promise<InventoryCatalog> {
   const [products, widths] = await Promise.all([
     restGet<CatalogProductRow>(

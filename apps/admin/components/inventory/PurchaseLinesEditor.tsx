@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import type { CatalogProduct } from '../../lib/inventory/catalog'
 import { formatMetersAndCm, parseMeters, parsePounds } from '../../lib/inventory/money'
@@ -18,7 +19,9 @@ import { Field, inputClasses } from '../ui/Field'
  * بنود الفاتورة:
  *   • لفّات (منتجات المتر بس): عرض من العروض المسموحة (الأساسي ∪ الفعالة) + لفّة لكل رول بطولها بالمتر.
  *   • قطع (منتجات العدد بس): كمية.
- * الطول بيتكتب بالمتر ويتعرض جنبه بالسنتيمتر. التحقق النهائي في buildPurchasePayload والسيرفر.
+ * الطول بيتكتب بالمتر ويتعرض جنبه بالسنتيمتر. التحقق النهائي في build*Payload والسيرفر.
+ * مشترك بين الشراء ورصيد أول المدة؛ renderLineExtra (اختياري) بيضيف حقول زيادة تحت كل بند
+ * (رصيد أول المدة: التكلفة تقديرية + ملاحظة التقدير).
  */
 export function PurchaseLinesEditor({
   lines,
@@ -26,12 +29,14 @@ export function PurchaseLinesEditor({
   catalog,
   disabled,
   newKey,
+  renderLineExtra,
 }: {
   lines: LineForm[]
   onChange: (lines: LineForm[]) => void
   catalog: CatalogProduct[]
   disabled: boolean
   newKey: () => string
+  renderLineExtra?: (line: LineForm, index: number) => ReactNode
 }) {
   const meterProducts = catalog.filter((product) => product.saleUnit === 'meter')
   const pieceProducts = catalog.filter((product) => product.saleUnit === 'piece')
@@ -245,6 +250,7 @@ export function PurchaseLinesEditor({
             </Button>
           </div>
           {line.kind === 'roll' ? renderRoll(line, index) : renderBatch(line, index)}
+          {renderLineExtra ? renderLineExtra(line, index) : null}
         </div>
       ))}
 
