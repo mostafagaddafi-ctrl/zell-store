@@ -11,6 +11,9 @@ import { textareaClasses } from '../ui/Field'
  *   • الاستبعاد: إجباري 1–300 (أشد من الداتابيز).
  *   • الإبطال: 3–300 (زي الداتابيز).
  * الحوار مابيبعتش حاجة بنفسه — بيرجّع السبب للمستدعي اللي بيبدأ النية.
+ *
+ * 🔒 busy بيعطّل التأكيد والرجوع وEscape والضغط برّه أثناء بدء/إرسال العملية، و firedRef بيمنع
+ *    تأكيد تاني في نفس الـtick لحد ما الحوار يتقفل ويتفتح من جديد (والقفل المشترك هو الحماية الأساسية).
  */
 export function ReasonDialog({
   open,
@@ -20,6 +23,7 @@ export function ReasonDialog({
   confirmLabel,
   onCancel,
   onConfirm,
+  busy = false,
 }: {
   open: boolean
   kind: 'discard' | 'void'
@@ -28,19 +32,24 @@ export function ReasonDialog({
   confirmLabel: string
   onCancel: () => void
   onConfirm: (reason: string) => void
+  busy?: boolean
 }) {
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
   // ref عشان callback جديد من الأب في كل render مايمسحش السبب اللي اتكتب
   const onCancelRef = useRef(onCancel)
   onCancelRef.current = onCancel
+  const busyRef = useRef(busy)
+  busyRef.current = busy
+  const firedRef = useRef(false)
 
   useEffect(() => {
     if (!open) return
     setText('')
     setError(null)
+    firedRef.current = false
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCancelRef.current()
+      if (event.key === 'Escape' && !busyRef.current) onCancelRef.current()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
@@ -51,11 +60,13 @@ export function ReasonDialog({
   const limits = REASON_LIMITS[kind]
 
   function confirm() {
+    if (busy || firedRef.current) return
     const reason = normalizeReason(text, kind)
     if (!reason.ok) {
       setError(reason.message)
       return
     }
+    firedRef.current = true
     onConfirm(reason.value)
   }
 
@@ -65,7 +76,7 @@ export function ReasonDialog({
       aria-modal="true"
       aria-label={title}
       className="fixed inset-0 z-50 flex items-center justify-center bg-fg/50 p-4"
-      onClick={onCancel}
+      onClick={busy ? undefined : onCancel}
     >
       <div
         className="w-full max-w-md rounded-lg border border-border bg-surface p-4 shadow-pop"
@@ -95,10 +106,10 @@ export function ReasonDialog({
         {error ? <p className="mt-1 text-xs font-medium text-danger">{error}</p> : null}
 
         <div className="mt-5 flex justify-start gap-2">
-          <Button variant="danger" onClick={confirm}>
+          <Button variant="danger" onClick={confirm} disabled={busy}>
             {confirmLabel}
           </Button>
-          <Button variant="secondary" onClick={onCancel}>
+          <Button variant="secondary" onClick={onCancel} disabled={busy}>
             رجوع
           </Button>
         </div>
