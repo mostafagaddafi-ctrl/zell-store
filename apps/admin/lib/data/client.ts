@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { INVENTORY_SENTINELS } from '../inventory/sentinels'
+
 /**
  * عميل قراءة Supabase للوحة — **سيرفر فقط**.
  *
@@ -138,6 +140,9 @@ const KNOWN_SENTINELS = [
   'ZELL_COLLECTION_SLUG_TAKEN',
   // 0019 — trigger orders_cancelled_final (45080): الطلب الملغي مايرجعش لأي حالة تانية
   'ZELL_ORDER_CANCELLED_FINAL',
+  // 0020 — المخزون والمشتريات: الـ23 اسم من lib/inventory/sentinels.ts (قايمة واحدة مقفولة،
+  //    والاختبارات بتتأكد إن مفيش تداخل مع الأسماء اللي فوق).
+  ...INVENTORY_SENTINELS,
 ] as const
 
 export type DbSentinel = (typeof KNOWN_SENTINELS)[number]
