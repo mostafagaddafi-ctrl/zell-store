@@ -189,7 +189,7 @@ export function SupplierForm({
               className={inputClasses}
             />
           </Field>
-          <Field htmlFor="supplier-phone" label="التليفون" hint="اختياري · من 6 لـ 15 رقم، وممكن يبدأ بـ +">
+          <Field htmlFor="supplier-phone" label="التليفون" hint="اختياري · من 6 لـ 15 رقم إنجليزي (0–9)، وممكن يبدأ بـ +">
             <input
               id="supplier-phone"
               dir="ltr"
