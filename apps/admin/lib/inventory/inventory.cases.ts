@@ -42,6 +42,7 @@ import {
 import { DOC_STATUS_LABELS, FORBIDDEN_WORDS, LOT_STATUS_LABELS, allInventoryLabels } from './labels'
 import { INVENTORY_SENTINELS, INVENTORY_SQLSTATE, isInventorySentinel, type InventorySentinel } from './sentinels'
 import {
+  PHONE_LATIN_DIGITS_MESSAGE,
   SUPPLIER_NAME_MAX,
   isSupplierWriteResult,
   isSuppliersPage,
@@ -267,10 +268,13 @@ export function runInventoryCases(): InventoryCasesReport {
     normalizeSupplierInput({ name: '😀'.repeat(120), phone: null, note: null }).ok,
     true,
   )
-  check('D7 arabic digits converted', normalizeSupplierInput({ name: 'أ', phone: '٠١٠٠١٢٣٤٥٦٧', note: null }), {
-    ok: true,
-    value: { name: 'أ', phone: '01001234567', note: null },
+  // D7: الأرقام العربية/الفارسية بتترفض زي الداتابيز بالظبط — مفيش تحويل صامت
+  check('D7 arabic digits rejected (no silent conversion)', normalizeSupplierInput({ name: 'أ', phone: '٠١٠٠١٢٣٤٥٦٧', note: null }), {
+    ok: false,
+    message: PHONE_LATIN_DIGITS_MESSAGE,
   })
+  check('D7b persian digits rejected', normalizeSupplierInput({ name: 'أ', phone: '۰۱۰۰۱۲۳۴۵۶۷', note: null }).ok, false)
+  check('D7c mixed arabic + latin digits rejected', normalizeSupplierInput({ name: 'أ', phone: '0100١٢٣4567', note: null }).ok, false)
   check('D8 +country ok', normalizeSupplierInput({ name: 'أ', phone: '+201001234567', note: null }).ok, true)
   check('D9 phone 5 digits rejected', normalizeSupplierInput({ name: 'أ', phone: '12345', note: null }).ok, false)
   check('D10 phone 16 digits rejected', normalizeSupplierInput({ name: 'أ', phone: '1234567890123456', note: null }).ok, false)
@@ -379,6 +383,7 @@ export function runInventoryCases(): InventoryCasesReport {
       NETWORK_UNRESOLVED_MESSAGE,
       LEAVE_WARNING,
       CATALOG_INCOMPLETE_MESSAGE,
+      PHONE_LATIN_DIGITS_MESSAGE,
     ]
     check(
       'G5 forbidden word absent from every inventory text',
