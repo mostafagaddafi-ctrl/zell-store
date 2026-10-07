@@ -4,36 +4,48 @@ import { useRef, useState } from 'react'
 import type { InventoryResult } from '../inventory/errors'
 import {
   abandonIntent,
-  beginIntent,
   canEditPayload,
   editIntent,
   initialIntent,
   isLeaveRisky,
-  reopenAfterReconcile,
-  resetAfterDone,
   retryIntent,
-  settleIntent,
   type IntentOutcome,
   type IntentState,
 } from '../inventory/intent'
+import {
+  createWriteLock,
+  releaseAfterReconcile,
+  settleLockedIntent,
+  startLockedIntent,
+  type WriteLock,
+} from '../inventory/writeLock'
 
 /**
  * نية كتابة واحدة لعملية واحدة (lib/inventory/intent.ts) — كل عملية (حفظ، ترحيل، استبعاد، إبطال)
  * بتستخدم نسخة مستقلة من الهوك ده، فالمفتاح مابيتعادش بين عمليتين.
  *
- *   • begin(payload): مفتاح جديد (crypto.randomUUID) بعد ما المستدعي يخلّص التحقق المحلي.
- *   • retry(): نفس المفتاح ونفس الـpayload المتجمّد (unresolved بس، ومش hard).
- *   • abandon(): «ترك المحاولة ومراجعة الحالة» — مابيلغيش حاجة في الداتابيز؛ المستدعي بيعمل المصالحة
- *     (قراءة جديدة من السيرفر) في onAbandon، وبعدها بينادي reopen().
- *   • reopen(): abandoned → editing بعد ما المصالحة تخلص بس.
- *   • resetAfterSuccess(): done → editing لو النموذج لسه مفتوح بعد النجاح.
+ * 🔒 القفل المشترك (lib/inventory/writeLock.ts): كل العمليات على نفس المستند بتاخد نفس الـlock،
+ *    وbegin بيحجزه **بشكل متزامن** قبل أي state update — فضغطتين في نفس الـtick (تأكيد مرتين، أو
+ *    ترحيل + استبعاد) مابيبدأوش غير عملية واحدة. ولو مااتبعتش lock، الهوك بيعمل واحد لنفسه.
+ *
+ *   • begin(payload): مفتاح جديد (crypto.randomUUID) بعد ما المستدعي يخلّص التحقق المحلي. false = ممنوع.
+ *   • retry(): نفس المفتاح ونفس الـpayload المتجمّد (unresolved بس، ومش hard). القفل لسه محجوز.
+ *   • abandon(): «ترك المحاولة ومراجعة الحالة» — مابيلغيش حاجة في الداتابيز، والقفل بيفضل محجوز؛
+ *     المستدعي بيعمل المصالحة في onAbandon، وبعدها بينادي afterReconcile().
+ *   • afterReconcile(): بعد ما القراءة الجديدة تخلص: abandoned/done → editing، والقفل بيتحرر.
  */
 export function useInventoryIntent<P, R>(
   send: (commandId: string, payload: P) => Promise<InventoryResult<R>>,
   handlers: { onDone: (data: R) => void; onAbandon: () => void },
+  coordination?: { lock: WriteLock; owner: string },
 ) {
   const [intent, setIntentState] = useState<IntentState<P>>(() => initialIntent<P>())
   const intentRef = useRef(intent)
+  const ownLockRef = useRef<WriteLock | null>(null)
+  if (ownLockRef.current === null) ownLockRef.current = createWriteLock()
+  const lock = coordination ? coordination.lock : ownLockRef.current
+  const owner = coordination ? coordination.owner : 'self'
+
   const sendRef = useRef(send)
   sendRef.current = send
   const handlersRef = useRef(handlers)
@@ -60,13 +72,13 @@ export function useInventoryIntent<P, R>(
     } catch {
       outcome = { thrown: true }
     }
-    const next = settleIntent(intentRef.current, commandId, outcome)
+    const next = settleLockedIntent(lock, owner, intentRef.current, commandId, outcome)
     set(next)
     if (next.phase === 'done' && data !== null) handlersRef.current.onDone(data.value)
   }
 
   function begin(payload: P): boolean {
-    const next = beginIntent(intentRef.current, payload, crypto.randomUUID())
+    const next = startLockedIntent(lock, owner, intentRef.current, payload, crypto.randomUUID())
     if (next === null) return false
     set(next)
     void dispatch(next)
@@ -87,14 +99,9 @@ export function useInventoryIntent<P, R>(
     handlersRef.current.onAbandon()
   }
 
-  function reopen() {
-    const next = reopenAfterReconcile(intentRef.current)
-    if (next !== null) set(next)
-  }
-
-  function resetAfterSuccess() {
-    const next = resetAfterDone(intentRef.current)
-    if (next !== null) set(next)
+  function afterReconcile() {
+    const next = releaseAfterReconcile(lock, owner, intentRef.current)
+    if (next !== intentRef.current) set(next)
   }
 
   function edit() {
@@ -107,8 +114,7 @@ export function useInventoryIntent<P, R>(
     begin,
     retry,
     abandon,
-    reopen,
-    resetAfterSuccess,
+    afterReconcile,
     edit,
     canEdit: canEditPayload(intent),
     risky: isLeaveRisky(intent),
