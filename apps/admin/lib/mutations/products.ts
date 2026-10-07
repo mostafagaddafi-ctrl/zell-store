@@ -1,7 +1,8 @@
 import 'server-only'
 
 import type { AdminProduct } from '../adminData'
-import { restGet, restInsert } from '../data/client'
+import { restGet, restInsert, sentinelOf } from '../data/client'
+import { INVENTORY_ERRORS } from '../inventory/errors'
 import { toAdminProduct, type ProductRow } from '../data/rows'
 import type { MutationResult } from '../mutations'
 import { validateProduct, type ProductInput } from '../validation/product'
@@ -170,6 +171,11 @@ export async function saveProduct(input: ProductInput): Promise<MutationResult<A
     if (!row) return toInternalFailure(null)
     return { ok: true, data: toAdminProduct(row, await imageCount(id.value)) }
   } catch (error) {
+    // 0020: وحدة البيع بتتقفل بعد وجود مخزون أو مستندات مخزون للمنتج
+    // (trigger zinv_products_sale_unit · 45217) — رسالة واضحة بدل INTERNAL.
+    if (sentinelOf(error) === 'ZELL_INV_SALE_UNIT_LOCKED') {
+      return { ok: false, code: 'CONFLICT', message: INVENTORY_ERRORS.ZELL_INV_SALE_UNIT_LOCKED.message }
+    }
     return toInternalFailure(error)
   }
 }

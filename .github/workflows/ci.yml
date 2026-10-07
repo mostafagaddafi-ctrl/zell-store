@@ -51,5 +51,9 @@ jobs:
       - name: Typecheck admin
         run: pnpm --filter @zell/admin typecheck
 
+      # حالات المنطق الخالص للوحة (0020-UI) — بتتشغّل فعليًا، من غير داتابيز ولا شبكة.
+      - name: Admin cases
+        run: pnpm --filter @zell/admin cases
+
       - name: Build admin
         run: pnpm --filter @zell/admin build

@@ -1,0 +1,94 @@
+import 'server-only'
+
+import { COMMAND_ID_MESSAGE, validationFailure, type InventoryResult } from '../inventory/errors'
+import { isUuid, parseDbId, parseVersion } from '../inventory/ids'
+import { callInventory } from '../inventory/rpc'
+import {
+  SUPPLIERS_PAGE_SIZE,
+  isSupplierWriteResult,
+  isSuppliersPage,
+  normalizeSupplierInput,
+  normalizeSupplierUpdate,
+  type SupplierWriteResult,
+  type SuppliersPage,
+} from '../inventory/suppliers'
+
+/**
+ * عمليات الموردين (0020-UI · PR-A) — سيرفر بس.
+ *
+ * المستدعي مسؤول عن الحراس:
+ *   • الكتابة من lib/inventoryActions.ts (requireAdminAction → ownerGate → guardMutations).
+ *   • القراءة من الصفحة بعد requireAdminPage وفحص المالك.
+ * actor هنا دايمًا identity.userId من الجلسة، والدالة نفسها في الداتابيز بتتأكد إنه مالك نشط.
+ *
+ * التحقق بيتعاد هنا كامل قبل النداء — الواجهة مش خط الدفاع.
+ */
+
+export async function listSuppliers(
+  actor: string,
+  options: { includeInactive: boolean; after: string | null },
+): Promise<InventoryResult<SuppliersPage>> {
+  return callInventory(
+    'listSuppliers',
+    {
+      p_actor: actor,
+      p_include_inactive: options.includeInactive,
+      p_limit: SUPPLIERS_PAGE_SIZE,
+      p_after_name_key: options.after,
+    },
+    isSuppliersPage,
+  )
+}
+
+export async function createSupplier(
+  actor: string,
+  rawCommandId: unknown,
+  rawInput: unknown,
+): Promise<InventoryResult<SupplierWriteResult>> {
+  if (!isUuid(rawCommandId)) return validationFailure(COMMAND_ID_MESSAGE)
+  const input = normalizeSupplierInput(rawInput)
+  if (!input.ok) return validationFailure(input.message)
+
+  return callInventory(
+    'createSupplier',
+    {
+      p_actor: actor,
+      p_command_id: rawCommandId,
+      p_name: input.value.name,
+      p_phone: input.value.phone,
+      p_note: input.value.note,
+    },
+    isSupplierWriteResult,
+  )
+}
+
+export async function updateSupplier(
+  actor: string,
+  rawCommandId: unknown,
+  rawSupplierId: unknown,
+  rawExpectedVersion: unknown,
+  rawInput: unknown,
+): Promise<InventoryResult<SupplierWriteResult>> {
+  if (!isUuid(rawCommandId)) return validationFailure(COMMAND_ID_MESSAGE)
+  const supplierId = parseDbId(rawSupplierId)
+  if (supplierId === null) return validationFailure('معرّف المورد غير صالح.')
+  const expectedVersion = parseVersion(rawExpectedVersion)
+  if (expectedVersion === null) return validationFailure('رقم نسخة المورد غير صالح. حدّث الصفحة.')
+  const input = normalizeSupplierUpdate(rawInput)
+  if (!input.ok) return validationFailure(input.message)
+
+  return callInventory(
+    'updateSupplier',
+    {
+      p_actor: actor,
+      p_command_id: rawCommandId,
+      p_supplier_id: supplierId,
+      p_expected_version: expectedVersion,
+      p_name: input.value.name,
+      p_phone: input.value.phone,
+      p_note: input.value.note,
+      p_is_active: input.value.isActive,
+    },
+    isSupplierWriteResult,
+  )
+}
