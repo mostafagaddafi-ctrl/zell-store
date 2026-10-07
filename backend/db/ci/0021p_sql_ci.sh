@@ -49,6 +49,11 @@ run_pg() { { printf '\\set VERBOSITY verbose\n'; cat; } | psql -X -q -tA -v ON_E
 run_file() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$1" > "$2" 2>&1; }
 sqlstate() { grep -o 'ERROR:  [0-9A-Z]\{5\}' "$1" | head -n 1 | awk '{print $2}'; }
 has() { grep -q -- "$2" "$1"; }
+# نداء زي PostgREST: دور authenticated + claims الجلسة. بيطبع آخر نتيجة بس.
+as_user() {
+  psql -X -q -tA -v ON_ERROR_STOP=1 -U postgres -d "$DB" \
+    -c "set role authenticated; select pg_catalog.set_config('request.jwt.claims', '{\"sub\":\"$1\",\"role\":\"authenticated\"}', false) is null; $2" 2>&1 | tail -n 1
+}
 
 init_cluster() {
   psql -X -q -v ON_ERROR_STOP=1 -U "$SUPER" -d postgres > /dev/null <<'SQL'
@@ -235,14 +240,14 @@ record "S7b clean rollback: functions + triggers gone, tables/rows/interface kep
 
 reset_db "$A:owner:true" "$X:admin:true"
 apply_all > /dev/null
-q "set role service_role; select public.erp_access_revoke('$A', gen_random_uuid(), '$X', 'zell.telegram.test', 1, 'ci') ->> 'ok'" > /dev/null
+as_user "$A" "select public.zell_erp_access_revoke(gen_random_uuid(), '$X', 'zell.telegram.test', 1, 'ci') ->> 'ok'" > /dev/null
 run_file "$TMP/rollback_attested.sql" "$TMP/rb_used.out"
 ok=no; if has "$TMP/rb_used.out" 'ZELL_0021P_ROLLBACK_REAL_USE' && [ "$(q "select pg_catalog.to_regprocedure('public.erp_access_grant(uuid,uuid,uuid,text,integer)') is not null")" = "t" ]; then ok=yes; fi
 record "S7c rollback refused after real use (rpc), nothing dropped" "$ok" "$(tail -n 3 "$TMP/rb_used.out")"
 ok=no
 if run_file "$TMP/freeze.sql" "$TMP/freeze.out"; then
-  f1=$(q "select pg_catalog.has_function_privilege('service_role', 'public.erp_access_grant(uuid,uuid,uuid,text,integer)', 'EXECUTE') or pg_catalog.has_function_privilege('service_role', 'public.zell_erp_set_user_active(uuid,uuid,uuid,boolean,text)', 'EXECUTE')")
-  f2=$(q "set role service_role; select (public.erp_effective_capabilities('$A') ->> 'owner')")
+  f1=$(q "select pg_catalog.has_function_privilege('authenticated', 'public.zell_erp_access_grant(uuid,uuid,text,integer)', 'EXECUTE') or pg_catalog.has_function_privilege('authenticated', 'public.zell_erp_set_user_active(uuid,uuid,boolean,text)', 'EXECUTE')")
+  f2=$(as_user "$A" "select (public.zell_erp_my_access() ->> 'owner')")
   if [ "$f1" = "f" ] && [ "$f2" = "true" ]; then ok=yes; fi
 fi
 record "S7d freeze: management EXECUTE revoked, reads still work" "$ok" "mgmt=$f1 read=$f2 $(tail -n 3 "$TMP/freeze.out")"
@@ -255,7 +260,21 @@ run_file "$TMP/rollback_attested.sql" "$TMP/rb_manual.out"
 ok=no; if has "$TMP/rb_manual.out" 'ZELL_0021P_ROLLBACK_REAL_USE' && [ "$logrow" = "UPDATE,postgres,null,false" ]; then ok=yes; fi
 record "S7e manual admin_users change is logged and counts as real use" "$ok" "log=$logrow $(tail -n 3 "$TMP/rb_manual.out")"
 
-# ── S8: التزامن باتصالين على الـ migration الحقيقي ──
+# ── S8: الحد العام على اتصالات حقيقية: الممثل المزوّر مايعدّيش ──
+reset_db "$A:owner:true" "$X:admin:true"
+apply_all > /dev/null
+out=$(q "set role service_role; select public.erp_access_grant('$A', gen_random_uuid(), '$X', 'zell.telegram.test', 1)")
+record "S8a service_role + forged owner uuid cannot call the engine" "$(printf '%s' "$out" | grep -q 'permission denied' && echo yes || echo no)" "$out"
+out=$(q "set role service_role; select public.zell_erp_access_grant(gen_random_uuid(), '$X', 'zell.telegram.test', 1)")
+record "S8b service_role cannot call the adapter" "$(printf '%s' "$out" | grep -q 'permission denied' && echo yes || echo no)" "$out"
+out=$(as_user "$X" "select public.zell_erp_access_grant(gen_random_uuid(), '$X', 'zell.telegram.test', 1) ->> 'code'")
+record "S8c admin session cannot grant (45300)" "$( [ "$out" = "45300" ] && echo yes || echo no )" "$out"
+out=$(as_user "$X" "select (public.zell_erp_my_access() ->> 'owner') || ',' || jsonb_array_length(public.zell_erp_my_access() -> 'capabilities')")
+record "S8d admin session reads only its own access" "$( [ "$out" = "false,22" ] && echo yes || echo no )" "$out"
+out=$(as_user "$A" "select public.zell_erp_access_grant(gen_random_uuid(), '$X', 'zell.telegram.test', 1) ->> 'ok'")
+record "S8e owner session grant works (idempotent no-op, ok)" "$( [ "$out" = "true" ] && echo yes || echo no )" "$out"
+
+# ── S9: التزامن باتصالين على الـ migration الحقيقي ──
 for ISO in "${ISOLATIONS[@]}"; do
   reset_db "$A:owner:true" "$B:owner:true"
   apply_all > /dev/null
@@ -295,8 +314,8 @@ for ISO in "READ COMMITTED" "REPEATABLE READ"; do
   reset_db "$A:owner:true" "$B:owner:true"
   apply_all > /dev/null
   pair "$ISO" \
-    "SET LOCAL ROLE service_role; SELECT public.zell_erp_set_user_active('$A', gen_random_uuid(), '$B', false, 'ci') ->> 'ok';" \
-    "SET LOCAL ROLE service_role; SELECT public.zell_erp_set_user_active('$B', gen_random_uuid(), '$A', false, 'ci') ->> 'code';"
+    "SET LOCAL ROLE authenticated; SELECT pg_catalog.set_config('request.jwt.claims', '{\"sub\":\"$A\",\"role\":\"authenticated\"}', true) IS NULL; SELECT public.zell_erp_set_user_active(gen_random_uuid(), '$B', false, 'ci') ->> 'ok';" \
+    "SET LOCAL ROLE authenticated; SELECT pg_catalog.set_config('request.jwt.claims', '{\"sub\":\"$B\",\"role\":\"authenticated\"}', true) IS NULL; SELECT public.zell_erp_set_user_active(gen_random_uuid(), '$A', false, 'ci') ->> 'code';"
   denied=$(q "select count(*) from public.erp_access_audit where code = '45303' and outcome = 'denied'")
   ok=no
   if [ "$ISO" = "READ COMMITTED" ]; then
