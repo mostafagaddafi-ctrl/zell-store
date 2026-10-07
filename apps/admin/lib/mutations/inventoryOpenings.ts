@@ -8,7 +8,6 @@ import { validateOpeningDoc } from '../inventory/openingForm'
 import {
   OPENINGS_PAGE_SIZE,
   isOpeningPreview,
-  isOpeningWriteResult,
   isOpeningsPage,
   parseOpeningDetail,
   type OpeningDetail,
@@ -18,6 +17,7 @@ import {
 } from '../inventory/openings'
 import { normalizeReason } from '../inventory/purchaseForm'
 import { callInventory, callInventoryWith } from '../inventory/rpc'
+import { writeResultGuard } from '../inventory/writeResults'
 
 /**
  * رصيد أول المدة وصفحة الدفعات (0020-UI · PR-C) — سيرفر بس.
@@ -89,7 +89,7 @@ export async function createOpening(
   if (!isUuid(rawCommandId)) return validationFailure(COMMAND_ID_MESSAGE)
   const doc = validateOpeningDoc(rawDoc)
   if (!doc.ok) return validationFailure(doc.message)
-  return callInventory('createOpening', { p_actor: actor, p_command_id: rawCommandId, p_doc: doc.value }, isOpeningWriteResult)
+  return callInventory('createOpening', { p_actor: actor, p_command_id: rawCommandId, p_doc: doc.value }, writeResultGuard('opening', 'create'))
 }
 
 export async function updateOpening(
@@ -107,7 +107,7 @@ export async function updateOpening(
   return callInventory(
     'updateOpening',
     { p_actor: actor, p_command_id: rawCommandId, p_doc_id: ref.docId, p_expected_version: ref.expectedVersion, p_doc: doc.value },
-    isOpeningWriteResult,
+    writeResultGuard('opening', 'update'),
   )
 }
 
@@ -123,7 +123,7 @@ export async function postOpening(
   return callInventory(
     'postOpening',
     { p_actor: actor, p_command_id: rawCommandId, p_doc_id: ref.docId, p_expected_version: ref.expectedVersion },
-    isOpeningWriteResult,
+    writeResultGuard('opening', 'post'),
   )
 }
 
@@ -143,7 +143,7 @@ export async function discardOpening(
   return callInventory(
     'discardOpening',
     { p_actor: actor, p_command_id: rawCommandId, p_doc_id: ref.docId, p_expected_version: ref.expectedVersion, p_reason: reason.value },
-    isOpeningWriteResult,
+    writeResultGuard('opening', 'discard'),
   )
 }
 
@@ -163,6 +163,6 @@ export async function voidOpening(
   return callInventory(
     'voidOpening',
     { p_actor: actor, p_command_id: rawCommandId, p_doc_id: ref.docId, p_expected_version: ref.expectedVersion, p_reason: reason.value },
-    isOpeningWriteResult,
+    writeResultGuard('opening', 'void'),
   )
 }
