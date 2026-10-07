@@ -12,7 +12,9 @@
 --     في REPEATABLE READ / SERIALIZABLE ممكن ترجع 40001؛ الإعادة بنفس command_id آمنة، والتطبيق بيحددها
 --     بعدد صغير ولو التعارض استمر بيظهر للمستخدم (قرار المراجع ١).
 --   • الدور erp_definer (NOLOGIN · NOBYPASSRLS · NOINHERIT) مالك الدوال. الجداول مالكها postgres، وRLS + policy
---     للدور بس. service_role: EXECUTE على ٩ دوال عامة بس، وصفر على الجداول.
+--     للدور بس، وصفر صلاحيات على الجداول لأي دور تاني.
+--   • مفيش أي EXECUTE لـ service_role أو anon أو authenticated: كل دوال المحرك داخلية، والممثل (p_actor) جاي
+--     من المحوّل بس، اللي بيربطه بهوية موثوقة (جلسة المستخدم). المحرك نفسه مابيعرفش مصدر الهوية.
 --   • الأكواد: 45300 ممنوع · 45301 تغيير النفس · 45302 مش قابل للمنح · 45304 مش معروف · 45305 المستخدم مش موجود
 --     أو موقوف · 45306 تعارض نسخة · 45307 أمر متكرر بمعنى مختلف · 45308 منح لمالك · 45309 الواجهة رجّعت شكل
 --     مش متوقع · 45313 مدخلات غلط (من غير سطر سجل) · 45315 سجل مايتعدّلش. (45303/45310/45311/45312/45314 في المحوّل.)
@@ -541,7 +543,7 @@ end
 $fn$;
 
 
--- (6) الدوال العامة (مالكها erp_definer، SECURITY DEFINER، EXECUTE لـ service_role)
+-- (6) دوال الإدارة والقراءة (مالكها erp_definer، SECURITY DEFINER). داخلية: EXECUTE لدور المحوّل بس (بيتمنح في ملفه).
 create function public.erp_effective_capabilities(p_actor uuid)
 returns jsonb
 language plpgsql
@@ -873,6 +875,9 @@ begin
      or p_kind is null or p_kind not in ('legacy_allow_new_deny', 'legacy_deny_new_allow', 'new_unavailable') then
     raise exception 'ERP_INVALID' using errcode = '45313', detail = 'shadow_event';
   end if;
+  if not exists (select 1 from public.erp_capabilities c where c.key = p_capability) then
+    raise exception 'ERP_UNKNOWN_CAPABILITY' using errcode = '45304', detail = 'shadow_event';
+  end if;
   insert into public.erp_access_shadow_events as e (day, user_id, route_key, capability_key, kind)
   values ((now() at time zone 'UTC')::date, p_user, p_route_key, p_capability, p_kind)
   on conflict (day, user_id, route_key, capability_key, kind)
@@ -961,19 +966,7 @@ alter function public.erp_access_audit_page(uuid, bigint, integer) owner to erp_
 alter function public.erp_record_shadow_event(uuid, text, text, text) owner to erp_definer;
 alter function public.erp_access_shadow_report(uuid, date) owner to erp_definer;
 
-set local role erp_definer;
-grant execute on function
-  public.erp_effective_capabilities(uuid),
-  public.erp_access_grant(uuid, uuid, uuid, text, integer),
-  public.erp_access_revoke(uuid, uuid, uuid, text, integer, text),
-  public.erp_access_apply_preset(uuid, uuid, uuid, text, integer),
-  public.erp_access_revoke_all(uuid, uuid, uuid, integer, text),
-  public.erp_access_snapshot(uuid),
-  public.erp_access_audit_page(uuid, bigint, integer),
-  public.erp_record_shadow_event(uuid, text, text, text),
-  public.erp_access_shadow_report(uuid, date)
-to service_role;
-reset role;
+-- مفيش أي EXECUTE لـ service_role / anon / authenticated هنا (الحد العام في المحوّل).
 
 revoke create on schema public from erp_definer;
 
@@ -990,8 +983,8 @@ begin
     from pg_catalog.pg_proc p
    where p.pronamespace = 'public'::regnamespace and p.proname like 'erp\_%'
      and pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE');
-  if v_list is distinct from 'erp_access_apply_preset,erp_access_audit_page,erp_access_grant,erp_access_revoke,erp_access_revoke_all,erp_access_shadow_report,erp_access_snapshot,erp_effective_capabilities,erp_record_shadow_event' then
-    raise exception 'ERP_0021P_SERVICE_EXECUTE_SET %', coalesce(v_list, '');
+  if v_list is not null then
+    raise exception 'ERP_0021P_SERVICE_EXECUTE %', v_list;
   end if;
 
   select string_agg(p.proname::text, ',') into v_bad
