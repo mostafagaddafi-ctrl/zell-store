@@ -15,7 +15,7 @@ import { VoidPurchaseAction } from './VoidPurchaseAction'
  * عرض بس لفاتورة مرحّلة أو مُبطَلة أو مستبعَدة. البيانات من zell_inv_get_purchase بالـsnapshots
  * (اسم المنتج والعرض والوحدة وقت الترحيل). الإبطال للمرحّل بس.
  * التكلفة للمتر/القطعة تقريبية (أعداد صحيحة لأقرب قرش) من أرقام الداتابيز. سعر البيع **الحالي** مرجعية
- * من قايمة المنتجات دلوقتي (مش لقطة وقت الترحيل) — catalog = null يعني القراءة فشلت فبيتعرض «—».
+ * من قايمة المنتجات دلوقتي (مش لقطة وقت الترحيل) — catalog = null يعني القراءة فشلت أو الكتالوج مش مؤكد، فبيتعرض «—».
  */
 export function PurchaseView({ detail, catalog }: { detail: PurchaseDetail; catalog: CatalogProduct[] | null }) {
   const { header, lines, charges, lots } = detail
@@ -49,7 +49,7 @@ export function PurchaseView({ detail, catalog }: { detail: PurchaseDetail; cata
       {lines.length > 0 ? (
         <Card title="البنود">
           {products === null ? (
-            <p className="mb-3 text-xs text-muted">سعر البيع الحالي مش ظاهر: مقدرناش نقرا قايمة المنتجات. حدّث الصفحة.</p>
+            <p className="mb-3 text-xs text-muted">سعر البيع الحالي مش ظاهر: قايمة المنتجات ماتقرتش كاملة ومؤكدة. حدّث الصفحة، ولو اتكررت بلّغ.</p>
           ) : null}
           <Table>
             <THead>
