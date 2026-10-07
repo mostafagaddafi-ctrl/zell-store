@@ -1,9 +1,10 @@
 -- 0021-P — التحقق بعد التطبيق (post-apply verification) لـ 0021p_erp_access.sql + 0021p_zell_erp_access.sql
 --
 -- • قراءة بس: catalog + نداءات قراءة. مفيش DDL ولا كتابة، والمعاملة بترجع دايمًا.
--- • بيتأكد من: الأدوار وشكل العضوية · الجداول وRLS والصلاحيات · ملكية الدوال و EXECUTE (service_role بالظبط على
---   ٩ دوال محرك + ٣ دوال محوّل) · الواجهة (المالك والخصائص والنتيجة) · الـ triggers · العدّاد = العدد الفعلي ·
---   القائمة والقوالب · المطابقة (strict بعد التطبيق مباشرة، أو info بعد كده).
+-- • بيتأكد من: الأدوار وشكل العضوية · الجداول وRLS والصلاحيات · ملكية الدوال · الحد العام (authenticated على ١٢
+--   دالة محوّل بالظبط، وservice_role و anon صفر، ودوال المحرك كلها داخلية) · الواجهة (المالك والخصائص والنتيجة) ·
+--   الـ triggers · العدّاد = العدد الفعلي · القائمة والقوالب · المطابقة (strict بعد التطبيق مباشرة، أو info بعد كده).
+-- • النداءات بتتعمل بجلسة مالك مُحاكاة (claims محلية جوه المعاملة)، زي ما PostgREST بيعمل.
 -- • النتيجة في رسالة ZELL_0021P_VERIFY_RESULT (الرسالة exception عن قصد).
 
 begin;
@@ -54,23 +55,23 @@ begin
     v_fail := v_fail || 'zell_erp_definer_touches_admin_users'::text;
   end if;
 
-  -- (ج) EXECUTE لـ service_role بالظبط
+  -- (ج) الحد العام
   select string_agg(p.proname::text collate "C", ',' order by p.proname::text collate "C") into v_list
     from pg_catalog.pg_proc p
    where p.pronamespace = 'public'::regnamespace
      and (p.proname like 'erp\_%' or p.proname like 'zell\_erp\_%')
-     and pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE');
-  if v_list is distinct from 'erp_access_apply_preset,erp_access_audit_page,erp_access_grant,erp_access_revoke,erp_access_revoke_all,erp_access_shadow_report,erp_access_snapshot,erp_effective_capabilities,erp_record_shadow_event,zell_erp_access_parity,zell_erp_access_users,zell_erp_set_user_active' then
-    v_fail := v_fail || ('service_execute:' || coalesce(v_list, ''));
+     and pg_catalog.has_function_privilege('authenticated', p.oid, 'EXECUTE');
+  if v_list is distinct from 'zell_erp_access_apply_preset,zell_erp_access_audit_page,zell_erp_access_grant,zell_erp_access_parity,zell_erp_access_revoke,zell_erp_access_revoke_all,zell_erp_access_shadow_report,zell_erp_access_snapshot,zell_erp_access_users,zell_erp_my_access,zell_erp_record_shadow_event,zell_erp_set_user_active' then
+    v_fail := v_fail || ('authenticated_execute:' || coalesce(v_list, ''));
   end if;
   select string_agg(p.proname::text, ',') into v_list
     from pg_catalog.pg_proc p
    where p.pronamespace = 'public'::regnamespace
      and (p.proname like 'erp\_%' or p.proname like 'zell\_erp\_%')
-     and (pg_catalog.has_function_privilege('anon', p.oid, 'EXECUTE')
-          or pg_catalog.has_function_privilege('authenticated', p.oid, 'EXECUTE'));
+     and (pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE')
+          or pg_catalog.has_function_privilege('anon', p.oid, 'EXECUTE'));
   if v_list is not null then
-    v_fail := v_fail || ('public_execute:' || v_list);
+    v_fail := v_fail || ('service_or_anon_execute:' || v_list);
   end if;
 
   -- (د) ملكية الدوال
@@ -85,7 +86,11 @@ begin
   select string_agg(p.proname::text, ',') into v_list
     from pg_catalog.pg_proc p
    where p.pronamespace = 'public'::regnamespace
-     and p.proname in ('zell_erp_set_user_active', 'zell_erp_access_users', 'zell_erp_access_parity')
+     and p.proname in ('zell_erp_trusted_actor', 'zell_erp_require_actor', 'zell_erp_my_access', 'zell_erp_access_grant',
+                       'zell_erp_access_revoke', 'zell_erp_access_apply_preset', 'zell_erp_access_revoke_all',
+                       'zell_erp_access_snapshot', 'zell_erp_access_audit_page', 'zell_erp_access_shadow_report',
+                       'zell_erp_record_shadow_event', 'zell_erp_set_user_active', 'zell_erp_access_users',
+                       'zell_erp_access_parity')
      and pg_catalog.pg_get_userbyid(p.proowner) <> 'zell_erp_definer';
   if v_list is not null then
     v_fail := v_fail || ('adapter_owners:' || v_list);
@@ -129,20 +134,23 @@ begin
     v_fail := v_fail || 'catalog'::text;
   end if;
 
-  -- (ط) نداءات قراءة: الواجهة والصلاحيات الفعلية والمطابقة
+  -- (ط) نداءات قراءة: الواجهة، ثم بجلسة مالك مُحاكاة: الصلاحيات الفعلية والمطابقة
   select a.user_id into v_owner from public.admin_users a where a.role = 'owner' and a.is_active
    order by a.created_at, a.user_id limit 1;
   select count(*)::integer into v_admins from public.admin_users a where a.role = 'admin' and a.is_active;
   set local role zell_erp_definer;
   select pg_catalog.to_jsonb(s) into v_r from public.erp_actor_status_v1(v_owner) s;
-  v_parity := public.zell_erp_access_parity(v_owner);
   reset role;
   if v_r is distinct from '{"is_active": true, "is_owner": true}'::jsonb then
     v_fail := v_fail || ('interface_owner:' || coalesce(v_r::text, 'null'));
   end if;
-  set local role service_role;
-  v_r := public.erp_effective_capabilities(v_owner);
+  perform pg_catalog.set_config('request.jwt.claims',
+    pg_catalog.jsonb_build_object('sub', v_owner, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  v_r := public.zell_erp_my_access();
+  v_parity := public.zell_erp_access_parity();
   reset role;
+  perform pg_catalog.set_config('request.jwt.claims', '', true);
   if not coalesce((v_r ->> 'owner')::boolean, false) or jsonb_array_length(v_r -> 'capabilities') <> 29 then
     v_fail := v_fail || ('owner_effective:' || coalesce(v_r::text, 'null'));
   end if;
