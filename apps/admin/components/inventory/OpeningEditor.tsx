@@ -237,6 +237,13 @@ export function OpeningEditor({
     discard.begin(payload)
   }
 
+  /**
+   * التقدير (checkbox «التكلفة تقديرية» + ملاحظته) بيتعرض جوه كارت البند العام نفسه عن طريق
+   * renderLineExtra في InventoryLineCard — **مش** CollapsibleSection مستقل، وده مقصود:
+   *   • هو جزء من بيانات البند (بيتحفظ مع البند وبيتعلّم على الدفعة)، مش قسم اختياري زي المصاريف والخصم.
+   *   • أخطاؤه (field = 'estimate' في lineIssues) بتفتح نفس الكارت وبتركّز data-field="estimate"
+   *     زي باقي حقول البند، و«اقفل الكل» بيسيب الكارت ده مفتوح لو فيه خطأ.
+   */
   function renderEstimate(line: LineForm) {
     const estimate = form.estimates[line.key] ?? { estimated: false, note: '' }
     return (
