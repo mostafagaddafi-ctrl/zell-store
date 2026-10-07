@@ -102,6 +102,24 @@ export function abandonIntent<P>(state: IntentState<P>): IntentState<P> | null {
   return { phase: 'abandoned' }
 }
 
+/**
+ * بعد ما المصالحة تخلص (البيانات اتقرت من جديد من السيرفر): abandoned → editing.
+ * null لو الحالة مش abandoned. قبل كده الـpayload بيفضل مقفول.
+ */
+export function reopenAfterReconcile<P>(state: IntentState<P>): IntentState<P> | null {
+  if (state.phase !== 'abandoned') return null
+  return initialIntent<P>()
+}
+
+/**
+ * بعد نجاح عملية والنموذج لسه مفتوح (والبيانات اتقرت من جديد): done → editing، والإرسال الجاي بنية
+ * ومفتاح جديد. null لو الحالة مش done.
+ */
+export function resetAfterDone<P>(state: IntentState<P>): IntentState<P> | null {
+  if (state.phase !== 'done') return null
+  return initialIntent<P>()
+}
+
 export function canEditPayload<P>(state: IntentState<P>): boolean {
   return state.phase === 'editing'
 }
