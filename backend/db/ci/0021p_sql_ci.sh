@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # 0021-P — اختبار SQL الدائم في CI: Postgres 17 مؤقت + shim شبه Supabase (postgres مش superuser وعنده CREATEROLE،
 # service_role/anon/authenticated/authenticator، وdefault privileges بتدّي كل حاجة لـ anon/authenticated/service_role).
-# بيغطي: md5 الجسمين في الـ ptest · ptest (ci + production) · التطبيق · verify · رفض إعادة التطبيق · المحوّل من غير موافقة
+# بيغطي: شكل المعاملة في الـ ptest (0021p_txn_shape.py) · md5 الجسمين في الـ ptest · ptest بصف ملخص (ci + production
+# + حالات سلبية لازم تقع) · التطبيق · verify · رفض إعادة التطبيق · المحوّل من غير موافقة
 # أو من غير محرك · rollback (من غير تأكيد / نضيف / بعد استخدام حقيقي) · freeze · التزامن باتصالين.
 # ممنوع يتشغّل على أي داتابيز غير الحاوية المؤقتة.
 set -uo pipefail
@@ -166,6 +167,15 @@ echo "server_version: $(psql -X -tA -U "$SUPER" -d postgres -c 'show server_vers
 echo "client: $(psql --version)"
 init_cluster
 
+# ── S0: شكل المعاملة في الـ ptest على مستوى الجمل (begin … SELECT واحد … rollback) ──
+SHAPE="$ROOT/backend/db/ci/0021p_txn_shape.py"
+ok=no; if python3 "$SHAPE" --selftest > "$TMP/shape_self.out" 2>&1; then ok=yes; fi
+grep -E '^(SELFTEST FAIL|TXN_SHAPE_SELFTEST)' "$TMP/shape_self.out"
+record "S0a txn-shape checker selftest" "$ok" "$(tail -n 5 "$TMP/shape_self.out")"
+ok=no; if python3 "$SHAPE" "$PTEST" > "$TMP/shape.out" 2>&1; then ok=yes; fi
+cat "$TMP/shape.out"
+record "S0b ptest transaction shape: begin, one SELECT right before rollback, no commit/end/abort/prepare" "$ok" "$(tail -n 5 "$TMP/shape.out")"
+
 # ── S1: الـ ptest فيه نفس جسمين الـ migration بالحرف ──
 e1=$(body_md5 "$ENGINE" "0021P ENGINE BODY"); e2=$(body_md5 "$PTEST" "0021P ENGINE BODY")
 a1=$(body_md5 "$ADAPTER" "0021P ADAPTER BODY"); a2=$(body_md5 "$PTEST" "0021P ADAPTER BODY")
@@ -174,24 +184,62 @@ record "S1a ptest engine body md5 = migration ($e1)" "$ok" "migration=$e1 ptest=
 ok=no; if [ "$a1" = "$a2" ] && [ "$a1" != "$EMPTY_MD5" ]; then ok=yes; fi
 record "S1b ptest adapter body md5 = migration ($a1)" "$ok" "migration=$a1 ptest=$a2"
 
+# الـ ptest بيرجّع صفوف: أول صف ord=0 هو الملخص. أعمدة psql -tA (فاصل |):
+#   1 ord · 2 kind · 7 profile · 8 pass · 9 fail · 10 skip · 11 verdict · 12 active_owners · 13 active_admins
+#   14 expected_skips · 15 actual_skips
+# run_ptest FILE OUT → RC (exit code لـ psql) و SUMMARY (صف الملخص أو فاضي).
+run_ptest() {
+  run_file "$1" "$2"
+  RC=$?
+  SUMMARY=$(grep -m 1 '^0|summary|' "$2")
+  echo "ptest $(basename "$1"): exit=$RC summary=$SUMMARY"
+  grep -E '^[0-9]+\|test\|[^|]*\|[^|]*\|fail\|' "$2" | head -n 20
+}
+sf() { printf '%s' "$SUMMARY" | cut -d'|' -f"$1"; }
+ptest_tail() { tail -n 5 "$1" | cut -c1-400; }
+
 # ── S2: ptest (ci) قبل التطبيق، ومفيش حاجة بتفضل بعده ──
 reset_db "$A:owner:true" "$B:owner:true" "$X:admin:true" "$Y:admin:false"
-sed "s/set_config('zell.ptest_profile', 'production', true)/set_config('zell.ptest_profile', 'ci', true)/" "$PTEST" > "$TMP/ptest_ci.sql"
-run_file "$TMP/ptest_ci.sql" "$TMP/ptest_ci.out"
-line=$(grep -o 'ZELL_0021P_PTEST_RESULT.*' "$TMP/ptest_ci.out" | head -n 1)
-echo "$line"
-ok=no; if printf '%s' "$line" | grep -q 'profile=ci ' && printf '%s' "$line" | grep -q ' fail=0 ' && printf '%s' "$line" | grep -q ' skip=0 '; then ok=yes; fi
-record "S2a ptest profile=ci: fail=0 skip=0" "$ok" "$(tail -n 5 "$TMP/ptest_ci.out")"
+sed "s/^set local zell.ptest_profile = 'production';\$/set local zell.ptest_profile = 'ci';/" "$PTEST" > "$TMP/ptest_ci.sql"
+ok=no; if grep -qx "set local zell.ptest_profile = 'ci';" "$TMP/ptest_ci.sql" && ! grep -q "^set local zell.ptest_profile = 'production';" "$TMP/ptest_ci.sql"; then ok=yes; fi
+record "S2-0 ci copy switches the profile line" "$ok" "sed did not match the profile line"
+run_ptest "$TMP/ptest_ci.sql" "$TMP/ptest_ci.out"
+ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 7)" = "ci" ] && [ "$(sf 11)" = "PASS" ] && [ "$(sf 9)" = "0" ] && [ "$(sf 10)" = "0" ] && [ -z "$(sf 14)" ] && [ -z "$(sf 15)" ]; then ok=yes; fi
+record "S2a ptest profile=ci: verdict PASS, fail=0, skip=0 (pass=$(sf 8))" "$ok" "exit=$RC summary=$SUMMARY $(ptest_tail "$TMP/ptest_ci.out")"
 left=$(q "select pg_catalog.to_regrole('erp_definer') is null and pg_catalog.to_regrole('zell_erp_definer') is null and pg_catalog.to_regclass('public.zell_erp_owner_guard') is null and pg_catalog.to_regclass('public.erp_access_audit') is null and (select count(*) from public.admin_users) = 4 and not exists (select 1 from pg_catalog.pg_trigger where tgrelid = 'public.admin_users'::regclass and not tgisinternal)")
 record "S2b ptest leaves nothing behind" "$( [ "$left" = "t" ] && echo yes || echo no )" "$left"
 
-# ── S3: ptest (production) بمالك واحد وأدمن واحد: المحتاج مالك تاني بيتعدّى ──
+# ── S2n: الحكم لازم يقع (FAIL) والملف يكمّل ويرجّع صفوف، من غير exception طويل ──
+# (1) بلوك بيرمي خطأ مش متوقع → صف ABORT_M + verdict FAIL، و psql exit 0.
+reset_db "$A:owner:true" "$B:owner:true" "$X:admin:true" "$Y:admin:false"
+sed "s/^  perform pg_temp.zt('T38 /  perform 1\/0; perform pg_temp.zt('T38 /" "$TMP/ptest_ci.sql" > "$TMP/ptest_neg_block.sql"
+ok=no
+if grep -q "perform 1/0; perform pg_temp.zt('T38 " "$TMP/ptest_neg_block.sql"; then
+  run_ptest "$TMP/ptest_neg_block.sql" "$TMP/ptest_neg_block.out"
+  if [ "$RC" -eq 0 ] && [ "$(sf 11)" = "FAIL" ] && [ "$(sf 9)" = "1" ] && grep -q '^[0-9]*|test|ABORT_M|' "$TMP/ptest_neg_block.out"; then ok=yes; fi
+fi
+record "S2n1 block error -> fail row ABORT_M, verdict FAIL, exit 0" "$ok" "exit=$RC summary=$SUMMARY $(ptest_tail "$TMP/ptest_neg_block.out" 2> /dev/null)"
+# (2) skip متوقع زيادة (T99) مابيتعدّاش → verdict FAIL مع fail=0.
 reset_db "$A:owner:true" "$X:admin:true"
-run_file "$PTEST" "$TMP/ptest_prod.out"
-line=$(grep -o 'ZELL_0021P_PTEST_RESULT.*' "$TMP/ptest_prod.out" | head -n 1)
-echo "$line"
-ok=no; if printf '%s' "$line" | grep -q 'profile=production ' && printf '%s' "$line" | grep -q ' fail=0 '; then ok=yes; fi
-record "S3 ptest profile=production (single owner): fail=0" "$ok" "$(tail -n 5 "$TMP/ptest_prod.out")"
+sed "s/v_expected := array\['T29', 'T36'\];/v_expected := array['T29', 'T36', 'T99'];/" "$PTEST" > "$TMP/ptest_neg_skip.sql"
+ok=no
+if grep -q "array\['T29', 'T36', 'T99'\]" "$TMP/ptest_neg_skip.sql"; then
+  run_ptest "$TMP/ptest_neg_skip.sql" "$TMP/ptest_neg_skip.out"
+  if [ "$RC" -eq 0 ] && [ "$(sf 11)" = "FAIL" ] && [ "$(sf 9)" = "0" ] && [ "$(sf 14)" = "T13,T24,T29,T36,T99" ] && [ "$(sf 15)" = "T13,T24,T29,T36" ]; then ok=yes; fi
+fi
+record "S2n2 skips != expected (extra T99) -> verdict FAIL" "$ok" "exit=$RC summary=$SUMMARY"
+
+# ── S3: ptest (production) بمالك واحد وأدمن واحد (زي Production النهارده) ──
+reset_db "$A:owner:true" "$X:admin:true"
+run_ptest "$PTEST" "$TMP/ptest_prod.out"
+ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 7)" = "production" ] && [ "$(sf 11)" = "PASS" ] && [ "$(sf 9)" = "0" ] && [ "$(sf 12)" = "1" ] && [ "$(sf 13)" = "1" ] && [ "$(sf 14)" = "T13,T24,T29,T36" ] && [ "$(sf 15)" = "T13,T24,T29,T36" ]; then ok=yes; fi
+record "S3 ptest profile=production (owner A + admin X): PASS, skips T13,T24,T29,T36 (pass=$(sf 8))" "$ok" "exit=$RC summary=$SUMMARY $(ptest_tail "$TMP/ptest_prod.out")"
+
+# ── S3b: ptest (production) بمالك واحد بس: كمان ADMIN_GROUP و T05b بيتعدّوا ──
+reset_db "$A:owner:true"
+run_ptest "$PTEST" "$TMP/ptest_prod_b.out"
+ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 7)" = "production" ] && [ "$(sf 11)" = "PASS" ] && [ "$(sf 9)" = "0" ] && [ "$(sf 13)" = "0" ] && [ "$(sf 14)" = "ADMIN_GROUP,T05b,T13,T24,T29,T36" ] && [ "$(sf 15)" = "ADMIN_GROUP,T05b,T13,T24,T29,T36" ]; then ok=yes; fi
+record "S3b ptest profile=production (owner A only): PASS, skips ADMIN_GROUP,T05b,T13,T24,T29,T36 (pass=$(sf 8))" "$ok" "exit=$RC summary=$SUMMARY $(ptest_tail "$TMP/ptest_prod_b.out")"
 
 # ── S4: التطبيق + verify ──
 reset_db "$A:owner:true" "$B:owner:true" "$X:admin:true" "$Y:admin:false"
