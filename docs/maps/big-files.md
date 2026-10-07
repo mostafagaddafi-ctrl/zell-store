@@ -1,0 +1,670 @@
+# الملفات الضخمة: أقسامها وأرقام سطورها
+
+كل ملف في الريبو حجمه 20 KB أو أكتر (SQL · shell · Markdown)، وأقسامه بأرقام سطورها. الهدف إن أي شات يقرا الجزء اللي محتاجه بس، من غير ما يفتح ملف فيه آلاف السطور.
+
+- **الأرقام دي من main على `27825e6`.** أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR.
+- **القراية بالسطور:** على GitHub ضيف `#L100-L200` للرابط، أو اقرا الـ blob وقطّع السطور من القسم لحد القسم اللي بعده.
+- **الـ ptest:** جسم الـ migration منسوخ جواه بالحرف بين «بداية/نهاية الجسم المنسوخ»، فمش محتاج تقراه هناك. اقراه من ملف الـ migration.
+- الجداول متولّدة من عناوين الملفات نفسها: `-- (N)` · الفواصل · `DO $…$` · `create function/table/role` · `BEGIN/COMMIT/ROLLBACK` · `#` في Markdown.
+
+| الملف | الحجم | السطور | بيعمل إيه |
+| --- | --- | --- | --- |
+| `backend/db/ci/0021p_sql_ci.sh` | 30 KB | 446 | اختبارات SQL لـ 0021-P في CI (S0–S8 و C1–C4) |
+| `backend/db/migrations/0006b_order_functions.sql` | 38 KB | 766 | دور `zell_order_writer` وأول نسخة من `zell_create_order` و`zell_get_order_receipt` |
+| `backend/db/migrations/0006c_order_receipt_expiry.sql` | 23 KB | 505 | `zell_create_order` بترجّع `receipt_expires_at` |
+| `backend/db/migrations/0015_product_widths.sql` | 21 KB | 464 | عروض الرول (`product_widths`) + `zell_create_order` |
+| `backend/db/migrations/0016_piece_products.sql` | 26 KB | 576 | منتجات القطعة والإضافات + `zell_create_order` والإيصال |
+| `backend/db/migrations/0016_piece_products_rollback.sql` | 20 KB | 452 | الرجوع من 0016 |
+| `backend/db/migrations/0018_installation_fee.sql` | 34 KB | 739 | فني التركيب والمنطقة + `zell_create_order` (١٢ معامل) والإيصال |
+| `backend/db/migrations/0018_installation_fee_ptest.sql` | 514 KB | 10207 | اختبار 0018: dry-run للـ migration مرتين + الرجوع، و61 حالة على 5 مجموعات |
+| `backend/db/migrations/0018_installation_fee_rollback.sql` | 25 KB | 558 | الرجوع من 0018 |
+| `backend/db/migrations/0019_coupons.sql` | 47 KB | 989 | أكواد الخصم: `coupons` وأعمدة الطلب و`zell_create_order` و`zell_preview_coupon` والإلغاء النهائي |
+| `backend/db/migrations/0019_coupons_ptest.sql` | 384 KB | 7519 | اختبار 0019 |
+| `backend/db/migrations/0019_coupons_rollback.sql` | 31 KB | 685 | الرجوع من 0019 |
+| `backend/db/migrations/0020_inventory_purchasing.sql` | 219 KB | 4066 | المخزون والمشتريات: الدور والجداول والـ 23 RPC والـ triggers |
+| `backend/db/migrations/0020_inventory_purchasing_ptest.sql` | 306 KB | 5440 | اختبار 0020 (الجسم منسوخ بين علامات >>> و <<<) |
+| `backend/db/migrations/0020_inventory_purchasing_verify.sql` | 26 KB | 368 | التحقق بعد تطبيق 0020 |
+| `backend/db/migrations/0021p_access_ptest.sql` | 123 KB | 2685 | 0021-P اختبار قبل التطبيق (الجسمين منسوخين بالحرف، والنتيجة صفوف) |
+| `backend/db/migrations/0021p_access_verify.sql` | 21 KB | 339 | 0021-P التحقق بعد التطبيق (15 فحص، والنتيجة صفوف) |
+| `backend/db/migrations/0021p_erp_access.sql` | 46 KB | 1049 | 0021-P المحرك `erp_*` |
+| `backend/db/migrations/0021p_zell_erp_access.sql` | 42 KB | 984 | 0021-P محوّل ZELL `zell_erp_*` |
+| `docs/plans/ORDER-FLOW-PLAN.md` | 119 KB | 1585 | خطة مسار الطلب |
+
+---
+
+## `backend/db/ci/0021p_sql_ci.sh`
+
+اختبارات SQL لـ 0021-P في CI (S0–S8 و C1–C4) · 446 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 37 | دالة record |
+| 47 | دالة su_sql |
+| 48 | دالة q |
+| 49 | دالة run_pg |
+| 50 | دالة run_file |
+| 51 | دالة sqlstate |
+| 52 | دالة has |
+| 54 | دالة as_user |
+| 59 | دالة init_cluster |
+| 87 | دالة reset_db |
+| 116 | دالة apply_engine |
+| 119 | دالة adapter_run_text |
+| 120 | دالة apply_adapter |
+| 124 | دالة apply_all |
+| 133 | دالة consistent |
+| 134 | دالة owners |
+| 154 | دالة residue |
+| 155 | دالة rf |
+| 159 | دالة pair |
+| 181 | دالة in_list |
+| 194 | ── S0: شكل المعاملة في الـ ptest على مستوى الجمل (begin … SELECT واحد … rollback) ── |
+| 206 | ── S1: الـ ptest فيه نفس جسمين الـ migration بالحرف ── |
+| 225 | دالة run_ptest |
+| 232 | دالة sf |
+| 233 | دالة ptest_tail |
+| 237 | ── S2: ptest (ci) قبل التطبيق، ومفيش حاجة بتفضل بعده ── |
+| 248 | ── S2n: الحكم لازم يقع (FAIL) والملف يكمّل ويرجّع صفوف، من غير exception طويل ── |
+| 268 | ── S3: ptest (production) بمالك واحد وأدمن واحد (زي Production النهارده) ── |
+| 274 | ── S3b: ptest (production) بمالك واحد بس: كمان ADMIN_GROUP و T05b بيتعدّوا ── |
+| 280 | ── S4: verify قبل التطبيق (لازم يقع بصفوف) ← التطبيق ← verify ← استعلام الأثر ← verify سلبي ── |
+| 304 | ── S5: إعادة التطبيق مرفوضة ── |
+| 310 | ── S6: المحوّل من غير موافقة / من غير محرك ── |
+| 334 | ── S7: rollback ── |
+| 375 | ── S8: الحد العام على اتصالات حقيقية: الممثل المزوّر مايعدّيش ── |
+| 389 | ── S9: التزامن باتصالين على الـ migration الحقيقي ── |
+
+## `backend/db/migrations/0006b_order_functions.sql`
+
+دور `zell_order_writer` وأول نسخة من `zell_create_order` و`zell_get_order_receipt` · 766 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 1 | 0006b — دور الكتابة ودالتي مسار الطلب |
+| 80 | BEGIN |
+| 83 | (1) الدور — صفر صلاحيات على الجداول |
+| 85 | DO $role$ — --------------------------------------------------------------------- |
+| 101 | (2) zell_create_order |
+| 103 | دالة zell_create_order |
+| 506 | (3) zell_get_order_receipt — إسقاط مقنّع، والتقنيع في الداتابيز |
+| 508 | دالة zell_get_order_receipt |
+| 580 | (3.5) الأدوار المطلوبة لازم تكون موجودة — فشل واضح جوه المعاملة (ب١٤) |
+| 585 | DO $roles_exist$ — --------------------------------------------------------------------- |
+| 600 | (4) الصلاحيات — PUBLIC أولاً (بيتمنح تلقائياً من المحرّك) |
+| 621 | (5) تحقق ذاتي |
+| 623 | DO $verify$ — --------------------------------------------------------------------- |
+| 735 | COMMIT |
+| 737 | أكواد الأخطاء الثابتة (الباك إند بيحوّلها لرسايل عربية ثابتة) |
+| 739 | 45001 ZELL_IDEMPOTENCY_REQUIRED 45003 ZELL_IDEMPOTENCY_MISMATCH |
+| 755 | التراجع (للمرجع — مش بيتنفّذ تلقائياً) |
+| 757 | begin; |
+
+## `backend/db/migrations/0006c_order_receipt_expiry.sql`
+
+`zell_create_order` بترجّع `receipt_expires_at` · 505 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 1 | 0006c — receipt_expires_at في إسقاط zell_create_order |
+| 43 | BEGIN |
+| 46 | (1) شرط مسبق — 0006a و 0006b لازم يكونوا منفّذين |
+| 48 | DO $prereq$ — --------------------------------------------------------------------- |
+| 71 | (2) zell_create_order — نفس الجسم + receipt_expires_at في الإسقاط |
+| 73 | دالة zell_create_order |
+| 431 | (3) تحقق ذاتي — create or replace ما يكونش ضيّع أي خصيصة |
+| 433 | DO $verify$ — --------------------------------------------------------------------- |
+| 496 | COMMIT |
+| 498 | التراجع |
+| 500 | أعد تنفيذ قسم zell_create_order من 0006b كما هو — بيرجّع الإسقاط القديم |
+
+## `backend/db/migrations/0015_product_widths.sql`
+
+عروض الرول (`product_widths`) + `zell_create_order` · 464 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 10 | جدول product_widths |
+| 33 | دالة zell_set_product_widths |
+| 100 | دالة zell_create_order |
+
+## `backend/db/migrations/0016_piece_products.sql`
+
+منتجات القطعة والإضافات + `zell_create_order` والإيصال · 576 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 13 | DO $$ |
+| 22 | جدول product_addons |
+| 36 | دالة zell_set_product_addons |
+| 85 | DO $$ |
+| 94 | دالة zell_create_order |
+| 506 | دالة zell_get_order_receipt |
+
+## `backend/db/migrations/0016_piece_products_rollback.sql`
+
+الرجوع من 0016 · 452 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 4 | دالة zell_create_order |
+| 369 | دالة zell_get_order_receipt |
+
+## `backend/db/migrations/0018_installation_fee.sql`
+
+فني التركيب والمنطقة + `zell_create_order` (١٢ معامل) والإيصال · 739 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 24 | BEGIN |
+| 28 | DO $g$ |
+| 34 | DO $p$ |
+| 81 | دالة zell_create_order |
+| 629 | دالة zell_get_order_receipt |
+| 714 | DO $c$ |
+| 738 | COMMIT |
+
+## `backend/db/migrations/0018_installation_fee_ptest.sql`
+
+اختبار 0018: dry-run للـ migration مرتين + الرجوع، و61 حالة على 5 مجموعات · 10207 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 8 | (1) dry-run: الـmigration ×2 + اختبارين للرجوع (RB_DUP: المنطقة مابتتكررش · RB_BLOCK: بيقف مع أوردر… |
+| 11 | (2) 61 حالة على 5 مجموعات — بنية 0018 + _ptest + إعداد اختبار، وكل حالة في كتلة فرعية بترجع. |
+| 75 | DO $zdry$ |
+| 3647 | DO $ztest$ |
+| 4973 | DO $ztest$ |
+| 6299 | DO $ztest$ |
+| 7625 | DO $ztest$ |
+| 8917 | DO $ztest$ |
+
+## `backend/db/migrations/0018_installation_fee_rollback.sql`
+
+الرجوع من 0018 · 558 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 16 | BEGIN |
+| 20 | DO $g$ |
+| 26 | DO $r$ |
+| 44 | دالة zell_create_order |
+| 460 | دالة zell_get_order_receipt |
+| 544 | DO $c$ |
+| 557 | COMMIT |
+
+## `backend/db/migrations/0019_coupons.sql`
+
+أكواد الخصم: `coupons` وأعمدة الطلب و`zell_create_order` و`zell_preview_coupon` والإلغاء النهائي · 989 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 19 | BEGIN |
+| 22 | (0) preflight: التعريفات الحالية بالظبط، ومفيش 0019 قبل كده — DO $zpre$ |
+| 40 | (1) جدول الكوبونات |
+| 41 | جدول coupons |
+| 82 | (2) لقطة الخصم في الأوردر (كله إضافي، والأوردرات الحالية discount = 0) |
+| 122 | (3) الإلغاء نهائي في v1 — في الداتابيز لأي مسار (اللوحة · SQL · REST) |
+| 123 | دالة zell_orders_cancelled_final |
+| 142 | (4) مفتاح التشغيل — مقفول لحد ما المالك يفتحه من اللوحة. الدالة بتعتبر غيابه مقفول. |
+| 147 | (5) دالة الأوردر: 12 → 13 معامل. drop + create جوه نفس المعاملة (مفيش لحظة من غير دالة، |
+| 150 | دالة zell_create_order |
+| 823 | (6) الإيصال: نفس التوقيع + discount_piastres و coupon_code |
+| 824 | دالة zell_get_order_receipt |
+| 916 | (7) معاينة الكود (تقديرية) |
+| 917 | دالة zell_preview_coupon |
+| 985 | (8) PostgREST يقرا التوقيع الجديد (بيتبعت بعد الـcommit بس) |
+| 988 | COMMIT |
+
+## `backend/db/migrations/0019_coupons_ptest.sql`
+
+اختبار 0019 · 7519 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 10 | (1) DRY-RUN — الـmigration ×2 + الرجوع ×2 + RB_BLOCK + الصلاحيات. |
+| 11 | (2a) PARITY_A — من غير كود: الجديدة = القديمة (أرقام + بصمة صف الأوردر والأصناف) + أخطاء الرفض. |
+| 12 | (2b) PARITY_B — الشحن المجاني · overflow · replay · الإيصال · أشكال النداء (10 معامل · named 12). |
+| 13 | (3) COUPONS — نسبة/ثابت/سقف/حد أدنى/تواريخ نصف مفتوحة/تفعيل/شكل الكود/تقريب/شحن مجاني/فني/خصم صفر/ا… |
+| 14 | (4a) USAGE_A — max_uses · لكل موبايل · الإلغاء بيحرر · الإلغاء نهائي في الداتابيز · replay · نفس ال… |
+| 15 | (4b) USAGE_B — المعاينة (مابتكتبش) · قيود الجدول · الصلاحيات والفهارس وترتيب الأقفال. |
+| 17 | (1) DRY-RUN: migration ×2 + rollback ×2 + RB_BLOCK. مفيش نداء لأي zell_create_order. |
+| 20 | DO $zdry$ — new=3e9de266… · receipt=711a5447… · old=∅ بعد الـmigration و 635e6613… بعد الرجوع. |
+| 23 | (0) preflight: التعريفات الحالية بالظبط، ومفيش 0019 قبل كده — DO $zpre$ |
+| 41 | (1) جدول الكوبونات |
+| 83 | (2) لقطة الخصم في الأوردر (كله إضافي، والأوردرات الحالية discount = 0) |
+| 123 | (3) الإلغاء نهائي في v1 — في الداتابيز لأي مسار (اللوحة · SQL · REST) |
+| 143 | (4) مفتاح التشغيل — مقفول لحد ما المالك يفتحه من اللوحة. الدالة بتعتبر غيابه مقفول. |
+| 148 | (5) دالة الأوردر: 12 → 13 معامل. drop + create جوه نفس المعاملة (مفيش لحظة من غير دالة، |
+| 824 | (6) الإيصال: نفس التوقيع + discount_piastres و coupon_code |
+| 917 | (7) معاينة الكود (تقديرية) |
+| 986 | (8) PostgREST يقرا التوقيع الجديد (بيتبعت بعد الـcommit بس) |
+| 991 | (0) preflight: قفل الأوردرات عشان مفيش أوردر بكوبون يدخل بين الفحص والرجوع، |
+| 994 | DO $zrbpre$ |
+| 1006 | (1) سلوك الحالات القديم: الإلغاء يرجع يتعدّل زي قبل 0019 |
+| 1010 | (2) الدوال: المعاينة تتشال، والأوردر والإيصال يرجعوا بتعريفهم القديم بالحرف |
+| 1643 | (3) القيود والفهارس والأعمدة |
+| 1658 | (4) الجدول والمفتاح |
+| 1851 | (2a) PARITY: من غير كود الجديدة = نسخة القديمة (الأرقام + بصمة صف الأوردر والأصناف). المتوقع كله SA… — DO $zpa$ |
+| 1855 | (0) preflight: التعريفات الحالية بالظبط، ومفيش 0019 قبل كده — DO $zpre$ |
+| 1873 | (1) جدول الكوبونات |
+| 1915 | (2) لقطة الخصم في الأوردر (كله إضافي، والأوردرات الحالية discount = 0) |
+| 1955 | (3) الإلغاء نهائي في v1 — في الداتابيز لأي مسار (اللوحة · SQL · REST) |
+| 1975 | (4) مفتاح التشغيل — مقفول لحد ما المالك يفتحه من اللوحة. الدالة بتعتبر غيابه مقفول. |
+| 1980 | (5) دالة الأوردر: 12 → 13 معامل. drop + create جوه نفس المعاملة (مفيش لحظة من غير دالة، |
+| 2656 | (6) الإيصال: نفس التوقيع + discount_piastres و coupon_code |
+| 2749 | (7) معاينة الكود (تقديرية) |
+| 2818 | (8) PostgREST يقرا التوقيع الجديد (بيتبعت بعد الـcommit بس) |
+| 2948 | (2b) PARITY: الشحن المجاني · overflow · replay · الإيصال · أشكال النداء (10 معامل · named 12). — DO $zpb$ |
+| 2952 | (0) preflight: التعريفات الحالية بالظبط، ومفيش 0019 قبل كده — DO $zpre$ |
+| 2970 | (1) جدول الكوبونات |
+| 3012 | (2) لقطة الخصم في الأوردر (كله إضافي، والأوردرات الحالية discount = 0) |
+| 3052 | (3) الإلغاء نهائي في v1 — في الداتابيز لأي مسار (اللوحة · SQL · REST) |
+| 3072 | (4) مفتاح التشغيل — مقفول لحد ما المالك يفتحه من اللوحة. الدالة بتعتبر غيابه مقفول. |
+| 3077 | (5) دالة الأوردر: 12 → 13 معامل. drop + create جوه نفس المعاملة (مفيش لحظة من غير دالة، |
+| 3753 | (6) الإيصال: نفس التوقيع + discount_piastres و coupon_code |
+| 3846 | (7) معاينة الكود (تقديرية) |
+| 3915 | (8) PostgREST يقرا التوقيع الجديد (بيتبعت بعد الـcommit بس) |
+| 4064 | (3) COUPONS: قواعد الكود على نسخة الجديدة. النتيجة: sub\|ship\|disc\|inst\|travel\|total\|code أو E<sqlst… — DO $zcp$ |
+| 4068 | (0) preflight: التعريفات الحالية بالظبط، ومفيش 0019 قبل كده — DO $zpre$ |
+| 4086 | (1) جدول الكوبونات |
+| 4128 | (2) لقطة الخصم في الأوردر (كله إضافي، والأوردرات الحالية discount = 0) |
+| 4168 | (3) الإلغاء نهائي في v1 — في الداتابيز لأي مسار (اللوحة · SQL · REST) |
+| 4188 | (4) مفتاح التشغيل — مقفول لحد ما المالك يفتحه من اللوحة. الدالة بتعتبر غيابه مقفول. |
+| 4193 | (5) دالة الأوردر: 12 → 13 معامل. drop + create جوه نفس المعاملة (مفيش لحظة من غير دالة، |
+| 4869 | (6) الإيصال: نفس التوقيع + discount_piastres و coupon_code |
+| 4962 | (7) معاينة الكود (تقديرية) |
+| 5031 | (8) PostgREST يقرا التوقيع الجديد (بيتبعت بعد الـcommit بس) |
+| 5203 | (4a) USAGE: max_uses · لكل موبايل · الإلغاء بيحرر · الإلغاء نهائي (DB) · replay · نفس المفتاح بهاش … — DO $zua$ |
+| 5207 | (0) preflight: التعريفات الحالية بالظبط، ومفيش 0019 قبل كده — DO $zpre$ |
+| 5225 | (1) جدول الكوبونات |
+| 5267 | (2) لقطة الخصم في الأوردر (كله إضافي، والأوردرات الحالية discount = 0) |
+| 5307 | (3) الإلغاء نهائي في v1 — في الداتابيز لأي مسار (اللوحة · SQL · REST) |
+| 5327 | (4) مفتاح التشغيل — مقفول لحد ما المالك يفتحه من اللوحة. الدالة بتعتبر غيابه مقفول. |
+| 5332 | (5) دالة الأوردر: 12 → 13 معامل. drop + create جوه نفس المعاملة (مفيش لحظة من غير دالة، |
+| 6008 | (6) الإيصال: نفس التوقيع + discount_piastres و coupon_code |
+| 6101 | (7) معاينة الكود (تقديرية) |
+| 6170 | (8) PostgREST يقرا التوقيع الجديد (بيتبعت بعد الـcommit بس) |
+| 6348 | (4b) PREVIEW + قيود الجدول + الصلاحيات. — DO $zub$ |
+| 6352 | (0) preflight: التعريفات الحالية بالظبط، ومفيش 0019 قبل كده — DO $zpre$ |
+| 6370 | (1) جدول الكوبونات |
+| 6412 | (2) لقطة الخصم في الأوردر (كله إضافي، والأوردرات الحالية discount = 0) |
+| 6452 | (3) الإلغاء نهائي في v1 — في الداتابيز لأي مسار (اللوحة · SQL · REST) |
+| 6472 | (4) مفتاح التشغيل — مقفول لحد ما المالك يفتحه من اللوحة. الدالة بتعتبر غيابه مقفول. |
+| 6477 | (5) دالة الأوردر: 12 → 13 معامل. drop + create جوه نفس المعاملة (مفيش لحظة من غير دالة، |
+| 7153 | (6) الإيصال: نفس التوقيع + discount_piastres و coupon_code |
+| 7246 | (7) معاينة الكود (تقديرية) |
+| 7315 | (8) PostgREST يقرا التوقيع الجديد (بيتبعت بعد الـcommit بس) |
+
+## `backend/db/migrations/0019_coupons_rollback.sql`
+
+الرجوع من 0019 · 685 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 8 | BEGIN |
+| 11 | (0) preflight: قفل الأوردرات عشان مفيش أوردر بكوبون يدخل بين الفحص والرجوع، |
+| 14 | DO $zrbpre$ |
+| 26 | (1) سلوك الحالات القديم: الإلغاء يرجع يتعدّل زي قبل 0019 |
+| 30 | (2) الدوال: المعاينة تتشال، والأوردر والإيصال يرجعوا بتعريفهم القديم بالحرف |
+| 33 | دالة zell_create_order |
+| 578 | دالة zell_get_order_receipt |
+| 663 | (3) القيود والفهارس والأعمدة |
+| 678 | (4) الجدول والمفتاح |
+| 684 | COMMIT |
+
+## `backend/db/migrations/0020_inventory_purchasing.sql`
+
+المخزون والمشتريات: الدور والجداول والـ 23 RPC والـ triggers · 4066 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 21 | BEGIN |
+| 22 | بداية الجسم المنسوخ: 0020 BODY |
+| 26 | (0) preflight بنيوي (مفيش md5 كشرط — البصمات للمقارنة بس) — DO $zpre$ |
+| 151 | (1) الدور: NOLOGIN + NOBYPASSRLS + NOINHERIT. عضوية postgres: ADMIN (تلقائي من CREATE ROLE) + SET، … |
+| 152 | دور zell_inventory_definer |
+| 154 | DO $zrole$ |
+| 165 | DO $zrole2$ |
+| 179 | (2) sequences أرقام المستندات والـlots (الفجوات عادية) |
+| 185 | (3) الجداول (الـFKs على products بتتضاف في الآخر — §12.2) |
+| 186 | جدول inventory_locations |
+| 206 | جدول suppliers |
+| 227 | جدول purchase_docs |
+| 309 | جدول purchase_doc_lines |
+| 350 | جدول purchase_doc_charges |
+| 368 | جدول opening_stock_docs |
+| 432 | جدول opening_stock_lines |
+| 472 | جدول stock_lots |
+| 536 | جدول inventory_commands |
+| 554 | جدول inventory_audit_log |
+| 577 | (4) seed: الموقع الافتراضي (مالوش audit — الـmigration نفسه هو السجل) |
+| 581 | (5) الدوال المساعدة الداخلية (مفيش أي grant لـ service_role / anon / authenticated / PUBLIC) |
+| 584 | دالة zell_inv_assert_owner |
+| 602 | دالة zell_inv_lock_products |
+| 623 | دالة zell_inv_read_products |
+| 643 | دالة zell_inv_product_has_stock_refs |
+| 655 | دالة zell_inv_width_allowed |
+| 667 | دالة zell_inv_allocate_lr |
+| 724 | دالة zell_inv_normalize_purchase |
+| 1056 | دالة zell_inv_normalize_opening |
+| 1305 | دالة zell_inv_command_check |
+| 1332 | دالة zell_inv_doc_void_blockers |
+| 1342 | دالة zell_inv_unknown_lot_references |
+| 1362 | دالة zell_inv_void_contract_version |
+| 1372 | (6) دوال الـtriggers (مالكها postgres). بتمنع الـDML المباشر، ومش حاجز ضد مالك الكائنات المتعمد. |
+| 1373 | دالة zell_inv_trg_no_delete |
+| 1383 | دالة zell_inv_trg_no_truncate |
+| 1393 | دالة zell_inv_trg_append_only |
+| 1404 | دالة zell_inv_trg_doc_guard |
+| 1450 | دالة zell_inv_trg_child_insert_guard |
+| 1500 | دالة zell_inv_trg_lot_update_guard |
+| 1531 | دالة zell_inv_trg_master_guard |
+| 1557 | دالة zell_inv_trg_products_sale_unit |
+| 1572 | (7) RPCs: المواقع والموردين |
+| 1573 | دالة zell_inv_create_location |
+| 1631 | دالة zell_inv_update_location |
+| 1693 | دالة zell_inv_create_supplier |
+| 1760 | دالة zell_inv_update_supplier |
+| 1843 | (8) RPCs: مستندات الشراء |
+| 1844 | دالة zell_inv_create_purchase |
+| 1941 | دالة zell_inv_update_purchase |
+| 2054 | دالة zell_inv_post_purchase |
+| 2297 | دالة zell_inv_discard_purchase |
+| 2364 | دالة zell_inv_void_purchase |
+| 2467 | (9) RPCs: رصيد أول المدة (أمر مستقل — من غير مورد ولا مصاريف ولا خصم ولا فلوس) |
+| 2468 | دالة zell_inv_create_opening |
+| 2552 | دالة zell_inv_update_opening |
+| 2653 | دالة zell_inv_post_opening |
+| 2837 | دالة zell_inv_discard_opening |
+| 2903 | دالة zell_inv_void_opening |
+| 3006 | (10) RPCs: القراءة (owner بس). keyset pagination، افتراضي 25 وأقصى 100، ومفيش SELECT *. |
+| 3007 | دالة zell_inv_list_locations |
+| 3042 | دالة zell_inv_list_suppliers |
+| 3077 | دالة zell_inv_list_purchases |
+| 3133 | دالة zell_inv_get_purchase |
+| 3199 | دالة zell_inv_preview_purchase |
+| 3288 | دالة zell_inv_list_openings |
+| 3333 | دالة zell_inv_get_opening |
+| 3386 | دالة zell_inv_preview_opening |
+| 3468 | دالة zell_inv_list_lots |
+| 3521 | (11) ملكية الدوال (§2.1): CREATE مؤقت → OWNER TO → SET LOCAL ROLE (revoke/grant) → RESET ROLE → سحب… |
+| 3633 | (12) الجداول: RLS + policy واحدة للدور + صلاحيات صريحة (مفيش DELETE ولا TRUNCATE لأي دور غير المالك… |
+| 3689 | DO $zseq$ |
+| 3705 | (13) triggers على الجداول الجديدة |
+| 3742 | (14) آخر حاجة (§12.2): FKs على products و trigger sale_unit — SHARE ROW EXCLUSIVE على products لحد … |
+| 3756 | (15) postflight (أي فشل = المعاملة كلها بترجع) |
+| 3758 | DO $zpost$ |
+| 4064 | نهاية الجسم المنسوخ: 0020 BODY |
+| 4065 | COMMIT |
+
+## `backend/db/migrations/0020_inventory_purchasing_ptest.sql`
+
+اختبار 0020 (الجسم منسوخ بين علامات >>> و <<<) · 5440 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 14 | BEGIN |
+| 17 | DO $zguard$ |
+| 46 | بداية الجسم المنسوخ: 0020 BODY |
+| 4088 | نهاية الجسم المنسوخ: 0020 BODY |
+| 4262 | DO $pt_setup$ — ═══ الـfixtures بالخصائص (قراءة بس — مفيش أي تعديل على products / product_widths / … |
+| 4320 | DO $pt_a$ — ═══ A. التثبيت، شكل الدور، وبروفات الإدارة والـrollback (قبل أي بيانات) ═══ |
+| 4487 | DO $pt_b$ — ═══ B. الصلاحيات: caller DB role مقابل business actor ═══ |
+| 4556 | DO $pt_c$ — ═══ C. التحقق ═══ |
+| 4671 | DO $pt_d$ — ═══ D. التوزيع ═══ |
+| 4781 | DO $pt_o$ — ═══ O. المصفوفات الفاضية (charges = [] ، lines = [] ، allocate_lr على '{}') ═══ |
+| 4850 | DO $pt_e$ — ═══ E. دورة الحياة واللقطات ═══ |
+| 4931 | DO $pt_i$ — ═══ I. الـreplay وإعادة الشبكة ═══ |
+| 4993 | DO $pt_j$ — ═══ J. التزامن (محاكاة متتالية) والاعتماديات ═══ |
+| 5081 | DO $pt_k$ — ═══ K. رصيد أول المدة ═══ |
+| 5140 | DO $pt_f$ — ═══ F. الثبات (DML مباشر كـ postgres) ═══ |
+| 5224 | DO $pt_h$ |
+| 5246 | DO $pt_l$ — ═══ L. الـaudit ═══ |
+| 5263 | DO $pt_m$ — ═══ M. الأداء: وجود الفهارس، قابلية الاستخدام (enable_seqscan=off)، الخطة الطبيعية (معل… |
+| 5363 | DO $pt_n$ — ═══ N. الختام: الـrollback بيرفض مع وجود بيانات، والبصمة الحية ماتغيرتش ═══ |
+| 5413 | DO $pt_end$ |
+| 5439 | ROLLBACK |
+
+## `backend/db/migrations/0020_inventory_purchasing_verify.sql`
+
+التحقق بعد تطبيق 0020 · 368 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 10 | BEGIN |
+| 14 | DO $zverify_a$ |
+| 306 | DO $zverify_b$ |
+| 340 | DO $zverify_end$ |
+| 367 | ROLLBACK |
+
+## `backend/db/migrations/0021p_access_ptest.sql`
+
+0021-P اختبار قبل التطبيق (الجسمين منسوخين بالحرف، والنتيجة صفوف) · 2685 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 20 | BEGIN |
+| 25 | DO $zguard$ |
+| 127 | DO $zfx$ — الـ fixtures والـ skip المتوقع: من الصفوف الموجودة. ملف ci بس ممكن يضيف صفوف (جوه المعام… |
+| 167 | بداية الجسم المنسوخ: 0021P ENGINE BODY |
+| 1187 | نهاية الجسم المنسوخ: 0021P ENGINE BODY |
+| 1190 | DO $zt01$ — T01: المحرك لوحده — كل دواله داخلية، والواجهة بترفض الكل، والإدارة مقفولة (45300) وبتتس… |
+| 1215 | بداية الجسم المنسوخ: 0021P ADAPTER BODY |
+| 2175 | نهاية الجسم المنسوخ: 0021P ADAPTER BODY |
+| 2177 | (B) الواجهة والعدّاد وتجاوز المالك والمنح الصريح — DO $zt_b$ |
+| 2222 | (C) الإدارة على أدمن بجلسة المالك (ADMIN_GROUP) — DO $zt_c$ |
+| 2358 | (D) مالك تاني — DO $zt_d$ |
+| 2388 | (E) تغيير النفس والمدخلات الغلط — DO $zt_e$ |
+| 2412 | (F) الحد العام والممثل المزوّر — DO $zt_f$ |
+| 2458 | (G) الحماية في الداتابيز (كـ postgres، وكل حاجة بترجع) — DO $zt_g$ |
+| 2495 | (H) مفيش مفاتيح تكلفة في أي قراءة (بجلسة المالك) — DO $zt_h$ |
+| 2521 | (I) أحداث الـ shadow (best-effort، بجلسة المالك) — DO $zt_i$ |
+| 2550 | (J) المطابقة والصلاحيات — DO $zt_j$ |
+| 2588 | (K) upsert من غير تغيير مابيتحسبش مرتين (ci بس: ممكن admin_users الحقيقي فيه أعمدة إجبارية تانية) — DO $zt_k$ |
+| 2610 | (L) الواجهة لو رجّعت شكل غلط: الكل مرفوض (45309)، وبعدين بترجع — DO $zt_l$ |
+| 2636 | (M) كل سطور الرفض بأعمدة ثابتة — DO $zt_m$ |
+| 2684 | ROLLBACK |
+
+## `backend/db/migrations/0021p_access_verify.sql`
+
+0021-P التحقق بعد التطبيق (15 فحص، والنتيجة صفوف) · 339 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 15 | BEGIN |
+| 20 | DO $zverify$ |
+| 338 | ROLLBACK |
+
+## `backend/db/migrations/0021p_erp_access.sql`
+
+0021-P المحرك `erp_*` · 1049 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 26 | BEGIN |
+| 27 | بداية الجسم المنسوخ: 0021P ENGINE BODY |
+| 31 | (0) preflight — DO $epre$ |
+| 61 | (1) الدور: NOLOGIN + NOBYPASSRLS + NOINHERIT. عضوية postgres: ADMIN (تلقائي من CREATE ROLE) + SET، … |
+| 62 | دور erp_definer |
+| 65 | DO $erole$ |
+| 82 | (2) الجداول (مالكها postgres) |
+| 83 | جدول erp_capabilities |
+| 93 | جدول erp_presets |
+| 101 | جدول erp_preset_items |
+| 107 | جدول erp_user_grants |
+| 117 | جدول erp_user_access |
+| 124 | جدول erp_commands |
+| 136 | جدول erp_access_audit |
+| 166 | جدول erp_access_shadow_events |
+| 214 | (3) الثبات (دالة trigger مالكها postgres). بتمنع الـDML المباشر، ومش حاجز ضد مالك الكائنات المتعمد. |
+| 215 | دالة erp_trg_immutable |
+| 248 | (4) الواجهة الثابتة (نسخة 1). المحرك بيعملها بجسم بيرفض الكل؛ المحوّل بيستبدل الجسم بس، ومالكها بيب… |
+| 249 | دالة erp_actor_status_v1 |
+| 261 | دالة erp_actor_status_contract_version |
+| 271 | (5) الدوال الداخلية (مالكها erp_definer، ومفيش EXECUTE لـ service_role) |
+| 273 | دالة erp_actor_status |
+| 302 | دالة erp_has_capability |
+| 328 | دالة erp_require_capability |
+| 342 | دالة erp_access_request_hash |
+| 352 | دالة erp_access_denial |
+| 363 | دالة erp_access_reason |
+| 384 | دالة erp_access_lock_user |
+| 396 | دالة erp_access_user_keys |
+| 408 | دالة erp_access_preset_keys |
+| 420 | دالة erp_access_user_version |
+| 430 | دالة erp_access_bump |
+| 450 | دالة erp_access_command_begin |
+| 482 | دالة erp_access_command_finish |
+| 513 | دالة erp_access_target_check |
+| 546 | (6) دوال الإدارة والقراءة (مالكها erp_definer، SECURITY DEFINER). داخلية: EXECUTE لدور المحوّل بس (… |
+| 547 | دالة erp_effective_capabilities |
+| 578 | دالة erp_access_grant |
+| 635 | دالة erp_access_revoke |
+| 690 | دالة erp_access_apply_preset |
+| 753 | دالة erp_access_revoke_all |
+| 803 | دالة erp_access_snapshot |
+| 831 | دالة erp_access_audit_page |
+| 865 | دالة erp_record_shadow_event |
+| 888 | دالة erp_access_shadow_report |
+| 910 | (7) صلاحيات المحرك نفسه (المالك فقط، ومش قابلة للمنح) |
+| 916 | (8) ملكية الدوال: CREATE كـ postgres ← سحب الكل ← OWNER TO erp_definer ← SET LOCAL ROLE (grant) ← R… |
+| 974 | (9) postflight — DO $epost$ |
+| 1047 | نهاية الجسم المنسوخ: 0021P ENGINE BODY |
+| 1048 | COMMIT |
+
+## `backend/db/migrations/0021p_zell_erp_access.sql`
+
+0021-P محوّل ZELL `zell_erp_*` · 984 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 21 | BEGIN |
+| 22 | بداية الجسم المنسوخ: 0021P ADAPTER BODY |
+| 26 | (0) preflight — DO $zpre$ |
+| 88 | (1) الدور |
+| 89 | دور zell_erp_definer |
+| 92 | DO $zrole$ |
+| 109 | (2) العدّاد وسجل admin_users (مالكهم postgres، RLS من غير policies، وصفر صلاحيات لأي دور تاني) |
+| 112 | جدول zell_erp_owner_guard |
+| 119 | جدول zell_erp_admin_users_log |
+| 144 | (3) دوال الـ triggers (مالكها postgres) |
+| 146 | دالة zell_erp_owner_guard_no_direct |
+| 165 | دالة zell_erp_trg_immutable |
+| 175 | دالة zell_erp_admin_users_user_id_immutable |
+| 189 | دالة zell_erp_owner_guard_count |
+| 222 | دالة zell_erp_admin_users_no_truncate |
+| 233 | دالة zell_erp_admin_users_log_change |
+| 291 | (4) الدوال المساعدة الضيقة (مالكها postgres، EXECUTE لـ zell_erp_definer بس) |
+| 292 | دالة zell_erp_admin_status |
+| 306 | دالة zell_erp_admin_set_active |
+| 324 | دالة zell_erp_admin_list |
+| 336 | دالة zell_erp_owner_guard_lock |
+| 353 | دالة zell_erp_owner_guard_read |
+| 380 | (5) الواجهة: نفس الشكل والخصائص، والجسم بس اللي بيتغيّر. المالك بيبقى zell_erp_definer. |
+| 390 | دالة erp_actor_status_v1 |
+| 401 | DO $ziface$ |
+| 429 | (6) الحد العام: الهوية من جلسة المستخدم، مش من المستدعي. |
+| 440 | دالة zell_erp_trusted_actor |
+| 470 | دالة zell_erp_require_actor |
+| 491 | دالة zell_erp_my_access |
+| 503 | دالة zell_erp_access_grant |
+| 515 | دالة zell_erp_access_revoke |
+| 527 | دالة zell_erp_access_apply_preset |
+| 539 | دالة zell_erp_access_revoke_all |
+| 551 | دالة zell_erp_access_snapshot |
+| 563 | دالة zell_erp_access_audit_page |
+| 575 | دالة zell_erp_access_shadow_report |
+| 589 | دالة zell_erp_record_shadow_event |
+| 609 | دالة zell_erp_set_user_active |
+| 683 | دالة zell_erp_access_users |
+| 704 | دالة zell_erp_access_parity |
+| 830 | (7) صلاحيات ZELL والقوالب |
+| 870 | (8) المنح الصريح لكل أدمن شغال (لقطة من القالب)، بسطر سجل مصدره migration. — DO $zseed$ |
+| 893 | (9) postflight — DO $zpost$ |
+| 982 | نهاية الجسم المنسوخ: 0021P ADAPTER BODY |
+| 983 | COMMIT |
+
+## `docs/plans/ORDER-FLOW-PLAN.md`
+
+خطة مسار الطلب · 1585 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 1 | # FUTURE IMPLEMENTATION PLAN — NOT EXECUTED |
+| 19 | ## ملخّص تنفيذي |
+| 50 | ## 0. حالة البداية والقرارات |
+| 78 | ### 0.1 مفيش أي migration للطلب على Production — **أرشيف: الحالة قبل التنفيذ** |
+| 99 | ### 0.2 ملاحظات بنية مؤثّرة |
+| 118 | ### 0.3 الفرجات المكتشفة |
+| 131 | ### 0.4 التوجيهات المعتمدة — الجولة الأولى |
+| 143 | ### 0.5 التبسيطات المعتمدة — الجولة التانية |
+| 155 | ### 0.6 ب٨ — صفر أسرار في أي URL |
+| 160 | ### 0.7 ب٩ — الكوكي في نفس رد الـAPI |
+| 166 | ### 0.8 القرارات النهائية — الجولة الخامسة (ب١٠ · ب١١ · ب١٢) |
+| 291 | ### 0.9 القرارات النهائية — الجولة السادسة (ب١٤) |
+| 318 | ## 1. العقود (TypeScript) |
+| 322 | ### 1.1 الطلب |
+| 341 | ### 1.2 الرد — صفر أسرار |
+| 373 | ### 1.3 جدول الأكواد ← HTTP ← الرسالة العربية الثابتة |
+| 437 | ## 2. طبقة الداتابيز — ستة أعمدة ودالتين |
+| 439 | ### 2.1 المسوّدات القديمة: مرفوضة للتنفيذ (ت٤) |
+| 469 | ### 2.2 `0006a` — الأعمدة الستة |
+| 498 | ### 2.3 `0006b` — الدور: صفر صلاحيات على الجداول (ت٧ + ب١) |
+| 520 | ### 2.4 دلالة الشحن الموحّدة (ت٣ + ت٦) |
+| 532 | ### 2.5 مولّد رقم الطلب: اتدمج، وفحص الوجود اتشال (ب١) |
+| 538 | ### 2.6 نقطة أمانة لازم تتكرر في الوثائق |
+| 546 | ## 3. `zell_create_order` — كل حاجة جوه معاملة واحدة |
+| 548 | ### 3.1 القاعدة |
+| 552 | ### 3.2 التوقيع |
+| 567 | ### 3.3 التسلسل — الترتيب نفسه جزء من الصحّة (ب١٣) |
+| 640 | ### 3.4 ملاحظات ذرّية |
+| 665 | ## 4. الـidempotency والتفويض |
+| 667 | ### 4.1 المفتاح (العميل) — **مش سر، ومش كفاية** |
+| 678 | ### 4.2 الهاش (السيرفر فقط) |
+| 717 | ### 4.3 سلوك السيرفر |
+| 743 | ### 4.4 التزامن — صح مهما كان ترتيب الوصول (ب١١) |
+| 771 | ### 4.5 نموذج التفويض — إثبات مرتبط بالمتصفح (ب١٠) |
+| 848 | ## 5. تحديد المعدّل (ب٢) |
+| 850 | ### 5.1 القرار |
+| 856 | ### 5.2 اللي موجود فعلاً |
+| 871 | ### 5.3 المخاطرة المتبقية — مكتوبة صريح |
+| 885 | ## 6. الوصول للإيصال (ب٨ + ب٩ + ب١١ + ب١٢) |
+| 887 | ### 6.1 السر: عشوائي، والداتابيز فيها الـhash بس |
+| 902 | ### 6.2 ليه الكوكي وليه مش الـURL ولا الـJSON |
+| 914 | ### 6.3 ضبط الكوكي — خطوة واحدة |
+| 934 | ### 6.4 مواصفات كوكي الإيصال |
+| 966 | ### 6.4ب 🔴 blocker قبل التفعيل — صلاحية الكوكي على الـreplay (ب١٥) |
+| 1025 | ### 6.5 صفحة الإيصال |
+| 1041 | ### 6.6 الإسقاط — التقنيع في الداتابيز |
+| 1052 | ### 6.7 حالة «الإيصال غير متاح» — واحدة لكل الأسباب |
+| 1067 | ### 6.8 التنضيف |
+| 1073 | ## 7. الإشعار |
+| 1100 | ### 7.1 قاعدة ثابتة |
+| 1105 | ### 7.2 التوقيت، والـreplay (ب٦) |
+| 1132 | ### 7.3 الأساسي: تليجرام — متغيرات بيئة فقط (ت١ + ب٧) |
+| 1181 | ### 7.4 `notify_email` — غير سرّي، وفاضي حالياً (ت٢) |
+| 1189 | ### 7.5 التسجيل |
+| 1218 | ### 7.6 اللوج |
+| 1228 | ## 8. الملفات بالتحديد |
+| 1230 | ### جديد |
+| 1253 | ### معدّل |
+| 1268 | ### منقول لـ`docs/legacy/` — التاريخ ما يتحذفش (ب٥ + ق٥) |
+| 1286 | ## 9. النشر والتراجع |
+| 1288 | ### 9.1 بوّابة التشغيل |
+| 1300 | ### 9.2 الترتيب |
+| 1338 | ### 9.3 التراجع |
+| 1350 | ### 9.4 ترتيب نقل تليجرام (ب٧) — ملخّص |
+| 1361 | ## 10. مصفوفة الاختبار |
+| 1368 | ### 10.1 الطلب والتسعير |
+| 1396 | ### 10.2 الإشعار |
+| 1405 | ### 10.3 التفويض — ب١٠ |
+| 1423 | ### 10.4 ترتيب الردود — ب١١ |
+| 1432 | ### 10.5 الإيصال — ب٨ · ب٩ · ب١٢ |
+| 1453 | ### 10.6 الصلاحيات والتسريب والتشغيل |
+| 1473 | ### 10.7 تصحيحات ب١٣ — ترتيب الحسم · ذرّية الحد · الـoverflow |
+| 1493 | ### 10.8 تصحيحات ب١٤ — التحقق الذاتي والتسمية والعزل |
+| 1506 | ## 11. القرارات النهائية |
+| 1508 | ### 11.1 الأسئلة الثمانية — كلها مُجابة ومقفولة |
+| 1523 | ### 11.2 التحفّظات المسجّلة |
+| 1541 | ## 12. حالة الفحوصات على PR #21 — **مش فشل كود** |
+| 1561 | ## ملحق — مصادر الفحص |
