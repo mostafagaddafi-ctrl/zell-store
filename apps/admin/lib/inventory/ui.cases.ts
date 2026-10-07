@@ -5,7 +5,17 @@
 
 import type { CatalogProduct } from './catalog'
 import { keysOpenAfterCloseAll, lineIssue, lineIssues, summarizeLine } from './lineIssues'
-import { costPerMeter, costPerPiece, currentSalePrice, floorDiv, groupLotsByLine, roundDiv } from './pricing'
+import {
+  catalogById,
+  costPerMeter,
+  costPerPiece,
+  currentSalePrice,
+  findSalePrice,
+  floorDiv,
+  groupLotsByLine,
+  perUnitCost,
+  roundDiv,
+} from './pricing'
 import { acceptPreviewResult, nextPreviewTicket, payloadFingerprint } from './previewTracker'
 import { filterProducts, normalizeArabicSearch, productOptionLabel } from './productSearch'
 import type { LineForm } from './purchaseForm'
@@ -165,6 +175,19 @@ export function runUiCases(): UiCasesReport {
   check('K3 incomplete roll hides unit cost', [summarizeLine(roll({ rolls: [{ key: 'a', meters: '' }] }), CATALOG).unitCostPiastres, summarizeLine(roll({ rolls: [{ key: 'a', meters: '' }] }), CATALOG).amountText], [null, '1 لفّة'])
   check('K4 no product yet', [summarizeLine(roll({ productId: '' }), CATALOG).productName, summarizeLine(roll({ productId: '' }), CATALOG).salePrice], [null, null])
   check('K5 no sale price when width missing', summarizeLine(roll({ widthCm: '' }), CATALOG).salePrice, null)
+
+  // ── V. عرض المستند المرحّل ─────────────────────────────────
+  check('V1 perUnitCost roll (cost per meter)', perUnitCost('roll', 30000, 1500, null), 2000)
+  check('V2 perUnitCost batch rounds to nearest piastre', [perUnitCost('batch', 10000, null, 3), perUnitCost('batch', 5, null, 2)], [3333, 3])
+  check(
+    'V3 perUnitCost missing or zero measure',
+    [perUnitCost('roll', 100, null, null), perUnitCost('roll', 100, 0, null), perUnitCost('batch', 100, null, 0), perUnitCost('batch', 100, null, null)],
+    [null, null, null, null],
+  )
+  check('V4 findSalePrice extra width', findSalePrice(CATALOG, 1, 152), { pricePiastres: 36000, unit: 'meter', widthCm: 152 })
+  check('V5 findSalePrice piece (inactive product still shown)', findSalePrice(CATALOG, 2, null), { pricePiastres: 5000, unit: 'piece', widthCm: null })
+  check('V6 findSalePrice unknown product / unread catalog / unpriced width', [findSalePrice(CATALOG, 999, 100), findSalePrice(null, 1, 100), findSalePrice(CATALOG, 1, 120)], [null, null, null])
+  check('V7 catalogById indexes every product', [...catalogById([FILM, TOOL]).keys()], [1, 2])
 
   // ── W. ممنوعات العرض ───────────────────────────────────────
   {
