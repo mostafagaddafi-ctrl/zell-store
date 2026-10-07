@@ -123,15 +123,24 @@ EMPTY_MD5="$(printf '' | md5sum | cut -d' ' -f1)"
 consistent() { q "select (select active_owner_count from public.zell_erp_owner_guard where id = 1) = (select count(*) from public.admin_users where role = 'owner' and is_active)"; }
 owners() { q "select coalesce(string_agg(user_id::text, ',' order by user_id), '') from public.admin_users where role = 'owner' and is_active"; }
 
+# اتصالين: الأول بيعمل تغييره ويمسك القفل 5 ثواني قبل COMMIT، والتاني بيبدأ بعد ثانية.
+# إثبات الانتظار: بنراقب الاتصال التاني بالاسم (application_name) لحد ما يظهر مستني قفل (حتى ~4 ثواني).
 pair() {
-  local iso="$1" first="$2" second="$3" p1 p2
-  printf 'BEGIN ISOLATION LEVEL %s;\n%s\nSELECT pg_sleep(3);\nCOMMIT;\n' "$iso" "$first" | run_pg > "$TMP/t1.out" &
+  local iso="$1" first="$2" second="$3" p1 p2 i w
+  printf 'BEGIN ISOLATION LEVEL %s;\n%s\nSELECT pg_sleep(5);\nCOMMIT;\n' "$iso" "$first" | PGAPPNAME=zell_ci_t1 run_pg > "$TMP/t1.out" &
   p1=$!
   sleep 1
-  printf 'BEGIN ISOLATION LEVEL %s;\n%s\nCOMMIT;\n' "$iso" "$second" | run_pg > "$TMP/t2.out" &
+  printf 'BEGIN ISOLATION LEVEL %s;\n%s\nCOMMIT;\n' "$iso" "$second" | PGAPPNAME=zell_ci_t2 run_pg > "$TMP/t2.out" &
   p2=$!
-  sleep 1
-  WAITERS=$(q "select count(*) from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'")
+  WAITERS=0
+  for i in $(seq 1 40); do
+    w=$(q "select count(*) from pg_stat_activity where application_name = 'zell_ci_t2' and wait_event_type = 'Lock'")
+    if [ "$w" -ge 1 ] 2> /dev/null; then
+      WAITERS=$w
+      break
+    fi
+    sleep 0.1
+  done
   wait "$p1"; E1=$?
   wait "$p2"; E2=$?
   S1=$(sqlstate "$TMP/t1.out")
