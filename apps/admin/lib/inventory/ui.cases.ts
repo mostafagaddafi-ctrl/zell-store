@@ -3,7 +3,18 @@
  * بتتشغّل فعليًا بـ: pnpm --filter @zell/admin cases  (suite: ui)
  */
 
-import type { CatalogProduct } from './catalog'
+import {
+  PRODUCT_PRICE_MAX_PIASTRES,
+  WIDTH_PRICE_MAX_PIASTRES,
+  buildCatalog,
+  catalogBlocksDocuments,
+  isValidCatalogPrice,
+  loadViewCatalogWith,
+  type CatalogCompleteness,
+  type CatalogProduct,
+  type CatalogProductRow,
+  type InventoryCatalog,
+} from './catalog'
 import { keysOpenAfterCloseAll, lineIssue, lineIssues, summarizeLine } from './lineIssues'
 import {
   catalogById,
@@ -62,7 +73,7 @@ function batch(patch: Partial<Extract<LineForm, { kind: 'batch' }>>): LineForm {
   return { key: 'b', kind: 'batch', productId: '2', quantity: '10', total: '300', zeroCostReason: '', ...patch }
 }
 
-export function runUiCases(): UiCasesReport {
+export async function runUiCases(): Promise<UiCasesReport> {
   const failures: UiCaseFailure[] = []
   let passed = 0
 
@@ -188,6 +199,75 @@ export function runUiCases(): UiCasesReport {
   check('V5 findSalePrice piece (inactive product still shown)', findSalePrice(CATALOG, 2, null), { pricePiastres: 5000, unit: 'piece', widthCm: null })
   check('V6 findSalePrice unknown product / unread catalog / unpriced width', [findSalePrice(CATALOG, 999, 100), findSalePrice(null, 1, 100), findSalePrice(CATALOG, 1, 120)], [null, null, null])
   check('V7 catalogById indexes every product', [...catalogById([FILM, TOOL]).keys()], [1, 2])
+
+  // ── PV. فحص أسعار الكتالوج (حدود الداتابيز) ──────────────────────
+  {
+    const row = (patch: Partial<CatalogProductRow>): CatalogProductRow => ({
+      id: 1,
+      name_ar: 'فيلم',
+      sale_unit: 'meter',
+      width_cm: 100,
+      price_per_meter_piastres: 25000,
+      is_active: true,
+      sort_order: 0,
+      ...patch,
+    })
+    const good = buildCatalog(
+      [row({}), row({ id: 2, sale_unit: 'piece', width_cm: null, price_per_meter_piastres: 5000 })],
+      [{ product_id: 1, width_cm: 152, price_per_meter_piastres: 36000 }],
+      'complete',
+    )
+    check('PV1 valid prices keep catalog complete', [good.status, good.invalidPrices, good.products.length, catalogBlocksDocuments(good)], ['complete', 0, 2, false])
+    const badProduct: unknown[] = [undefined, null, '25000', 0, -5, 12.5, PRODUCT_PRICE_MAX_PIASTRES + 1, Number.NaN, Number.POSITIVE_INFINITY]
+    check(
+      'PV2 missing/text/zero/negative/fraction/over-limit product price → uncertain + blocks forms',
+      badProduct.map((value) => {
+        const c = buildCatalog([row({ price_per_meter_piastres: value })], [], 'complete')
+        return [c.status, c.invalidPrices, c.products.length, catalogBlocksDocuments(c)]
+      }),
+      badProduct.map(() => ['uncertain', 1, 0, true]),
+    )
+    const badWidth: unknown[] = [undefined, null, '36000', 0, -1, 1.5, WIDTH_PRICE_MAX_PIASTRES + 1]
+    check(
+      'PV3 bad product_widths price → uncertain + blocks forms',
+      badWidth.map((value) => {
+        const c = buildCatalog([row({})], [{ product_id: 1, width_cm: 152, price_per_meter_piastres: value }], 'complete')
+        return [c.status, c.invalidPrices, c.products[0]?.widthOptions.length ?? -1, catalogBlocksDocuments(c)]
+      }),
+      badWidth.map(() => ['uncertain', 1, 0, true]),
+    )
+    check(
+      'PV4 DB limits are inclusive',
+      [
+        isValidCatalogPrice(PRODUCT_PRICE_MAX_PIASTRES, PRODUCT_PRICE_MAX_PIASTRES),
+        isValidCatalogPrice(WIDTH_PRICE_MAX_PIASTRES, WIDTH_PRICE_MAX_PIASTRES),
+        isValidCatalogPrice(1, WIDTH_PRICE_MAX_PIASTRES),
+        isValidCatalogPrice(WIDTH_PRICE_MAX_PIASTRES + 1, WIDTH_PRICE_MAX_PIASTRES),
+      ],
+      [true, true, true, false],
+    )
+    check('PV5 bad price never upgrades an incomplete catalog', buildCatalog([row({ price_per_meter_piastres: 0 })], [], 'incomplete').status, 'incomplete')
+
+    // ── VC. كتالوج العرض المرحّل: complete بس ─────────────────────
+    const withStatus = (status: CatalogCompleteness): InventoryCatalog => ({ ...good, status })
+    const views = await Promise.all([
+      loadViewCatalogWith(() => Promise.resolve(withStatus('complete'))),
+      loadViewCatalogWith(() => Promise.resolve(withStatus('incomplete'))),
+      loadViewCatalogWith(() => Promise.resolve(withStatus('uncertain'))),
+      loadViewCatalogWith(() => Promise.reject(new Error('network'))),
+      loadViewCatalogWith(() => {
+        throw new Error('sync throw')
+      }),
+      loadViewCatalogWith(() =>
+        Promise.resolve(buildCatalog([row({ price_per_meter_piastres: '25000' })], [], 'complete')),
+      ),
+    ])
+    check(
+      'VC1 complete → products · incomplete/uncertain/reject/throw/bad price → null',
+      views.map((value) => (value === null ? null : value.length)),
+      [2, null, null, null, null, null],
+    )
+  }
 
   // ── W. ممنوعات العرض ───────────────────────────────────────
   {
