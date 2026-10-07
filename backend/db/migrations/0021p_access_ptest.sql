@@ -1182,7 +1182,7 @@ begin
      or pg_catalog.to_regclass('public.erp_capabilities') is null then
     raise exception 'ZELL_0021P_ENGINE_MISSING';
   end if;
-  select pg_catalog.lower(pg_catalog.regexp_replace(pg_catalog.btrim(p.prosrc), '\s+', ' ', 'g')) into v_src
+  select pg_catalog.btrim(pg_catalog.lower(pg_catalog.regexp_replace(p.prosrc, '\s+', ' ', 'g'))) into v_src
     from pg_catalog.pg_proc p where p.oid = 'public.erp_actor_status_v1(uuid)'::regprocedure;
   if v_src <> 'select false, false;'
      or (select pg_catalog.pg_get_userbyid(p.proowner) from pg_catalog.pg_proc p
