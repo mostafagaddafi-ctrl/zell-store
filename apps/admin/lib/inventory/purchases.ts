@@ -46,7 +46,7 @@ export type PostedLine = {
   kind: 'roll' | 'batch'
   productId: number
   productName: string
-  saleUnit: string
+  saleUnit: 'meter' | 'piece'
   widthCm: number | null
   rollCount: number | null
   totalLengthCm: number | null
@@ -164,8 +164,31 @@ function isKind(value: unknown): value is 'roll' | 'batch' {
 
 const CHARGE_KIND_SET: readonly string[] = ['transport', 'loading', 'customs', 'other']
 
+/**
+ * قواعد الحالة بالحرف من قيود purchase_docs (status_stamps · draft_lots · posted_shape · total_eq).
+ */
+function headerRulesOk(h: PurchaseHeader): boolean {
+  if (h.totalCostPiastres !== h.itemsSubtotalPiastres + h.extrasTotalPiastres - h.supplierDiscountPiastres) return false
+  const noVoid = h.voidedAt === null && h.voidReason === null
+  const noDiscard = h.discardedAt === null && h.discardReason === null
+  switch (h.status) {
+    case 'draft':
+      return h.postedAt === null && noVoid && noDiscard && h.lotCount === 0
+    case 'discarded':
+      return h.postedAt === null && noVoid && h.discardedAt !== null && h.lotCount === 0
+    case 'posted':
+      return h.postedAt !== null && noVoid && noDiscard && h.lineCount >= 1 && h.lotCount >= 1
+    case 'voided':
+      return h.postedAt !== null && h.voidedAt !== null && h.voidReason !== null && noDiscard && h.lineCount >= 1 && h.lotCount >= 1
+  }
+}
+
 export function isPurchaseHeader(value: unknown): value is PurchaseHeader {
   if (!isRec(value)) return false
+  return headerShapeOk(value) && headerRulesOk(value as PurchaseHeader)
+}
+
+function headerShapeOk(value: Rec): boolean {
   return (
     int(value['docId'], 1) &&
     str(value['docNo']) &&
@@ -209,7 +232,7 @@ function isPostedLine(value: unknown): value is PostedLine {
     isKind(value['kind']) &&
     int(value['productId'], 1) &&
     str(value['productName']) &&
-    str(value['saleUnit']) &&
+    (value['saleUnit'] === 'meter' || value['saleUnit'] === 'piece') &&
     nint(value['widthCm'], 1) &&
     nint(value['rollCount'], 0) &&
     nint(value['totalLengthCm'], 0) &&
@@ -255,9 +278,103 @@ function isPostedLot(value: unknown): value is PostedLot {
   )
 }
 
+const LOT_CODE_ROLL = /^R-[0-9]{6,}$/
+const LOT_CODE_BATCH = /^B-[0-9]{6,}$/
+
+/** شكل البند حسب النوع (purchase_doc_lines_kind_unit · kind_shape). */
+function lineShapeOk(line: PostedLine): boolean {
+  if (line.kind === 'roll') {
+    return (
+      line.saleUnit === 'meter' &&
+      line.widthCm !== null &&
+      line.widthCm <= 1000 &&
+      line.rollCount !== null &&
+      line.rollCount >= 1 &&
+      line.rollCount <= 200 &&
+      line.totalLengthCm !== null &&
+      line.totalLengthCm >= 1 &&
+      line.quantity === null
+    )
+  }
+  return (
+    line.saleUnit === 'piece' &&
+    line.widthCm === null &&
+    line.rollCount === null &&
+    line.totalLengthCm === null &&
+    line.quantity !== null &&
+    line.quantity >= 1
+  )
+}
+
+/** شكل الدفعة حسب النوع (stock_lots_kind_shape · lot_code_shape). */
+function lotShapeOk(lot: PostedLot): boolean {
+  if (lot.lotKind === 'roll') {
+    return LOT_CODE_ROLL.test(lot.lotCode) && lot.widthCm !== null && lot.initialLengthCm !== null && lot.initialQuantity === null
+  }
+  return (
+    LOT_CODE_BATCH.test(lot.lotCode) &&
+    lot.widthCm === null &&
+    lot.initialLengthCm === null &&
+    lot.initialQuantity !== null &&
+    lot.lotSequence === 1
+  )
+}
+
 /**
- * تفاصيل الفاتورة. الـdraftPayload بيتفحص بنفس validatePurchaseDoc، وبيترجع منه النسخة المطبّعة.
- * null لو الشكل مش صح.
+ * مرحّل/مُبطَل: الأعداد مطابقة للهيدر، وكل دفعة تحت بند موجود بنفس النوع والمنتج (والعرض للفّات)،
+ * وعدد دفعات البند وأطوالها/كمياتها مطابقة للبند، وحالة كل الدفعات = active للمرحّل و voided للمُبطَل.
+ */
+function postedChildrenOk(
+  header: PurchaseHeader,
+  lines: PostedLine[],
+  charges: PostedCharge[],
+  lots: PostedLot[],
+  lotStatus: 'active' | 'voided',
+): boolean {
+  if (lines.length !== header.lineCount || charges.length !== header.chargeCount || lots.length !== header.lotCount) return false
+
+  const byLineNo = new Map<number, PostedLine>()
+  for (const line of lines) {
+    if (!lineShapeOk(line) || byLineNo.has(line.lineNo)) return false
+    byLineNo.set(line.lineNo, line)
+  }
+  if (new Set(charges.map((charge) => charge.chargeNo)).size !== charges.length) return false
+
+  const perLine = new Map<number, { count: number; length: number; quantity: number; sequences: Set<number> }>()
+  for (const lot of lots) {
+    if (lot.status !== lotStatus || !lotShapeOk(lot)) return false
+    const line = byLineNo.get(lot.lineNo)
+    if (!line || line.kind !== lot.lotKind || line.productId !== lot.productId) return false
+    if (lot.lotKind === 'roll' && lot.widthCm !== line.widthCm) return false
+    const agg = perLine.get(lot.lineNo) ?? { count: 0, length: 0, quantity: 0, sequences: new Set<number>() }
+    if (agg.sequences.has(lot.lotSequence)) return false
+    agg.sequences.add(lot.lotSequence)
+    agg.count += 1
+    agg.length += lot.initialLengthCm ?? 0
+    agg.quantity += lot.initialQuantity ?? 0
+    perLine.set(lot.lineNo, agg)
+  }
+
+  for (const line of lines) {
+    const agg = perLine.get(line.lineNo)
+    if (!agg) return false
+    if (line.kind === 'roll') {
+      if (agg.count !== line.rollCount || agg.length !== line.totalLengthCm) return false
+    } else if (agg.count !== 1 || agg.quantity !== line.quantity) {
+      return false
+    }
+  }
+  return true
+}
+
+/**
+ * تفاصيل الفاتورة — فحص صارم بالحرف من قيود 0020 (ملاحظة المراجعة على PR #96):
+ *   • draft / discarded: draftPayload موجود (ومطبّع بـ validatePurchaseDoc)، والبنود/المصاريف/الدفعات
+ *     فاضية، وعدد بنود ومصاريف الهيدر = عددهم في الـpayload.
+ *   • posted: draftPayload = null، والأعداد مطابقة، وكل الدفعات active.
+ *   • voided: draftPayload = null، والأعداد مطابقة، وكل الدفعات voided.
+ *   • وحدة البيع ونوع البند وشكل اللفّة/القطعة متطابقين، وقواعد الحالة في الهيدر (isPurchaseHeader).
+ * أي اختلاف → null → INTERNAL غير محسوم (مش بنعرض بيانات ملتبسة).
  */
 export function parsePurchaseDetail(value: unknown): PurchaseDetail | null {
   if (!isRec(value)) return null
@@ -271,15 +388,19 @@ export function parsePurchaseDetail(value: unknown): PurchaseDetail | null {
   if (!Array.isArray(lots) || !lots.every(isPostedLot)) return null
 
   const rawPayload = value['draftPayload'] ?? null
-  let draftPayload: PurchaseDocPayload | null = null
-  if (rawPayload !== null) {
+
+  if (header.status === 'draft' || header.status === 'discarded') {
+    if (rawPayload === null) return null
     const parsed = validatePurchaseDoc(rawPayload)
     if (!parsed.ok) return null
-    draftPayload = parsed.value
+    if (lines.length > 0 || charges.length > 0 || lots.length > 0) return null
+    if (parsed.value.lines.length !== header.lineCount || parsed.value.charges.length !== header.chargeCount) return null
+    return { header, draftPayload: parsed.value, lines: [], charges: [], lots: [] }
   }
-  // المسودة لازم يبقى ليها payload، والمرحّل/المبطل مالوش (بيتمسح بعد الترحيل)
-  if (header.status === 'draft' && draftPayload === null) return null
-  return { header, draftPayload, lines, charges, lots }
+
+  if (rawPayload !== null) return null
+  if (!postedChildrenOk(header, lines, charges, lots, header.status === 'posted' ? 'active' : 'voided')) return null
+  return { header, draftPayload: null, lines, charges, lots }
 }
 
 export function isPurchaseDetail(value: unknown): value is PurchaseDetail {
