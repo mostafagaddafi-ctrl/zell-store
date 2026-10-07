@@ -291,8 +291,8 @@ ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 7)" = "strict" ] && [ "$(sf 11)" = "PASS" ]
 record "S4b verify after apply: PASS 15/15, guard=2, owners=2, admins=1, parity clean, migration_audit_rows=1, rpc_audit_rows=0" "$ok" "exit=$RC summary=$SUMMARY $(ptest_tail "$TMP/verify.out")"
 after=$(residue)
 echo "residue after apply: $after"
-ok=no; if [ "$(rf "$base" 1)|$(rf "$base" 4)" = "0|0" ] && [ "$(rf "$after" 1)" = "2" ] && [ "$(rf "$after" 4)" = "4" ] && [ "$(rf "$after" 7)|$(rf "$after" 8)" = "0|0" ] && [ "$(rf "$after" 9)|$(rf "$after" 10)|$(rf "$after" 11)" = "$(rf "$base" 9)|$(rf "$base" 10)|$(rf "$base" 11)" ]; then ok=yes; fi
-record "S4d residue after apply: roles=2, admin_users_triggers=4, no idle tx/locks, admin_users unchanged" "$ok" "before=$base after=$after"
+ok=no; if [ "$(rf "$base" 1)|$(rf "$base" 4)" = "0|0" ] && [ "$(rf "$after" 1-6)" = "2|22|51|4|8|4" ] && [ "$(rf "$after" 7)|$(rf "$after" 8)" = "0|0" ] && [ "$(rf "$after" 9)|$(rf "$after" 10)|$(rf "$after" 11)" = "$(rf "$base" 9)|$(rf "$base" 10)|$(rf "$base" 11)" ]; then ok=yes; fi
+record "S4d residue after apply: roles=2 relations=22 functions=51 admin_users_triggers=4 policies=8 memberships=4, no idle tx/locks, admin_users unchanged" "$ok" "before=$base after=$after"
 q "alter table public.admin_users disable trigger zell_erp_admin_users_log_change" > /dev/null
 run_ptest "$VERIFY" "$TMP/verify_neg.out"
 q "alter table public.admin_users enable trigger zell_erp_admin_users_log_change" > /dev/null
@@ -316,8 +316,8 @@ record "S6a adapter without approver refused" "$(has "$TMP/adapter_noapprover.ou
 eo=$(residue)
 echo "residue engine only (adapter refused): $eo"
 zobj=$(q "select count(*) from pg_catalog.pg_class c where c.relnamespace = 'public'::regnamespace and c.relname like 'zell\_erp\_%'")
-ok=no; if [ "$(rf "$eo" 1)" = "1" ] && [ "$(rf "$eo" 4)" = "0" ] && [ "$(rf "$eo" 9)|$(rf "$eo" 10)|$(rf "$eo" 11)" = "1|1|0" ] && [ "$zobj" = "0" ]; then ok=yes; fi
-record "S6c engine applied + adapter failed: only erp_definer, no admin_users triggers, no zell_erp_* objects" "$ok" "residue=$eo zell_erp_relations=$zobj"
+ok=no; if [ "$(rf "$eo" 1-6)" = "1|17|26|0|8|2" ] && [ "$(rf "$eo" 9)|$(rf "$eo" 10)|$(rf "$eo" 11)" = "1|1|0" ] && [ "$zobj" = "0" ]; then ok=yes; fi
+record "S6c engine applied + adapter failed: roles=1 relations=17 functions=26 admin_users_triggers=0 policies=8 memberships=2, no zell_erp_* objects" "$ok" "residue=$eo zell_erp_relations=$zobj"
 run_file "$ROLLBACK" "$TMP/rb_engine_only.out"
 ok=no; if has "$TMP/rb_engine_only.out" 'ZELL_0021P_ROLLBACK_NOT_APPLIED' && [ "$(residue)" = "$eo" ]; then ok=yes; fi
 record "S6d rollback file in engine-only state refuses (ZELL_0021P_ROLLBACK_NOT_APPLIED), nothing changed" "$ok" "$(tail -n 3 "$TMP/rb_engine_only.out")"
