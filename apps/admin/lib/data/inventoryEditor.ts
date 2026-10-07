@@ -48,3 +48,31 @@ export async function loadPurchaseEditorData(actor: string): Promise<PurchaseEdi
   }
   return { ok: true, catalog: catalog.products, suppliers: suppliers.data.items, locations: locations.data.items }
 }
+
+export type OpeningEditorData =
+  | { ok: true; catalog: CatalogProduct[]; locations: InventoryLocationOption[] }
+  | { ok: false; reasons: string[] }
+
+/** بيانات نموذج رصيد أول المدة — نفس القواعد من غير موردين: الكتالوج (exactCount) والمخازن النشطة. */
+export async function loadOpeningEditorData(actor: string): Promise<OpeningEditorData> {
+  const [catalog, locations] = await Promise.all([
+    readInventoryCatalog().then(
+      (value): InventoryCatalog | null => value,
+      () => null,
+    ),
+    loadLocationOptions(actor),
+  ])
+
+  const reasons: string[] = []
+  if (catalog === null) reasons.push('قايمة المنتجات: ' + READ_FAILED)
+  else if (catalogBlocksDocuments(catalog)) reasons.push(CATALOG_INCOMPLETE_MESSAGE)
+
+  if (!locations.ok) reasons.push('المخازن: ' + (locations.code === 'INTERNAL' ? READ_FAILED : locations.message))
+  else if (!locations.data.complete) reasons.push('قايمة المخازن أكبر من الحد (500)، فالنموذج واقف لحد ما تتظبط.')
+  else if (locations.data.items.length === 0) reasons.push('مفيش مخزن نشط.')
+
+  if (reasons.length > 0 || catalog === null || !locations.ok) {
+    return { ok: false, reasons: reasons.length > 0 ? reasons : [READ_FAILED] }
+  }
+  return { ok: true, catalog: catalog.products, locations: locations.data.items }
+}
