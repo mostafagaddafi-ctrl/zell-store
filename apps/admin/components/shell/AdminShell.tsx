@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   ExternalLink,
+  Factory,
   Image as ImageIcon,
   Layers,
   LayoutDashboard,
@@ -77,6 +78,10 @@ export function AdminShell({
         ...(identity.role === 'owner' ? [{ href: '/coupons', label: 'أكواد الخصم', icon: Tag }] : []),
       ],
     },
+    // 0020 — المخزون للمالك بس (الصفحة والـactions ودوال الداتابيز نفسها بيتحققوا من الدور)
+    ...(identity.role === 'owner'
+      ? [{ title: 'المخزون', items: [{ href: '/inventory/suppliers', label: 'الموردين', icon: Factory }] }]
+      : []),
     { title: 'النظام', items: [{ href: '/settings', label: 'الإعدادات', icon: Settings }] },
   ]
 
