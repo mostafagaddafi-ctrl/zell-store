@@ -2,7 +2,7 @@
 # 0021-P — اختبار SQL الدائم في CI: Postgres 17 مؤقت + shim شبه Supabase (postgres مش superuser وعنده CREATEROLE،
 # service_role/anon/authenticated/authenticator، وdefault privileges بتدّي كل حاجة لـ anon/authenticated/service_role).
 # بيغطي: شكل المعاملة في الـ ptest (0021p_txn_shape.py) · md5 الجسمين في الـ ptest · ptest بصف ملخص (ci + production
-# + حالات سلبية لازم تقع) · التطبيق · verify · رفض إعادة التطبيق · المحوّل من غير موافقة
+# + حالات سلبية لازم تقع) · التطبيق · verify بصف ملخص (+ حالات سلبية) · استعلام الأثر · حالة «المحرك بس» · رفض إعادة التطبيق · المحوّل من غير موافقة
 # أو من غير محرك · rollback (من غير تأكيد / نضيف / بعد استخدام حقيقي) · freeze · التزامن باتصالين.
 # ممنوع يتشغّل على أي داتابيز غير الحاوية المؤقتة.
 set -uo pipefail
@@ -114,8 +114,11 @@ SQL
 }
 
 apply_engine() { run_file "$ENGINE" "$TMP/engine.out"; }
+# نص تشغيل المحوّل زي Production بالظبط: سطر واحد بعد أول begin; (برّه الجسم، فالـ md5 مابيتغيّرش):
+#   set local zell.approved_by = '<الموافقة>';  — محلي للمعاملة، فمابيفضلش على اتصال الـ pool بعدها.
+adapter_run_text() { sed "0,/^begin;\$/s//begin;\nset local zell.approved_by = '$1';/" "$ADAPTER"; }
 apply_adapter() {
-  { printf "select pg_catalog.set_config('zell.approved_by', 'ci-0021p', false);\n"; cat "$ADAPTER"; } \
+  adapter_run_text 'ci-0021p' \
     | psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f - > "$TMP/adapter.out" 2>&1
 }
 apply_all() {
@@ -129,6 +132,27 @@ EMPTY_MD5="$(printf '' | md5sum | cut -d' ' -f1)"
 
 consistent() { q "select (select active_owner_count from public.zell_erp_owner_guard where id = 1) = (select count(*) from public.admin_users where role = 'owner' and is_active)"; }
 owners() { q "select coalesce(string_agg(user_id::text, ',' order by user_id), '') from public.admin_users where role = 'owner' and is_active"; }
+
+# استعلام الأثر المعتمد (قراءة بس) — نفس النص المحفوظ في وصف PR #99 بالحرف.
+# الأعمدة: 1 roles · 2 relations · 3 functions · 4 admin_users_triggers · 5 policies · 6 memberships · 7 idle_tx
+#          8 admin_users_locks · 9 admin_users_total · 10 active_owners · 11 active_admins
+RESIDUE_SQL=$(cat <<'SQL'
+select
+ (select count(*) from pg_catalog.pg_roles where rolname in ('erp_definer','zell_erp_definer')) as roles,
+ (select count(*) from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and (c.relname like 'erp\_%' or c.relname like 'zell\_erp\_%')) as relations,
+ (select count(*) from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and (p.proname like 'erp\_%' or p.proname like 'zell\_erp\_%')) as functions,
+ (select count(*) from pg_catalog.pg_trigger where tgrelid = 'public.admin_users'::regclass and not tgisinternal) as admin_users_triggers,
+ (select count(*) from pg_catalog.pg_policies where schemaname = 'public' and (tablename like 'erp\_%' or tablename like 'zell\_erp\_%')) as policies,
+ (select count(*) from pg_catalog.pg_auth_members m join pg_catalog.pg_roles r on r.oid in (m.roleid, m.member) where r.rolname in ('erp_definer','zell_erp_definer')) as memberships,
+ (select count(*) from pg_catalog.pg_stat_activity where state like 'idle in transaction%' and pid <> pg_catalog.pg_backend_pid()) as idle_tx,
+ (select count(*) from pg_catalog.pg_locks where relation = 'public.admin_users'::regclass and pid <> pg_catalog.pg_backend_pid()) as admin_users_locks,
+ (select count(*) from public.admin_users) as admin_users_total,
+ (select count(*) from public.admin_users where role = 'owner' and is_active) as active_owners,
+ (select count(*) from public.admin_users where role = 'admin' and is_active) as active_admins;
+SQL
+)
+residue() { q "$RESIDUE_SQL"; }
+rf() { printf '%s' "$1" | cut -d'|' -f"$2"; }
 
 # اتصالين: الأول بيعمل تغييره ويمسك القفل 5 ثواني قبل COMMIT، والتاني بيبدأ بعد ثانية.
 # إثبات الانتظار: بنراقب الاتصال التاني بالاسم (application_name) لحد ما يظهر مستني قفل (حتى ~4 ثواني).
@@ -175,6 +199,9 @@ record "S0a txn-shape checker selftest" "$ok" "$(tail -n 5 "$TMP/shape_self.out"
 ok=no; if python3 "$SHAPE" "$PTEST" > "$TMP/shape.out" 2>&1; then ok=yes; fi
 cat "$TMP/shape.out"
 record "S0b ptest transaction shape: begin, one SELECT right before rollback, no commit/end/abort/prepare" "$ok" "$(tail -n 5 "$TMP/shape.out")"
+ok=no; if python3 "$SHAPE" "$VERIFY" > "$TMP/shape_verify.out" 2>&1; then ok=yes; fi
+cat "$TMP/shape_verify.out"
+record "S0c verify transaction shape: begin, one SELECT right before rollback, no commit/end/abort/prepare" "$ok" "$(tail -n 5 "$TMP/shape_verify.out")"
 
 # ── S1: الـ ptest فيه نفس جسمين الـ migration بالحرف ──
 e1=$(body_md5 "$ENGINE" "0021P ENGINE BODY"); e2=$(body_md5 "$PTEST" "0021P ENGINE BODY")
@@ -183,6 +210,13 @@ ok=no; if [ "$e1" = "$e2" ] && [ "$e1" != "$EMPTY_MD5" ]; then ok=yes; fi
 record "S1a ptest engine body md5 = migration ($e1)" "$ok" "migration=$e1 ptest=$e2"
 ok=no; if [ "$a1" = "$a2" ] && [ "$a1" != "$EMPTY_MD5" ]; then ok=yes; fi
 record "S1b ptest adapter body md5 = migration ($a1)" "$ok" "migration=$a1 ptest=$a2"
+adapter_run_text 'ci-0021p' > "$TMP/adapter_run.sql"
+a3=$(body_md5 "$TMP/adapter_run.sql" "0021P ADAPTER BODY")
+n0=$(wc -l < "$ADAPTER"); n1=$(wc -l < "$TMP/adapter_run.sql")
+b0=$(grep -n -m 1 '^begin;$' "$ADAPTER" | cut -d: -f1)
+s1=$(grep -n -m 1 "^set local zell.approved_by = 'ci-0021p';$" "$TMP/adapter_run.sql" | cut -d: -f1)
+ok=no; if [ "$a3" = "$a1" ] && [ "$n1" -eq $((n0 + 1)) ] && [ -n "$b0" ] && [ "$s1" = "$((b0 + 1))" ]; then ok=yes; fi
+record "S1c adapter run text (set local approved_by right after begin) keeps body md5, +1 line" "$ok" "md5=$a3 lines=$n0->$n1 begin=$b0 set=$s1"
 
 # الـ ptest بيرجّع صفوف: أول صف ord=0 هو الملخص. أعمدة psql -tA (فاصل |):
 #   1 ord · 2 kind · 7 profile · 8 pass · 9 fail · 10 skip · 11 verdict · 12 active_owners · 13 active_admins
@@ -193,10 +227,12 @@ run_ptest() {
   RC=$?
   SUMMARY=$(grep -m 1 '^0|summary|' "$2")
   echo "ptest $(basename "$1"): exit=$RC summary=$SUMMARY"
-  grep -E '^[0-9]+\|test\|[^|]*\|[^|]*\|fail\|' "$2" | head -n 20
+  grep -E '^[0-9]+\|(test|check)\|[^|]*\|[^|]*\|fail\|' "$2" | head -n 20
 }
 sf() { printf '%s' "$SUMMARY" | cut -d'|' -f"$1"; }
 ptest_tail() { tail -n 5 "$1" | cut -c1-400; }
+# الـ verify بنفس الشكل (run_ptest + sf): 7 parity_mode · 8 pass · 9 fail · 10 expected_checks · 11 verdict · 12 guard
+#   13 active_owners · 14 active_admins · 15 parity_clean · 16 mismatches · 17 migration_audit_rows · 18 rpc_audit_rows
 
 # ── S2: ptest (ci) قبل التطبيق، ومفيش حاجة بتفضل بعده ──
 reset_db "$A:owner:true" "$B:owner:true" "$X:admin:true" "$Y:admin:false"
@@ -241,15 +277,27 @@ run_ptest "$PTEST" "$TMP/ptest_prod_b.out"
 ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 7)" = "production" ] && [ "$(sf 11)" = "PASS" ] && [ "$(sf 9)" = "0" ] && [ "$(sf 13)" = "0" ] && [ "$(sf 14)" = "ADMIN_GROUP,T05b,T13,T24,T29,T36" ] && [ "$(sf 15)" = "ADMIN_GROUP,T05b,T13,T24,T29,T36" ]; then ok=yes; fi
 record "S3b ptest profile=production (owner A only): PASS, skips ADMIN_GROUP,T05b,T13,T24,T29,T36 (pass=$(sf 8))" "$ok" "exit=$RC summary=$SUMMARY $(ptest_tail "$TMP/ptest_prod_b.out")"
 
-# ── S4: التطبيق + verify ──
+# ── S4: verify قبل التطبيق (لازم يقع بصفوف) ← التطبيق ← verify ← استعلام الأثر ← verify سلبي ──
 reset_db "$A:owner:true" "$B:owner:true" "$X:admin:true" "$Y:admin:false"
+base=$(residue)
+echo "residue before apply: $base"
+run_ptest "$VERIFY" "$TMP/verify_pre.out"
+ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 2)" = "summary" ] && [ "$(sf 11)" = "FAIL" ] && [ "$(sf 9)" -ge 10 ] 2> /dev/null; then ok=yes; fi
+record "S4-0 verify before apply: rows returned, verdict FAIL, exit 0 (fail=$(sf 9))" "$ok" "exit=$RC summary=$SUMMARY $(ptest_tail "$TMP/verify_pre.out")"
 ok=no; if apply_all; then ok=yes; fi
-record "S4a apply engine + adapter" "$ok" "see output above"
-run_file "$VERIFY" "$TMP/verify.out"
-line=$(grep -o 'ZELL_0021P_VERIFY_RESULT.*' "$TMP/verify.out" | head -n 1)
-echo "$line"
-ok=no; if printf '%s' "$line" | grep -q 'ZELL_0021P_VERIFY_RESULT ok '; then ok=yes; fi
-record "S4b verify ok after apply" "$ok" "$(tail -n 5 "$TMP/verify.out")"
+record "S4a apply engine + adapter (adapter run text with set local approved_by)" "$ok" "see output above"
+run_ptest "$VERIFY" "$TMP/verify.out"
+ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 7)" = "strict" ] && [ "$(sf 11)" = "PASS" ] && [ "$(sf 8)" = "15" ] && [ "$(sf 9)" = "0" ] && [ "$(sf 12)" = "2" ] && [ "$(sf 13)" = "2" ] && [ "$(sf 14)" = "1" ] && [ "$(sf 15)" = "true" ] && [ "$(sf 17)" = "1" ] && [ "$(sf 18)" = "0" ]; then ok=yes; fi
+record "S4b verify after apply: PASS 15/15, guard=2, owners=2, admins=1, parity clean, migration_audit_rows=1, rpc_audit_rows=0" "$ok" "exit=$RC summary=$SUMMARY $(ptest_tail "$TMP/verify.out")"
+after=$(residue)
+echo "residue after apply: $after"
+ok=no; if [ "$(rf "$base" 1)|$(rf "$base" 4)" = "0|0" ] && [ "$(rf "$after" 1)" = "2" ] && [ "$(rf "$after" 4)" = "4" ] && [ "$(rf "$after" 7)|$(rf "$after" 8)" = "0|0" ] && [ "$(rf "$after" 9)|$(rf "$after" 10)|$(rf "$after" 11)" = "$(rf "$base" 9)|$(rf "$base" 10)|$(rf "$base" 11)" ]; then ok=yes; fi
+record "S4d residue after apply: roles=2, admin_users_triggers=4, no idle tx/locks, admin_users unchanged" "$ok" "before=$base after=$after"
+q "alter table public.admin_users disable trigger zell_erp_admin_users_log_change" > /dev/null
+run_ptest "$VERIFY" "$TMP/verify_neg.out"
+q "alter table public.admin_users enable trigger zell_erp_admin_users_log_change" > /dev/null
+ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 11)" = "FAIL" ] && [ "$(sf 9)" = "1" ] && grep -q '^[0-9]*|check|V09|[^|]*|fail|zell_erp_admin_users_log_change' "$TMP/verify_neg.out"; then ok=yes; fi
+record "S4n disabled admin_users trigger -> V09 fail row, verdict FAIL, exit 0" "$ok" "exit=$RC summary=$SUMMARY"
 grants=$(q "select count(*) from public.erp_user_grants where user_id = '$X'")
 record "S4c active admin got 22 explicit grants, inactive admin none" "$( [ "$grants" = "22" ] && [ "$(q "select count(*) from public.erp_user_grants where user_id = '$Y'")" = "0" ] && echo yes || echo no )" "X=$grants"
 
@@ -264,6 +312,21 @@ reset_db "$A:owner:true"
 apply_engine
 run_file "$ADAPTER" "$TMP/adapter_noapprover.out"
 record "S6a adapter without approver refused" "$(has "$TMP/adapter_noapprover.out" 'ZELL_0021P_APPROVER_REQUIRED' && echo yes || echo no)" "$(tail -n 3 "$TMP/adapter_noapprover.out")"
+# المحرك اتطبق والمحوّل فشل: الحالة بالظبط، والـ rollback بيرفض، والرجوع = تشغيل المحوّل تاني بعد علاج السبب.
+eo=$(residue)
+echo "residue engine only (adapter refused): $eo"
+zobj=$(q "select count(*) from pg_catalog.pg_class c where c.relnamespace = 'public'::regnamespace and c.relname like 'zell\_erp\_%'")
+ok=no; if [ "$(rf "$eo" 1)" = "1" ] && [ "$(rf "$eo" 4)" = "0" ] && [ "$(rf "$eo" 9)|$(rf "$eo" 10)|$(rf "$eo" 11)" = "1|1|0" ] && [ "$zobj" = "0" ]; then ok=yes; fi
+record "S6c engine applied + adapter failed: only erp_definer, no admin_users triggers, no zell_erp_* objects" "$ok" "residue=$eo zell_erp_relations=$zobj"
+run_file "$ROLLBACK" "$TMP/rb_engine_only.out"
+ok=no; if has "$TMP/rb_engine_only.out" 'ZELL_0021P_ROLLBACK_NOT_APPLIED' && [ "$(residue)" = "$eo" ]; then ok=yes; fi
+record "S6d rollback file in engine-only state refuses (ZELL_0021P_ROLLBACK_NOT_APPLIED), nothing changed" "$ok" "$(tail -n 3 "$TMP/rb_engine_only.out")"
+ok=no
+if apply_adapter; then
+  run_ptest "$VERIFY" "$TMP/verify_recover.out"
+  if [ "$RC" -eq 0 ] && [ "$(sf 11)" = "PASS" ] && [ "$(sf 12)" = "1" ]; then ok=yes; fi
+fi
+record "S6e recovery: adapter re-run (with approver) on the engine-only state, verify PASS" "$ok" "summary=$SUMMARY $(tail -n 3 "$TMP/adapter.out")"
 reset_db "$A:owner:true"
 apply_adapter
 record "S6b adapter without engine refused" "$(has "$TMP/adapter.out" 'ZELL_0021P_ENGINE_MISSING' && echo yes || echo no)" "$(tail -n 3 "$TMP/adapter.out")"
