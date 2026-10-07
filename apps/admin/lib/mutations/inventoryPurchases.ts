@@ -92,14 +92,17 @@ export async function loadSupplierOptions(
   return { ok: true, data: { items, complete: false } }
 }
 
-/** المخازن النشطة لاختيار المخزن (keyset بالـid). */
-export async function loadLocationOptions(actor: string): Promise<InventoryResult<OptionList<InventoryLocationOption>>> {
+/** المخازن لاختيار المخزن (النشطة بس، افتراضيًا) أو لأسماء صفحة الدفعات (includeInactive). keyset بالـid. */
+export async function loadLocationOptions(
+  actor: string,
+  includeInactive = false,
+): Promise<InventoryResult<OptionList<InventoryLocationOption>>> {
   const items: InventoryLocationOption[] = []
   let after: number | null = null
   for (let page = 0; page < OPTION_PAGES; page += 1) {
     const result: InventoryResult<LocationsPage> = await callInventory(
       'listLocations',
-      { p_actor: actor, p_include_inactive: false, p_limit: OPTION_PAGE_SIZE, p_after_id: after },
+      { p_actor: actor, p_include_inactive: includeInactive, p_limit: OPTION_PAGE_SIZE, p_after_id: after },
       isLocationsPage,
     )
     if (!result.ok) return result
