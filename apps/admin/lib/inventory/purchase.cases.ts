@@ -47,8 +47,8 @@ import { canConfirm, createWriteLock, releaseAfterReconcile, settleLockedIntent,
 export type PurchaseCaseFailure = { name: string; expected: string; actual: string }
 export type PurchaseCasesReport = { passed: number; failures: PurchaseCaseFailure[] }
 
-const FILM: CatalogProduct = { id: 1, nameAr: 'فيلم', saleUnit: 'meter', isActive: true, baseWidthCm: 100, allowedWidthsCm: [100, 152] }
-const TOOL: CatalogProduct = { id: 2, nameAr: 'أداة', saleUnit: 'piece', isActive: false, baseWidthCm: null, allowedWidthsCm: [] }
+const FILM: CatalogProduct = { id: 1, nameAr: 'فيلم', saleUnit: 'meter', isActive: true, baseWidthCm: 100, basePricePiastres: 25000, allowedWidthsCm: [100, 152], widthOptions: [{ widthCm: 152, pricePerMeterPiastres: 36000 }] }
+const TOOL: CatalogProduct = { id: 2, nameAr: 'أداة', saleUnit: 'piece', isActive: false, baseWidthCm: null, basePricePiastres: 5000, allowedWidthsCm: [], widthOptions: [] }
 const CATALOG = new Map<number, CatalogProduct>([
   [1, FILM],
   [2, TOOL],
