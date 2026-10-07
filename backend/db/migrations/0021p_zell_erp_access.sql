@@ -968,7 +968,8 @@ begin
   -- المطابقة بجلسة المالك (claims محلية جوه المعاملة بس، وبتتمسح بعدها).
   perform pg_catalog.set_config('request.jwt.claims',
     pg_catalog.jsonb_build_object('sub', v_owner, 'role', 'authenticated')::text, true);
-  set local role authenticated;
+  -- كـ مالك الدالة (من غير ما نعتمد على SET ROLE authenticated جوه الـ migration)؛ الصلاحية نفسها اتفحصت فوق.
+  set local role zell_erp_definer;
   v_r := public.zell_erp_access_parity();
   reset role;
   perform pg_catalog.set_config('request.jwt.claims', '', true);
