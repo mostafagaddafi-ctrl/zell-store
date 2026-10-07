@@ -7,6 +7,7 @@ import { voidPurchaseAction } from '../../lib/inventoryActions'
 import { useInventoryIntent } from '../../lib/client/useInventoryIntent'
 import { DOC_ACTION_LABELS } from '../../lib/inventory/labels'
 import type { PurchaseWriteResult } from '../../lib/inventory/purchases'
+import { canConfirm, createWriteLock, type WriteLock } from '../../lib/inventory/writeLock'
 import { useMutationsEnabled } from '../../lib/readiness'
 import { Button } from '../ui/Button'
 import { FailureBanner } from '../ui/FailureBanner'
@@ -19,6 +20,8 @@ type VoidPayload = { docId: number; version: number; reason: string }
 /**
  * «إبطال المستند المرحّل» — نهائي، وبسبب (3–300 حرف زي الداتابيز). نية مستقلة بمفتاح مستقل.
  * الداتابيز بترفض لو فيه حركات مرتبطة بالدفعات (45213).
+ *
+ * 🔒 تأكيد مرتين: القفل المتزامن (writeLock) + إعادة فحص القيم الحالية وقت الضغط + busy في الحوار.
  */
 export function VoidPurchaseAction({ docId, docNo, version }: { docId: number; docNo: string; version: number }) {
   const router = useRouter()
@@ -26,6 +29,9 @@ export function VoidPurchaseAction({ docId, docNo, version }: { docId: number; d
   const [open, setOpen] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [reconciling, startReconcile] = useTransition()
+  const lockRef = useRef<WriteLock | null>(null)
+  if (lockRef.current === null) lockRef.current = createWriteLock()
+  const lock = lockRef.current
 
   const voiding = useInventoryIntent<VoidPayload, PurchaseWriteResult>(
     (commandId, payload) => voidPurchaseAction(commandId, payload.docId, payload.version, payload.reason),
@@ -38,6 +44,7 @@ export function VoidPurchaseAction({ docId, docNo, version }: { docId: number; d
       },
       onAbandon: () => startReconcile(() => router.refresh()),
     },
+    { lock, owner: 'void' },
   )
 
   const wasReconciling = useRef(false)
@@ -48,12 +55,21 @@ export function VoidPurchaseAction({ docId, docNo, version }: { docId: number; d
     }
     if (!wasReconciling.current) return
     wasReconciling.current = false
-    voiding.reopen()
-    voiding.resetAfterSuccess()
+    voiding.afterReconcile()
   }, [reconciling])
 
   const failure = voiding.intent.phase === 'editing' ? voiding.intent.failure : null
   const busy = reconciling || voiding.intent.phase !== 'editing'
+
+  const gateRef = useRef({ mutationsOn, reconciling })
+  gateRef.current = { mutationsOn, reconciling }
+
+  function confirmVoidNow(reason: string) {
+    setOpen(false)
+    const gate = gateRef.current
+    if (!canConfirm({ mutationsOn: gate.mutationsOn, reconciling: gate.reconciling, lockHolder: lock.holder(), blockedReason: null })) return
+    voiding.begin({ docId, version, reason })
+  }
 
   return (
     <div className="space-y-3">
@@ -88,11 +104,9 @@ export function VoidPurchaseAction({ docId, docNo, version }: { docId: number; d
         title={DOC_ACTION_LABELS.void + ' ' + docNo}
         message="الإبطال نهائي: المستند والدفعات بتاعته بيبقوا «مُبطَل». مش بيتمسح حاجة، والسجل بيفضل ظاهر."
         confirmLabel={DOC_ACTION_LABELS.void}
+        busy={busy}
         onCancel={() => setOpen(false)}
-        onConfirm={(reason) => {
-          setOpen(false)
-          voiding.begin({ docId, version, reason })
-        }}
+        onConfirm={confirmVoidNow}
       />
     </div>
   )
