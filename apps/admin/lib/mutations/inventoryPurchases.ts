@@ -8,7 +8,6 @@ import {
   PURCHASES_PAGE_SIZE,
   isLocationsPage,
   isPurchasePreview,
-  isPurchaseWriteResult,
   isPurchasesPage,
   parsePurchaseDetail,
   type InventoryLocationOption,
@@ -19,6 +18,7 @@ import {
   type PurchasesPage,
 } from '../inventory/purchases'
 import { callInventory, callInventoryWith } from '../inventory/rpc'
+import { writeResultGuard } from '../inventory/writeResults'
 import { isSuppliersPage, type InventorySupplier, type SuppliersPage } from '../inventory/suppliers'
 
 /**
@@ -126,7 +126,7 @@ export async function createPurchase(
   return callInventory(
     'createPurchase',
     { p_actor: actor, p_command_id: rawCommandId, p_doc: doc.value },
-    isPurchaseWriteResult,
+    writeResultGuard('purchase', 'create'),
   )
 }
 
@@ -147,7 +147,7 @@ export async function updatePurchase(
   return callInventory(
     'updatePurchase',
     { p_actor: actor, p_command_id: rawCommandId, p_doc_id: docId, p_expected_version: expectedVersion, p_doc: doc.value },
-    isPurchaseWriteResult,
+    writeResultGuard('purchase', 'update'),
   )
 }
 
@@ -165,7 +165,7 @@ export async function postPurchase(
   return callInventory(
     'postPurchase',
     { p_actor: actor, p_command_id: rawCommandId, p_doc_id: docId, p_expected_version: expectedVersion },
-    isPurchaseWriteResult,
+    writeResultGuard('purchase', 'post'),
   )
 }
 
@@ -187,7 +187,7 @@ export async function discardPurchase(
   return callInventory(
     'discardPurchase',
     { p_actor: actor, p_command_id: rawCommandId, p_doc_id: docId, p_expected_version: expectedVersion, p_reason: reason.value },
-    isPurchaseWriteResult,
+    writeResultGuard('purchase', 'discard'),
   )
 }
 
@@ -209,6 +209,6 @@ export async function voidPurchase(
   return callInventory(
     'voidPurchase',
     { p_actor: actor, p_command_id: rawCommandId, p_doc_id: docId, p_expected_version: expectedVersion, p_reason: reason.value },
-    isPurchaseWriteResult,
+    writeResultGuard('purchase', 'void'),
   )
 }
