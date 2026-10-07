@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Ban } from 'lucide-react'
-import { voidPurchaseAction } from '../../lib/inventoryActions'
+import { voidOpeningAction, voidPurchaseAction } from '../../lib/inventoryActions'
 import { useInventoryIntent } from '../../lib/client/useInventoryIntent'
 import { DOC_ACTION_LABELS } from '../../lib/inventory/labels'
 import type { PurchaseWriteResult } from '../../lib/inventory/purchases'
@@ -19,11 +19,22 @@ type VoidPayload = { docId: number; version: number; reason: string }
 
 /**
  * «إبطال المستند المرحّل» — نهائي، وبسبب (3–300 حرف زي الداتابيز). نية مستقلة بمفتاح مستقل.
+ * مشترك بين فاتورة الشراء ورصيد أول المدة (kind).
  * الداتابيز بترفض لو فيه حركات مرتبطة بالدفعات (45213).
  *
  * 🔒 تأكيد مرتين: القفل المتزامن (writeLock) + إعادة فحص القيم الحالية وقت الضغط + busy في الحوار.
  */
-export function VoidPurchaseAction({ docId, docNo, version }: { docId: number; docNo: string; version: number }) {
+export function VoidPurchaseAction({
+  docId,
+  docNo,
+  version,
+  kind = 'purchase',
+}: {
+  docId: number
+  docNo: string
+  version: number
+  kind?: 'purchase' | 'opening'
+}) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
   const [open, setOpen] = useState(false)
@@ -34,7 +45,10 @@ export function VoidPurchaseAction({ docId, docNo, version }: { docId: number; d
   const lock = lockRef.current
 
   const voiding = useInventoryIntent<VoidPayload, PurchaseWriteResult>(
-    (commandId, payload) => voidPurchaseAction(commandId, payload.docId, payload.version, payload.reason),
+    (commandId, payload) =>
+      kind === 'opening'
+        ? voidOpeningAction(commandId, payload.docId, payload.version, payload.reason)
+        : voidPurchaseAction(commandId, payload.docId, payload.version, payload.reason),
     {
       onDone: (result) => {
         setNotice(
