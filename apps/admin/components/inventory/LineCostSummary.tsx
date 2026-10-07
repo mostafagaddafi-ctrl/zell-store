@@ -45,6 +45,29 @@ export function SalePriceNote({
   )
 }
 
+export const POSTED_SALE_PRICE_LABEL = 'سعر البيع الحالي (دلوقتي، مش وقت الترحيل)'
+export const PER_UNIT_COST_LABEL = 'النهائية للمتر/القطعة (تقريبي)'
+
+/**
+ * خلية سعر البيع الحالي في جداول المستند المرحّل — مرجعية بس، ومعاها رابط صفحة المنتج في تاب جديد.
+ * «—» لو قايمة المنتجات متقرتش أو المنتج مش فيها أو العرض مالوش سعر فعّال.
+ */
+export function CurrentSalePriceCell({ salePrice, productId }: { salePrice: SalePrice | null; productId: number }) {
+  return (
+    <span className="whitespace-nowrap">
+      <span dir="ltr">{salePrice ? priceText(salePrice.pricePiastres, salePrice.unit === 'meter' ? 'متر' : 'قطعة') : '—'}</span>
+      <a
+        href={'/products/' + String(productId)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="ms-2 text-xs font-semibold text-brand hover:underline"
+      >
+        صفحة المنتج
+      </a>
+    </span>
+  )
+}
+
 export type LotCostRow = {
   key: string
   label: string
