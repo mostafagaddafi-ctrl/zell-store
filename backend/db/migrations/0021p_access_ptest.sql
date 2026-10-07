@@ -1182,13 +1182,6 @@ begin
      or pg_catalog.to_regclass('public.erp_capabilities') is null then
     raise exception 'ZELL_0021P_ENGINE_MISSING';
   end if;
-  select pg_catalog.btrim(pg_catalog.lower(pg_catalog.regexp_replace(p.prosrc, '\s+', ' ', 'g'))) into v_src
-    from pg_catalog.pg_proc p where p.oid = 'public.erp_actor_status_v1(uuid)'::regprocedure;
-  if v_src <> 'select false, false;'
-     or (select pg_catalog.pg_get_userbyid(p.proowner) from pg_catalog.pg_proc p
-          where p.oid = 'public.erp_actor_status_v1(uuid)'::regprocedure) <> 'postgres' then
-    raise exception 'ZELL_0021P_INTERFACE_NOT_DEFAULT';
-  end if;
   if pg_catalog.to_regrole('zell_erp_definer') is not null
      or exists (select 1 from pg_catalog.pg_proc p
                  where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_erp\_%')
@@ -1196,6 +1189,13 @@ begin
                  where c.relnamespace = 'public'::regnamespace and c.relname like 'zell\_erp\_%')
      or exists (select 1 from public.erp_capabilities c where c.key like 'zell.%') then
     raise exception 'ZELL_0021P_ALREADY_PRESENT';
+  end if;
+  select pg_catalog.btrim(pg_catalog.lower(pg_catalog.regexp_replace(p.prosrc, '\s+', ' ', 'g'))) into v_src
+    from pg_catalog.pg_proc p where p.oid = 'public.erp_actor_status_v1(uuid)'::regprocedure;
+  if v_src <> 'select false, false;'
+     or (select pg_catalog.pg_get_userbyid(p.proowner) from pg_catalog.pg_proc p
+          where p.oid = 'public.erp_actor_status_v1(uuid)'::regprocedure) <> 'postgres' then
+    raise exception 'ZELL_0021P_INTERFACE_NOT_DEFAULT';
   end if;
 
   select count(*) into v_n from pg_catalog.pg_attribute a
