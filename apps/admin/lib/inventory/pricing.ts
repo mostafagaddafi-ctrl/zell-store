@@ -26,6 +26,25 @@ export function currentSalePrice(product: CatalogProduct, widthCm: number | null
   return null
 }
 
+/** فهرس الكتالوج بالـid (للعرض). */
+export function catalogById(products: readonly CatalogProduct[]): Map<number, CatalogProduct> {
+  return new Map(products.map((p) => [p.id, p] as const))
+}
+
+/**
+ * سعر البيع الحالي لمنتج في مستند مرحّل. null لو الكتالوج متقراش أو المنتج مش فيه أو العرض مالوش سعر فعّال
+ * (بيتعرض «—»). ده السعر **دلوقتي**، مش وقت الترحيل.
+ */
+export function findSalePrice(
+  catalog: ReadonlyMap<number, CatalogProduct> | null,
+  productId: number,
+  widthCm: number | null,
+): SalePrice | null {
+  if (catalog === null) return null
+  const product = catalog.get(productId)
+  return product ? currentSalePrice(product, widthCm) : null
+}
+
 function safe(value: number): boolean {
   return Number.isSafeInteger(value)
 }
@@ -60,6 +79,17 @@ export function costPerMeter(costPiastres: number, lengthCm: number): number | n
 /** تكلفة القطعة بالقروش: round(cost / quantity). */
 export function costPerPiece(costPiastres: number, quantity: number): number | null {
   return roundDiv(costPiastres, quantity)
+}
+
+/** التكلفة التقريبية للمتر (لفّة) أو للقطعة (دفعة قطع). null لو المقياس ناقص أو صفر. */
+export function perUnitCost(
+  kind: 'roll' | 'batch',
+  costPiastres: number,
+  lengthCm: number | null,
+  quantity: number | null,
+): number | null {
+  if (kind === 'roll') return lengthCm !== null && lengthCm > 0 ? costPerMeter(costPiastres, lengthCm) : null
+  return quantity !== null && quantity > 0 ? costPerPiece(costPiastres, quantity) : null
 }
 
 // ── ربط نتيجة المعاينة بالبنود ────────────────────────────────────
