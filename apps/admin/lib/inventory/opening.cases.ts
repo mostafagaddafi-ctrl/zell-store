@@ -244,10 +244,9 @@ export function runOpeningCases(): OpeningCasesReport {
     const oTotals = { itemsTotalPiastres: 200000, estimatedTotalPiastres: 200000 }
     const pBase = { docId: 9, docNo: 'PUR-000009', version: 1 }
     const oBase = { docId: 5, docNo: 'OPN-000005', version: 1 }
-    const pLots = [
-      { lotId: 1, lotCode: 'R-000001', lineNo: 1, lotSequence: 1, landedCostPiastres: 104000 },
-      { lotId: 2, lotCode: 'B-000001', lineNo: 2, lotSequence: 1, landedCostPiastres: 100000 },
-    ]
+    const pLot1 = { lotId: 1, lotCode: 'R-000001', lineNo: 1, lotSequence: 1, landedCostPiastres: 104000 }
+    const pLot2 = { lotId: 2, lotCode: 'B-000001', lineNo: 2, lotSequence: 1, landedCostPiastres: 100000 }
+    const pLots = [pLot1, pLot2]
     const oLots = [
       { lotId: 3, lotCode: 'R-000010', lineNo: 1, lotSequence: 1, landedCostPiastres: 104348, costIsEstimated: true },
       { lotId: 4, lotCode: 'R-000011', lineNo: 1, lotSequence: 2, landedCostPiastres: 95652, costIsEstimated: true },
@@ -263,8 +262,8 @@ export function runOpeningCases(): OpeningCasesReport {
     check('R9 purchase post with empty lots rejected', isDocWriteResult('purchase', 'post', { ...pBase, status: 'posted', totals: pTotals, lots: [] }), false)
     check('R10 purchase post lots sum differs from total', isDocWriteResult('purchase', 'post', { ...pBase, status: 'posted', totals: pTotals, lots: pLots.slice(0, 1) }), false)
     check('R11 purchase post with draft status rejected', isDocWriteResult('purchase', 'post', { ...pBase, status: 'draft', totals: pTotals, lots: pLots }), false)
-    check('R12 purchase post duplicate lot id rejected', isDocWriteResult('purchase', 'post', { ...pBase, status: 'posted', totals: pTotals, lots: [pLots[0], { ...pLots[1], lotId: 1 }] }), false)
-    check('R13 purchase post bad lot code rejected', isDocWriteResult('purchase', 'post', { ...pBase, status: 'posted', totals: pTotals, lots: [{ ...pLots[0], lotCode: 'X-1' }, pLots[1]] }), false)
+    check('R12 purchase post duplicate lot id rejected', isDocWriteResult('purchase', 'post', { ...pBase, status: 'posted', totals: pTotals, lots: [pLot1, { ...pLot2, lotId: 1 }] }), false)
+    check('R13 purchase post bad lot code rejected', isDocWriteResult('purchase', 'post', { ...pBase, status: 'posted', totals: pTotals, lots: [{ ...pLot1, lotCode: 'X-1' }, pLot2] }), false)
     check('R14 purchase discard ok', isDocWriteResult('purchase', 'discard', { ...pBase, status: 'discarded' }), true)
     check('R15 purchase discard with voided status rejected', isDocWriteResult('purchase', 'discard', { ...pBase, status: 'voided' }), false)
     check('R16 purchase discard with extra totals rejected', isDocWriteResult('purchase', 'discard', { ...pBase, status: 'discarded', totals: pTotals }), false)
@@ -281,7 +280,7 @@ export function runOpeningCases(): OpeningCasesReport {
     check('R27 opening estimated above items rejected', isDocWriteResult('opening', 'create', { ...oBase, status: 'draft', totals: { itemsTotalPiastres: 1, estimatedTotalPiastres: 2 } }), false)
     check('R28 opening create with purchase totals rejected', isDocWriteResult('opening', 'create', { ...oBase, status: 'draft', totals: pTotals }), false)
     check('R29 opening post ok', isDocWriteResult('opening', 'post', { ...oBase, version: 2, status: 'posted', totals: oTotals, lots: oLots }), true)
-    check('R30 opening post lot without costIsEstimated rejected', isDocWriteResult('opening', 'post', { ...oBase, status: 'posted', totals: oTotals, lots: [{ ...pLots[0], landedCostPiastres: 200000 }] }), false)
+    check('R30 opening post lot without costIsEstimated rejected', isDocWriteResult('opening', 'post', { ...oBase, status: 'posted', totals: oTotals, lots: [{ ...pLot1, landedCostPiastres: 200000 }] }), false)
     check('R31 opening post lots sum differs from items total', isDocWriteResult('opening', 'post', { ...oBase, status: 'posted', totals: oTotals, lots: oLots.slice(0, 1) }), false)
     check('R32 opening discard ok', isDocWriteResult('opening', 'discard', { ...oBase, status: 'discarded' }), true)
     check('R33 opening void ok', isDocWriteResult('opening', 'void', { ...oBase, status: 'voided', voidedLots: 2 }), true)
