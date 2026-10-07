@@ -20,6 +20,7 @@ export function ConfirmDialog({
   onConfirm,
   disabledReason = 'التعديلات موقوفة دلوقتي — مفيش أي حاجة هتتغيّر.',
   notImplementedReason = 'الإجراء ده لسه ما اتعملش — مفيش أي حاجة هتتغيّر.',
+  busy = false,
 }: {
   open: boolean
   title: string
@@ -29,6 +30,8 @@ export function ConfirmDialog({
   onConfirm?: () => void
   disabledReason?: string
   notImplementedReason?: string
+  /** أثناء بدء/إرسال العملية: التأكيد والإغلاق متعطلين (اختياري — الافتراضي false زي الأول). */
+  busy?: boolean
 }) {
   const enabled = useMutationsEnabled()
 
@@ -45,11 +48,11 @@ export function ConfirmDialog({
   useEffect(() => {
     if (!open) return
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCancel()
+      if (event.key === 'Escape' && !busy) onCancel()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [open, onCancel])
+  }, [open, onCancel, busy])
 
   if (!open) return null
 
@@ -59,7 +62,7 @@ export function ConfirmDialog({
       aria-modal="true"
       aria-label={title}
       className="fixed inset-0 z-50 flex items-center justify-center bg-fg/50 p-4"
-      onClick={onCancel}
+      onClick={busy ? undefined : onCancel}
     >
       <div
         className="w-full max-w-sm rounded-lg border border-border bg-surface p-4 shadow-pop"
@@ -81,10 +84,10 @@ export function ConfirmDialog({
         ) : null}
 
         <div className="mt-5 flex justify-start gap-2">
-          <Button variant="danger" onClick={onConfirm} disabled={blocked}>
+          <Button variant="danger" onClick={onConfirm} disabled={blocked || busy}>
             {confirmLabel}
           </Button>
-          <Button variant="secondary" onClick={onCancel}>
+          <Button variant="secondary" onClick={onCancel} disabled={busy}>
             {enabled ? 'إلغاء' : 'اقفل'}
           </Button>
         </div>
