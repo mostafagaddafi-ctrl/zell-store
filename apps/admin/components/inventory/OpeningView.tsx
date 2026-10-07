@@ -15,7 +15,7 @@ import { VoidPurchaseAction } from './VoidPurchaseAction'
  * عرض بس لرصيد أول مدة مرحّل أو مُبطَل أو مستبعَد (من zell_inv_get_opening بالـsnapshots).
  * الإبطال للمرحّل بس. التكلفة التقديرية متعلّمة على البند والدفعة.
  * التكلفة للمتر/القطعة تقريبية (أعداد صحيحة لأقرب قرش). سعر البيع **الحالي** مرجعية من قايمة المنتجات
- * دلوقتي (مش لقطة وقت الترحيل) — catalog = null يعني القراءة فشلت فبيتعرض «—».
+ * دلوقتي (مش لقطة وقت الترحيل) — catalog = null يعني القراءة فشلت أو الكتالوج مش مؤكد، فبيتعرض «—».
  */
 export function OpeningView({ detail, catalog }: { detail: OpeningDetail; catalog: CatalogProduct[] | null }) {
   const { header, lines, lots } = detail
@@ -47,7 +47,7 @@ export function OpeningView({ detail, catalog }: { detail: OpeningDetail; catalo
       {lines.length > 0 ? (
         <Card title="البنود">
           {products === null ? (
-            <p className="mb-3 text-xs text-muted">سعر البيع الحالي مش ظاهر: مقدرناش نقرا قايمة المنتجات. حدّث الصفحة.</p>
+            <p className="mb-3 text-xs text-muted">سعر البيع الحالي مش ظاهر: قايمة المنتجات ماتقرتش كاملة ومؤكدة. حدّث الصفحة، ولو اتكررت بلّغ.</p>
           ) : null}
           <Table>
             <THead>
