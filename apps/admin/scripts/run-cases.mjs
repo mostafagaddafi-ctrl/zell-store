@@ -69,7 +69,7 @@ try {
     const runner = mod[suite.run]
     if (typeof runner !== 'function') throw new Error(suite.entry + ' مافيهوش ' + suite.run)
 
-    const report = runner()
+    const report = await runner()
     for (const failure of report.failures) {
       console.error('FAIL [' + suite.name + '] ' + failure.name)
       console.error('  expected: ' + failure.expected)
