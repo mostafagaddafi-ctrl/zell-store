@@ -87,7 +87,7 @@ export default async function OpeningPage({ params }: PageProps) {
           today={cairoToday(new Date())}
         />
       ) : (
-        <EditorBlocked reasons={data.reasons} />
+        <EditorBlocked reasons={data.reasons} backHref="/inventory/openings" backLabel="رجوع لرصيد أول المدة" />
       )}
     </>
   )
