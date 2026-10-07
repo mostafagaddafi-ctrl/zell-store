@@ -162,7 +162,6 @@ export function PurchaseEditor({
       intent.reopen()
       intent.resetAfterSuccess()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reconciling])
 
   const intents = [save, post, discard]
