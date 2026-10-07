@@ -146,7 +146,7 @@ begin
   end if;
   perform pg_catalog.set_config('request.jwt.claims',
     pg_catalog.jsonb_build_object('sub', v_owner, 'role', 'authenticated')::text, true);
-  set local role authenticated;
+  set local role zell_erp_definer;
   v_r := public.zell_erp_my_access();
   v_parity := public.zell_erp_access_parity();
   reset role;
