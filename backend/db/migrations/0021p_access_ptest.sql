@@ -4,12 +4,13 @@
 -- • كل حاجة جوه معاملة واحدة بتنتهي بـ exception مقصود ثم ROLLBACK — ومنها الأدوار والجداول والدوال الجديدة.
 -- • جسمين الـ migration منسوخين بالحرف بين علامات >>> و <<< (الـ CI بيقارن md5 الجسمين في كل تشغيل).
 -- • اتصال واحد بس. التزامن نفسه بيتثبت في CI على Postgres مؤقت (backend/db/ci/0021p_sql_ci.sh)، مش هنا.
+-- • الحد العام: النداءات بتتعمل زي PostgREST بالظبط — دور authenticated + request.jwt.claims (جلسة مُحاكاة).
+--   وفيه اختبارات إن service_role و anon مالهمش أي EXECUTE، وإن ممثل مزوّر ماينفعش يمنح ولا يقرا صلاحيات المالك.
 -- • ملفين تشغيل: production (الافتراضي) — بيستخدم صفوف admin_users الموجودة بس، ومن غير TRUNCATE على admin_users،
 --   والاختبارات اللي محتاجة مالك تاني أو أدمن مش موجود بتتعدّى (skip) — و ci (Postgres مؤقت بس).
--- • النداءات كـ service_role (الـ caller الحقيقي)، والممثل (مالك / أدمن / عشوائي / null) منفصل.
 -- • النتيجة في رسالة ZELL_0021P_PTEST_RESULT (exception عن قصد، والمعاملة بترجع).
 -- • الأثر على Production: SHARE ROW EXCLUSIVE على admin_users لحد آخر المعاملة (ثواني)، وتعديلات على admin_users
---   جوه المعاملة بس (بترجع). ⚠ تشغيله على Production محتاج موافقة منفصلة، وبعد قراءة نسخة PostgreSQL الحية.
+--   جوه المعاملة بس (بترجع). ⚠ تشغيله على Production محتاج موافقة منفصلة.
 
 begin;
 select pg_catalog.set_config('zell.ptest_profile', 'production', true);   -- 'production' | 'ci'
@@ -42,13 +43,14 @@ returns void language sql as $f$
   insert into pg_temp.zt_results (name, outcome, detail) values (p_name, 'skip', p_detail);
 $f$;
 
--- نداء كـ دور معيّن، وأي خطأ بيرجع {_error, _message} بدل ما يوقف الاختبار.
+-- نداء كـ دور معيّن من غير جلسة. أي خطأ بيرجع {_error, _message}.
 create function pg_temp.as_role(p_role text, p_sql text)
 returns jsonb language plpgsql as $f$
 declare
   r jsonb;
 begin
   begin
+    perform pg_catalog.set_config('request.jwt.claims', '', true);
     execute 'set local role ' || quote_ident(p_role);
     execute p_sql into r;
     execute 'reset role';
@@ -59,9 +61,24 @@ begin
 end
 $f$;
 
-create function pg_temp.svc(p_sql text)
-returns jsonb language sql as $f$
-  select pg_temp.as_role('service_role', p_sql);
+-- نداء زي PostgREST بالظبط: دور authenticated + claims الجلسة (sub + role). أي خطأ بيرجع {_error, _message}.
+create function pg_temp.as_user(p_user uuid, p_sql text, p_claim_role text default 'authenticated', p_db_role text default 'authenticated')
+returns jsonb language plpgsql as $f$
+declare
+  r jsonb;
+begin
+  begin
+    perform pg_catalog.set_config('request.jwt.claims',
+      case when p_user is null then '' else jsonb_build_object('sub', p_user, 'role', p_claim_role)::text end, true);
+    execute 'set local role ' || quote_ident(p_db_role);
+    execute p_sql into r;
+    execute 'reset role';
+    perform pg_catalog.set_config('request.jwt.claims', '', true);
+  exception when others then
+    return jsonb_build_object('_error', sqlstate, '_message', sqlerrm);
+  end;
+  return r;
+end
 $f$;
 
 -- تنفيذ كـ postgres. بيرجّع sqlstate أو 'none'.
@@ -629,7 +646,7 @@ end
 $fn$;
 
 
--- (6) الدوال العامة (مالكها erp_definer، SECURITY DEFINER، EXECUTE لـ service_role)
+-- (6) دوال الإدارة والقراءة (مالكها erp_definer، SECURITY DEFINER). داخلية: EXECUTE لدور المحوّل بس (بيتمنح في ملفه).
 create function public.erp_effective_capabilities(p_actor uuid)
 returns jsonb
 language plpgsql
@@ -961,6 +978,9 @@ begin
      or p_kind is null or p_kind not in ('legacy_allow_new_deny', 'legacy_deny_new_allow', 'new_unavailable') then
     raise exception 'ERP_INVALID' using errcode = '45313', detail = 'shadow_event';
   end if;
+  if not exists (select 1 from public.erp_capabilities c where c.key = p_capability) then
+    raise exception 'ERP_UNKNOWN_CAPABILITY' using errcode = '45304', detail = 'shadow_event';
+  end if;
   insert into public.erp_access_shadow_events as e (day, user_id, route_key, capability_key, kind)
   values ((now() at time zone 'UTC')::date, p_user, p_route_key, p_capability, p_kind)
   on conflict (day, user_id, route_key, capability_key, kind)
@@ -1049,19 +1069,7 @@ alter function public.erp_access_audit_page(uuid, bigint, integer) owner to erp_
 alter function public.erp_record_shadow_event(uuid, text, text, text) owner to erp_definer;
 alter function public.erp_access_shadow_report(uuid, date) owner to erp_definer;
 
-set local role erp_definer;
-grant execute on function
-  public.erp_effective_capabilities(uuid),
-  public.erp_access_grant(uuid, uuid, uuid, text, integer),
-  public.erp_access_revoke(uuid, uuid, uuid, text, integer, text),
-  public.erp_access_apply_preset(uuid, uuid, uuid, text, integer),
-  public.erp_access_revoke_all(uuid, uuid, uuid, integer, text),
-  public.erp_access_snapshot(uuid),
-  public.erp_access_audit_page(uuid, bigint, integer),
-  public.erp_record_shadow_event(uuid, text, text, text),
-  public.erp_access_shadow_report(uuid, date)
-to service_role;
-reset role;
+-- مفيش أي EXECUTE لـ service_role / anon / authenticated هنا (الحد العام في المحوّل).
 
 revoke create on schema public from erp_definer;
 
@@ -1078,8 +1086,8 @@ begin
     from pg_catalog.pg_proc p
    where p.pronamespace = 'public'::regnamespace and p.proname like 'erp\_%'
      and pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE');
-  if v_list is distinct from 'erp_access_apply_preset,erp_access_audit_page,erp_access_grant,erp_access_revoke,erp_access_revoke_all,erp_access_shadow_report,erp_access_snapshot,erp_effective_capabilities,erp_record_shadow_event' then
-    raise exception 'ERP_0021P_SERVICE_EXECUTE_SET %', coalesce(v_list, '');
+  if v_list is not null then
+    raise exception 'ERP_0021P_SERVICE_EXECUTE %', v_list;
   end if;
 
   select string_agg(p.proname::text, ',') into v_bad
@@ -1141,7 +1149,7 @@ $epost$;
 
 -- <<< 0021P ENGINE BODY
 
--- T01: قبل المحوّل الواجهة بترفض الكل، والإدارة مقفولة (45300) وبتتسجّل.
+-- T01: المحرك لوحده — كل دواله داخلية، والواجهة بترفض الكل، والإدارة مقفولة (45300) وبتتسجّل.
 do $zt01$
 declare
   fx record;
@@ -1150,13 +1158,18 @@ declare
   v_n1 bigint;
 begin
   select * into fx from pg_temp.zt_fx;
-  r := pg_temp.svc(format('select public.erp_effective_capabilities(%L::uuid)', fx.owner_a));
-  perform pg_temp.zt('T01a interface default-deny before adapter', (r ->> 'active') = 'false' and (r ->> 'owner') = 'false', r::text);
+  r := pg_temp.as_role('service_role', format('select public.erp_effective_capabilities(%L::uuid)', fx.owner_a));
+  perform pg_temp.zt('T01a service_role cannot execute engine functions (42501)', r ->> '_error' = '42501', r::text);
+  r := pg_temp.as_user(fx.owner_a, format('select public.erp_access_grant(%L::uuid, %L::uuid, %L::uuid, %L, 0)',
+                         fx.owner_a, gen_random_uuid(), gen_random_uuid(), 'erp.access.view'));
+  perform pg_temp.zt('T01b authenticated cannot execute engine functions (42501)', r ->> '_error' = '42501', r::text);
+  r := pg_temp.as_role('erp_definer', format('select public.erp_effective_capabilities(%L::uuid)', fx.owner_a));
+  perform pg_temp.zt('T01c interface default-deny before adapter', (r ->> 'active') = 'false' and (r ->> 'owner') = 'false', r::text);
   select count(*) into v_n0 from public.erp_access_audit;
-  r := pg_temp.svc(format('select public.erp_access_grant(%L::uuid, %L::uuid, %L::uuid, %L, 0)',
-                          fx.owner_a, gen_random_uuid(), gen_random_uuid(), 'erp.access.view'));
+  r := pg_temp.as_role('erp_definer', format('select public.erp_access_grant(%L::uuid, %L::uuid, %L::uuid, %L, 0)',
+                         fx.owner_a, gen_random_uuid(), gen_random_uuid(), 'erp.access.view'));
   select count(*) into v_n1 from public.erp_access_audit;
-  perform pg_temp.zt('T01b management fails closed before adapter (45300, audited)', r ->> 'code' = '45300' and v_n1 = v_n0 + 1, r::text);
+  perform pg_temp.zt('T01d management fails closed before adapter (45300, audited)', r ->> 'code' = '45300' and v_n1 = v_n0 + 1, r::text);
 end
 $zt01$;
 
@@ -1567,9 +1580,187 @@ end
 $ziface$;
 
 
--- (6) دوال المحوّل العامة (مالكها zell_erp_definer، SECURITY DEFINER، EXECUTE لـ service_role)
--- إيقاف وتشغيل حساب: owner-only، بسبب، ومن غير ما تقدر توقف نفسك. بيتسجّل في سجل المحرك ومنع التكرار بتاعه.
-create function public.zell_erp_set_user_active(p_actor uuid, p_command_id uuid, p_target uuid, p_active boolean, p_reason text)
+-- (6) الحد العام: الهوية من جلسة المستخدم، مش من المستدعي.
+--   • مفيش p_actor في أي دالة عامة. الممثل = sub من JWT جلسة Supabase Auth اللي PostgREST اتحقق من توقيعها
+--     (request.jwt.claims)، وبشرط role = authenticated، وإن الـ sub ليه صف في admin_users. ده نفس المصدر اللي
+--     auth.uid() بتقراه، بس من غير أي اعتمادية أو صلاحية على schema auth (مملوكة لـ Supabase).
+--   • EXECUTE للدور authenticated بس (اللوحة بتنادي بجلسة المستخدم). service_role و anon مالهمش أي EXECUTE،
+--     ودوال المحرك كلها داخلية (EXECUTE لـ zell_erp_definer بس).
+--   • من غير هوية موثوقة أو من غير صف في admin_users: رفض 45300 بيترمي، ومن غير سطر سجل (مفيش ممثل معروف).
+--     الهوية لوحدها مش كفاية: المحرك بيتأكد في كل نداء (شغال + مالك أو منح صريح).
+--   • ⚠ Sign ups في Supabase Auth لازم تفضل مقفولة (حماية زيادة)، وده بيتعرض في «حالة النظام» في PR الكود.
+
+-- الهوية الموثوقة: NULL لو مفيش JWT صالح بدور authenticated.
+create function public.zell_erp_trusted_actor()
+returns uuid
+language plpgsql
+stable
+set search_path = ''
+as $fn$
+declare
+  v_raw text := nullif(pg_catalog.current_setting('request.jwt.claims', true), '');
+  v_claims jsonb;
+  v_sub text;
+  v_role text;
+begin
+  if v_raw is not null then
+    begin
+      v_claims := v_raw::jsonb;
+    exception when others then
+      return null;
+    end;
+  end if;
+  v_sub := coalesce(v_claims ->> 'sub', nullif(pg_catalog.current_setting('request.jwt.claim.sub', true), ''));
+  v_role := coalesce(v_claims ->> 'role', nullif(pg_catalog.current_setting('request.jwt.claim.role', true), ''));
+  if v_role is distinct from 'authenticated' or v_sub is null
+     or v_sub !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    return null;
+  end if;
+  return v_sub::uuid;
+end
+$fn$;
+
+-- لازم هوية موثوقة ليها صف في admin_users، وإلا 45300 (بيترمي، من غير سطر سجل).
+create function public.zell_erp_require_actor()
+returns uuid
+language plpgsql
+stable
+set search_path = ''
+as $fn$
+declare
+  v_actor uuid := public.zell_erp_trusted_actor();
+  v_found boolean;
+begin
+  if v_actor is not null then
+    select s.found into v_found from public.zell_erp_admin_status(v_actor) s;
+  end if;
+  if v_actor is null or not coalesce(v_found, false) then
+    raise exception 'ZELL_ERP_NO_IDENTITY' using errcode = '45300';
+  end if;
+  return v_actor;
+end
+$fn$;
+
+-- الصلاحيات الفعلية للمستخدم الحالي بس (مفيش طريقة تقرا بيها صلاحيات حد تاني). من غير هوية = مش شغال.
+create function public.zell_erp_my_access()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $fn$
+begin
+  return public.erp_effective_capabilities(public.zell_erp_trusted_actor());
+end
+$fn$;
+
+create function public.zell_erp_access_grant(p_command_id uuid, p_target uuid, p_capability text, p_expected_version integer)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $fn$
+begin
+  return public.erp_access_grant(public.zell_erp_require_actor(), p_command_id, p_target, p_capability, p_expected_version);
+end
+$fn$;
+
+create function public.zell_erp_access_revoke(p_command_id uuid, p_target uuid, p_capability text, p_expected_version integer, p_reason text)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $fn$
+begin
+  return public.erp_access_revoke(public.zell_erp_require_actor(), p_command_id, p_target, p_capability, p_expected_version, p_reason);
+end
+$fn$;
+
+create function public.zell_erp_access_apply_preset(p_command_id uuid, p_target uuid, p_preset text, p_expected_version integer)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $fn$
+begin
+  return public.erp_access_apply_preset(public.zell_erp_require_actor(), p_command_id, p_target, p_preset, p_expected_version);
+end
+$fn$;
+
+create function public.zell_erp_access_revoke_all(p_command_id uuid, p_target uuid, p_expected_version integer, p_reason text)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $fn$
+begin
+  return public.erp_access_revoke_all(public.zell_erp_require_actor(), p_command_id, p_target, p_expected_version, p_reason);
+end
+$fn$;
+
+create function public.zell_erp_access_snapshot()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $fn$
+begin
+  return public.erp_access_snapshot(public.zell_erp_require_actor());
+end
+$fn$;
+
+create function public.zell_erp_access_audit_page(p_before_id bigint, p_limit integer)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $fn$
+begin
+  return public.erp_access_audit_page(public.zell_erp_require_actor(), p_before_id, p_limit);
+end
+$fn$;
+
+create function public.zell_erp_access_shadow_report(p_since date)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $fn$
+begin
+  return public.erp_access_shadow_report(public.zell_erp_require_actor(), p_since);
+end
+$fn$;
+
+-- أحداث الـ shadow (best-effort، للفروق بس): المستخدم = الهوية الموثوقة، ولازم شغال في admin_users،
+-- والصلاحية لازم تكون موجودة في القائمة (المحرك بيرفض غيرها بـ 45304).
+create function public.zell_erp_record_shadow_event(p_route_key text, p_capability text, p_kind text)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $fn$
+declare
+  v_actor uuid := public.zell_erp_require_actor();
+  v_active boolean;
+begin
+  select s.is_active into v_active from public.zell_erp_admin_status(v_actor) s;
+  if not coalesce(v_active, false) then
+    raise exception 'ZELL_ERP_NO_IDENTITY' using errcode = '45300', detail = 'inactive';
+  end if;
+  perform public.erp_record_shadow_event(v_actor, p_route_key, p_capability, p_kind);
+end
+$fn$;
+
+-- إيقاف وتشغيل حساب: owner-only، بسبب، ومن غير ما تقدر توقف نفسك. الممثل من الجلسة.
+create function public.zell_erp_set_user_active(p_command_id uuid, p_target uuid, p_active boolean, p_reason text)
 returns jsonb
 language plpgsql
 volatile
@@ -1577,6 +1768,7 @@ security definer
 set search_path = ''
 as $fn$
 declare
+  v_actor uuid;
   v_op text;
   v_reason text;
   v_hash text;
@@ -1590,6 +1782,7 @@ declare
   v_before text[];
   v_after text[];
 begin
+  v_actor := public.zell_erp_require_actor();
   if p_target is null or p_active is null then
     raise exception 'ERP_INVALID' using errcode = '45313', detail = 'set_user_active';
   end if;
@@ -1597,14 +1790,14 @@ begin
   v_reason := public.erp_access_reason(p_reason, true);
   v_hash := public.erp_access_request_hash(pg_catalog.jsonb_build_object(
     'op', v_op, 'target', p_target, 'reason', v_reason));
-  v_prior := public.erp_access_command_begin(p_actor, p_command_id, v_op, v_hash);
+  v_prior := public.erp_access_command_begin(v_actor, p_command_id, v_op, v_hash);
   if v_prior is not null then
     return v_prior;
   end if;
 
-  if not public.erp_has_capability(p_actor, 'erp.access.manage') then
+  if not public.erp_has_capability(v_actor, 'erp.access.manage') then
     v_code := '45300';
-  elsif p_target = p_actor then
+  elsif p_target = v_actor then
     v_code := '45301';
   else
     select s.found, s.is_active, s.is_owner into v_found, v_active, v_owner from public.zell_erp_admin_status(p_target) s;
@@ -1613,7 +1806,7 @@ begin
     end if;
   end if;
   if v_code is not null then
-    return public.erp_access_command_finish(p_actor, p_command_id, v_op, v_hash, public.erp_access_denial(v_code),
+    return public.erp_access_command_finish(v_actor, p_command_id, v_op, v_hash, public.erp_access_denial(v_code),
                                             p_target, null, null, null, null);
   end if;
 
@@ -1624,24 +1817,24 @@ begin
   end if;
   select s.is_active, s.is_owner into v_active, v_owner from public.zell_erp_admin_status(p_target) s;
   if not p_active and v_owner and v_active and v_guard <= 1 then
-    return public.erp_access_command_finish(p_actor, p_command_id, v_op, v_hash, public.erp_access_denial('45303'),
+    return public.erp_access_command_finish(v_actor, p_command_id, v_op, v_hash, public.erp_access_denial('45303'),
                                             p_target, null, null, null, null);
   end if;
 
   v_before := case when v_active then array['active'] else '{}'::text[] end;
   if v_active is distinct from p_active then
-    if not public.zell_erp_admin_set_active(p_target, p_active, p_actor) then
+    if not public.zell_erp_admin_set_active(p_target, p_active, v_actor) then
       raise exception 'ZELL_ERP_TARGET_VANISHED' using errcode = '45305';
     end if;
   end if;
   v_after := case when p_active then array['active'] else '{}'::text[] end;
-  return public.erp_access_command_finish(p_actor, p_command_id, v_op, v_hash,
+  return public.erp_access_command_finish(v_actor, p_command_id, v_op, v_hash,
     pg_catalog.jsonb_build_object('ok', true, 'isActive', p_active),
     p_target, null, v_before, v_after, v_reason);
 end
 $fn$;
 
-create function public.zell_erp_access_users(p_actor uuid)
+create function public.zell_erp_access_users()
 returns jsonb
 language plpgsql
 stable
@@ -1649,7 +1842,7 @@ security definer
 set search_path = ''
 as $fn$
 begin
-  if not public.erp_has_capability(p_actor, 'erp.access.view') then
+  if not public.erp_has_capability(public.zell_erp_require_actor(), 'erp.access.view') then
     raise exception 'ERP_FORBIDDEN' using errcode = '45300', detail = 'erp.access.view';
   end if;
   return pg_catalog.jsonb_build_object('users', coalesce((
@@ -1662,7 +1855,7 @@ $fn$;
 
 -- تقرير المطابقة: القاعدة القديمة (أدمن شغال = كل صفحات الأدمن، مالك = كل حاجة، موقوف = ولا حاجة)
 -- قدام الصلاحيات الجديدة لكل مستخدم، والعدّاد قدام العدد الفعلي.
-create function public.zell_erp_access_parity(p_actor uuid)
+create function public.zell_erp_access_parity()
 returns jsonb
 language plpgsql
 stable
@@ -1681,7 +1874,7 @@ declare
   v_guard integer;
   v_owners integer;
 begin
-  if not public.erp_has_capability(p_actor, 'erp.access.view') then
+  if not public.erp_has_capability(public.zell_erp_require_actor(), 'erp.access.view') then
     raise exception 'ERP_FORBIDDEN' using errcode = '45300', detail = 'erp.access.view';
   end if;
   v_preset := public.erp_access_preset_keys('zell.admin_today');
@@ -1714,15 +1907,37 @@ end
 $fn$;
 
 revoke all on function
-  public.zell_erp_set_user_active(uuid, uuid, uuid, boolean, text),
-  public.zell_erp_access_users(uuid),
-  public.zell_erp_access_parity(uuid)
+  public.zell_erp_trusted_actor(),
+  public.zell_erp_require_actor(),
+  public.zell_erp_my_access(),
+  public.zell_erp_access_grant(uuid, uuid, text, integer),
+  public.zell_erp_access_revoke(uuid, uuid, text, integer, text),
+  public.zell_erp_access_apply_preset(uuid, uuid, text, integer),
+  public.zell_erp_access_revoke_all(uuid, uuid, integer, text),
+  public.zell_erp_access_snapshot(),
+  public.zell_erp_access_audit_page(bigint, integer),
+  public.zell_erp_access_shadow_report(date),
+  public.zell_erp_record_shadow_event(text, text, text),
+  public.zell_erp_set_user_active(uuid, uuid, boolean, text),
+  public.zell_erp_access_users(),
+  public.zell_erp_access_parity()
 from public, anon, authenticated, service_role;
-alter function public.zell_erp_set_user_active(uuid, uuid, uuid, boolean, text) owner to zell_erp_definer;
-alter function public.zell_erp_access_users(uuid) owner to zell_erp_definer;
-alter function public.zell_erp_access_parity(uuid) owner to zell_erp_definer;
+alter function public.zell_erp_trusted_actor() owner to zell_erp_definer;
+alter function public.zell_erp_require_actor() owner to zell_erp_definer;
+alter function public.zell_erp_my_access() owner to zell_erp_definer;
+alter function public.zell_erp_access_grant(uuid, uuid, text, integer) owner to zell_erp_definer;
+alter function public.zell_erp_access_revoke(uuid, uuid, text, integer, text) owner to zell_erp_definer;
+alter function public.zell_erp_access_apply_preset(uuid, uuid, text, integer) owner to zell_erp_definer;
+alter function public.zell_erp_access_revoke_all(uuid, uuid, integer, text) owner to zell_erp_definer;
+alter function public.zell_erp_access_snapshot() owner to zell_erp_definer;
+alter function public.zell_erp_access_audit_page(bigint, integer) owner to zell_erp_definer;
+alter function public.zell_erp_access_shadow_report(date) owner to zell_erp_definer;
+alter function public.zell_erp_record_shadow_event(text, text, text) owner to zell_erp_definer;
+alter function public.zell_erp_set_user_active(uuid, uuid, boolean, text) owner to zell_erp_definer;
+alter function public.zell_erp_access_users() owner to zell_erp_definer;
+alter function public.zell_erp_access_parity() owner to zell_erp_definer;
 
--- دوال المحرك الداخلية اللي المحوّل محتاجها (الـ grant من مالكها erp_definer).
+-- دوال المحرك (كلها داخلية) اللي المحوّل محتاجها. الـ grant من مالكها erp_definer، ولـ zell_erp_definer بس.
 set local role erp_definer;
 grant execute on function
   public.erp_has_capability(uuid, text),
@@ -1732,16 +1947,35 @@ grant execute on function
   public.erp_access_user_keys(uuid),
   public.erp_access_preset_keys(text),
   public.erp_access_command_begin(uuid, uuid, text, text),
-  public.erp_access_command_finish(uuid, uuid, text, text, jsonb, uuid, text, text[], text[], text)
+  public.erp_access_command_finish(uuid, uuid, text, text, jsonb, uuid, text, text[], text[], text),
+  public.erp_effective_capabilities(uuid),
+  public.erp_access_grant(uuid, uuid, uuid, text, integer),
+  public.erp_access_revoke(uuid, uuid, uuid, text, integer, text),
+  public.erp_access_apply_preset(uuid, uuid, uuid, text, integer),
+  public.erp_access_revoke_all(uuid, uuid, uuid, integer, text),
+  public.erp_access_snapshot(uuid),
+  public.erp_access_audit_page(uuid, bigint, integer),
+  public.erp_record_shadow_event(uuid, text, text, text),
+  public.erp_access_shadow_report(uuid, date)
 to zell_erp_definer;
 reset role;
 
+-- الحد العام: authenticated بس (جلسة المستخدم).
 set local role zell_erp_definer;
 grant execute on function
-  public.zell_erp_set_user_active(uuid, uuid, uuid, boolean, text),
-  public.zell_erp_access_users(uuid),
-  public.zell_erp_access_parity(uuid)
-to service_role;
+  public.zell_erp_my_access(),
+  public.zell_erp_access_grant(uuid, uuid, text, integer),
+  public.zell_erp_access_revoke(uuid, uuid, text, integer, text),
+  public.zell_erp_access_apply_preset(uuid, uuid, text, integer),
+  public.zell_erp_access_revoke_all(uuid, uuid, integer, text),
+  public.zell_erp_access_snapshot(),
+  public.zell_erp_access_audit_page(bigint, integer),
+  public.zell_erp_access_shadow_report(date),
+  public.zell_erp_record_shadow_event(text, text, text),
+  public.zell_erp_set_user_active(uuid, uuid, boolean, text),
+  public.zell_erp_access_users(),
+  public.zell_erp_access_parity()
+to authenticated;
 reset role;
 
 revoke create on schema public from zell_erp_definer;
@@ -1828,21 +2062,23 @@ begin
     raise exception 'ZELL_0021P_CATALOG_SHAPE';
   end if;
 
+  -- الحد العام: authenticated على ١٢ دالة محوّل بالظبط، وservice_role و anon صفر على أي erp_ / zell_erp_.
   select string_agg(p.proname::text collate "C", ',' order by p.proname::text collate "C") into v_list
     from pg_catalog.pg_proc p
-   where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_erp\_%'
-     and pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE');
-  if v_list is distinct from 'zell_erp_access_parity,zell_erp_access_users,zell_erp_set_user_active' then
-    raise exception 'ZELL_0021P_SERVICE_EXECUTE_SET %', coalesce(v_list, '');
+   where p.pronamespace = 'public'::regnamespace
+     and (p.proname like 'erp\_%' or p.proname like 'zell\_erp\_%')
+     and pg_catalog.has_function_privilege('authenticated', p.oid, 'EXECUTE');
+  if v_list is distinct from 'zell_erp_access_apply_preset,zell_erp_access_audit_page,zell_erp_access_grant,zell_erp_access_parity,zell_erp_access_revoke,zell_erp_access_revoke_all,zell_erp_access_shadow_report,zell_erp_access_snapshot,zell_erp_access_users,zell_erp_my_access,zell_erp_record_shadow_event,zell_erp_set_user_active' then
+    raise exception 'ZELL_0021P_AUTHENTICATED_EXECUTE_SET %', coalesce(v_list, '');
   end if;
-
   select string_agg(p.proname::text, ',') into v_bad
     from pg_catalog.pg_proc p
-   where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_erp\_%'
-     and (pg_catalog.has_function_privilege('anon', p.oid, 'EXECUTE')
-          or pg_catalog.has_function_privilege('authenticated', p.oid, 'EXECUTE'));
+   where p.pronamespace = 'public'::regnamespace
+     and (p.proname like 'erp\_%' or p.proname like 'zell\_erp\_%')
+     and (pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE')
+          or pg_catalog.has_function_privilege('anon', p.oid, 'EXECUTE'));
   if v_bad is not null then
-    raise exception 'ZELL_0021P_PUBLIC_EXECUTE %', v_bad;
+    raise exception 'ZELL_0021P_SERVICE_OR_ANON_EXECUTE %', v_bad;
   end if;
 
   select string_agg(c.relname::text, ',') into v_bad
@@ -1881,8 +2117,15 @@ begin
   if v_r is distinct from '{"is_active": false, "is_owner": false}'::jsonb then
     raise exception 'ZELL_0021P_INTERFACE_UNKNOWN_CHECK %', coalesce(v_r::text, 'null');
   end if;
-  v_r := public.zell_erp_access_parity(v_owner);
   reset role;
+
+  -- المطابقة بجلسة المالك (claims محلية جوه المعاملة بس، وبتتمسح بعدها).
+  perform pg_catalog.set_config('request.jwt.claims',
+    pg_catalog.jsonb_build_object('sub', v_owner, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  v_r := public.zell_erp_access_parity();
+  reset role;
+  perform pg_catalog.set_config('request.jwt.claims', '', true);
   if not coalesce((v_r ->> 'clean')::boolean, false) then
     raise exception 'ZELL_0021P_PARITY %', v_r::text;
   end if;
@@ -1902,10 +2145,10 @@ declare
   v_e text;
   v_ci boolean := pg_catalog.current_setting('zell.ptest_profile', true) = 'ci';
   v_preset jsonb;
-  v_bad text;
   v_list text;
   v_guard0 integer;
   v_seeded bigint;
+  v_stranger uuid := gen_random_uuid();
 begin
   select * into fx from pg_temp.zt_fx;
   select to_jsonb(array_agg(i.capability_key order by i.capability_key)) into v_preset
@@ -1926,9 +2169,9 @@ begin
   perform pg_temp.zt('T03 guard equals active owners',
     v_guard0 = (select count(*)::integer from public.admin_users a where a.role = 'owner' and a.is_active), v_guard0::text);
 
-  -- T04 تجاوز المالك
-  r := pg_temp.svc(format('select public.erp_effective_capabilities(%L::uuid)', fx.owner_a));
-  perform pg_temp.zt('T04 owner bypass: all 29 capabilities',
+  -- T04 تجاوز المالك (بجلسته)
+  r := pg_temp.as_user(fx.owner_a, 'select public.zell_erp_my_access()');
+  perform pg_temp.zt('T04 owner session: owner bypass, all 29 capabilities',
     (r ->> 'owner') = 'true' and jsonb_array_length(r -> 'capabilities') = 29, r::text);
 
   -- T05 المنح الصريح للأدمن الموجودين
@@ -1936,114 +2179,133 @@ begin
   perform pg_temp.zt('T05a one migration audit row per active admin',
     v_seeded = (select count(*) from public.admin_users a where a.role = 'admin' and a.is_active), v_seeded::text);
   if fx.admin_x is null then
-    perform pg_temp.zt_skip('T05b admin effective = preset', 'no active admin');
+    perform pg_temp.zt_skip('T05b admin session effective = preset', 'no active admin');
   else
-    r := pg_temp.svc(format('select public.erp_effective_capabilities(%L::uuid)', fx.admin_x));
-    perform pg_temp.zt('T05b admin effective = preset (22)',
+    r := pg_temp.as_user(fx.admin_x, 'select public.zell_erp_my_access()');
+    perform pg_temp.zt('T05b admin session effective = preset (22)',
       (r ->> 'owner') = 'false' and r -> 'capabilities' = v_preset and (r ->> 'version') = '1', r::text);
   end if;
 
-  -- T06..T19 الإدارة على أدمن
+  -- T06..T25 الإدارة على أدمن (بجلسة المالك)
   if fx.admin_x is null then
-    perform pg_temp.zt_skip('T06-T19 management on admin target', 'no active admin');
+    perform pg_temp.zt_skip('T06-T25 management on admin target', 'no active admin');
   else
     v_cmd := gen_random_uuid();
-    r := pg_temp.svc(format('select public.erp_access_revoke(%L::uuid, %L::uuid, %L::uuid, %L, 1, %L)',
-                            fx.owner_a, v_cmd, fx.admin_x, 'zell.telegram.test', 'ptest'));
+    r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_revoke(%L::uuid, %L::uuid, %L, 1, %L)',
+                            v_cmd, fx.admin_x, 'zell.telegram.test', 'ptest'));
     perform pg_temp.zt('T06 revoke ok, version 2', (r ->> 'ok') = 'true' and (r ->> 'version') = '2'
       and not (r -> 'capabilities' ? 'zell.telegram.test'), r::text);
 
     select count(*) into v_n0 from public.erp_access_audit;
-    r2 := pg_temp.svc(format('select public.erp_access_revoke(%L::uuid, %L::uuid, %L::uuid, %L, 1, %L)',
-                             fx.owner_a, v_cmd, fx.admin_x, 'zell.telegram.test', 'ptest'));
+    r2 := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_revoke(%L::uuid, %L::uuid, %L, 1, %L)',
+                             v_cmd, fx.admin_x, 'zell.telegram.test', 'ptest'));
     select count(*) into v_n1 from public.erp_access_audit;
     perform pg_temp.zt('T07 replay: same result, no new audit row',
       r2 = r || '{"replayed": true}'::jsonb and v_n1 = v_n0, r2::text);
 
-    r2 := pg_temp.svc(format('select public.erp_access_revoke(%L::uuid, %L::uuid, %L::uuid, %L, 1, %L)',
-                             fx.owner_a, v_cmd, fx.admin_x, 'zell.storefront.revalidate', 'ptest'));
+    r2 := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_revoke(%L::uuid, %L::uuid, %L, 1, %L)',
+                             v_cmd, fx.admin_x, 'zell.storefront.revalidate', 'ptest'));
     select count(*) into v_n1 from public.erp_access_audit;
     perform pg_temp.zt('T08 same command, different meaning -> 45307, no audit row',
       r2 ->> 'code' = '45307' and v_n1 = v_n0, r2::text);
 
-    r := pg_temp.svc(format('select public.erp_access_grant(%L::uuid, %L::uuid, %L::uuid, %L, 2)',
-                            fx.owner_a, gen_random_uuid(), fx.admin_x, 'zell.telegram.test'));
+    r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_grant(%L::uuid, %L::uuid, %L, 2)',
+                            gen_random_uuid(), fx.admin_x, 'zell.telegram.test'));
     perform pg_temp.zt('T09 grant back ok, version 3', (r ->> 'ok') = 'true' and (r ->> 'version') = '3', r::text);
 
     v_cmd := gen_random_uuid();
     select count(*) into v_n0 from public.erp_access_audit;
-    r := pg_temp.svc(format('select public.erp_access_grant(%L::uuid, %L::uuid, %L::uuid, %L, 1)',
-                            fx.owner_a, v_cmd, fx.admin_x, 'zell.telegram.test'));
+    r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_grant(%L::uuid, %L::uuid, %L, 1)',
+                            v_cmd, fx.admin_x, 'zell.telegram.test'));
     select count(*) into v_n1 from public.erp_access_audit;
     perform pg_temp.zt('T10a stale version -> 45306, audited', r ->> 'code' = '45306' and v_n1 = v_n0 + 1, r::text);
-    perform pg_temp.zt('T10b denied audit row is minimal',
+    perform pg_temp.zt('T10b denied audit row is minimal, actor = session owner',
       exists (select 1 from public.erp_access_audit a where a.command_id = v_cmd and a.outcome = 'denied'
-                 and a.before_keys is null and a.after_keys is null and a.reason is null
-                 and a.code = '45306' and a.subject_key = 'zell.telegram.test'), null);
-    r2 := pg_temp.svc(format('select public.erp_access_grant(%L::uuid, %L::uuid, %L::uuid, %L, 1)',
-                             fx.owner_a, v_cmd, fx.admin_x, 'zell.telegram.test'));
+                 and a.actor_user_id = fx.owner_a and a.before_keys is null and a.after_keys is null
+                 and a.reason is null and a.code = '45306' and a.subject_key = 'zell.telegram.test'), null);
+    r2 := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_grant(%L::uuid, %L::uuid, %L, 1)',
+                             v_cmd, fx.admin_x, 'zell.telegram.test'));
     select count(*) into v_n0 from public.erp_access_audit;
     perform pg_temp.zt('T10c denial replay: same code, no new audit row',
       r2 ->> 'code' = '45306' and (r2 ->> 'replayed') = 'true' and v_n0 = v_n1, r2::text);
 
-    r := pg_temp.svc(format('select public.erp_access_grant(%L::uuid, %L::uuid, %L::uuid, %L, 3)',
-                            fx.owner_a, gen_random_uuid(), fx.admin_x, 'zell.coupons.edit'));
+    r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_grant(%L::uuid, %L::uuid, %L, 3)',
+                            gen_random_uuid(), fx.admin_x, 'zell.coupons.edit'));
     perform pg_temp.zt('T11 owner-class capability not grantable -> 45302', r ->> 'code' = '45302', r::text);
 
-    r := pg_temp.svc(format('select public.erp_access_grant(%L::uuid, %L::uuid, %L::uuid, %L, 3)',
-                            fx.owner_a, gen_random_uuid(), fx.admin_x, 'zell.nope.cap'));
+    r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_grant(%L::uuid, %L::uuid, %L, 3)',
+                            gen_random_uuid(), fx.admin_x, 'zell.nope.cap'));
     perform pg_temp.zt('T12 unknown capability -> 45304', r ->> 'code' = '45304', r::text);
 
-    r := pg_temp.svc(format('select public.erp_access_grant(%L::uuid, %L::uuid, %L::uuid, %L, 0)',
-                            fx.admin_x, gen_random_uuid(), fx.owner_a, 'zell.telegram.test'));
-    perform pg_temp.zt('T15 non-owner actor -> 45300', r ->> 'code' = '45300', r::text);
+    r := pg_temp.as_user(fx.admin_x, format('select public.zell_erp_access_grant(%L::uuid, %L::uuid, %L, 0)',
+                            gen_random_uuid(), fx.owner_a, 'zell.telegram.test'));
+    perform pg_temp.zt('T15 admin session cannot manage -> 45300', r ->> 'code' = '45300', r::text);
 
-    r := pg_temp.svc(format('select public.erp_access_apply_preset(%L::uuid, %L::uuid, %L::uuid, %L, 3)',
-                            fx.owner_a, gen_random_uuid(), fx.admin_x, 'zell.nope'));
+    r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_apply_preset(%L::uuid, %L::uuid, %L, 3)',
+                            gen_random_uuid(), fx.admin_x, 'zell.nope'));
     perform pg_temp.zt('T17 unknown preset -> 45304', r ->> 'code' = '45304', r::text);
 
-    r := pg_temp.svc(format('select public.erp_access_revoke_all(%L::uuid, %L::uuid, %L::uuid, 3, %L)',
-                            fx.owner_a, gen_random_uuid(), fx.admin_x, 'ptest'));
-    r2 := pg_temp.svc(format('select public.erp_effective_capabilities(%L::uuid)', fx.admin_x));
+    r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_revoke_all(%L::uuid, %L::uuid, 3, %L)',
+                            gen_random_uuid(), fx.admin_x, 'ptest'));
+    r2 := pg_temp.as_user(fx.admin_x, 'select public.zell_erp_my_access()');
     perform pg_temp.zt('T18 revoke_all: version 4, admin active with no capabilities',
       (r ->> 'ok') = 'true' and (r ->> 'version') = '4' and (r2 ->> 'active') = 'true'
       and jsonb_array_length(r2 -> 'capabilities') = 0, r::text || ' ' || r2::text);
 
-    r := pg_temp.svc(format('select public.erp_access_apply_preset(%L::uuid, %L::uuid, %L::uuid, %L, 4)',
-                            fx.owner_a, gen_random_uuid(), fx.admin_x, 'zell.admin_today'));
-    r2 := pg_temp.svc(format('select public.erp_effective_capabilities(%L::uuid)', fx.admin_x));
+    r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_apply_preset(%L::uuid, %L::uuid, %L, 4)',
+                            gen_random_uuid(), fx.admin_x, 'zell.admin_today'));
+    r2 := pg_temp.as_user(fx.admin_x, 'select public.zell_erp_my_access()');
     perform pg_temp.zt('T19 apply preset: version 5, effective = preset',
       (r ->> 'ok') = 'true' and (r ->> 'version') = '5' and r2 -> 'capabilities' = v_preset, r::text);
 
     select count(*) into v_n0 from public.erp_access_audit;
-    r := pg_temp.svc(format('select public.erp_access_revoke(%L::uuid, %L::uuid, %L::uuid, %L, 5, null)',
-                            fx.owner_a, gen_random_uuid(), fx.admin_x, 'zell.telegram.test'));
+    r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_revoke(%L::uuid, %L::uuid, %L, 5, null)',
+                            gen_random_uuid(), fx.admin_x, 'zell.telegram.test'));
     select count(*) into v_n1 from public.erp_access_audit;
     perform pg_temp.zt('T20 revoke without reason -> 45313 raised, no audit row', r ->> '_error' = '45313' and v_n1 = v_n0, r::text);
 
     -- T22 إيقاف وتشغيل أدمن
-    r := pg_temp.svc(format('select public.zell_erp_set_user_active(%L::uuid, %L::uuid, %L::uuid, false, %L)',
-                            fx.owner_a, gen_random_uuid(), fx.admin_x, 'ptest'));
-    r2 := pg_temp.svc(format('select public.erp_effective_capabilities(%L::uuid)', fx.admin_x));
-    perform pg_temp.zt('T22a suspend admin: ok, effective inactive',
+    r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_set_user_active(%L::uuid, %L::uuid, false, %L)',
+                            gen_random_uuid(), fx.admin_x, 'ptest'));
+    r2 := pg_temp.as_user(fx.admin_x, 'select public.zell_erp_my_access()');
+    perform pg_temp.zt('T22a suspend admin: ok, admin session inactive',
       (r ->> 'ok') = 'true' and (r ->> 'isActive') = 'false' and (r2 ->> 'active') = 'false', r::text || ' ' || r2::text);
-    perform pg_temp.zt('T22b admin_users log has app actor',
+    perform pg_temp.zt('T22b admin_users log has app actor = session owner',
       exists (select 1 from public.zell_erp_admin_users_log l
                where l.user_id = fx.admin_x and l.app_actor = fx.owner_a and l.new_is_active = false), null);
-    r := pg_temp.svc(format('select public.zell_erp_set_user_active(%L::uuid, %L::uuid, %L::uuid, true, %L)',
-                            fx.owner_a, gen_random_uuid(), fx.admin_x, 'ptest'));
-    r2 := pg_temp.svc(format('select public.erp_effective_capabilities(%L::uuid)', fx.admin_x));
-    perform pg_temp.zt('T22c reactivate admin: effective back to preset',
+    r := pg_temp.as_user(fx.admin_x, format('select to_jsonb(true) from (select public.zell_erp_record_shadow_event(%L, %L, %L)) s',
+                            '/orders', 'zell.orders.view', 'legacy_allow_new_deny'));
+    perform pg_temp.zt('T22c suspended admin cannot write shadow events (45300)', r ->> '_error' = '45300', r::text);
+    r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_set_user_active(%L::uuid, %L::uuid, true, %L)',
+                            gen_random_uuid(), fx.admin_x, 'ptest'));
+    r2 := pg_temp.as_user(fx.admin_x, 'select public.zell_erp_my_access()');
+    perform pg_temp.zt('T22d reactivate admin: effective back to preset',
       (r ->> 'ok') = 'true' and (r2 ->> 'active') = 'true' and r2 -> 'capabilities' = v_preset, r::text);
 
-    r := pg_temp.svc(format('select public.zell_erp_set_user_active(%L::uuid, %L::uuid, %L::uuid, false, %L)',
-                            fx.admin_x, gen_random_uuid(), fx.owner_a, 'ptest'));
-    perform pg_temp.zt('T25 non-owner cannot suspend -> 45300', r ->> 'code' = '45300', r::text);
+    r := pg_temp.as_user(fx.admin_x, format('select public.zell_erp_set_user_active(%L::uuid, %L::uuid, false, %L)',
+                            gen_random_uuid(), fx.owner_a, 'ptest'));
+    perform pg_temp.zt('T25 admin session cannot suspend -> 45300', r ->> 'code' = '45300', r::text);
 
-    r := pg_temp.svc(format('select public.erp_access_snapshot(%L::uuid)', fx.admin_x));
-    r2 := pg_temp.svc(format('select public.zell_erp_access_parity(%L::uuid)', fx.admin_x));
-    perform pg_temp.zt('T32 reads require erp.access.view (admin -> 45300)',
+    -- T32 القراءات محتاجة erp.access.view
+    r := pg_temp.as_user(fx.admin_x, 'select public.zell_erp_access_snapshot()');
+    r2 := pg_temp.as_user(fx.admin_x, 'select public.zell_erp_access_parity()');
+    perform pg_temp.zt('T32 reads require erp.access.view (admin session -> 45300)',
       r ->> '_error' = '45300' and r2 ->> '_error' = '45300', r::text || ' ' || r2::text);
+
+    -- T40d ممثل مزوّر بجلسة أدمن: مايقدرش يمنح، ومايقدرش يقرا صلاحيات المالك.
+    r := pg_temp.as_user(fx.admin_x, format('select public.zell_erp_access_grant(%L::uuid, %L::uuid, %L, 5)',
+                            gen_random_uuid(), fx.admin_x, 'zell.telegram.test'));
+    r2 := pg_temp.as_user(fx.admin_x, 'select public.zell_erp_my_access()');
+    perform pg_temp.zt('T40d admin session: cannot grant (45300); my_access is own, not owner',
+      r ->> 'code' = '45300' and (r2 ->> 'owner') = 'false' and jsonb_array_length(r2 -> 'capabilities') = 22,
+      r::text || ' ' || r2::text);
+
+    -- T40i الـ shadow writer: المستخدم = الجلسة، والصلاحية لازم موجودة.
+    r := pg_temp.as_user(fx.admin_x, format('select to_jsonb(true) from (select public.zell_erp_record_shadow_event(%L, %L, %L)) s',
+                            '/products', 'zell.products.view', 'legacy_allow_new_deny'));
+    perform pg_temp.zt('T40i shadow event stored for the session user',
+      r = 'true'::jsonb and exists (select 1 from public.erp_access_shadow_events e
+                                      where e.user_id = fx.admin_x and e.route_key = '/products'), r::text);
   end if;
 
   -- T13 / T24 مالك تاني
@@ -2051,32 +2313,64 @@ begin
     perform pg_temp.zt_skip('T13 grant to owner -> 45308', 'single active owner');
     perform pg_temp.zt_skip('T24 owner suspends another owner', 'single active owner');
   else
-    r := pg_temp.svc(format('select public.erp_access_grant(%L::uuid, %L::uuid, %L::uuid, %L, 0)',
-                            fx.owner_a, gen_random_uuid(), fx.owner_b, 'zell.telegram.test'));
+    r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_grant(%L::uuid, %L::uuid, %L, 0)',
+                            gen_random_uuid(), fx.owner_b, 'zell.telegram.test'));
     perform pg_temp.zt('T13 grant to owner -> 45308', r ->> 'code' = '45308', r::text);
-    r := pg_temp.svc(format('select public.zell_erp_set_user_active(%L::uuid, %L::uuid, %L::uuid, false, %L)',
-                            fx.owner_a, gen_random_uuid(), fx.owner_b, 'ptest'));
+    r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_set_user_active(%L::uuid, %L::uuid, false, %L)',
+                            gen_random_uuid(), fx.owner_b, 'ptest'));
     perform pg_temp.zt('T24a owner suspends another owner: ok, guard consistent',
       (r ->> 'ok') = 'true' and (select g.active_owner_count from public.zell_erp_owner_guard g where g.id = 1) = v_guard0 - 1, r::text);
-    r := pg_temp.svc(format('select public.zell_erp_set_user_active(%L::uuid, %L::uuid, %L::uuid, true, %L)',
-                            fx.owner_a, gen_random_uuid(), fx.owner_b, 'ptest'));
+    r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_set_user_active(%L::uuid, %L::uuid, true, %L)',
+                            gen_random_uuid(), fx.owner_b, 'ptest'));
     perform pg_temp.zt('T24b reactivate owner: guard back', (r ->> 'ok') = 'true'
       and (select g.active_owner_count from public.zell_erp_owner_guard g where g.id = 1) = v_guard0, r::text);
   end if;
 
   -- T14 / T16 / T21 / T23
-  r := pg_temp.svc(format('select public.erp_access_grant(%L::uuid, %L::uuid, %L::uuid, %L, 0)',
-                          fx.owner_a, gen_random_uuid(), fx.owner_a, 'zell.telegram.test'));
+  r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_grant(%L::uuid, %L::uuid, %L, 0)',
+                          gen_random_uuid(), fx.owner_a, 'zell.telegram.test'));
   perform pg_temp.zt('T14 self change -> 45301', r ->> 'code' = '45301', r::text);
-  r := pg_temp.svc(format('select public.erp_access_grant(%L::uuid, %L::uuid, %L::uuid, %L, 0)',
-                          fx.owner_a, gen_random_uuid(), gen_random_uuid(), 'zell.telegram.test'));
+  r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_grant(%L::uuid, %L::uuid, %L, 0)',
+                          gen_random_uuid(), gen_random_uuid(), 'zell.telegram.test'));
   perform pg_temp.zt('T16 unknown target -> 45305', r ->> 'code' = '45305', r::text);
-  r := pg_temp.svc(format('select public.erp_access_grant(%L::uuid, null, %L::uuid, %L, 0)',
-                          fx.owner_a, gen_random_uuid(), 'zell.telegram.test'));
+  r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_grant(null, %L::uuid, %L, 0)',
+                          gen_random_uuid(), 'zell.telegram.test'));
   perform pg_temp.zt('T21 null command id -> 45313 raised', r ->> '_error' = '45313', r::text);
-  r := pg_temp.svc(format('select public.zell_erp_set_user_active(%L::uuid, %L::uuid, %L::uuid, false, %L)',
-                          fx.owner_a, gen_random_uuid(), fx.owner_a, 'ptest'));
+  r := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_set_user_active(%L::uuid, %L::uuid, false, %L)',
+                          gen_random_uuid(), fx.owner_a, 'ptest'));
   perform pg_temp.zt('T23 self suspend -> 45301', r ->> 'code' = '45301', r::text);
+
+  -- T40 الحد العام والممثل المزوّر
+  r := pg_temp.as_role('service_role', format('select public.erp_access_grant(%L::uuid, %L::uuid, %L::uuid, %L, 0)',
+                          fx.owner_a, gen_random_uuid(), v_stranger, 'zell.telegram.test'));
+  r2 := pg_temp.as_role('service_role', format('select public.erp_effective_capabilities(%L::uuid)', fx.owner_a));
+  perform pg_temp.zt('T40a service_role + forged owner uuid: engine not executable (42501)',
+    r ->> '_error' = '42501' and r2 ->> '_error' = '42501', r::text || ' ' || r2::text);
+  r := pg_temp.as_role('service_role', format('select public.zell_erp_access_grant(%L::uuid, %L::uuid, %L, 0)',
+                          gen_random_uuid(), v_stranger, 'zell.telegram.test'));
+  r2 := pg_temp.as_role('service_role', 'select public.zell_erp_my_access()');
+  perform pg_temp.zt('T40b service_role: adapter not executable (42501)',
+    r ->> '_error' = '42501' and r2 ->> '_error' = '42501', r::text || ' ' || r2::text);
+  r := pg_temp.as_user(fx.owner_a, format('select public.erp_effective_capabilities(%L::uuid)', fx.owner_a));
+  perform pg_temp.zt('T40c authenticated (even owner session): engine not executable (42501)', r ->> '_error' = '42501', r::text);
+  r := pg_temp.as_user(fx.owner_a, 'select public.zell_erp_my_access()', 'service_role');
+  r2 := pg_temp.as_user(fx.owner_a, format('select public.zell_erp_access_grant(%L::uuid, %L::uuid, %L, 0)',
+                           gen_random_uuid(), v_stranger, 'zell.telegram.test'), 'service_role');
+  perform pg_temp.zt('T40e claims with role=service_role are not a session: inactive / 45300',
+    (r ->> 'active') = 'false' and r2 ->> '_error' = '45300', r::text || ' ' || r2::text);
+  r := pg_temp.as_user(null, 'select public.zell_erp_my_access()');
+  r2 := pg_temp.as_user(null, 'select public.zell_erp_access_snapshot()');
+  perform pg_temp.zt('T40f no claims: inactive; reads -> 45300',
+    (r ->> 'active') = 'false' and r2 ->> '_error' = '45300', r::text || ' ' || r2::text);
+  select count(*) into v_n0 from public.erp_access_audit;
+  r := pg_temp.as_user(v_stranger, 'select public.zell_erp_my_access()');
+  r2 := pg_temp.as_user(v_stranger, format('select public.zell_erp_access_grant(%L::uuid, %L::uuid, %L, 0)',
+                           gen_random_uuid(), v_stranger, 'zell.telegram.test'));
+  select count(*) into v_n1 from public.erp_access_audit;
+  perform pg_temp.zt('T40g session of a user not in admin_users: inactive; grant -> 45300 raised, no audit row',
+    (r ->> 'active') = 'false' and r2 ->> '_error' = '45300' and v_n1 = v_n0, r::text || ' ' || r2::text);
+  r := pg_temp.as_user(fx.owner_a, 'select public.zell_erp_my_access()', 'authenticated', 'anon');
+  perform pg_temp.zt('T40h anon role: adapter not executable (42501)', r ->> '_error' = '42501', r::text);
 
   -- T26..T30 الحماية في الداتابيز (كـ postgres، وكل حاجة بترجع)
   v_e := pg_temp.pg_err('update public.admin_users set is_active = false where role = ''owner''');
@@ -2104,45 +2398,57 @@ begin
   v_e := pg_temp.pg_err('truncate public.zell_erp_admin_users_log');
   perform pg_temp.zt('T30f admin_users log truncate -> 45315', v_e = '45315', v_e);
 
-  -- T31 مفيش مفاتيح تكلفة في أي قراءة
+  -- T31 مفيش مفاتيح تكلفة في أي قراءة (بجلسة المالك)
   v_list := '';
-  r := pg_temp.svc(format('select public.erp_effective_capabilities(%L::uuid)', fx.owner_a));
+  r := pg_temp.as_user(fx.owner_a, 'select public.zell_erp_my_access()');
   v_list := v_list || coalesce(pg_temp.bad_keys(r), '') || coalesce(r ->> '_error', '');
-  r := pg_temp.svc(format('select public.erp_access_snapshot(%L::uuid)', fx.owner_a));
+  r := pg_temp.as_user(fx.owner_a, 'select public.zell_erp_access_snapshot()');
   v_list := v_list || coalesce(pg_temp.bad_keys(r), '') || coalesce(r ->> '_error', '');
-  r := pg_temp.svc(format('select public.erp_access_audit_page(%L::uuid, null, 200)', fx.owner_a));
+  r := pg_temp.as_user(fx.owner_a, 'select public.zell_erp_access_audit_page(null, 200)');
   v_list := v_list || coalesce(pg_temp.bad_keys(r), '') || coalesce(r ->> '_error', '');
-  r := pg_temp.svc(format('select public.zell_erp_access_users(%L::uuid)', fx.owner_a));
+  r := pg_temp.as_user(fx.owner_a, 'select public.zell_erp_access_users()');
   v_list := v_list || coalesce(pg_temp.bad_keys(r), '') || coalesce(r ->> '_error', '');
-  r := pg_temp.svc(format('select public.zell_erp_access_parity(%L::uuid)', fx.owner_a));
+  r := pg_temp.as_user(fx.owner_a, 'select public.zell_erp_access_parity()');
   v_list := v_list || coalesce(pg_temp.bad_keys(r), '') || coalesce(r ->> '_error', '');
-  r := pg_temp.svc(format('select public.erp_access_shadow_report(%L::uuid, null)', fx.owner_a));
+  r := pg_temp.as_user(fx.owner_a, 'select public.zell_erp_access_shadow_report(null)');
   v_list := v_list || coalesce(pg_temp.bad_keys(r), '') || coalesce(r ->> '_error', '');
   perform pg_temp.zt('T31 no cost/money keys in any read output', v_list = '', v_list);
 
-  -- T33 أحداث الـ shadow (best-effort)
-  r := pg_temp.svc(format('select to_jsonb(true) from (select public.erp_record_shadow_event(%L::uuid, %L, %L, %L)) s',
-                          fx.owner_a, '/orders', 'zell.orders.view', 'legacy_allow_new_deny'));
-  r := pg_temp.svc(format('select to_jsonb(true) from (select public.erp_record_shadow_event(%L::uuid, %L, %L, %L)) s',
-                          fx.owner_a, '/orders', 'zell.orders.view', 'legacy_allow_new_deny'));
-  r := pg_temp.svc(format('select public.erp_access_shadow_report(%L::uuid, null)', fx.owner_a));
-  perform pg_temp.zt('T33a shadow event deduplicated per day (hits=2)',
-    jsonb_array_length(r -> 'items') = 1 and (r -> 'items' -> 0 ->> 'hits') = '2', r::text);
-  r := pg_temp.svc(format('select to_jsonb(true) from (select public.erp_record_shadow_event(%L::uuid, %L, %L, %L)) s',
-                          fx.owner_a, '/orders', 'zell.orders.view', 'nope'));
+  -- T33 أحداث الـ shadow (best-effort، بجلسة المالك)
+  r := pg_temp.as_user(fx.owner_a, format('select to_jsonb(true) from (select public.zell_erp_record_shadow_event(%L, %L, %L)) s',
+                          '/orders', 'zell.orders.view', 'legacy_allow_new_deny'));
+  r := pg_temp.as_user(fx.owner_a, format('select to_jsonb(true) from (select public.zell_erp_record_shadow_event(%L, %L, %L)) s',
+                          '/orders', 'zell.orders.view', 'legacy_allow_new_deny'));
+  perform pg_temp.zt('T33a shadow event deduplicated per day (hits=2), user = session',
+    (select e.hits from public.erp_access_shadow_events e
+      where e.user_id = fx.owner_a and e.route_key = '/orders' and e.capability_key = 'zell.orders.view') = 2, r::text);
+  r := pg_temp.as_user(fx.owner_a, format('select to_jsonb(true) from (select public.zell_erp_record_shadow_event(%L, %L, %L)) s',
+                          '/orders', 'zell.orders.view', 'nope'));
   perform pg_temp.zt('T33b shadow event with bad kind -> 45313', r ->> '_error' = '45313', r::text);
+  r := pg_temp.as_user(fx.owner_a, format('select to_jsonb(true) from (select public.zell_erp_record_shadow_event(%L, %L, %L)) s',
+                          '/orders', 'zell.not.a.capability', 'legacy_allow_new_deny'));
+  perform pg_temp.zt('T33c shadow event with unknown capability -> 45304', r ->> '_error' = '45304', r::text);
+  r := pg_temp.as_user(v_stranger, format('select to_jsonb(true) from (select public.zell_erp_record_shadow_event(%L, %L, %L)) s',
+                          '/orders', 'zell.orders.view', 'legacy_allow_new_deny'));
+  perform pg_temp.zt('T33d shadow event from a non-admin session -> 45300', r ->> '_error' = '45300', r::text);
 
   -- T34 المطابقة نضيفة
-  r := pg_temp.svc(format('select public.zell_erp_access_parity(%L::uuid)', fx.owner_a));
+  r := pg_temp.as_user(fx.owner_a, 'select public.zell_erp_access_parity()');
   perform pg_temp.zt('T34 parity clean', (r ->> 'clean') = 'true', r::text);
 
   -- T35 الصلاحيات
   select string_agg(p.proname::text collate "C", ',' order by p.proname::text collate "C") into v_list
     from pg_catalog.pg_proc p
    where p.pronamespace = 'public'::regnamespace and (p.proname like 'erp\_%' or p.proname like 'zell\_erp\_%')
-     and pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE');
-  perform pg_temp.zt('T35a service_role EXECUTE set is exact',
-    v_list = 'erp_access_apply_preset,erp_access_audit_page,erp_access_grant,erp_access_revoke,erp_access_revoke_all,erp_access_shadow_report,erp_access_snapshot,erp_effective_capabilities,erp_record_shadow_event,zell_erp_access_parity,zell_erp_access_users,zell_erp_set_user_active', v_list);
+     and pg_catalog.has_function_privilege('authenticated', p.oid, 'EXECUTE');
+  perform pg_temp.zt('T35a authenticated EXECUTE set is exactly the 12 adapter RPCs',
+    v_list = 'zell_erp_access_apply_preset,zell_erp_access_audit_page,zell_erp_access_grant,zell_erp_access_parity,zell_erp_access_revoke,zell_erp_access_revoke_all,zell_erp_access_shadow_report,zell_erp_access_snapshot,zell_erp_access_users,zell_erp_my_access,zell_erp_record_shadow_event,zell_erp_set_user_active', v_list);
+  select string_agg(p.proname::text, ',') into v_list
+    from pg_catalog.pg_proc p
+   where p.pronamespace = 'public'::regnamespace and (p.proname like 'erp\_%' or p.proname like 'zell\_erp\_%')
+     and (pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE')
+          or pg_catalog.has_function_privilege('anon', p.oid, 'EXECUTE'));
+  perform pg_temp.zt('T35b service_role and anon: no EXECUTE at all', v_list is null, v_list);
   select string_agg(c.relname::text, ',') into v_list
     from pg_catalog.pg_class c
    where c.relnamespace = 'public'::regnamespace and c.relkind = 'r'
@@ -2150,8 +2456,8 @@ begin
      and (pg_catalog.has_table_privilege('service_role', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
           or pg_catalog.has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
           or pg_catalog.has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'));
-  perform pg_temp.zt('T35b no table privileges for service_role/anon/authenticated', v_list is null, v_list);
-  perform pg_temp.zt('T35c zell_erp_definer has no privilege on admin_users',
+  perform pg_temp.zt('T35c no table privileges for service_role/anon/authenticated', v_list is null, v_list);
+  perform pg_temp.zt('T35d zell_erp_definer has no privilege on admin_users',
     not pg_catalog.has_table_privilege('zell_erp_definer', 'public.admin_users', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'), null);
 
   -- T36 upsert من غير تغيير مابيتحسبش مرتين (ci بس: ممكن admin_users الحقيقي فيه أعمدة إجبارية تانية)
@@ -2170,14 +2476,14 @@ begin
   execute 'create or replace function public.erp_actor_status_v1(p_user uuid) returns table (is_active boolean, is_owner boolean) '
        || 'language sql stable security definer set search_path = '''' as $b$ select true, true union all select true, true; $b$';
   execute 'reset role';
-  r := pg_temp.svc(format('select public.erp_effective_capabilities(%L::uuid)', fx.owner_a));
-  perform pg_temp.zt('T37 broken interface shape -> 45309 (fails closed)', r ->> '_error' = '45309', r::text);
+  r := pg_temp.as_user(fx.owner_a, 'select public.zell_erp_my_access()');
+  perform pg_temp.zt('T37a broken interface shape -> 45309 (fails closed)', r ->> '_error' = '45309', r::text);
   execute 'set local role zell_erp_definer';
   execute 'create or replace function public.erp_actor_status_v1(p_user uuid) returns table (is_active boolean, is_owner boolean) '
        || 'language sql stable security definer set search_path = '''' as $b$ select s.is_active, s.is_owner from public.zell_erp_admin_status(p_user) s; $b$';
   execute 'reset role';
   execute 'revoke create on schema public from zell_erp_definer';
-  r := pg_temp.svc(format('select public.erp_effective_capabilities(%L::uuid)', fx.owner_a));
+  r := pg_temp.as_user(fx.owner_a, 'select public.zell_erp_my_access()');
   perform pg_temp.zt('T37b interface restored', (r ->> 'owner') = 'true', r::text);
 
   -- T38 كل سطور الرفض بأعمدة ثابتة
