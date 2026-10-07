@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { REASON_LIMITS, normalizeReason } from '../../lib/inventory/purchaseForm'
 import { Button } from '../ui/Button'
@@ -31,17 +31,20 @@ export function ReasonDialog({
 }) {
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
+  // ref عشان callback جديد من الأب في كل render مايمسحش السبب اللي اتكتب
+  const onCancelRef = useRef(onCancel)
+  onCancelRef.current = onCancel
 
   useEffect(() => {
     if (!open) return
     setText('')
     setError(null)
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCancel()
+      if (event.key === 'Escape') onCancelRef.current()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [open, onCancel])
+  }, [open])
 
   if (!open) return null
 
