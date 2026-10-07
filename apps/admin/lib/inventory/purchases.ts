@@ -281,8 +281,15 @@ function isPostedLot(value: unknown): value is PostedLot {
 const LOT_CODE_ROLL = /^R-[0-9]{6,}$/
 const LOT_CODE_BATCH = /^B-[0-9]{6,}$/
 
-/** شكل البند حسب النوع (purchase_doc_lines_kind_unit · kind_shape). */
-function lineShapeOk(line: PostedLine): boolean {
+/** الحقول المشتركة بين بنود الشراء ورصيد أول المدة اللي فحوص الشكل والربط بتحتاجها. */
+export type LineCore = Pick<PostedLine, 'lineNo' | 'kind' | 'productId' | 'saleUnit' | 'widthCm' | 'rollCount' | 'totalLengthCm' | 'quantity'>
+export type LotCore = Pick<
+  PostedLot,
+  'lotCode' | 'lotKind' | 'lotSequence' | 'lineNo' | 'productId' | 'widthCm' | 'initialLengthCm' | 'initialQuantity' | 'status'
+>
+
+/** شكل البند حسب النوع (*_lines_kind_unit · kind_shape) — نفس القيد في الشراء ورصيد أول المدة. */
+export function lineShapeOk(line: LineCore): boolean {
   if (line.kind === 'roll') {
     return (
       line.saleUnit === 'meter' &&
@@ -307,7 +314,7 @@ function lineShapeOk(line: PostedLine): boolean {
 }
 
 /** شكل الدفعة حسب النوع (stock_lots_kind_shape · lot_code_shape). */
-function lotShapeOk(lot: PostedLot): boolean {
+export function lotShapeOk(lot: LotCore): boolean {
   if (lot.lotKind === 'roll') {
     return LOT_CODE_ROLL.test(lot.lotCode) && lot.widthCm !== null && lot.initialLengthCm !== null && lot.initialQuantity === null
   }
@@ -332,13 +339,25 @@ function postedChildrenOk(
   lotStatus: 'active' | 'voided',
 ): boolean {
   if (lines.length !== header.lineCount || charges.length !== header.chargeCount || lots.length !== header.lotCount) return false
+  if (new Set(charges.map((charge) => charge.chargeNo)).size !== charges.length) return false
+  return linesAndLotsConsistent(lines, lots, lotStatus)
+}
 
-  const byLineNo = new Map<number, PostedLine>()
+/**
+ * ربط البنود بالدفعات (مشترك بين الشراء ورصيد أول المدة): كل بند شكله صح ورقمه مش مكرر، وكل دفعة
+ * تحت بند موجود بنفس النوع والمنتج (والعرض للفّات) وبحالة lotStatus، وعدد دفعات البند وأطوالها/كمياتها
+ * مطابقة للبند (اللفّة: rollCount دفعة مجموع أطوالها totalLengthCm · القطع: دفعة واحدة بنفس الكمية).
+ */
+export function linesAndLotsConsistent(
+  lines: readonly LineCore[],
+  lots: readonly LotCore[],
+  lotStatus: 'active' | 'voided',
+): boolean {
+  const byLineNo = new Map<number, LineCore>()
   for (const line of lines) {
     if (!lineShapeOk(line) || byLineNo.has(line.lineNo)) return false
     byLineNo.set(line.lineNo, line)
   }
-  if (new Set(charges.map((charge) => charge.chargeNo)).size !== charges.length) return false
 
   const perLine = new Map<number, { count: number; length: number; quantity: number; sequences: Set<number> }>()
   for (const lot of lots) {
@@ -407,7 +426,7 @@ export function isPurchaseDetail(value: unknown): value is PurchaseDetail {
   return parsePurchaseDetail(value) !== null
 }
 
-function isPreviewLot(value: unknown): value is PreviewLot {
+export function isPreviewLot(value: unknown): value is PreviewLot {
   if (!isRec(value)) return false
   return (
     int(value['lineNo'], 1) &&
