@@ -27,6 +27,7 @@ const SUITES = [
   { name: 'inventory', dir: 'lib/inventory', entry: 'inventory.cases.ts', run: 'runInventoryCases' },
   { name: 'purchases', dir: 'lib/inventory', entry: 'purchase.cases.ts', run: 'runPurchaseCases' },
   { name: 'openings', dir: 'lib/inventory', entry: 'opening.cases.ts', run: 'runOpeningCases' },
+  { name: 'ui', dir: 'lib/inventory', entry: 'ui.cases.ts', run: 'runUiCases' },
 ]
 
 const COMPILER_OPTIONS = {
@@ -68,7 +69,7 @@ try {
     const runner = mod[suite.run]
     if (typeof runner !== 'function') throw new Error(suite.entry + ' مافيهوش ' + suite.run)
 
-    const report = runner()
+    const report = await runner()
     for (const failure of report.failures) {
       console.error('FAIL [' + suite.name + '] ' + failure.name)
       console.error('  expected: ' + failure.expected)

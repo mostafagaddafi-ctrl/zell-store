@@ -1,6 +1,4 @@
 import { formatPiastresExact } from '../../lib/inventory/money'
-import type { OpeningPreview } from '../../lib/inventory/openings'
-import { Table, TD, TH, THead, TR } from '../ui/Table'
 
 /** إجماليات رصيد أول المدة: الكل، ومنهم التقديري. */
 export function OpeningTotalsList({ itemsTotalPiastres, estimatedTotalPiastres }: { itemsTotalPiastres: number; estimatedTotalPiastres: number }) {
@@ -19,32 +17,5 @@ export function OpeningTotalsList({ itemsTotalPiastres, estimatedTotalPiastres }
         </dd>
       </div>
     </dl>
-  )
-}
-
-/** نتيجة zell_inv_preview_opening: تكلفة كل دفعة (مفيش توزيع مصاريف ولا خصم في رصيد أول المدة). */
-export function OpeningPreviewPanel({ preview }: { preview: OpeningPreview }) {
-  return (
-    <div className="space-y-3">
-      <OpeningTotalsList itemsTotalPiastres={preview.totals.itemsTotalPiastres} estimatedTotalPiastres={preview.totals.estimatedTotalPiastres} />
-      <Table>
-        <THead>
-          <TR>
-            <TH>البند</TH>
-            <TH>الدفعة</TH>
-            <TH>التكلفة</TH>
-          </TR>
-        </THead>
-        <tbody>
-          {preview.lots.map((lot) => (
-            <TR key={String(lot.lineNo) + ':' + String(lot.lotSequence)}>
-              <TD>{lot.lineNo}</TD>
-              <TD>{lot.lotSequence}</TD>
-              <TD className="whitespace-nowrap font-semibold">{formatPiastresExact(lot.landedCostPiastres)}</TD>
-            </TR>
-          ))}
-        </tbody>
-      </Table>
-    </div>
   )
 }

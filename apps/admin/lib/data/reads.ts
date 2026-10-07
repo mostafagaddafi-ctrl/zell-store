@@ -603,7 +603,8 @@ export const supabaseAdminData: AdminDataSource = {
 /**
  * المنتجات + العروض الفعالة لنماذج الشراء ورصيد أول المدة — طلبين ثابتين، من غير N+1.
  *
- * 🔒 مفيش أي عمود سعر ولا تكلفة. والمنتجات الموقوفة بتيجي (0020 بيسمح بشرائها).
+ * 🔒 سعر البيع العام بس (مرجعية — PR-D)، ومفيش أي عمود تكلفة. والمنتجات الموقوفة بتيجي (0020 بيسمح
+ *    بشرائها). العروض الإضافية الفعالة بس (الموقوفة مش بتدخل الاختيارات ولا السعر).
  * 🔒 exactCount على الطلبين: أي قص أو عدد غير مؤكد بيخلّي الحالة غير complete، وده بيوقف
  *    إنشاء/تعديل المستندات (lib/inventory/catalog · catalogBlocksDocuments).
  * أي فشل في القراءة نفسها بيترمي — الصفحة اللي بتستخدمها (PR-B) بتعرض خطأ تشغيلي واضح.
@@ -628,13 +629,13 @@ export async function readInventoryCatalog(): Promise<InventoryCatalog> {
   const [products, widths] = await Promise.all([
     restGet<CatalogProductRow>(
       'products',
-      'select=id,name_ar,sale_unit,width_cm,is_active,sort_order&order=sort_order.asc,id.asc&limit=' +
+      'select=id,name_ar,sale_unit,width_cm,price_per_meter_piastres,is_active,sort_order&order=sort_order.asc,id.asc&limit=' +
         String(CATALOG_PRODUCTS_LIMIT),
       { exactCount: true },
     ),
     restGet<CatalogWidthRow>(
       'product_widths',
-      'select=product_id,width_cm&is_active=eq.true&order=product_id.asc,width_cm.asc&limit=' +
+      'select=product_id,width_cm,price_per_meter_piastres&is_active=eq.true&order=product_id.asc,width_cm.asc&limit=' +
         String(CATALOG_WIDTHS_LIMIT),
       { exactCount: true },
     ),

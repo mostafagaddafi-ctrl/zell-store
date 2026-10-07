@@ -351,10 +351,10 @@ export function runInventoryCases(): InventoryCasesReport {
   check('F11 widths ignore bad values', allowedWidths(0, [-5, 1.5, 40]), [40])
   {
     const rows: CatalogProductRow[] = [
-      { id: 1, name_ar: 'فيلم', sale_unit: 'meter', width_cm: 100, is_active: true, sort_order: 0 },
-      { id: 2, name_ar: 'أداة', sale_unit: 'piece', width_cm: null, is_active: false, sort_order: 1 },
+      { id: 1, name_ar: 'فيلم', sale_unit: 'meter', width_cm: 100, price_per_meter_piastres: 25000, is_active: true, sort_order: 0 },
+      { id: 2, name_ar: 'أداة', sale_unit: 'piece', width_cm: null, price_per_meter_piastres: 5000, is_active: false, sort_order: 1 },
     ]
-    const catalog = buildCatalog(rows, [{ product_id: 1, width_cm: 152 }], 'complete')
+    const catalog = buildCatalog(rows, [{ product_id: 1, width_cm: 152, price_per_meter_piastres: 36000 }], 'complete')
     check('F12 build keeps inactive product', catalog.products.map((p) => [p.id, p.isActive]), [
       [1, true],
       [2, false],
@@ -362,7 +362,7 @@ export function runInventoryCases(): InventoryCasesReport {
     check('F13 build allowed widths per product', catalog.products.map((p) => p.allowedWidthsCm), [[100, 152], []])
     check('F14 build complete status', catalog.status, 'complete')
     check('F15 complete does not block documents', catalogBlocksDocuments(catalog), false)
-    const odd = buildCatalog([...rows, { id: 3, name_ar: 'غريب', sale_unit: 'box', width_cm: null, is_active: true, sort_order: 2 }], [], 'complete')
+    const odd = buildCatalog([...rows, { id: 3, name_ar: 'غريب', sale_unit: 'box', width_cm: null, price_per_meter_piastres: 1, is_active: true, sort_order: 2 }], [], 'complete')
     check('F16 unknown unit skipped + uncertain', [odd.products.length, odd.skippedProducts, odd.status], [2, 1, 'uncertain'])
     check('F17 uncertain blocks documents', catalogBlocksDocuments(odd), true)
     check('F18 incomplete blocks documents', catalogBlocksDocuments(buildCatalog(rows, [], 'incomplete')), true)

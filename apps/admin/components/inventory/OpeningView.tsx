@@ -1,19 +1,25 @@
 import { formatDate, formatDateTime } from '../../lib/format'
 import { formatMetersAndCm, formatPiastresExact } from '../../lib/inventory/money'
+import type { CatalogProduct } from '../../lib/inventory/catalog'
 import type { OpeningDetail } from '../../lib/inventory/openings'
+import { catalogById, findSalePrice, perUnitCost } from '../../lib/inventory/pricing'
 import { Badge } from '../ui/Badge'
 import { Card } from '../ui/Field'
 import { Table, TD, TH, THead, TR } from '../ui/Table'
 import { DocStatusBadge, LotStatusBadge } from './InvStatusBadge'
+import { CurrentSalePriceCell, PER_UNIT_COST_LABEL, POSTED_SALE_PRICE_LABEL, priceText } from './LineCostSummary'
 import { OpeningTotalsList } from './OpeningPanels'
 import { VoidPurchaseAction } from './VoidPurchaseAction'
 
 /**
  * عرض بس لرصيد أول مدة مرحّل أو مُبطَل أو مستبعَد (من zell_inv_get_opening بالـsnapshots).
  * الإبطال للمرحّل بس. التكلفة التقديرية متعلّمة على البند والدفعة.
+ * التكلفة للمتر/القطعة تقريبية (أعداد صحيحة لأقرب قرش). سعر البيع **الحالي** مرجعية من قايمة المنتجات
+ * دلوقتي (مش لقطة وقت الترحيل) — catalog = null يعني القراءة فشلت أو الكتالوج مش مؤكد، فبيتعرض «—».
  */
-export function OpeningView({ detail }: { detail: OpeningDetail }) {
+export function OpeningView({ detail, catalog }: { detail: OpeningDetail; catalog: CatalogProduct[] | null }) {
   const { header, lines, lots } = detail
+  const products = catalog ? catalogById(catalog) : null
 
   return (
     <div className="space-y-4">
@@ -40,6 +46,9 @@ export function OpeningView({ detail }: { detail: OpeningDetail }) {
 
       {lines.length > 0 ? (
         <Card title="البنود">
+          {products === null ? (
+            <p className="mb-3 text-xs text-muted">سعر البيع الحالي مش ظاهر: قايمة المنتجات ماتقرتش كاملة ومؤكدة. حدّث الصفحة، ولو اتكررت بلّغ.</p>
+          ) : null}
           <Table>
             <THead>
               <TR>
@@ -47,6 +56,8 @@ export function OpeningView({ detail }: { detail: OpeningDetail }) {
                 <TH>المنتج</TH>
                 <TH>الكمية</TH>
                 <TH>التكلفة</TH>
+                <TH>{PER_UNIT_COST_LABEL}</TH>
+                <TH>{POSTED_SALE_PRICE_LABEL}</TH>
               </TR>
             </THead>
             <tbody>
@@ -69,6 +80,15 @@ export function OpeningView({ detail }: { detail: OpeningDetail }) {
                       : String(line.quantity ?? 0) + ' قطعة'}
                   </TD>
                   <TD className="whitespace-nowrap font-semibold">{formatPiastresExact(line.lineTotalPiastres)}</TD>
+                  <TD className="whitespace-nowrap">
+                    {priceText(
+                      perUnitCost(line.kind, line.lineTotalPiastres, line.totalLengthCm, line.quantity),
+                      line.kind === 'roll' ? 'متر' : 'قطعة',
+                    )}
+                  </TD>
+                  <TD>
+                    <CurrentSalePriceCell salePrice={findSalePrice(products, line.productId, line.widthCm)} productId={line.productId} />
+                  </TD>
                 </TR>
               ))}
             </tbody>
@@ -85,6 +105,7 @@ export function OpeningView({ detail }: { detail: OpeningDetail }) {
                 <TH>البند</TH>
                 <TH>الكمية</TH>
                 <TH>التكلفة</TH>
+                <TH>{PER_UNIT_COST_LABEL}</TH>
                 <TH>الحالة</TH>
               </TR>
             </THead>
@@ -108,6 +129,12 @@ export function OpeningView({ detail }: { detail: OpeningDetail }) {
                   <TD className="whitespace-nowrap font-semibold">
                     {formatPiastresExact(lot.landedCostPiastres)}
                     {lot.costIsEstimated ? <span className="ms-1 text-xs font-normal text-muted">(تقديري)</span> : null}
+                  </TD>
+                  <TD className="whitespace-nowrap">
+                    {priceText(
+                      perUnitCost(lot.lotKind, lot.landedCostPiastres, lot.initialLengthCm, lot.initialQuantity),
+                      lot.lotKind === 'roll' ? 'متر' : 'قطعة',
+                    )}
                   </TD>
                   <TD>
                     <LotStatusBadge status={lot.status} />

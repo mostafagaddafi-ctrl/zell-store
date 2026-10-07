@@ -8,7 +8,7 @@ import { OpeningView } from '../../../../../components/inventory/OpeningView'
 import { PageHeader } from '../../../../../components/shell/PageHeader'
 import { buttonClasses } from '../../../../../components/ui/Button'
 import { requireAdminPage } from '../../../../../lib/auth/guards'
-import { loadOpeningEditorData } from '../../../../../lib/data/inventoryEditor'
+import { loadOpeningEditorData, loadViewCatalog } from '../../../../../lib/data/inventoryEditor'
 import { cairoToday } from '../../../../../lib/inventory/purchaseForm'
 import { parseIdParam } from '../../../../../lib/inventory/purchases'
 import { getOpening } from '../../../../../lib/mutations/inventoryOpenings'
@@ -56,10 +56,11 @@ export default async function OpeningPage({ params }: PageProps) {
   const { header } = detail
 
   if (header.status !== 'draft' || detail.draftPayload === null) {
+    const catalog = await loadViewCatalog()
     return (
       <>
         <PageHeader title={'رصيد أول المدة ' + header.docNo} actions={back} />
-        <OpeningView detail={detail} />
+        <OpeningView detail={detail} catalog={catalog} />
       </>
     )
   }

@@ -8,7 +8,7 @@ import { PurchaseView } from '../../../../../components/inventory/PurchaseView'
 import { PageHeader } from '../../../../../components/shell/PageHeader'
 import { buttonClasses } from '../../../../../components/ui/Button'
 import { requireAdminPage } from '../../../../../lib/auth/guards'
-import { loadPurchaseEditorData } from '../../../../../lib/data/inventoryEditor'
+import { loadPurchaseEditorData, loadViewCatalog } from '../../../../../lib/data/inventoryEditor'
 import { cairoToday } from '../../../../../lib/inventory/purchaseForm'
 import { parseIdParam } from '../../../../../lib/inventory/purchases'
 import { getPurchase } from '../../../../../lib/mutations/inventoryPurchases'
@@ -57,10 +57,11 @@ export default async function PurchasePage({ params }: PageProps) {
   const { header } = detail
 
   if (header.status !== 'draft' || detail.draftPayload === null) {
+    const catalog = await loadViewCatalog()
     return (
       <>
         <PageHeader title={'فاتورة شراء ' + header.docNo} actions={back} />
-        <PurchaseView detail={detail} />
+        <PurchaseView detail={detail} catalog={catalog} />
       </>
     )
   }

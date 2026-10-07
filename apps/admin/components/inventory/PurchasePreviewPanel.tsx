@@ -1,6 +1,5 @@
 import { formatPiastresExact } from '../../lib/inventory/money'
-import type { PurchasePreview, PurchaseTotals } from '../../lib/inventory/purchases'
-import { Table, TD, TH, THead, TR } from '../ui/Table'
+import type { PurchaseTotals } from '../../lib/inventory/purchases'
 
 /** الإجماليات (من الداتابيز أو من المسودة). */
 export function PurchaseTotalsList({ totals }: { totals: PurchaseTotals }) {
@@ -21,42 +20,6 @@ function Item({ label, value, strong }: { label: string; value: string; strong?:
       <dd className={strong ? 'font-bold text-fg' : 'font-semibold text-fg'} dir="ltr">
         {value}
       </dd>
-    </div>
-  )
-}
-
-/**
- * نتيجة zell_inv_preview_purchase: تكلفة كل دفعة (لفّة أو بند قطع) بعد توزيع المصاريف والخصم.
- * الحساب كله في الداتابيز — الواجهة بتعرض بس.
- */
-export function PurchasePreviewPanel({ preview }: { preview: PurchasePreview }) {
-  return (
-    <div className="space-y-3">
-      <PurchaseTotalsList totals={preview.totals} />
-      <Table>
-        <THead>
-          <TR>
-            <TH>البند</TH>
-            <TH>الدفعة</TH>
-            <TH>التكلفة الأساسية</TH>
-            <TH>+ مصاريف</TH>
-            <TH>− خصم</TH>
-            <TH>التكلفة النهائية</TH>
-          </TR>
-        </THead>
-        <tbody>
-          {preview.lots.map((lot) => (
-            <TR key={String(lot.lineNo) + ':' + String(lot.lotSequence)}>
-              <TD>{lot.lineNo}</TD>
-              <TD>{lot.lotSequence}</TD>
-              <TD className="whitespace-nowrap">{formatPiastresExact(lot.baseCostPiastres)}</TD>
-              <TD className="whitespace-nowrap">{formatPiastresExact(lot.allocatedExtrasPiastres)}</TD>
-              <TD className="whitespace-nowrap">{formatPiastresExact(lot.allocatedDiscountPiastres)}</TD>
-              <TD className="whitespace-nowrap font-semibold">{formatPiastresExact(lot.landedCostPiastres)}</TD>
-            </TR>
-          ))}
-        </tbody>
-      </Table>
     </div>
   )
 }

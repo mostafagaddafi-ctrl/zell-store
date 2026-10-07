@@ -11,8 +11,10 @@ import {
   updateOpeningAction,
 } from '../../lib/inventoryActions'
 import { useInventoryIntent } from '../../lib/client/useInventoryIntent'
+import { usePreview } from '../../lib/client/usePreview'
 import type { CatalogProduct } from '../../lib/inventory/catalog'
 import { DOC_ACTION_LABELS } from '../../lib/inventory/labels'
+import { formatPiastresExact } from '../../lib/inventory/money'
 import {
   OPENING_LIMITS,
   buildOpeningPayload,
@@ -24,7 +26,9 @@ import {
   type OpeningDocPayload,
   type OpeningFormState,
 } from '../../lib/inventory/openingForm'
-import type { OpeningHeader, OpeningPreview, OpeningWriteResult } from '../../lib/inventory/openings'
+import type { OpeningHeader, OpeningWriteResult } from '../../lib/inventory/openings'
+import { groupLotsByLine } from '../../lib/inventory/pricing'
+import { payloadFingerprint } from '../../lib/inventory/previewTracker'
 import { PURCHASE_LIMITS, type LineForm } from '../../lib/inventory/purchaseForm'
 import type { InventoryLocationOption } from '../../lib/inventory/purchases'
 import { canConfirm, createWriteLock, type WriteLock } from '../../lib/inventory/writeLock'
@@ -33,7 +37,7 @@ import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { Card, Field, inputClasses, textareaClasses } from '../ui/Field'
 import { FailureBanner } from '../ui/FailureBanner'
-import { OpeningPreviewPanel, OpeningTotalsList } from './OpeningPanels'
+import { InventoryActionBar } from './InventoryActionBar'
 import { PurchaseLinesEditor } from './PurchaseLinesEditor'
 import { ReasonDialog } from './ReasonDialog'
 import { UnresolvedNotice } from './UnresolvedNotice'
@@ -44,7 +48,7 @@ type DocRef = { docId: number; version: number }
 type DiscardPayload = DocRef & { reason: string }
 
 const REPLAYED_MESSAGE = 'العملية دي كانت اتنفذت قبل كده، واتعرضت نتيجتها من غير تكرار.'
-const PREVIEW_FAILED = 'المعاينة فشلت. جرّب تاني.'
+const money = (piastres: number | undefined) => (piastres === undefined ? '—' : formatPiastresExact(piastres))
 
 /**
  * رصيد أول المدة جديد أو تعديل مسودة — نفس قواعد فاتورة الشراء بالظبط:
@@ -52,8 +56,9 @@ const PREVIEW_FAILED = 'المعاينة فشلت. جرّب تاني.'
  *     (حجز متزامن قبل البدء) — ضغطتين في نفس الـtick مابيبدأوش غير عملية واحدة.
  *   • كل تأكيد بيعيد فحص القيم الحالية (gateRef + القفل) وقت الضغط، والحوارات busy أثناء العملية.
  *   • الترحيل بيرحّل المسودة المحفوظة بنسختها (مقفول مع تعديلات مش محفوظة).
- *   • حماية المغادرة من UnsavedChangesGuard.
+ *   • حماية المغادرة من UnsavedChangesGuard، والمعاينة مربوطة ببصمة الـpayload (usePreview).
  * الفرق: مفيش مورد ولا مصاريف ولا خصم، وكل بند ليه «التكلفة تقديرية» + ملاحظة إجبارية معاها.
+ * PR-D: البنود كروت، والإجماليات والأزرار في شريط ثابت.
  */
 export function OpeningEditor({
   draft,
@@ -84,9 +89,8 @@ export function OpeningEditor({
   const [dirty, setDirty] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  const [preview, setPreview] = useState<OpeningPreview | null>(null)
-  const [previewError, setPreviewError] = useState<string | null>(null)
-  const [previewing, setPreviewing] = useState(false)
+  const [showIssues, setShowIssues] = useState(false)
+  const [revealNonce, setRevealNonce] = useState(0)
   const [confirmPost, setConfirmPost] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
   const [reconciling, startReconcile] = useTransition()
@@ -169,6 +173,8 @@ export function OpeningEditor({
   const built = useMemo(() => buildOpeningPayload(form, catalogMap, today), [form, catalogMap, today])
   const liveTotals = built.ok ? openingTotals(built.value) : null
   const savedIssues = draft ? openingPostIssues(draft.payload) : []
+  const preview = usePreview(previewOpeningAction, built.ok ? payloadFingerprint(built.value) : null)
+  const costs = useMemo(() => (preview.preview ? groupLotsByLine(preview.preview.lots) : null), [preview.preview])
 
   function update(patch: Partial<OpeningFormState>) {
     if (locked) return
@@ -176,8 +182,7 @@ export function OpeningEditor({
     setDirty(true)
     setLocalError(null)
     setNotice(null)
-    setPreview(null)
-    setPreviewError(null)
+    preview.reset()
     save.edit()
   }
 
@@ -185,32 +190,21 @@ export function OpeningEditor({
     update({ estimates: { ...form.estimates, [key]: estimate } })
   }
 
+  function revealProblems(message: string) {
+    setLocalError(message)
+    setShowIssues(true)
+    setRevealNonce((n) => n + 1)
+  }
+
   function submitSave() {
     if (!editable) return
-    if (!built.ok) {
-      setLocalError(built.message)
-      return
-    }
+    if (!built.ok) return revealProblems(built.message)
     save.begin(built.value)
   }
 
-  async function runPreview() {
-    if (!built.ok) {
-      setLocalError(built.message)
-      return
-    }
-    setPreviewing(true)
-    setPreview(null)
-    setPreviewError(null)
-    try {
-      const result = await previewOpeningAction(built.value)
-      if (result.ok) setPreview(result.data)
-      else setPreviewError(result.code === 'INTERNAL' ? PREVIEW_FAILED : result.message)
-    } catch {
-      setPreviewError(PREVIEW_FAILED)
-    } finally {
-      setPreviewing(false)
-    }
+  function runPreview() {
+    if (!built.ok) return revealProblems(built.message)
+    void preview.run(built.value)
   }
 
   const locationOptions = locations.map((l) => ({ id: l.locationId, label: l.name }))
@@ -243,6 +237,8 @@ export function OpeningEditor({
     discard.begin(payload)
   }
 
+  /** التقدير جوه كارت البند العام (renderLineExtra)، **مش** CollapsibleSection مستقل — مقصود: جزء من بيانات
+   *  البند، وأخطاؤه (field 'estimate') بتفتح نفس الكارت وبتركّز data-field="estimate"، و«اقفل الكل» بيسيبه مفتوح. */
   function renderEstimate(line: LineForm) {
     const estimate = form.estimates[line.key] ?? { estimated: false, note: '' }
     return (
@@ -250,6 +246,7 @@ export function OpeningEditor({
         <label className="flex items-center gap-2 text-xs font-semibold text-fg">
           <input
             type="checkbox"
+            data-field={estimate.estimated ? undefined : 'estimate'}
             checked={estimate.estimated}
             disabled={!editable}
             onChange={(event) => setEstimate(line.key, { ...estimate, estimated: event.target.checked })}
@@ -260,6 +257,7 @@ export function OpeningEditor({
           <Field htmlFor={'estimate-' + line.key} label="ملاحظة التقدير" hint="إجبارية مع التقدير · من 3 لـ 200 حرف · البند اللي تكلفته صفر مايبقاش تقديري">
             <input
               id={'estimate-' + line.key}
+              data-field="estimate"
               value={estimate.note}
               maxLength={OPENING_LIMITS.estimateNoteMax + 20}
               disabled={!editable}
@@ -277,7 +275,7 @@ export function OpeningEditor({
   const discardFailure = discard.intent.phase === 'editing' ? discard.intent.failure : null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-sm:pb-48">
       <UnsavedChangesGuard active={guardActive} />
 
       <Card title={draft ? 'مسودة ' + draft.header.docNo : 'رصيد أول مدة جديد'}>
@@ -330,35 +328,14 @@ export function OpeningEditor({
           catalog={catalog}
           disabled={!editable}
           newKey={newKey}
+          kind="opening"
+          totalLabel="إجمالي تكلفة البند (جنيه)"
+          showIssues={showIssues}
+          revealNonce={revealNonce}
+          costs={costs}
+          estimates={form.estimates}
           renderLineExtra={renderEstimate}
         />
-      </Card>
-
-      <Card
-        title="الإجماليات والمعاينة"
-        actions={
-          <Button variant="secondary" size="sm" onClick={() => void runPreview()} disabled={previewing || locked}>
-            <Eye className="h-3.5 w-3.5" />
-            {previewing ? 'بيحسب…' : 'معاينة التكلفة'}
-          </Button>
-        }
-      >
-        <div className="space-y-3">
-          {liveTotals ? (
-            <>
-              <OpeningTotalsList itemsTotalPiastres={liveTotals.itemsTotalPiastres} estimatedTotalPiastres={liveTotals.estimatedTotalPiastres} />
-              <p className="text-xs text-muted">{liveTotals.lotCount} دفعة (كل لفّة دفعة، وكل بند قطع دفعة).</p>
-            </>
-          ) : (
-            <p className="text-xs text-muted">الإجماليات بتظهر لما البيانات تبقى كاملة وصحيحة.</p>
-          )}
-          {previewError ? (
-            <p role="alert" className="text-xs font-semibold text-danger">
-              {previewError}
-            </p>
-          ) : null}
-          {preview ? <OpeningPreviewPanel preview={preview} /> : null}
-        </div>
       </Card>
 
       {localError ? (
@@ -369,6 +346,11 @@ export function OpeningEditor({
       {notice ? (
         <p role="status" className="rounded-lg border-s-2 border-ok bg-ok/5 px-3 py-2 text-xs text-fg">
           {notice}
+        </p>
+      ) : null}
+      {preview.error ? (
+        <p role="alert" className="text-xs font-semibold text-danger">
+          {preview.error}
         </p>
       ) : null}
 
@@ -399,10 +381,27 @@ export function OpeningEditor({
         ) : null,
       )}
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+      <InventoryActionBar
+        items={[
+          { label: 'إجمالي الرصيد', value: money(liveTotals?.itemsTotalPiastres), strong: true },
+          { label: 'منه تقديري', value: money(liveTotals?.estimatedTotalPiastres) },
+        ]}
+        status={
+          <>
+            {liveTotals ? String(liveTotals.lotCount) + ' دفعة · ' : 'الإجماليات بتظهر لما البيانات تبقى صحيحة · '}
+            {preview.preview ? 'المعاينة محدّثة' : 'من غير معاينة'}
+            {!mutationsOn ? ' · التعديلات موقوفة دلوقتي (علم الجاهزية)' : ''}
+            {draft && postBlocked !== null && !locked ? ' · الترحيل: ' + postBlocked : ''}
+          </>
+        }
+      >
         <Button onClick={submitSave} disabled={!editable}>
           <Save className="h-4 w-4" />
           {save.intent.phase === 'submitting' ? 'بيحفظ…' : draft ? 'حفظ المسودة' : 'حفظ كمسودة'}
+        </Button>
+        <Button variant="secondary" onClick={runPreview} disabled={preview.previewing || locked}>
+          <Eye className="h-4 w-4" />
+          {preview.previewing ? 'بيحسب…' : 'معاينة التكلفة'}
         </Button>
         {draft ? (
           <>
@@ -416,9 +415,7 @@ export function OpeningEditor({
             </Button>
           </>
         ) : null}
-        {!mutationsOn ? <span className="text-xs text-muted">التعديلات موقوفة دلوقتي (علم الجاهزية).</span> : null}
-      </div>
-      {draft && postBlocked !== null && !locked ? <p className="text-xs text-muted">الترحيل: {postBlocked}</p> : null}
+      </InventoryActionBar>
 
       {draft ? (
         <>

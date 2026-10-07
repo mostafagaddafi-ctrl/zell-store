@@ -1,19 +1,25 @@
 import { formatDate, formatDateTime } from '../../lib/format'
 import { formatMetersAndCm, formatPiastresExact } from '../../lib/inventory/money'
+import type { CatalogProduct } from '../../lib/inventory/catalog'
+import { catalogById, findSalePrice, perUnitCost } from '../../lib/inventory/pricing'
 import { CHARGE_KIND_LABELS } from '../../lib/inventory/purchaseForm'
 import type { PurchaseDetail } from '../../lib/inventory/purchases'
 import { Card } from '../ui/Field'
 import { Table, TD, TH, THead, TR } from '../ui/Table'
 import { DocStatusBadge, LotStatusBadge } from './InvStatusBadge'
+import { CurrentSalePriceCell, PER_UNIT_COST_LABEL, POSTED_SALE_PRICE_LABEL, priceText } from './LineCostSummary'
 import { PurchaseTotalsList } from './PurchasePreviewPanel'
 import { VoidPurchaseAction } from './VoidPurchaseAction'
 
 /**
  * عرض بس لفاتورة مرحّلة أو مُبطَلة أو مستبعَدة. البيانات من zell_inv_get_purchase بالـsnapshots
  * (اسم المنتج والعرض والوحدة وقت الترحيل). الإبطال للمرحّل بس.
+ * التكلفة للمتر/القطعة تقريبية (أعداد صحيحة لأقرب قرش) من أرقام الداتابيز. سعر البيع **الحالي** مرجعية
+ * من قايمة المنتجات دلوقتي (مش لقطة وقت الترحيل) — catalog = null يعني القراءة فشلت أو الكتالوج مش مؤكد، فبيتعرض «—».
  */
-export function PurchaseView({ detail }: { detail: PurchaseDetail }) {
+export function PurchaseView({ detail, catalog }: { detail: PurchaseDetail; catalog: CatalogProduct[] | null }) {
   const { header, lines, charges, lots } = detail
+  const products = catalog ? catalogById(catalog) : null
 
   return (
     <div className="space-y-4">
@@ -42,6 +48,9 @@ export function PurchaseView({ detail }: { detail: PurchaseDetail }) {
 
       {lines.length > 0 ? (
         <Card title="البنود">
+          {products === null ? (
+            <p className="mb-3 text-xs text-muted">سعر البيع الحالي مش ظاهر: قايمة المنتجات ماتقرتش كاملة ومؤكدة. حدّث الصفحة، ولو اتكررت بلّغ.</p>
+          ) : null}
           <Table>
             <THead>
               <TR>
@@ -52,6 +61,8 @@ export function PurchaseView({ detail }: { detail: PurchaseDetail }) {
                 <TH>+ مصاريف</TH>
                 <TH>− خصم</TH>
                 <TH>التكلفة النهائية</TH>
+                <TH>{PER_UNIT_COST_LABEL}</TH>
+                <TH>{POSTED_SALE_PRICE_LABEL}</TH>
               </TR>
             </THead>
             <tbody>
@@ -72,6 +83,15 @@ export function PurchaseView({ detail }: { detail: PurchaseDetail }) {
                   <TD className="whitespace-nowrap">{formatPiastresExact(line.allocatedExtrasPiastres)}</TD>
                   <TD className="whitespace-nowrap">{formatPiastresExact(line.allocatedDiscountPiastres)}</TD>
                   <TD className="whitespace-nowrap font-semibold">{formatPiastresExact(line.landedTotalPiastres)}</TD>
+                  <TD className="whitespace-nowrap">
+                    {priceText(
+                      perUnitCost(line.kind, line.landedTotalPiastres, line.totalLengthCm, line.quantity),
+                      line.kind === 'roll' ? 'متر' : 'قطعة',
+                    )}
+                  </TD>
+                  <TD>
+                    <CurrentSalePriceCell salePrice={findSalePrice(products, line.productId, line.widthCm)} productId={line.productId} />
+                  </TD>
                 </TR>
               ))}
             </tbody>
@@ -118,6 +138,7 @@ export function PurchaseView({ detail }: { detail: PurchaseDetail }) {
                 <TH>+ مصاريف</TH>
                 <TH>− خصم</TH>
                 <TH>التكلفة النهائية</TH>
+                <TH>{PER_UNIT_COST_LABEL}</TH>
                 <TH>الحالة</TH>
               </TR>
             </THead>
@@ -142,6 +163,12 @@ export function PurchaseView({ detail }: { detail: PurchaseDetail }) {
                   <TD className="whitespace-nowrap">{formatPiastresExact(lot.allocatedExtrasPiastres)}</TD>
                   <TD className="whitespace-nowrap">{formatPiastresExact(lot.allocatedDiscountPiastres)}</TD>
                   <TD className="whitespace-nowrap font-semibold">{formatPiastresExact(lot.landedCostPiastres)}</TD>
+                  <TD className="whitespace-nowrap">
+                    {priceText(
+                      perUnitCost(lot.lotKind, lot.landedCostPiastres, lot.initialLengthCm, lot.initialQuantity),
+                      lot.lotKind === 'roll' ? 'متر' : 'قطعة',
+                    )}
+                  </TD>
                   <TD>
                     <LotStatusBadge status={lot.status} />
                   </TD>

@@ -11,8 +11,12 @@ import {
   updatePurchaseAction,
 } from '../../lib/inventoryActions'
 import { useInventoryIntent } from '../../lib/client/useInventoryIntent'
+import { usePreview } from '../../lib/client/usePreview'
 import type { CatalogProduct } from '../../lib/inventory/catalog'
 import { DOC_ACTION_LABELS } from '../../lib/inventory/labels'
+import { formatPiastresExact } from '../../lib/inventory/money'
+import { groupLotsByLine } from '../../lib/inventory/pricing'
+import { payloadFingerprint } from '../../lib/inventory/previewTracker'
 import {
   PURCHASE_LIMITS,
   buildPurchasePayload,
@@ -23,12 +27,7 @@ import {
   type PurchaseDocPayload,
   type PurchaseFormState,
 } from '../../lib/inventory/purchaseForm'
-import type {
-  InventoryLocationOption,
-  PurchaseHeader,
-  PurchasePreview,
-  PurchaseWriteResult,
-} from '../../lib/inventory/purchases'
+import type { InventoryLocationOption, PurchaseHeader, PurchaseWriteResult } from '../../lib/inventory/purchases'
 import type { InventorySupplier } from '../../lib/inventory/suppliers'
 import { canConfirm, createWriteLock, type WriteLock } from '../../lib/inventory/writeLock'
 import { useMutationsEnabled } from '../../lib/readiness'
@@ -36,9 +35,10 @@ import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { Card, Field, inputClasses, textareaClasses } from '../ui/Field'
 import { FailureBanner } from '../ui/FailureBanner'
+import { CollapsibleSection } from './CollapsibleSection'
+import { InventoryActionBar } from './InventoryActionBar'
 import { PurchaseChargesEditor } from './PurchaseChargesEditor'
 import { PurchaseLinesEditor } from './PurchaseLinesEditor'
-import { PurchasePreviewPanel, PurchaseTotalsList } from './PurchasePreviewPanel'
 import { ReasonDialog } from './ReasonDialog'
 import { UnresolvedNotice } from './UnresolvedNotice'
 import { UnsavedChangesGuard } from './UnsavedChangesGuard'
@@ -48,7 +48,7 @@ type DocRef = { docId: number; version: number }
 type DiscardPayload = DocRef & { reason: string }
 
 const REPLAYED_MESSAGE = 'العملية دي كانت اتنفذت قبل كده، واتعرضت نتيجتها من غير تكرار.'
-const PREVIEW_FAILED = 'المعاينة فشلت. جرّب تاني.'
+const money = (piastres: number | undefined) => (piastres === undefined ? '—' : formatPiastresExact(piastres))
 
 /**
  * فاتورة شراء جديدة أو تعديل مسودة.
@@ -59,8 +59,9 @@ const PREVIEW_FAILED = 'المعاينة فشلت. جرّب تاني.'
  * 🔒 القفل الفوري: الـ3 hooks بياخدوا نفس WriteLock (ref على مستوى المستند)، وbegin بيحجزه بشكل
  *    متزامن — فضغطتين في نفس الـtick مابيبدأوش غير عملية واحدة. وكل تأكيد (ترحيل/استبعاد) بيعيد فحص
  *    القيم الحالية (gateRef + القفل) وقت الضغط نفسه، مش من closure قديم.
- * الترحيل بيترحّل **المسودة المحفوظة** بنسختها، فلازم مفيش تعديلات مش محفوظة.
- * المعاينة قراءة بس (previewPurchaseAction) ومابتحتاجش مفتاح.
+ * الترحيل بيرحّل **المسودة المحفوظة** بنسختها، فلازم مفيش تعديلات مش محفوظة.
+ * المعاينة قراءة بس (usePreview) ومربوطة ببصمة الـpayload — أي رد قديم بيتهمل.
+ * PR-D: البنود كروت (PurchaseLinesEditor)، والإجماليات والأزرار في شريط ثابت (InventoryActionBar).
  */
 export function PurchaseEditor({
   draft,
@@ -93,9 +94,8 @@ export function PurchaseEditor({
   const [dirty, setDirty] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  const [preview, setPreview] = useState<PurchasePreview | null>(null)
-  const [previewError, setPreviewError] = useState<string | null>(null)
-  const [previewing, setPreviewing] = useState(false)
+  const [showIssues, setShowIssues] = useState(false)
+  const [revealNonce, setRevealNonce] = useState(0)
   const [confirmPost, setConfirmPost] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
   const [reconciling, startReconcile] = useTransition()
@@ -180,6 +180,8 @@ export function PurchaseEditor({
   const built = useMemo(() => buildPurchasePayload(form, catalogMap, today), [form, catalogMap, today])
   const liveTotals = built.ok ? draftTotals(built.value) : null
   const savedIssues = draft ? postReadinessIssues(draft.payload) : []
+  const preview = usePreview(previewPurchaseAction, built.ok ? payloadFingerprint(built.value) : null)
+  const costs = useMemo(() => (preview.preview ? groupLotsByLine(preview.preview.lots) : null), [preview.preview])
 
   function update(patch: Partial<PurchaseFormState>) {
     if (locked) return
@@ -187,37 +189,26 @@ export function PurchaseEditor({
     setDirty(true)
     setLocalError(null)
     setNotice(null)
-    setPreview(null)
-    setPreviewError(null)
+    preview.reset()
     save.edit()
+  }
+
+  /** فشل التحقق المحلي: الرسالة فوق، والبنود اللي فيها مشكلة بتتفتح وأول خانة غلط بتاخد focus. */
+  function revealProblems(message: string) {
+    setLocalError(message)
+    setShowIssues(true)
+    setRevealNonce((n) => n + 1)
   }
 
   function submitSave() {
     if (!editable) return
-    if (!built.ok) {
-      setLocalError(built.message)
-      return
-    }
+    if (!built.ok) return revealProblems(built.message)
     save.begin(built.value)
   }
 
-  async function runPreview() {
-    if (!built.ok) {
-      setLocalError(built.message)
-      return
-    }
-    setPreviewing(true)
-    setPreview(null)
-    setPreviewError(null)
-    try {
-      const result = await previewPurchaseAction(built.value)
-      if (result.ok) setPreview(result.data)
-      else setPreviewError(result.code === 'INTERNAL' ? PREVIEW_FAILED : result.message)
-    } catch {
-      setPreviewError(PREVIEW_FAILED)
-    } finally {
-      setPreviewing(false)
-    }
+  function runPreview() {
+    if (!built.ok) return revealProblems(built.message)
+    void preview.run(built.value)
   }
 
   // اختيارات المورد والمخزن: النشطين، ومعاهم المختار في المسودة لو اتوقف (عشان يبان، والحفظ هيرفضه)
@@ -261,7 +252,7 @@ export function PurchaseEditor({
   const discardFailure = discard.intent.phase === 'editing' ? discard.intent.failure : null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-sm:pb-48">
       <UnsavedChangesGuard active={guardActive} />
 
       <Card title={draft ? 'مسودة ' + draft.header.docNo : 'فاتورة شراء جديدة'}>
@@ -340,57 +331,31 @@ export function PurchaseEditor({
           catalog={catalog}
           disabled={!editable}
           newKey={newKey}
+          kind="purchase"
+          totalLabel="إجمالي سعر شراء البند (جنيه)"
+          showIssues={showIssues}
+          revealNonce={revealNonce}
+          costs={costs}
         />
       </Card>
 
-      <Card title="المصاريف وخصم المورد">
-        <div className="space-y-4">
-          <PurchaseChargesEditor
-            charges={form.charges}
-            onChange={(charges) => update({ charges })}
-            disabled={!editable}
-            newKey={newKey}
-          />
-          <Field htmlFor="purchase-discount" label="خصم المورد (جنيه)" hint="اختياري · لازم يكون أقل من إجمالي البنود وقت الترحيل" className="max-w-xs">
-            <input
-              id="purchase-discount"
-              dir="ltr"
-              inputMode="decimal"
-              value={form.discount}
-              disabled={!editable}
-              onChange={(event) => update({ discount: event.target.value })}
-              className={inputClasses}
-            />
-          </Field>
-        </div>
-      </Card>
+      <CollapsibleSection title="المصاريف الإضافية" summary={String(form.charges.length) + ' مصروف'} defaultOpen={form.charges.length > 0}>
+        <PurchaseChargesEditor charges={form.charges} onChange={(charges) => update({ charges })} disabled={!editable} newKey={newKey} />
+      </CollapsibleSection>
 
-      <Card
-        title="الإجماليات والمعاينة"
-        actions={
-          <Button variant="secondary" size="sm" onClick={() => void runPreview()} disabled={previewing || locked}>
-            <Eye className="h-3.5 w-3.5" />
-            {previewing ? 'بيحسب…' : 'معاينة التكلفة'}
-          </Button>
-        }
-      >
-        <div className="space-y-3">
-          {liveTotals ? (
-            <>
-              <PurchaseTotalsList totals={liveTotals} />
-              <p className="text-xs text-muted">{liveTotals.lotCount} دفعة (كل لفّة دفعة، وكل بند قطع دفعة).</p>
-            </>
-          ) : (
-            <p className="text-xs text-muted">الإجماليات بتظهر لما البيانات تبقى كاملة وصحيحة.</p>
-          )}
-          {previewError ? (
-            <p role="alert" className="text-xs font-semibold text-danger">
-              {previewError}
-            </p>
-          ) : null}
-          {preview ? <PurchasePreviewPanel preview={preview} /> : null}
-        </div>
-      </Card>
+      <CollapsibleSection title="خصم المورد" summary={form.discount.trim() === '' ? 'من غير خصم' : form.discount + ' ج.م'} defaultOpen={form.discount.trim() !== ''}>
+        <Field htmlFor="purchase-discount" label="خصم المورد (جنيه)" hint="اختياري · لازم يكون أقل من إجمالي البنود وقت الترحيل" className="max-w-xs">
+          <input
+            id="purchase-discount"
+            dir="ltr"
+            inputMode="decimal"
+            value={form.discount}
+            disabled={!editable}
+            onChange={(event) => update({ discount: event.target.value })}
+            className={inputClasses}
+          />
+        </Field>
+      </CollapsibleSection>
 
       {localError ? (
         <p role="alert" className="text-xs font-semibold text-danger">
@@ -400,6 +365,11 @@ export function PurchaseEditor({
       {notice ? (
         <p role="status" className="rounded-lg border-s-2 border-ok bg-ok/5 px-3 py-2 text-xs text-fg">
           {notice}
+        </p>
+      ) : null}
+      {preview.error ? (
+        <p role="alert" className="text-xs font-semibold text-danger">
+          {preview.error}
         </p>
       ) : null}
 
@@ -430,10 +400,29 @@ export function PurchaseEditor({
         ) : null,
       )}
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+      <InventoryActionBar
+        items={[
+          { label: 'إجمالي البنود', value: money(liveTotals?.itemsSubtotalPiastres) },
+          { label: 'المصاريف', value: money(liveTotals?.extrasTotalPiastres) },
+          { label: 'الخصم', value: money(liveTotals?.supplierDiscountPiastres) },
+          { label: 'الإجمالي النهائي', value: money(liveTotals?.totalCostPiastres), strong: true },
+        ]}
+        status={
+          <>
+            {liveTotals ? String(liveTotals.lotCount) + ' دفعة · ' : 'الإجماليات بتظهر لما البيانات تبقى صحيحة · '}
+            {preview.preview ? 'المعاينة محدّثة' : 'من غير معاينة'}
+            {!mutationsOn ? ' · التعديلات موقوفة دلوقتي (علم الجاهزية)' : ''}
+            {draft && postBlocked !== null && !locked ? ' · الترحيل: ' + postBlocked : ''}
+          </>
+        }
+      >
         <Button onClick={submitSave} disabled={!editable}>
           <Save className="h-4 w-4" />
           {save.intent.phase === 'submitting' ? 'بيحفظ…' : draft ? 'حفظ المسودة' : 'حفظ كمسودة'}
+        </Button>
+        <Button variant="secondary" onClick={runPreview} disabled={preview.previewing || locked}>
+          <Eye className="h-4 w-4" />
+          {preview.previewing ? 'بيحسب…' : 'معاينة التكلفة'}
         </Button>
         {draft ? (
           <>
@@ -447,9 +436,7 @@ export function PurchaseEditor({
             </Button>
           </>
         ) : null}
-        {!mutationsOn ? <span className="text-xs text-muted">التعديلات موقوفة دلوقتي (علم الجاهزية).</span> : null}
-      </div>
-      {draft && postBlocked !== null && !locked ? <p className="text-xs text-muted">الترحيل: {postBlocked}</p> : null}
+      </InventoryActionBar>
 
       {draft ? (
         <>
