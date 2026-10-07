@@ -263,7 +263,7 @@ export function buildOpeningPayload(
     const key = form.lines[index]?.key ?? ''
     const estimate = form.estimates[key]
     const estimated = estimate !== undefined && estimate.estimated
-    return { ...line, costIsEstimated: estimated, estimateNote: estimated ? estimate.note : null }
+    return { ...line, costIsEstimated: estimated, estimateNote: estimated && estimate ? estimate.note : null }
   })
 
   return validateOpeningDoc({ locationId, asOfDate, note: form.note, lines })
