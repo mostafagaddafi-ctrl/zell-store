@@ -27,6 +27,7 @@ const SUITES = [
   { name: 'inventory', dir: 'lib/inventory', entry: 'inventory.cases.ts', run: 'runInventoryCases' },
   { name: 'purchases', dir: 'lib/inventory', entry: 'purchase.cases.ts', run: 'runPurchaseCases' },
   { name: 'openings', dir: 'lib/inventory', entry: 'opening.cases.ts', run: 'runOpeningCases' },
+  { name: 'ui', dir: 'lib/inventory', entry: 'ui.cases.ts', run: 'runUiCases' },
 ]
 
 const COMPILER_OPTIONS = {
