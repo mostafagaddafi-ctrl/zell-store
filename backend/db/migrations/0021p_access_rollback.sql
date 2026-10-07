@@ -5,7 +5,7 @@
 --     بيشيل الدوال والـ triggers اللي على admin_users و EXECUTE، وبيرجّع جسم erp_actor_status_v1 للرفض.
 --     مابيمسحش أي جدول ولا أي صف (erp_access_audit · erp_user_grants · zell_erp_admin_users_log · العدّاد …)،
 --     ولا الأدوار ولا الواجهة نفسها. إعادة التطبيق بعده محتاجة ملف forward-fix لوحده (مش في الـ PR ده).
---   • freeze: في أي وقت. بيسحب EXECUTE من service_role على دوال الإدارة بس (منح · سحب · قالب · سحب الكل ·
+--   • freeze: في أي وقت. بيسحب EXECUTE من authenticated على دوال الإدارة بس (منح · سحب · قالب · سحب الكل ·
 --     إيقاف/تشغيل). القراءة والصلاحيات الفعلية بتفضل شغالة. مفيش أي مسح.
 --
 -- «استخدام حقيقي» = أي واحدة: سطر في erp_access_audit مصدره مش migration · أي أمر في erp_commands ·
@@ -34,26 +34,25 @@ begin
   end if;
   if pg_catalog.to_regrole('erp_definer') is null or pg_catalog.to_regrole('zell_erp_definer') is null
      or pg_catalog.to_regprocedure('public.erp_access_grant(uuid,uuid,uuid,text,integer)') is null
-     or pg_catalog.to_regprocedure('public.zell_erp_set_user_active(uuid,uuid,uuid,boolean,text)') is null then
+     or pg_catalog.to_regprocedure('public.zell_erp_set_user_active(uuid,uuid,boolean,text)') is null then
     raise exception 'ZELL_0021P_ROLLBACK_NOT_APPLIED';
   end if;
 
   if v_mode = 'freeze' then
-    execute 'set local role erp_definer';
-    execute 'revoke execute on function public.erp_access_grant(uuid, uuid, uuid, text, integer), '
-         || 'public.erp_access_revoke(uuid, uuid, uuid, text, integer, text), '
-         || 'public.erp_access_apply_preset(uuid, uuid, uuid, text, integer), '
-         || 'public.erp_access_revoke_all(uuid, uuid, uuid, integer, text) from service_role';
-    execute 'reset role';
     execute 'set local role zell_erp_definer';
-    execute 'revoke execute on function public.zell_erp_set_user_active(uuid, uuid, uuid, boolean, text) from service_role';
+    execute 'revoke execute on function public.zell_erp_access_grant(uuid, uuid, text, integer), '
+         || 'public.zell_erp_access_revoke(uuid, uuid, text, integer, text), '
+         || 'public.zell_erp_access_apply_preset(uuid, uuid, text, integer), '
+         || 'public.zell_erp_access_revoke_all(uuid, uuid, integer, text), '
+         || 'public.zell_erp_set_user_active(uuid, uuid, boolean, text) from authenticated';
     execute 'reset role';
     select string_agg(p.proname::text, ',') into v_list
       from pg_catalog.pg_proc p
      where p.pronamespace = 'public'::regnamespace
-       and p.proname in ('erp_access_grant', 'erp_access_revoke', 'erp_access_apply_preset', 'erp_access_revoke_all',
-                         'zell_erp_set_user_active')
-       and pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE');
+       and p.proname in ('zell_erp_access_grant', 'zell_erp_access_revoke', 'zell_erp_access_apply_preset',
+                         'zell_erp_access_revoke_all', 'zell_erp_set_user_active')
+       and (pg_catalog.has_function_privilege('authenticated', p.oid, 'EXECUTE')
+            or pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE'));
     if v_list is not null then
       raise exception 'ZELL_0021P_FREEZE_INCOMPLETE %', v_list;
     end if;
@@ -82,9 +81,20 @@ begin
   execute 'create or replace function public.erp_actor_status_v1(p_user uuid) '
        || 'returns table (is_active boolean, is_owner boolean) language sql stable security definer '
        || 'set search_path = '''' as $b$ select false, false; $b$';
-  execute 'drop function public.zell_erp_set_user_active(uuid, uuid, uuid, boolean, text)';
-  execute 'drop function public.zell_erp_access_users(uuid)';
-  execute 'drop function public.zell_erp_access_parity(uuid)';
+  execute 'drop function public.zell_erp_my_access()';
+  execute 'drop function public.zell_erp_access_grant(uuid, uuid, text, integer)';
+  execute 'drop function public.zell_erp_access_revoke(uuid, uuid, text, integer, text)';
+  execute 'drop function public.zell_erp_access_apply_preset(uuid, uuid, text, integer)';
+  execute 'drop function public.zell_erp_access_revoke_all(uuid, uuid, integer, text)';
+  execute 'drop function public.zell_erp_access_snapshot()';
+  execute 'drop function public.zell_erp_access_audit_page(bigint, integer)';
+  execute 'drop function public.zell_erp_access_shadow_report(date)';
+  execute 'drop function public.zell_erp_record_shadow_event(text, text, text)';
+  execute 'drop function public.zell_erp_set_user_active(uuid, uuid, boolean, text)';
+  execute 'drop function public.zell_erp_access_users()';
+  execute 'drop function public.zell_erp_access_parity()';
+  execute 'drop function public.zell_erp_require_actor()';
+  execute 'drop function public.zell_erp_trusted_actor()';
   execute 'reset role';
   execute 'revoke create on schema public from zell_erp_definer';
 
@@ -130,7 +140,9 @@ begin
     from pg_catalog.pg_proc p
    where p.pronamespace = 'public'::regnamespace
      and (p.proname like 'erp\_%' or p.proname like 'zell\_erp\_%')
-     and pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE');
+     and (pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE')
+          or pg_catalog.has_function_privilege('authenticated', p.oid, 'EXECUTE')
+          or pg_catalog.has_function_privilege('anon', p.oid, 'EXECUTE'));
   if v_list is not null then
     raise exception 'ZELL_0021P_ROLLBACK_EXECUTE_LEFT %', v_list;
   end if;
