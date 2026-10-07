@@ -22,9 +22,19 @@ import {
   type InventoryFailure,
   type InventoryResult,
 } from './inventory/errors'
+import type { PurchaseDocPayload } from './inventory/purchaseForm'
+import type { PurchasePreview, PurchaseWriteResult } from './inventory/purchases'
 import type { SupplierInput, SupplierUpdateInput, SupplierWriteResult } from './inventory/suppliers'
 import { guardMutations } from './mutations'
 import { createSupplier, updateSupplier } from './mutations/inventory'
+import {
+  createPurchase,
+  discardPurchase,
+  postPurchase,
+  previewPurchase,
+  updatePurchase,
+  voidPurchase,
+} from './mutations/inventoryPurchases'
 
 async function ownerWriter(): Promise<{ ok: true; actor: string } | InventoryFailure> {
   const auth = await requireAdminAction()
@@ -34,6 +44,19 @@ async function ownerWriter(): Promise<{ ok: true; actor: string } | InventoryFai
   }
   const disabled = guardMutations()
   if (disabled !== null && !disabled.ok) return rejectedFailure(disabled)
+  return { ok: true, actor: auth.identity.userId }
+}
+
+/**
+ * قراءة تفاعلية (المعاينة): نفس الحراس من غير guardMutations — المعاينة مابتكتبش حاجة،
+ * ولازم تفضل شغالة حتى لو التعديلات موقوفة.
+ */
+async function ownerReader(): Promise<{ ok: true; actor: string } | InventoryFailure> {
+  const auth = await requireAdminAction()
+  if (!auth.ok) return rejectedFailure(auth)
+  if (ownerGate(auth.identity.role) !== null) {
+    return rejectedFailure({ code: 'FORBIDDEN', message: INVENTORY_OWNER_ONLY_MESSAGE })
+  }
   return { ok: true, actor: auth.identity.userId }
 }
 
@@ -55,4 +78,64 @@ export async function updateSupplierAction(
   const gate = await ownerWriter()
   if (!gate.ok) return gate
   return updateSupplier(gate.actor, commandId, supplierId, expectedVersion, input)
+}
+
+// ── فواتير الشراء (PR-B) ────────────────────────────────────────
+
+export async function previewPurchaseAction(doc: PurchaseDocPayload): Promise<InventoryResult<PurchasePreview>> {
+  const gate = await ownerReader()
+  if (!gate.ok) return gate
+  return previewPurchase(gate.actor, doc)
+}
+
+export async function createPurchaseAction(
+  commandId: string,
+  doc: PurchaseDocPayload,
+): Promise<InventoryResult<PurchaseWriteResult>> {
+  const gate = await ownerWriter()
+  if (!gate.ok) return gate
+  return createPurchase(gate.actor, commandId, doc)
+}
+
+export async function updatePurchaseAction(
+  commandId: string,
+  docId: number,
+  expectedVersion: number,
+  doc: PurchaseDocPayload,
+): Promise<InventoryResult<PurchaseWriteResult>> {
+  const gate = await ownerWriter()
+  if (!gate.ok) return gate
+  return updatePurchase(gate.actor, commandId, docId, expectedVersion, doc)
+}
+
+export async function postPurchaseAction(
+  commandId: string,
+  docId: number,
+  expectedVersion: number,
+): Promise<InventoryResult<PurchaseWriteResult>> {
+  const gate = await ownerWriter()
+  if (!gate.ok) return gate
+  return postPurchase(gate.actor, commandId, docId, expectedVersion)
+}
+
+export async function discardPurchaseAction(
+  commandId: string,
+  docId: number,
+  expectedVersion: number,
+  reason: string,
+): Promise<InventoryResult<PurchaseWriteResult>> {
+  const gate = await ownerWriter()
+  if (!gate.ok) return gate
+  return discardPurchase(gate.actor, commandId, docId, expectedVersion, reason)
+}
+
+export async function voidPurchaseAction(
+  commandId: string,
+  docId: number,
+  expectedVersion: number,
+  reason: string,
+): Promise<InventoryResult<PurchaseWriteResult>> {
+  const gate = await ownerWriter()
+  if (!gate.ok) return gate
+  return voidPurchase(gate.actor, commandId, docId, expectedVersion, reason)
 }

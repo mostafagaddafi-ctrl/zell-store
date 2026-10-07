@@ -23,7 +23,10 @@ import ts from 'typescript'
 
 const appRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-const SUITES = [{ name: 'inventory', dir: 'lib/inventory', entry: 'inventory.cases.ts', run: 'runInventoryCases' }]
+const SUITES = [
+  { name: 'inventory', dir: 'lib/inventory', entry: 'inventory.cases.ts', run: 'runInventoryCases' },
+  { name: 'purchases', dir: 'lib/inventory', entry: 'purchase.cases.ts', run: 'runPurchaseCases' },
+]
 
 const COMPILER_OPTIONS = {
   module: ts.ModuleKind.CommonJS,

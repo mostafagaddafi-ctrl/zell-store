@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { createSupplierAction, updateSupplierAction } from '../../lib/inventoryActions'
 import {
   abandonIntent,
@@ -30,6 +30,7 @@ import { Button } from '../ui/Button'
 import { Card, Field, inputClasses, textareaClasses } from '../ui/Field'
 import { FailureBanner } from '../ui/FailureBanner'
 import { UnresolvedNotice } from './UnresolvedNotice'
+import { UnsavedChangesGuard } from './UnsavedChangesGuard'
 
 const CLOSE_DIRTY_CONFIRM = 'في تعديلات مش محفوظة. تقفل النموذج من غير حفظ؟'
 
@@ -38,7 +39,7 @@ const CLOSE_DIRTY_CONFIRM = 'في تعديلات مش محفوظة. تقفل ا�
  *   • المفتاح بيتعمل بعد نجاح التحقق المحلي بس، والبيانات بتتجمّد معاه.
  *   • النتيجة غير المحسومة بتقفل الحقول: إعادة بنفس المفتاح، أو ترك المحاولة ومراجعة الحالة
  *     (النموذج بيتقفل والقايمة بتتقرا من جديد — مفيش فتح للبيانات قبل المصالحة).
- *   • تحذير قفل التاب/التحديث وقت وجود تعديلات أو نتيجة غير محسومة (listener واحد للنموذج المفتوح).
+ *   • حماية المغادرة (قفل التاب، روابط داخلية، Back) من المكوّن المشترك UnsavedChangesGuard.
  * التحقق هنا للراحة — السيرفر بيعيده كامل، والداتابيز هي الحكم الأخير.
  */
 export function SupplierForm({
@@ -66,16 +67,6 @@ export function SupplierForm({
 
   const editable = mutationsOn && canEditPayload(intent)
   const risky = isLeaveRisky(intent)
-
-  useEffect(() => {
-    if (!dirty && !risky) return
-    const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault()
-      event.returnValue = ''
-    }
-    window.addEventListener('beforeunload', onBeforeUnload)
-    return () => window.removeEventListener('beforeunload', onBeforeUnload)
-  }, [dirty, risky])
 
   function set(patch: Partial<SupplierFormState>) {
     if (!canEditPayload(intentRef.current)) return
@@ -169,6 +160,7 @@ export function SupplierForm({
         </Button>
       }
     >
+      <UnsavedChangesGuard active={dirty || risky} />
       <form
         className="space-y-4"
         noValidate
