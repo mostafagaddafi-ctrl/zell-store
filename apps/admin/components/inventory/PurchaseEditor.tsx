@@ -30,6 +30,7 @@ import type {
   PurchaseWriteResult,
 } from '../../lib/inventory/purchases'
 import type { InventorySupplier } from '../../lib/inventory/suppliers'
+import { canConfirm, createWriteLock, type WriteLock } from '../../lib/inventory/writeLock'
 import { useMutationsEnabled } from '../../lib/readiness'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
@@ -54,6 +55,10 @@ const PREVIEW_FAILED = 'المعاينة فشلت. جرّب تاني.'
  *
  * كل عملية نية مستقلة بمفتاح مستقل (useInventoryIntent): حفظ · ترحيل · استبعاد. ونية واحدة بس
  * مفتوحة في نفس الوقت — أي نية مش في editing (أو مصالحة جارية) بتقفل الحقول وباقي الأزرار.
+ *
+ * 🔒 القفل الفوري: الـ3 hooks بياخدوا نفس WriteLock (ref على مستوى المستند)، وbegin بيحجزه بشكل
+ *    متزامن — فضغطتين في نفس الـtick مابيبدأوش غير عملية واحدة. وكل تأكيد (ترحيل/استبعاد) بيعيد فحص
+ *    القيم الحالية (gateRef + القفل) وقت الضغط نفسه، مش من closure قديم.
  * الترحيل بيترحّل **المسودة المحفوظة** بنسختها، فلازم مفيش تعديلات مش محفوظة.
  * المعاينة قراءة بس (previewPurchaseAction) ومابتحتاجش مفتاح.
  */
@@ -94,6 +99,9 @@ export function PurchaseEditor({
   const [confirmPost, setConfirmPost] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
   const [reconciling, startReconcile] = useTransition()
+  const lockRef = useRef<WriteLock | null>(null)
+  if (lockRef.current === null) lockRef.current = createWriteLock()
+  const lock = lockRef.current
 
   function reconcile() {
     setDirty(false)
@@ -125,6 +133,7 @@ export function PurchaseEditor({
         startReconcile(() => router.refresh())
       },
     },
+    { lock, owner: 'save' },
   )
 
   const post = useInventoryIntent<DocRef, PurchaseWriteResult>(
@@ -136,6 +145,7 @@ export function PurchaseEditor({
       },
       onAbandon: reconcile,
     },
+    { lock, owner: 'post' },
   )
 
   const discard = useInventoryIntent<DiscardPayload, PurchaseWriteResult>(
@@ -147,6 +157,7 @@ export function PurchaseEditor({
       },
       onAbandon: reconcile,
     },
+    { lock, owner: 'discard' },
   )
 
   // بعد ما المصالحة (router.refresh) تخلص: النيات المتروكة أو الناجحة ترجع للتعديل
@@ -158,10 +169,7 @@ export function PurchaseEditor({
     }
     if (!wasReconciling.current) return
     wasReconciling.current = false
-    for (const intent of [save, post, discard]) {
-      intent.reopen()
-      intent.resetAfterSuccess()
-    }
+    for (const intent of [save, post, discard]) intent.afterReconcile()
   }, [reconciling])
 
   const intents = [save, post, discard]
@@ -229,6 +237,24 @@ export function PurchaseEditor({
       : savedIssues.length > 0
         ? savedIssues.join(' ')
         : null
+
+  // القيم الحالية لبوابة التأكيد — بتتحدث كل render وبتتقرا وقت الضغط نفسه
+  const gateRef = useRef({ mutationsOn, reconciling, postBlocked })
+  gateRef.current = { mutationsOn, reconciling, postBlocked }
+
+  function confirmPostNow(ref: DocRef) {
+    setConfirmPost(false)
+    const gate = gateRef.current
+    if (!canConfirm({ mutationsOn: gate.mutationsOn, reconciling: gate.reconciling, lockHolder: lock.holder(), blockedReason: gate.postBlocked })) return
+    post.begin(ref)
+  }
+
+  function confirmDiscardNow(payload: DiscardPayload) {
+    setDiscardOpen(false)
+    const gate = gateRef.current
+    if (!canConfirm({ mutationsOn: gate.mutationsOn, reconciling: gate.reconciling, lockHolder: lock.holder(), blockedReason: null })) return
+    discard.begin(payload)
+  }
 
   const saveFailure = save.intent.phase === 'editing' ? save.intent.failure : null
   const postFailure = post.intent.phase === 'editing' ? post.intent.failure : null
@@ -432,11 +458,9 @@ export function PurchaseEditor({
             title={'ترحيل ' + draft.header.docNo + '؟'}
             message="بعد الترحيل الفاتورة بتتقفل، وبتتعمل دفعة لكل لفّة ولكل بند قطع بالتكلفة النهائية. مفيش تعديل بعد كده — الإبطال بس، وبسبب."
             confirmLabel={DOC_ACTION_LABELS.post}
+            busy={locked}
             onCancel={() => setConfirmPost(false)}
-            onConfirm={() => {
-              setConfirmPost(false)
-              post.begin({ docId: draft.header.docId, version: draft.header.version })
-            }}
+            onConfirm={() => confirmPostNow({ docId: draft.header.docId, version: draft.header.version })}
           />
           <ReasonDialog
             open={discardOpen}
@@ -444,11 +468,9 @@ export function PurchaseEditor({
             title={DOC_ACTION_LABELS.discard}
             message="المسودة هتفضل ظاهرة في القايمة بحالة «مستبعَد (مسودة)»، ومش هتتعدل ولا تترحّل بعد كده."
             confirmLabel={DOC_ACTION_LABELS.discard}
+            busy={locked}
             onCancel={() => setDiscardOpen(false)}
-            onConfirm={(reason) => {
-              setDiscardOpen(false)
-              discard.begin({ docId: draft.header.docId, version: draft.header.version, reason })
-            }}
+            onConfirm={(reason) => confirmDiscardNow({ docId: draft.header.docId, version: draft.header.version, reason })}
           />
         </>
       ) : null}
