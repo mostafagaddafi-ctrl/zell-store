@@ -15,8 +15,9 @@ import {
   type OpeningDocPayload,
   type OpeningFormState,
 } from './openingForm'
-import { isOpeningPreview, isOpeningWriteResult, isOpeningsPage, parseOpeningDetail } from './openings'
+import { isOpeningPreview, isOpeningsPage, parseOpeningDetail } from './openings'
 import { newBatchLine, newRollLine } from './purchaseForm'
+import { isDocWriteResult, writeResultGuard } from './writeResults'
 
 export type OpeningCaseFailure = { name: string; expected: string; actual: string }
 export type OpeningCasesReport = { passed: number; failures: OpeningCaseFailure[] }
@@ -219,7 +220,6 @@ export function runOpeningCases(): OpeningCasesReport {
     lots: [{ lineNo: 1, lotSequence: 1, baseCostPiastres: 10, allocatedExtrasPiastres: 0, allocatedDiscountPiastres: 0, landedCostPiastres: 10 }],
   }), true)
   check('G4 preview bad', isOpeningPreview({ totals: { itemsTotalPiastres: 10 }, lots: [] }), false)
-  check('G5 write result', isOpeningWriteResult({ docId: 5, docNo: 'OPN-000005', status: 'posted', version: 2, totals: {}, lots: [] }), true)
 
   // ── L. صفحة الدفعات ────────────────────────────────────────
   check('L1 purchase lot ok', isInventoryLot(LIST_LOT), true)
@@ -237,6 +237,58 @@ export function runOpeningCases(): OpeningCasesReport {
   check('L13 status param default active', [parseLotStatusParam(undefined), parseLotStatusParam('voided'), parseLotStatusParam('x')], ['active', 'voided', 'active'])
   check('L14 product ids unique and sorted', productIdsOf([{ ...LIST_LOT, productId: 5 }, LIST_LOT, { ...LIST_LOT, productId: 5 }]), [1, 5])
   check('L15 name fallbacks', [productLabel(new Map(), 4), locationLabel(new Map([[1, 'الرئيسي']]), 1), locationLabel(new Map(), 9)], ['منتج #4', 'الرئيسي', 'مخزن #9'])
+
+  // ── R. حراس نتائج الكتابة لكل مستند وعملية (ملاحظة المراجعة على PR #97) ──
+  {
+    const pTotals = { itemsSubtotalPiastres: 200000, extrasTotalPiastres: 5000, supplierDiscountPiastres: 1000, totalCostPiastres: 204000 }
+    const oTotals = { itemsTotalPiastres: 200000, estimatedTotalPiastres: 200000 }
+    const pBase = { docId: 9, docNo: 'PUR-000009', version: 1 }
+    const oBase = { docId: 5, docNo: 'OPN-000005', version: 1 }
+    const pLots = [
+      { lotId: 1, lotCode: 'R-000001', lineNo: 1, lotSequence: 1, landedCostPiastres: 104000 },
+      { lotId: 2, lotCode: 'B-000001', lineNo: 2, lotSequence: 1, landedCostPiastres: 100000 },
+    ]
+    const oLots = [
+      { lotId: 3, lotCode: 'R-000010', lineNo: 1, lotSequence: 1, landedCostPiastres: 104348, costIsEstimated: true },
+      { lotId: 4, lotCode: 'R-000011', lineNo: 1, lotSequence: 2, landedCostPiastres: 95652, costIsEstimated: true },
+    ]
+    check('R1 purchase create ok', isDocWriteResult('purchase', 'create', { ...pBase, status: 'draft', totals: pTotals }), true)
+    check('R2 purchase create with OPN number rejected', isDocWriteResult('purchase', 'create', { ...pBase, docNo: 'OPN-000009', status: 'draft', totals: pTotals }), false)
+    check('R3 purchase create with posted status rejected', isDocWriteResult('purchase', 'create', { ...pBase, status: 'posted', totals: pTotals }), false)
+    check('R4 purchase create without totals rejected', isDocWriteResult('purchase', 'create', { ...pBase, status: 'draft' }), false)
+    check('R5 purchase totals equation broken', isDocWriteResult('purchase', 'update', { ...pBase, status: 'draft', totals: { ...pTotals, totalCostPiastres: 1 } }), false)
+    check('R6 purchase update with opening totals rejected', isDocWriteResult('purchase', 'update', { ...pBase, status: 'draft', totals: oTotals }), false)
+    check('R7 purchase post ok', isDocWriteResult('purchase', 'post', { ...pBase, version: 2, status: 'posted', totals: pTotals, lots: pLots }), true)
+    check('R8 purchase post without lots rejected', isDocWriteResult('purchase', 'post', { ...pBase, status: 'posted', totals: pTotals }), false)
+    check('R9 purchase post with empty lots rejected', isDocWriteResult('purchase', 'post', { ...pBase, status: 'posted', totals: pTotals, lots: [] }), false)
+    check('R10 purchase post lots sum differs from total', isDocWriteResult('purchase', 'post', { ...pBase, status: 'posted', totals: pTotals, lots: pLots.slice(0, 1) }), false)
+    check('R11 purchase post with draft status rejected', isDocWriteResult('purchase', 'post', { ...pBase, status: 'draft', totals: pTotals, lots: pLots }), false)
+    check('R12 purchase post duplicate lot id rejected', isDocWriteResult('purchase', 'post', { ...pBase, status: 'posted', totals: pTotals, lots: [pLots[0], { ...pLots[1], lotId: 1 }] }), false)
+    check('R13 purchase post bad lot code rejected', isDocWriteResult('purchase', 'post', { ...pBase, status: 'posted', totals: pTotals, lots: [{ ...pLots[0], lotCode: 'X-1' }, pLots[1]] }), false)
+    check('R14 purchase discard ok', isDocWriteResult('purchase', 'discard', { ...pBase, status: 'discarded' }), true)
+    check('R15 purchase discard with voided status rejected', isDocWriteResult('purchase', 'discard', { ...pBase, status: 'voided' }), false)
+    check('R16 purchase discard with extra totals rejected', isDocWriteResult('purchase', 'discard', { ...pBase, status: 'discarded', totals: pTotals }), false)
+    check('R17 purchase void ok', isDocWriteResult('purchase', 'void', { ...pBase, version: 3, status: 'voided', voidedLots: 2 }), true)
+    check('R18 purchase void voidedLots 0 rejected', isDocWriteResult('purchase', 'void', { ...pBase, status: 'voided', voidedLots: 0 }), false)
+    check('R19 purchase void voidedLots as text rejected', isDocWriteResult('purchase', 'void', { ...pBase, status: 'voided', voidedLots: '2' }), false)
+    check('R20 purchase void without voidedLots rejected', isDocWriteResult('purchase', 'void', { ...pBase, status: 'voided' }), false)
+    check('R21 purchase void with posted status rejected', isDocWriteResult('purchase', 'void', { ...pBase, status: 'posted', voidedLots: 2 }), false)
+    check('R22 replayed true accepted', isDocWriteResult('purchase', 'discard', { ...pBase, status: 'discarded', replayed: true }), true)
+    check('R23 replayed non-boolean rejected', isDocWriteResult('purchase', 'discard', { ...pBase, status: 'discarded', replayed: 'yes' }), false)
+    check('R24 opening create ok', isDocWriteResult('opening', 'create', { ...oBase, status: 'draft', totals: oTotals }), true)
+    check('R25 opening create with PUR number rejected', isDocWriteResult('opening', 'create', { ...oBase, docNo: 'PUR-000001', status: 'draft', totals: oTotals }), false)
+    check('R26 opening update with discarded status rejected', isDocWriteResult('opening', 'update', { ...oBase, status: 'discarded', totals: oTotals }), false)
+    check('R27 opening estimated above items rejected', isDocWriteResult('opening', 'create', { ...oBase, status: 'draft', totals: { itemsTotalPiastres: 1, estimatedTotalPiastres: 2 } }), false)
+    check('R28 opening create with purchase totals rejected', isDocWriteResult('opening', 'create', { ...oBase, status: 'draft', totals: pTotals }), false)
+    check('R29 opening post ok', isDocWriteResult('opening', 'post', { ...oBase, version: 2, status: 'posted', totals: oTotals, lots: oLots }), true)
+    check('R30 opening post lot without costIsEstimated rejected', isDocWriteResult('opening', 'post', { ...oBase, status: 'posted', totals: oTotals, lots: [{ ...pLots[0], landedCostPiastres: 200000 }] }), false)
+    check('R31 opening post lots sum differs from items total', isDocWriteResult('opening', 'post', { ...oBase, status: 'posted', totals: oTotals, lots: oLots.slice(0, 1) }), false)
+    check('R32 opening discard ok', isDocWriteResult('opening', 'discard', { ...oBase, status: 'discarded' }), true)
+    check('R33 opening void ok', isDocWriteResult('opening', 'void', { ...oBase, status: 'voided', voidedLots: 2 }), true)
+    check('R34 opening void negative voidedLots rejected', isDocWriteResult('opening', 'void', { ...oBase, status: 'voided', voidedLots: -1 }), false)
+    check('R35 guard factory matches', [writeResultGuard('opening', 'discard')({ ...oBase, status: 'discarded' }), writeResultGuard('purchase', 'discard')({ ...oBase, status: 'discarded' })], [true, false])
+    check('R36 not an object', isDocWriteResult('purchase', 'create', null), false)
+  }
 
   // ── W. نصوص ────────────────────────────────────────────────
   {
