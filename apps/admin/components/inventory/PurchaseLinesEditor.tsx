@@ -1,27 +1,25 @@
 'use client'
 
-import type { ReactNode } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, type ReactNode } from 'react'
+import { Plus } from 'lucide-react'
+import { useLineCards } from '../../lib/client/useLineCards'
 import type { CatalogProduct } from '../../lib/inventory/catalog'
-import { formatMetersAndCm, parseMeters, parsePounds } from '../../lib/inventory/money'
-import {
-  PURCHASE_LIMITS,
-  newBatchLine,
-  newRollLine,
-  type BatchLineForm,
-  type LineForm,
-  type RollLineForm,
-} from '../../lib/inventory/purchaseForm'
+import { lineIssues, type LineDocKind } from '../../lib/inventory/lineIssues'
+import type { LineEstimate } from '../../lib/inventory/openingForm'
+import type { LineCosts } from '../../lib/inventory/pricing'
+import { PURCHASE_LIMITS, newBatchLine, newRollLine, type LineForm } from '../../lib/inventory/purchaseForm'
 import { Button } from '../ui/Button'
-import { Field, inputClasses } from '../ui/Field'
+import { InventoryLineCard } from './InventoryLineCard'
 
 /**
- * بنود الفاتورة:
- *   • لفّات (منتجات المتر بس): عرض من العروض المسموحة (الأساسي ∪ الفعالة) + لفّة لكل رول بطولها بالمتر.
- *   • قطع (منتجات العدد بس): كمية.
- * الطول بيتكتب بالمتر ويتعرض جنبه بالسنتيمتر. التحقق النهائي في build*Payload والسيرفر.
- * مشترك بين الشراء ورصيد أول المدة؛ renderLineExtra (اختياري) بيضيف حقول زيادة تحت كل بند
- * (رصيد أول المدة: التكلفة تقديرية + ملاحظة التقدير).
+ * بنود المستند ككروت بتتفتح وتتقفل (مشترك بين الشراء ورصيد أول المدة):
+ *   • لفّات (منتجات المتر بس) أو قطع (منتجات العدد بس)، واختيار المنتج بالبحث (ProductPicker).
+ *   • البند الجديد بيتفتح لوحده.
+ *   • revealNonce (بيزيد مع كل حفظ/معاينة فشلت): كل البنود اللي فيها مشكلة بتتفتح، وأول خانة غلط في
+ *     أول بند بتاخد focus. المشاكل بتظهر بعد أول محاولة بس (showIssues) عشان البند الفاضي مايبانش غلط.
+ *   • «قفل الكل» مابيقفلش بند فيه مشكلة ظاهرة.
+ *   • costs (من المعاينة) بالترتيب: البند رقم i+1.
+ * التحقق النهائي في build*Payload والسيرفر.
  */
 export function PurchaseLinesEditor({
   lines,
@@ -29,6 +27,12 @@ export function PurchaseLinesEditor({
   catalog,
   disabled,
   newKey,
+  kind,
+  totalLabel,
+  showIssues,
+  revealNonce,
+  costs,
+  estimates,
   renderLineExtra,
 }: {
   lines: LineForm[]
@@ -36,240 +40,86 @@ export function PurchaseLinesEditor({
   catalog: CatalogProduct[]
   disabled: boolean
   newKey: () => string
+  kind: LineDocKind
+  totalLabel: string
+  showIssues: boolean
+  revealNonce: number
+  costs: ReadonlyMap<number, LineCosts> | null
+  estimates?: Readonly<Record<string, LineEstimate>>
   renderLineExtra?: (line: LineForm, index: number) => ReactNode
 }) {
-  const meterProducts = catalog.filter((product) => product.saleUnit === 'meter')
-  const pieceProducts = catalog.filter((product) => product.saleUnit === 'piece')
-  const byId = new Map(catalog.map((product) => [product.id, product]))
+  const catalogMap = useMemo(() => new Map(catalog.map((product) => [product.id, product])), [catalog])
+  const cards = useLineCards(lines.length <= 3 ? lines.map((line) => line.key) : [])
+  const issues = useMemo(() => lineIssues(lines, catalogMap, kind, estimates), [lines, catalogMap, kind, estimates])
   const full = lines.length >= PURCHASE_LIMITS.lines
+  const hasMeter = catalog.some((product) => product.saleUnit === 'meter')
+  const hasPiece = catalog.some((product) => product.saleUnit === 'piece')
 
-  function replace(index: number, line: LineForm) {
-    onChange(lines.map((current, i) => (i === index ? line : current)))
-  }
+  useEffect(() => {
+    if (revealNonce === 0 || issues.size === 0) return
+    cards.openKeys(issues.keys())
+    const first = lines.find((line) => issues.has(line.key))
+    const field = first ? issues.get(first.key)?.field : undefined
+    if (!first || !field) return
+    const timer = setTimeout(() => {
+      const target = document.querySelector<HTMLElement>('[data-line-key="' + first.key + '"] [data-field="' + field + '"]')
+      if (target) {
+        target.focus()
+        target.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      }
+    }, 60)
+    return () => clearTimeout(timer)
+    // revealNonce بس هو المُحفّز — المشاكل بتتقرا من آخر render
+  }, [revealNonce])
 
-  function remove(index: number) {
-    onChange(lines.filter((_line, i) => i !== index))
-  }
-
-  function productLabel(product: CatalogProduct): string {
-    return product.nameAr + (product.isActive ? '' : ' (موقوف)')
-  }
-
-  function renderTotal(line: LineForm, index: number) {
-    const total = parsePounds(line.total, { name: '', allowZero: true, required: true })
-    const zero = total.ok && total.value === 0
-    return (
-      <>
-        <Field htmlFor={'line-total-' + line.key} label="إجمالي البند (جنيه)" hint="رقم بالإنجليزي وبحد أقصى قرشين">
-          <input
-            id={'line-total-' + line.key}
-            dir="ltr"
-            inputMode="decimal"
-            value={line.total}
-            disabled={disabled}
-            onChange={(event) => replace(index, { ...line, total: event.target.value })}
-            className={inputClasses}
-          />
-        </Field>
-        {zero ? (
-          <Field htmlFor={'line-zero-' + line.key} label="سبب التكلفة الصفر" hint="إجباري للبند اللي تكلفته صفر · من 3 لـ 200 حرف">
-            <input
-              id={'line-zero-' + line.key}
-              value={line.zeroCostReason}
-              maxLength={PURCHASE_LIMITS.zeroReasonMax + 20}
-              disabled={disabled}
-              onChange={(event) => replace(index, { ...line, zeroCostReason: event.target.value })}
-              className={inputClasses}
-            />
-          </Field>
-        ) : null}
-      </>
-    )
-  }
-
-  function renderRoll(line: RollLineForm, index: number) {
-    const product = byId.get(Number(line.productId))
-    const widths = product && product.saleUnit === 'meter' ? product.allowedWidthsCm : []
-    let totalCm = 0
-    let allValid = line.rolls.length > 0
-    for (const roll of line.rolls) {
-      const parsed = parseMeters(roll.meters, '')
-      if (parsed.ok) totalCm += parsed.value
-      else allValid = false
-    }
-
-    return (
-      <>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field htmlFor={'line-product-' + line.key} label="المنتج (بالمتر)">
-            <select
-              id={'line-product-' + line.key}
-              value={line.productId}
-              disabled={disabled}
-              onChange={(event) => {
-                const next = byId.get(Number(event.target.value))
-                const only = next && next.allowedWidthsCm.length === 1 ? String(next.allowedWidthsCm[0]) : ''
-                replace(index, { ...line, productId: event.target.value, widthCm: only })
-              }}
-              className={inputClasses}
-            >
-              <option value="">اختار منتج</option>
-              {meterProducts.map((option) => (
-                <option key={option.id} value={String(option.id)}>
-                  {productLabel(option)}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field htmlFor={'line-width-' + line.key} label="العرض (سم)" hint="العرض الأساسي أو عرض إضافي فعّال">
-            <select
-              id={'line-width-' + line.key}
-              value={line.widthCm}
-              disabled={disabled || widths.length === 0}
-              onChange={(event) => replace(index, { ...line, widthCm: event.target.value })}
-              className={inputClasses}
-            >
-              <option value="">اختار العرض</option>
-              {widths.map((width) => (
-                <option key={width} value={String(width)}>
-                  {width} سم
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-fg">اللفّات (كل رول بطوله بالمتر)</p>
-          {line.rolls.map((roll, rollIndex) => {
-            const parsed = parseMeters(roll.meters, '')
-            return (
-              <div key={roll.key} className="flex flex-wrap items-center gap-2">
-                <span className="w-14 text-xs text-muted">لفّة {rollIndex + 1}</span>
-                <input
-                  aria-label={'طول لفّة ' + String(rollIndex + 1) + ' بالمتر'}
-                  dir="ltr"
-                  inputMode="decimal"
-                  value={roll.meters}
-                  disabled={disabled}
-                  onChange={(event) =>
-                    replace(index, {
-                      ...line,
-                      rolls: line.rolls.map((current, i) => (i === rollIndex ? { ...current, meters: event.target.value } : current)),
-                    })
-                  }
-                  className={inputClasses + ' w-32'}
-                />
-                <span className="text-xs text-muted">
-                  {roll.meters.trim() === '' ? 'متر' : parsed.ok ? formatMetersAndCm(parsed.value) : parsed.message}
-                </span>
-                {line.rolls.length > 1 ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={'شيل لفّة ' + String(rollIndex + 1)}
-                    disabled={disabled}
-                    onClick={() => replace(index, { ...line, rolls: line.rolls.filter((_r, i) => i !== rollIndex) })}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                ) : null}
-              </div>
-            )
-          })}
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={disabled || line.rolls.length >= PURCHASE_LIMITS.rollsPerLine}
-              onClick={() => replace(index, { ...line, rolls: [...line.rolls, { key: newKey(), meters: '' }] })}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              لفّة
-            </Button>
-            <span className="text-xs text-muted">
-              {line.rolls.length} لفّة{allValid ? ' · الإجمالي ' + formatMetersAndCm(totalCm) : ''}
-            </span>
-          </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">{renderTotal(line, index)}</div>
-      </>
-    )
-  }
-
-  function renderBatch(line: BatchLineForm, index: number) {
-    return (
-      <>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field htmlFor={'line-product-' + line.key} label="المنتج (بالعدد)">
-            <select
-              id={'line-product-' + line.key}
-              value={line.productId}
-              disabled={disabled}
-              onChange={(event) => replace(index, { ...line, productId: event.target.value })}
-              className={inputClasses}
-            >
-              <option value="">اختار منتج</option>
-              {pieceProducts.map((option) => (
-                <option key={option.id} value={String(option.id)}>
-                  {productLabel(option)}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field htmlFor={'line-qty-' + line.key} label="الكمية" hint="عدد صحيح">
-            <input
-              id={'line-qty-' + line.key}
-              dir="ltr"
-              inputMode="numeric"
-              value={line.quantity}
-              disabled={disabled}
-              onChange={(event) => replace(index, { ...line, quantity: event.target.value })}
-              className={inputClasses}
-            />
-          </Field>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">{renderTotal(line, index)}</div>
-      </>
-    )
+  function add(kindOfLine: 'roll' | 'batch') {
+    const key = newKey()
+    onChange([...lines, kindOfLine === 'roll' ? newRollLine(key, newKey()) : newBatchLine(key)])
+    cards.openKeys([key])
   }
 
   return (
     <div className="space-y-3">
-      {lines.length === 0 ? <p className="text-xs text-muted">مفيش بنود لسه. ضيف بند لفّات أو بند قطع.</p> : null}
+      {lines.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <Button variant="ghost" size="sm" onClick={() => cards.openKeys(lines.map((line) => line.key))}>
+            فتح الكل
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => cards.closeAll(showIssues ? issues.keys() : [])}>
+            قفل الكل
+          </Button>
+        </div>
+      ) : (
+        <p className="text-xs text-muted">مفيش بنود لسه. ضيف بند لفّات أو بند قطع.</p>
+      )}
 
       {lines.map((line, index) => (
-        <div key={line.key} className="space-y-3 rounded-lg border border-border p-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-bold text-fg">
-              بند {index + 1} · {line.kind === 'roll' ? 'لفّات (بالمتر)' : 'قطع (بالعدد)'}
-            </p>
-            <Button variant="ghost" size="sm" aria-label={'شيل بند ' + String(index + 1)} disabled={disabled} onClick={() => remove(index)}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-          {line.kind === 'roll' ? renderRoll(line, index) : renderBatch(line, index)}
-          {renderLineExtra ? renderLineExtra(line, index) : null}
-        </div>
+        <InventoryLineCard
+          key={line.key}
+          line={line}
+          index={index}
+          kind={kind}
+          products={catalog}
+          catalog={catalogMap}
+          open={cards.isOpen(line.key)}
+          onToggle={() => cards.toggle(line.key)}
+          onChange={(next) => onChange(lines.map((current, i) => (i === index ? next : current)))}
+          onRemove={() => onChange(lines.filter((_line, i) => i !== index))}
+          disabled={disabled}
+          issue={showIssues ? (issues.get(line.key) ?? null) : null}
+          costs={costs ? (costs.get(index + 1) ?? null) : null}
+          totalLabel={totalLabel}
+          extra={renderLineExtra ? renderLineExtra(line, index) : undefined}
+          newKey={newKey}
+        />
       ))}
 
       <div className="flex flex-wrap gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={disabled || full || meterProducts.length === 0}
-          onClick={() => onChange([...lines, newRollLine(newKey(), newKey())])}
-        >
+        <Button variant="secondary" size="sm" disabled={disabled || full || !hasMeter} onClick={() => add('roll')}>
           <Plus className="h-3.5 w-3.5" />
           بند لفّات (متر)
         </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={disabled || full || pieceProducts.length === 0}
-          onClick={() => onChange([...lines, newBatchLine(newKey())])}
-        >
+        <Button variant="secondary" size="sm" disabled={disabled || full || !hasPiece} onClick={() => add('batch')}>
           <Plus className="h-3.5 w-3.5" />
           بند قطع (عدد)
         </Button>
