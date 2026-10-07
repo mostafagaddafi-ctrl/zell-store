@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useMemo, useState, type KeyboardEvent } from 'react'
+import { useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import type { CatalogProduct, SaleUnit } from '../../lib/inventory/catalog'
 import { filterProducts, productOptionLabel } from '../../lib/inventory/productSearch'
 import { cn } from '../../lib/cn'
@@ -11,7 +11,11 @@ import { inputClasses } from '../ui/Field'
  *   • input بـ role="combobox" و aria-expanded و aria-controls و aria-autocomplete="list"
  *     و aria-activedescendant للخيار النشط.
  *   • الأسهم بتتنقل، Enter بيختار، Escape بيقفل ويرجّع النص، Tab/blur بيقفل.
- *   • الضغط على خيار بالماوس/اللمس بيختاره قبل الـblur (onMouseDown + preventDefault).
+ *   • الماوس واللمس والقلم (PR-D · مراجعة 3): الاختيار بـ click بس (مرة واحدة لكل ضغطة، وسحب
+ *     القايمة للـscroll بيعمل pointercancel فمابيختارش). pointerdown جوه القايمة بيعمل preventDefault
+ *     (الفوكس يفضل في الـinput) وبيعلّم pressRef، فالـblur اللي ممكن ييجي قبل الـclick على الموبايل
+ *     مابيقفلش القايمة. بعد الـclick أو الـcancel العلامة بتتشال، ولو الفوكس كان خرج القايمة بتتقفل.
+ *   • منع التكرار: openRef بيتقفل قبل onChange، فأي click/Enter تاني لنفس الفتحة مابيختارش تاني.
  *   • القايمة متفلترة بوحدة البيع حسب نوع البند، والبحث بالعربي متسامح (normalizeArabicSearch).
  *   • الموقوف بيظهر بـ «(موقوف)».
  */
@@ -41,22 +45,42 @@ export function ProductPicker({
   const options = useMemo(() => filterProducts(products, unit, query), [products, unit, query])
   const selected = products.find((product) => String(product.id) === value)
   const optionId = (index: number) => listId + '-option-' + String(index)
+  const inputRef = useRef<HTMLInputElement>(null)
+  /** الحالة الفعلية للفتح (متزامنة) — الـstate بيتأخر لحد الـrender الجاي. */
+  const openRef = useRef(false)
+  /** ضغطة (ماوس/لمس/قلم) بدأت جوه القايمة ولسه ماخلصتش. */
+  const pressRef = useRef(false)
+
+  function show() {
+    openRef.current = true
+    setOpen(true)
+  }
 
   function close() {
+    openRef.current = false
+    pressRef.current = false
     setOpen(false)
     setQuery('')
     setActive(0)
   }
 
   function choose(product: CatalogProduct) {
+    if (!openRef.current) return
+    openRef.current = false
     onChange(String(product.id))
     close()
+  }
+
+  /** نهاية ضغطة جوه القايمة من غير اختيار: لو الفوكس خرج من الـinput، اقفل. */
+  function endPress() {
+    pressRef.current = false
+    if (openRef.current && typeof document !== 'undefined' && document.activeElement !== inputRef.current) close()
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'ArrowDown') {
       event.preventDefault()
-      if (!open) setOpen(true)
+      if (!open) show()
       else setActive((index) => Math.min(index + 1, Math.max(options.length - 1, 0)))
     } else if (event.key === 'ArrowUp') {
       event.preventDefault()
@@ -82,6 +106,7 @@ export function ProductPicker({
         {label}
       </label>
       <input
+        ref={inputRef}
         id={id}
         data-field="product"
         role="combobox"
@@ -97,11 +122,13 @@ export function ProductPicker({
         onChange={(event) => {
           setQuery(event.target.value)
           setActive(0)
-          setOpen(true)
+          show()
         }}
-        onClick={() => setOpen(true)}
+        onClick={show}
         onKeyDown={onKeyDown}
-        onBlur={close}
+        onBlur={() => {
+          if (!pressRef.current) close()
+        }}
         className={cn(inputClasses, invalid && 'border-danger')}
       />
       <ul
@@ -109,6 +136,13 @@ export function ProductPicker({
         role="listbox"
         aria-label={label}
         hidden={!open}
+        onPointerDown={(event) => {
+          pressRef.current = true
+          event.preventDefault()
+        }}
+        onMouseDown={(event) => event.preventDefault()}
+        onPointerCancel={endPress}
+        onClick={endPress}
         className="absolute inset-x-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded border border-border bg-surface py-1 shadow-pop"
       >
         {options.length === 0 ? (
@@ -122,11 +156,8 @@ export function ProductPicker({
               id={optionId(index)}
               role="option"
               aria-selected={index === active}
-              onMouseDown={(event) => {
-                event.preventDefault()
-                choose(product)
-              }}
-              onMouseEnter={() => setActive(index)}
+              onClick={() => choose(product)}
+              onPointerEnter={() => setActive(index)}
               className={cn(
                 'cursor-pointer px-3 py-2 text-sm text-fg',
                 index === active && 'bg-brand/10',
