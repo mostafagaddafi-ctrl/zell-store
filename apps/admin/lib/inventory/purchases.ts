@@ -455,6 +455,10 @@ export function isPurchasePreview(value: unknown): value is PurchasePreview {
   return isTotals(value['totals']) && Array.isArray(lots) && lots.every(isPreviewLot)
 }
 
+/**
+ * فحص الشكل العام بس (أي مستند وأي عملية) — مابقاش مستخدم في أي mutation. كل نداء كتابة بيستخدم
+ * الحارس المخصص لنوع المستند والعملية (writeResultGuard في lib/inventory/writeResults.ts).
+ */
 export function isPurchaseWriteResult(value: unknown): value is PurchaseWriteResult {
   if (!isRec(value)) return false
   const replayed = value['replayed']
