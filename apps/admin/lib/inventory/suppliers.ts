@@ -5,7 +5,8 @@
  * الحدود نفس دوال 0020 بالحرف (zell_inv_create_supplier / zell_inv_update_supplier):
  *   • الاسم: NFC + trim لـ[مسافة \t \r \n]، من 1 لـ 120 حرف (code points).
  *   • التليفون: NFC + شيل المسافات والشَرط، وبعدها ^\+?[0-9]{6,15}$ أو فاضي.
- *     الأرقام العربية (٠–٩ و ۰–۹) بتتحول لإنجليزي قبل الفحص — الداتابيز بترفضها.
+ *     الأرقام العربية/الفارسية (٠–٩ و ۰–۹) **مابتتحولش**: بتترفض برسالة واضحة، لأن الداتابيز
+ *     بتقبل [0-9] بس ومابتطبّعهاش. أي قبول ليها محتاج عقد تطبيع صريح (ويفضّل في الداتابيز).
  *   • الملاحظة: NFC + trim، لحد 500 حرف، والفاضية = null.
  * والداتابيز هي الحكم الأخير في كل حال.
  */
@@ -47,13 +48,10 @@ function codePoints(value: string): number {
   return Array.from(value).length
 }
 
-function latinDigits(value: string): string {
-  return value
-    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
-    .replace(/[\u06f0-\u06f9]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
-}
-
 const PHONE = /^\+?[0-9]{6,15}$/
+const NON_LATIN_DIGITS = /[\u0660-\u0669\u06f0-\u06f9]/
+
+export const PHONE_LATIN_DIGITS_MESSAGE = 'اكتب رقم التليفون بأرقام إنجليزية (0–9).'
 
 function optionalText(value: unknown): string | null | undefined {
   if (value === null || value === undefined) return null
@@ -77,8 +75,11 @@ export function normalizeSupplierInput(raw: unknown): Parsed<SupplierInput> {
 
   const rawPhone = optionalText(source['phone'])
   if (rawPhone === undefined) return { ok: false, message: 'رقم التليفون غير صالح.' }
-  const phoneDigits = rawPhone === null ? '' : latinDigits(rawPhone.normalize('NFC')).replace(/[\s-]/g, '')
+  const phoneDigits = rawPhone === null ? '' : rawPhone.normalize('NFC').replace(/[\s-]/g, '')
   const phone = phoneDigits === '' ? null : phoneDigits
+  if (phone !== null && NON_LATIN_DIGITS.test(phone)) {
+    return { ok: false, message: PHONE_LATIN_DIGITS_MESSAGE }
+  }
   if (phone !== null && !PHONE.test(phone)) {
     return { ok: false, message: 'رقم التليفون لازم يكون من 6 لـ 15 رقم، وممكن يبدأ بـ +.' }
   }
