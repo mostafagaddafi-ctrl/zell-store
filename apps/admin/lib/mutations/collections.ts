@@ -15,6 +15,7 @@ import {
 } from '../validation/collection'
 import { CONFLICT_MESSAGE, patchGuarded } from './concurrency'
 import { toInternalFailure } from './errors'
+import { collectionProductCounts, readAdminCollection, TABLE } from '../data/collections'
 
 /**
  * تعديلات الأقسام.
@@ -37,7 +38,6 @@ import { toInternalFailure } from './errors'
  *    المبدئي للرسالة بس.
  */
 
-const TABLE = 'collections'
 const CREATE_RPC = 'zell_create_collection'
 const DELETE_RPC = 'zell_delete_collection'
 const SET_PRODUCTS_RPC = 'zell_set_collection_products'
@@ -47,33 +47,6 @@ const SLUG_TAKEN = 'الرابط المختصر ده مستخدم في قسم ت
 const ORDER_MISMATCH = 'الترتيب لازم يشمل كل الأقسام مرة واحدة بالظبط. اعمل تحديث للصفحة وحاول تاني.'
 const PRODUCTS_INVALID = 'في منتج مش موجود أو مكرر في القائمة. اعمل تحديث للصفحة وحاول تاني.'
 const COLLECTION_GONE = 'القسم مش موجود. يمكن يكون اتمسح.'
-
-/** العدّ الكلي والنشط لمنتجات قسم. */
-export async function collectionProductCounts(collectionId: string): Promise<{ total: number; active: number }> {
-  const links = await restGet<{ product_id: number }>(
-    'product_collections',
-    'select=product_id&collection_id=eq.' + encodeURIComponent(collectionId),
-  )
-  const ids = links.rows.map((row) => row.product_id)
-  if (ids.length === 0) return { total: 0, active: 0 }
-
-  const active = await restGet<{ id: number }>(
-    'products',
-    'select=id&is_active=eq.true&id=in.(' + ids.map((id) => String(id)).join(',') + ')',
-  )
-  return { total: ids.length, active: active.rows.length }
-}
-
-/** القراءة بعد الكتابة — النجاح لازم يعكس الحالة المخزّنة فعلًا. */
-export async function readAdminCollection(id: string): Promise<AdminCollection | null> {
-  const rows = await restGet<CollectionRow>(
-    TABLE,
-    'select=' + COLLECTION_SELECT + '&id=eq.' + encodeURIComponent(id) + '&limit=1',
-  )
-  const row = rows.rows[0]
-  if (!row) return null
-  return toAdminCollection(row, await collectionProductCounts(id), projectUrl())
-}
 
 /** هل الـslug محجوز لقسم تاني؟ للرسالة بس — القيد هو الحارس. */
 async function slugTaken(slug: string, exceptId?: string): Promise<boolean> {
