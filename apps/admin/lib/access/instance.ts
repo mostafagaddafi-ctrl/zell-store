@@ -3,8 +3,8 @@ import 'server-only'
 /**
  * 0021-P — الأغلفة الحقيقية للوحة (ربط lib/access بالجلسة و admin_users و zell_erp_*).
  *
- * ⚠️ (ب1): **مفيش أي page أو action أو route بيستورد الملف ده لسه** — مفيش أثر وقت التشغيل.
- *    التغليف الفعلي في (ب2). العقد: docs/contracts/0021-P-code.md.
+ * من (ب2): كل page و layout و route و action محمي في اللوحة متصدّر من الأغلفة دي (الجدول: manifest.ts).
+ *    العقد: docs/contracts/0021-P-code.md.
  *
  *   • legacy (الافتراضي): resolveAdminIdentity() زي النهارده، ومفيش أي نداء zell_erp_*.
  *   • zell_erp_* بتتنادى بعميل جلسة المستخدم بس (createAuthClient: anon key + كوكيز). ممنوع service_role.
@@ -35,7 +35,10 @@ async function currentPath(): Promise<string> {
 const legacyOutcome = cache(async (): Promise<LegacyOutcome> => {
   const outcome = await resolveAdminIdentity()
   if (outcome.state !== 'authorized') return { state: outcome.state }
-  return { state: 'authorized', identity: { userId: outcome.identity.userId, role: outcome.identity.role } }
+  return {
+    state: 'authorized',
+    identity: { userId: outcome.identity.userId, email: outcome.identity.email, role: outcome.identity.role },
+  }
 })
 
 const sessionUser = cache(async (): Promise<SessionUser> => {
@@ -43,7 +46,7 @@ const sessionUser = cache(async (): Promise<SessionUser> => {
     const supabase = await createAuthClient()
     const { data, error } = await supabase.auth.getUser()
     if (error !== null || data.user === null) return { state: 'anonymous' }
-    return { state: 'user', userId: data.user.id }
+    return { state: 'user', userId: data.user.id, email: data.user.email ?? '' }
   } catch {
     return { state: 'unavailable' }
   }
