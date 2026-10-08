@@ -5,7 +5,8 @@ import 'server-only'
  */
 import { parseHomeProducts, type HomeProducts } from '@zell/core'
 import { restGet } from './client'
-import type { HomeProductOption } from '../mutations/homeProducts'
+
+export type HomeProductOption = { id: number; nameAr: string; isActive: boolean }
 
 /**
  * «الصفحة الرئيسية» (settings.home_products):
