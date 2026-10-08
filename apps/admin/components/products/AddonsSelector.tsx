@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react'
-import type { AddonOption } from '../../lib/mutations/productAddons'
+import type { AddonOption } from '../../lib/data/productAddons'
 import { formatPiastres } from '../../lib/format'
 import { Button, buttonClasses } from '../ui/Button'
 import { Card, Field, inputClasses } from '../ui/Field'
