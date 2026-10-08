@@ -5,12 +5,6 @@ import type { MutationResult } from '../mutations'
 import { toInternalFailure } from './errors'
 import { readAddonOptions, readProductAddons } from '../data/productAddons'
 
-/**
- * 0016 — إضافات منتج (product_addons) — استبدال ذرّي عن طريق zell_set_product_addons.
- * الإضافة لازم تكون منتج بالقطعة؛ الدالة بترفض غير كده.
- */
-export type AddonOption = { id: number; nameAr: string; isActive: boolean; pricePiastres: number }
-
 const MAX_ADDONS = 20
 
 export async function saveProductAddons(productId: unknown, raw: unknown): Promise<MutationResult<number[]>> {
