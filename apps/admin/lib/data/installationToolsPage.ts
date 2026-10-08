@@ -5,12 +5,20 @@ import 'server-only'
  */
 import { parseInstallationToolsPage } from '@zell/core'
 import { restGet } from './client'
-import type {
-  ToolsPageRecord,
-  ToolsSummary,
-  ProductLite,
-  AddonLink,
-} from '../mutations/installationToolsPage'
+import type { InstallationToolsPage } from '@zell/core'
+
+export type ToolsPageRecord = { page: InstallationToolsPage; updatedAt: string | null }
+
+export type ToolsSummary = {
+  /** كل فيلم بالمقاس نشط وأدواته المربوطة (عرض بس). */
+  films: { id: number; name: string; tools: { id: number; name: string; isActive: boolean }[] }[]
+  /** منتجات بالعدد نشطة مش مربوطة بأي فيلم نشط — مش هتظهر في صفحة الأدوات. */
+  unlinkedPieces: { id: number; name: string }[]
+}
+
+export type ProductLite = { id: number; name_ar: string; is_active: boolean; sale_unit: string }
+
+export type AddonLink = { product_id: number; addon_id: number; sort_order: number }
 
 export const KEY = 'installation_tools_page'
 
