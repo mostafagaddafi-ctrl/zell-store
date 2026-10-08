@@ -6,7 +6,7 @@ import type { MutationResult } from '../mutations'
 import { readImageDimensions } from '../uploads/imageSize'
 import { detectImage } from '../uploads/imageType'
 import { validateCollectionId } from '../validation/collection'
-import { readAdminCollection } from './collections'
+import { readAdminCollection } from '../data/collections'
 import { toInternalFailure } from './errors'
 
 /**
