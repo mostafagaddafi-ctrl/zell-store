@@ -794,8 +794,9 @@ begin
   v_new := pg_temp.as_user(v_c, format('select public.zell_inv_session_create_location(%L::uuid, %L, %L)', v_cmd, 'ZT0020S', 'موقع اختبار 0020S'));
   perform pg_temp.zt('O01 owner session create_location -> ok', pg_temp.ok(v_new) and v_new ? 'locationId', v_new::text);
   v_old := pg_temp.as_user('', format('select public.zell_inv_create_location(%L::uuid, %L::uuid, %L, %L)', v_o, v_cmd, 'ZT0020S', 'موقع اختبار 0020S'), 'service_role');
-  perform pg_temp.zt('O02 same command via old path (service_role + p_actor) -> same result (replay)',
-    pg_temp.ok(v_old) and v_old = v_new, coalesce(v_old::text, 'null') || ' / ' || coalesce(v_new::text, 'null'));
+  perform pg_temp.zt('O02 same command via old path (service_role + p_actor) -> replayed, same result',
+    pg_temp.ok(v_old) and v_old ->> 'replayed' = 'true' and (v_old - 'replayed') = v_new,
+    coalesce(v_old::text, 'null') || ' / ' || coalesce(v_new::text, 'null'));
   v_x := pg_temp.as_user(v_c, format('select public.zell_inv_session_create_location(%L::uuid, %L, %L)', v_cmd, 'ZT0020S', 'اسم تاني'));
   perform pg_temp.zt('O03 same command, different payload via session -> 45212', v_x ->> '_error' = '45212', v_x::text);
   v_id := (v_new ->> 'locationId')::bigint;
@@ -825,8 +826,9 @@ begin
   v_old := pg_temp.as_user('', format('select public.zell_inv_create_supplier(%L::uuid, %L::uuid, %L, null, null)', v_o, v_cmd, 'مورد اختبار 0020S'), 'service_role');
   perform pg_temp.zt('O05 old path create_supplier (service_role + p_actor) -> ok', pg_temp.ok(v_old) and v_old ? 'supplierId', v_old::text);
   v_new := pg_temp.as_user(v_c, format('select public.zell_inv_session_create_supplier(%L::uuid, %L, null, null)', v_cmd, 'مورد اختبار 0020S'));
-  perform pg_temp.zt('O06 same command via session -> same result (replay)',
-    pg_temp.ok(v_new) and v_new = v_old, coalesce(v_new::text, 'null') || ' / ' || coalesce(v_old::text, 'null'));
+  perform pg_temp.zt('O06 same command via session -> replayed, same result',
+    pg_temp.ok(v_new) and v_new ->> 'replayed' = 'true' and (v_new - 'replayed') = v_old,
+    coalesce(v_new::text, 'null') || ' / ' || coalesce(v_old::text, 'null'));
   v_id := (v_old ->> 'supplierId')::bigint;
   select s.version into v_ver from public.suppliers s where s.id = v_id;
   v_cmd := gen_random_uuid();
@@ -987,7 +989,7 @@ begin
       ('list_suppliers', 'true, 50, null'),
       ('list_purchases', 'null, null, 50, null'),
       ('list_openings', 'null, 50, null'),
-      ('list_lots', 'null, null, null, 50, null')) as v(fn, args)
+      ('list_lots', '''active'', null, null, 50, null')) as v(fn, args)
   loop
     v_new := pg_temp.as_user(v_c, 'select public.zell_inv_session_' || m.fn || '(' || m.args || ')');
     v_old := pg_temp.as_user('', format('select public.zell_inv_%s(%L::uuid, %s)', m.fn, v_o, m.args), 'service_role');
