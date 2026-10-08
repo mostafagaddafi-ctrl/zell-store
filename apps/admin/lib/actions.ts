@@ -50,15 +50,18 @@ import {
   installerAreasMissingFromShipping,
   saveInstallation,
   type InstallationInput,
-  type InstallationRecord,
   type OrphanArea,
 } from './mutations/installation'
-import { saveInstallationToolsPage, type ToolsPageRecord } from './mutations/installationToolsPage'
+import type { InstallationRecord } from './data/installation'
+import { saveInstallationToolsPage } from './mutations/installationToolsPage'
+import type { ToolsPageRecord } from './data/installationToolsPage'
 import { saveShippingAreas } from './mutations/shippingAreas'
 import { saveHomeProducts } from './mutations/homeProducts'
 import type { HomeProducts, InstallationToolsPage } from '@zell/core'
-import { saveSocialLinks, type SocialLinksInput } from './mutations/socialLinks'
-import { saveProductWidths, type AdminWidth } from './mutations/productWidths'
+import { saveSocialLinks } from './mutations/socialLinks'
+import type { SocialLinksInput } from './data/socialLinks'
+import { saveProductWidths } from './mutations/productWidths'
+import type { AdminWidth } from './data/productWidths'
 import { saveProductAddons } from './mutations/productAddons'
 import { saveAddonsTitle } from './mutations/addonsTitle'
 import { saveContent } from './mutations/content'
