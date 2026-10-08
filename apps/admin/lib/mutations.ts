@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { mutationsFlagEnabled } from './access/flag'
+
 /**
  * نتيجة التعديل الموحّدة.
  *
@@ -36,7 +38,7 @@ export type MutationResult<T> =
  * والتحقق من الكتابة يخلصوا كلهم.
  */
 export function mutationsEnabled(): boolean {
-  return (process.env['ADMIN_MUTATIONS_ENABLED'] ?? '').trim() === 'true'
+  return mutationsFlagEnabled(process.env['ADMIN_MUTATIONS_ENABLED'])
 }
 
 const DISABLED_MESSAGE =

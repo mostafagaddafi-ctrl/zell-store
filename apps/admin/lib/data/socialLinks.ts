@@ -5,7 +5,9 @@ import 'server-only'
  */
 import { SOCIAL_PLATFORMS } from '@zell/core'
 import { restGet } from './client'
-import type { SocialLinksInput } from '../mutations/socialLinks'
+import type { SocialPlatform } from '@zell/core'
+
+export type SocialLinksInput = Record<SocialPlatform, string>
 
 /**
  * روابط السوشيال (settings.social_links) — { facebook: "https://…" }.

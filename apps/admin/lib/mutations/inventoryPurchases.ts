@@ -30,8 +30,6 @@ export async function previewPurchase(actor: string, rawDoc: unknown): Promise<I
   return callInventory('previewPurchase', { p_actor: actor, p_doc: doc.value }, isPurchasePreview)
 }
 
-export type OptionList<T> = { items: T[]; complete: boolean }
-
 // ── الكتابة ────────────────────────────────────────────────────────
 
 export async function createPurchase(

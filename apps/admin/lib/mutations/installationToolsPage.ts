@@ -7,6 +7,7 @@ import { timestamp } from '../validation/shared'
 import { CONFLICT_MESSAGE, patchGuarded } from './concurrency'
 import { toInternalFailure } from './errors'
 import { readInstallationToolsPage, KEY } from '../data/installationToolsPage'
+import type { ToolsPageRecord } from '../data/installationToolsPage'
 
 /**
  * صفحة «أدوات التركيب» — صف واحد settings.installation_tools_page.
@@ -18,18 +19,6 @@ import { readInstallationToolsPage, KEY } from '../data/installationToolsPage'
  *    مفيش صف   → insert، ولو حد عمله في نفس اللحظة = CONFLICT
  *    وبعدين قراءة تأكيد.
  */
-
-export type ToolsPageRecord = { page: InstallationToolsPage; updatedAt: string | null }
-
-export type ToolsSummary = {
-  /** كل فيلم بالمقاس نشط وأدواته المربوطة (عرض بس). */
-  films: { id: number; name: string; tools: { id: number; name: string; isActive: boolean }[] }[]
-  /** منتجات بالعدد نشطة مش مربوطة بأي فيلم نشط — مش هتظهر في صفحة الأدوات. */
-  unlinkedPieces: { id: number; name: string }[]
-}
-
-export type ProductLite = { id: number; name_ar: string; is_active: boolean; sale_unit: string }
-export type AddonLink = { product_id: number; addon_id: number; sort_order: number }
 
 type TextField = 'title' | 'description' | 'videoNote' | 'browseButtonLabel' | 'checkoutButtonLabel'
 type TextResult = { ok: true; value: string } | { ok: false; code: 'VALIDATION'; message: string }

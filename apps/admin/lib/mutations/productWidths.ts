@@ -4,26 +4,11 @@ import { restGet, restRpc } from '../data/client'
 import type { MutationResult } from '../mutations'
 import { toInternalFailure } from './errors'
 import { readProductWidths } from '../data/productWidths'
-
-/**
- * عروض الرول الإضافية لمنتج (0015) — public.product_widths.
- *
- * العرض الأساسي وسعره في المنتج نفسه (products.width_cm / price_per_meter_piastres)
- * وبيتعدّلوا من «السعر والمقاسات». هنا العروض **التانية** بس، كل واحد بسعره.
- * الحفظ استبدال كامل وذرّي عن طريق zell_set_product_widths.
- */
-export type AdminWidth = {
-  widthCm: number
-  pricePerMeterPiastres: number
-  compareAtPiastres: number | null
-  isActive: boolean
-}
+import type { AdminWidth } from '../data/productWidths'
 
 const MAX_WIDTHS = 10
 const MAX_WIDTH_CM = 1000
 const MAX_PRICE = 100000000
-
-export type Row = { width_cm: number; price_per_meter_piastres: number; compare_at_piastres: number | null; is_active: boolean }
 
 function isPositiveInt(value: unknown, max: number): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= max

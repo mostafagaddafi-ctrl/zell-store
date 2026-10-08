@@ -17,7 +17,8 @@ import {
 } from '../inventory/purchases'
 import { callInventory, callInventoryWith } from '../inventory/rpc'
 import { isSuppliersPage, type InventorySupplier, type SuppliersPage } from '../inventory/suppliers'
-import type { OptionList } from '../mutations/inventoryPurchases'
+
+export type OptionList<T> = { items: T[]; complete: boolean }
 
 export async function listPurchases(
   actor: string,

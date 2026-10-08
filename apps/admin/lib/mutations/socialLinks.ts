@@ -5,8 +5,7 @@ import { restInsert, restPatch } from '../data/client'
 import type { MutationResult } from '../mutations'
 import { toInternalFailure } from './errors'
 import { readSocialLinks, KEY } from '../data/socialLinks'
-
-export type SocialLinksInput = Record<SocialPlatform, string>
+import type { SocialLinksInput } from '../data/socialLinks'
 
 export async function saveSocialLinks(raw: unknown): Promise<MutationResult<SocialLinksInput>> {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {

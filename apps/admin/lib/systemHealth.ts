@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { readAccessMode } from './access/mode'
+import { authCredentials, type AuthCredentials } from './auth/env'
 import { restGet } from './data/client'
 import type { MutationResult } from './mutations'
 
@@ -117,7 +119,51 @@ function storefrontItems(result: CallResult): HealthItem[] {
   ]
 }
 
+/** 0021-P: وضع الصلاحيات (ADMIN_ACCESS_MODE). نفس قراية الأغلفة بالظبط (lib/access/mode). */
+function accessModeItem(): HealthItem {
+  const label = 'وضع الصلاحيات (0021-P)'
+  const reading = readAccessMode(process.env['ADMIN_ACCESS_MODE'])
+  if (!reading.valid) {
+    return { key: 'access_mode', label, state: 'error', detail: 'قيمة غلط في ADMIN_ACCESS_MODE — شغّال legacy. المسموح: legacy · shadow · enforce' }
+  }
+  if (reading.mode === 'legacy') return { key: 'access_mode', label, state: 'ok', detail: 'legacy — الصلاحيات زي النهارده (admin_users)' }
+  if (reading.mode === 'shadow') return { key: 'access_mode', label, state: 'ok', detail: 'shadow — القرار زي النهارده، والاختلافات مع صلاحيات 0021-P بتتسجّل' }
+  return { key: 'access_mode', label, state: 'ok', detail: 'enforce — القرار من صلاحيات 0021-P' }
+}
+
+/** 0021-P: Sign ups في Supabase Auth لازم تفضل مقفولة. GET /auth/v1/settings بالمفتاح المجهول بس. */
+async function signupItem(): Promise<HealthItem> {
+  const label = 'التسجيل الجديد (Sign ups)'
+  let credentials: AuthCredentials
+  try {
+    credentials = authCredentials()
+  } catch {
+    return { key: 'signup', label, state: 'unknown', detail: 'SUPABASE_URL أو SUPABASE_ANON_KEY ناقص' }
+  }
+  try {
+    const response = await fetch(credentials.url + '/auth/v1/settings', {
+      headers: { apikey: credentials.anonKey },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!response.ok) return { key: 'signup', label, state: 'unknown', detail: 'Supabase Auth ردّ ' + String(response.status) }
+    const payload: unknown = await response.json()
+    const disabled = typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>)['disable_signup'] : undefined
+    if (disabled === true) return { key: 'signup', label, state: 'ok', detail: 'مقفول — مفيش حد يقدر يعمل حساب لنفسه' }
+    if (disabled === false) return { key: 'signup', label, state: 'error', detail: 'مفتوح — اقفله من Supabase ← Authentication ← Sign In / Providers' }
+    return { key: 'signup', label, state: 'unknown', detail: 'رد Supabase Auth مافيهوش disable_signup' }
+  } catch (error) {
+    return {
+      key: 'signup',
+      label,
+      state: 'unknown',
+      detail: error instanceof Error && error.name === 'TimeoutError' ? 'Supabase Auth مارَدّش في ٥ ثواني' : 'مش قادرين نوصل لـ Supabase Auth',
+    }
+  }
+}
+
 async function adminItems(): Promise<HealthItem[]> {
+  const signup = signupItem()
   let database: HealthItem
   try {
     await restGet<{ id: number }>('products', 'select=id&limit=1')
@@ -129,6 +175,8 @@ async function adminItems(): Promise<HealthItem[]> {
   return [
     database,
     { key: 'mutations', label: 'التعديلات من اللوحة', state: mutations ? 'ok' : 'warn', detail: mutations ? 'مفتوحة (ADMIN_MUTATIONS_ENABLED)' : 'مقفولة — ADMIN_MUTATIONS_ENABLED مش true' },
+    accessModeItem(),
+    await signup,
     presence('SUPABASE_URL', 'عنوان الداتابيز'),
     presence('SUPABASE_SERVICE_ROLE_KEY', 'قراءة وكتابة اللوحة'),
     presence('SUPABASE_ANON_KEY', 'تسجيل الدخول'),

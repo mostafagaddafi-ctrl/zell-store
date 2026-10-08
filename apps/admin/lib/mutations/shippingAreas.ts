@@ -4,11 +4,10 @@ import { restInsert, restPatch } from '../data/client'
 import type { MutationResult } from '../mutations'
 import { toInternalFailure } from './errors'
 import { readShippingAreas, KEY } from '../data/shippingAreas'
+import type { Areas } from '../data/shippingAreas'
 
 const MAX_AREAS = 40
 const MAX_AREA_LENGTH = 40
-
-export type Areas = Record<string, string[]>
 
 /** jsonb بيعيد ترتيب المفاتيح — فالمقارنة بالمحتوى مش بالنص. */
 function sameAreas(a: Areas, b: Areas): boolean {

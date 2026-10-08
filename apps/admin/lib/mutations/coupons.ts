@@ -29,9 +29,6 @@ import { readCouponsSwitch, countLiveCoupons, TABLE, COLUMNS, USES, SWITCH_KEY }
 const NOT_FOUND_MESSAGE = 'الكوبون مش موجود. يمكن يكون اتغيّر — حدّث الصفحة.'
 const BAD_ID_MESSAGE = 'معرّف الكوبون غير صالح'
 
-export type CouponsPage = { rows: AdminCoupon[]; total: number; page: number; pageSize: number }
-export type CouponsSwitch = { enabled: boolean; updatedAt: string | null }
-
 async function codeTaken(code: string, exceptId: string | null): Promise<boolean> {
   const parts = ['select=id', 'code=eq.' + encodeURIComponent(code), 'limit=1']
   if (exceptId !== null) parts.push('id=neq.' + exceptId)
