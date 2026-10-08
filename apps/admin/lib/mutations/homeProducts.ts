@@ -10,8 +10,6 @@ const MAX_LABEL = 30
 const MAX_IDS = 200
 const MODES: readonly HomeProductsMode[] = ['all', 'selected', 'none']
 
-export type HomeProductOption = { id: number; nameAr: string; isActive: boolean }
-
 export async function saveHomeProducts(raw: unknown): Promise<MutationResult<HomeProducts>> {
   if (typeof raw !== 'object' || raw === null) return { ok: false, code: 'VALIDATION', message: 'البيانات مش صحيحة' }
   const input = raw as Record<string, unknown>
