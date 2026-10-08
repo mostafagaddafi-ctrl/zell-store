@@ -9,7 +9,7 @@ import {
 } from '../inventory/catalog'
 import type { InventoryLocationOption } from '../inventory/purchases'
 import type { InventorySupplier } from '../inventory/suppliers'
-import { loadLocationOptions, loadSupplierOptions } from '../mutations/inventoryPurchases'
+import { loadLocationOptions, loadSupplierOptions } from './inventoryPurchases'
 import { readInventoryCatalog } from './reads'
 
 /**
