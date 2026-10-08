@@ -14,7 +14,10 @@
 ## ١) الهدف
 
 - كل **page** و**layout** و**route method** و**Server Action** في اللوحة يتصدّر **من خلال غلاف واحد** بصلاحية مكتوبة نصًا من الـ ٢٩ صلاحية.
-- **مفيش أي تغيير في السلوك** طول ما `ADMIN_ACCESS_MODE=legacy` (الافتراضي). التحويل لـ `shadow` ثم `enforce` **مش** في الـ PRs دي (§٧).
+- **مفيش أي تغيير في السلوك** طول ما `ADMIN_ACCESS_MODE=legacy` (الافتراضي)، **ماعدا فرقين معتمدين بس** من المراجع (تفاصيلهم ومعيار قبولهم في §٧):
+  1. أكشنز الكوبونات والمخزون بقت بتحترم `ADMIN_MUTATIONS_ENABLED` (`mutates: true`).
+  2. الأدمن على أكشن متعلّم `zell.unimplemented` بياخد رسالة «العملية غير متاحة حاليًا.»، مش رسالة `FORBIDDEN` العامة.
+- التحويل لـ `shadow` ثم `enforce` **مش** في الـ PRs دي (§٨).
 - الفاحص في CI بيضمن إن مفيش حاجة جديدة تتضاف من غير غلاف (`findings = 0` على اللوحة كلها بعد ب2).
 
 **الأرقام اللي العقد ماشي عليها (main `f7c0589`):**
@@ -48,7 +51,7 @@
 | `enforce` | `zell_erp_my_access()` | أيوه | تجاوز المالك من الداتابيز. فشل القراءة = `UNAVAILABLE` |
 
 - **قراية المتغير:** غايب = `legacy`. أي قيمة غير الـ ٣ بالظبط = `legacy`، و«حالة النظام» بتعرضها غلط بالأحمر.
-- **قرار `legacy` لكل صلاحية:** المالك الشغال = مسموح. الأدمن الشغال = مسموح لو فئة الصلاحية `operational` أو `sales`، وممنوع لو `owner`. ده بالظبط سلوك النهارده: `ownerGate` موجود على الكوبونات والمخزون بس، وهما صلاحيات فئة `owner`.
+- **قرار `legacy` لكل صلاحية:** المالك الشغال = مسموح. الأدمن الشغال = مسموح لو فئة الصلاحية `operational` أو `sales`، وممنوع لو `owner`. ده بالظبط سلوك النهارده: `ownerGate` موجود على الكوبونات والمخزون بس، وهما صلاحيات فئة `owner`. الاستثناء الوحيد: رسالة `zell.unimplemented` للأدمن (§٧).
 
 ---
 
@@ -86,6 +89,7 @@
 - re-export من `lib/mutations` (الفاحص هيرفضه بعدين).
 - نقل أي دالة كتابة.
 - أي ملف برّه `apps/admin/lib/` و`apps/admin/app/` و`apps/admin/components/` و`docs/maps/code-map.md`.
+- **أي حاجة تخص علم التعديلات** (`ADMIN_MUTATIONS_ENABLED` / `guardMutations`) أو رسالة `zell.unimplemented`. دول في ب1 (المنطق والاختبارات) وب2 (التطبيق) بس.
 
 **الملفات المتوقعة:**
 - ~١٤ ملف جديد في `lib/data/`.
@@ -108,15 +112,17 @@
 
 **مفيش أي صفحة أو action بتتغلّف هنا.** السلوك مايتغيّرش، غير سطرين جداد في «حالة النظام».
 
+**منطق علم التعديلات ورسالة `zell.unimplemented` بيدخلوا هنا** كمنطق صافي جوه الأغلفة + اختبارات، **من غير تغليف ومن غير أي أثر runtime** (مفيش أي page أو action أو route بيستخدم الأغلفة لسه). التطبيق الفعلي في ب2.
+
 **الملفات المتوقعة:**
 
 | الملف | فيه إيه |
 | --- | --- |
 | `apps/admin/lib/access/capabilities.ts` | الـ ٢٩ صلاحية وفئة كل واحدة (نفس قايمة الداتابيز بالحرف) + `isCapability` |
-| `apps/admin/lib/access/wrappers.ts` | `createAccessWrappers(deps)`: `pageWithAccess` · `layoutWithSession` · `routeWithAccess` · `actionWithAccess` · `formActionWithAccess`. منطق صافي من غير I/O (نفس شكل الـ Spike) |
+| `apps/admin/lib/access/wrappers.ts` | `createAccessWrappers(deps)`: `pageWithAccess` · `layoutWithSession` · `routeWithAccess` · `actionWithAccess` · `formActionWithAccess`. منطق صافي من غير I/O (نفس شكل الـ Spike). ومعاه: (١) `mutates: true` ← لو `ADMIN_MUTATIONS_ENABLED` مش `true` بالظبط، النتيجة `DISABLED` بنفس كود ورسالة `guardMutations()` النهارده، وبعد فحص الصلاحية. (٢) `zell.unimplemented` ← اللي مامعهوش الصلاحية بياخد `{ ok: false, code: 'FORBIDDEN', message: 'العملية غير متاحة حاليًا.' }` بالحرف |
 | `apps/admin/lib/access/resolve.ts` | قراية `ADMIN_ACCESS_MODE` + resolver لكل وضع (§٣). legacy = `resolveAdminIdentity()` + قرار الفئة. shadow/enforce = `createAuthClient().rpc('zell_erp_my_access')` بفحص شكل الرد |
 | `apps/admin/lib/access/instance.ts` | `import 'server-only'` + الأغلفة الحقيقية (redirect للصفحات زي `requireAdminPage` بالظبط، ونتيجة فشل زي `requireAdminAction` بالظبط) |
-| `apps/admin/lib/access/*.cases.ts` | حالات: كل وضع × (anonymous · forbidden · unavailable · owner · admin) × (فئة owner / غير owner) × (mutates مع العلم true/false) · الترتيب · فشل الـ RPC = unavailable · شكل رد غلط = unavailable · قيمة وضع غلط = legacy |
+| `apps/admin/lib/access/*.cases.ts` | حالات: كل وضع × (anonymous · forbidden · unavailable · owner · admin) × (فئة owner / غير owner) × (mutates مع العلم true/false) · الترتيب · فشل الـ RPC = unavailable · شكل رد غلط = unavailable · قيمة وضع غلط = legacy · **العلم:** `mutates` × (`true` · `false` · غايب · قيمة غلط) = نفس نتيجة `guardMutations()` · **`zell.unimplemented`:** أدمن ← الرسالة بالحرف، ومالك ← الدالة نفسها |
 | `apps/admin/scripts/check-access.mjs` (+ `check-access.selftest.mjs`) | الفاحص من الـ Spike (AST بـ TypeScript الموجود، من غير dependency جديدة)، بالقواعد في §٦ |
 | `.github/workflows/ci.yml` | خطوة: selftest الفاحص + الفاحص بوضع `report` بيطبع `ZELL_ACCESS_FINDINGS=<n>` ومابيفشلش + فحص إن قايمة `capabilities.ts` = قايمة الـ SQL (المحرك + المحوّل) |
 | `apps/admin/lib/systemHealth.ts` (+ عرضه) | `ADMIN_ACCESS_MODE` الحالي، و`disable_signup` من `GET /auth/v1/settings` (بالـ anon key). Sign ups مفتوحة = أحمر |
@@ -129,6 +135,7 @@
 - حالات `lib/access` ناجحة، و`ZELL_ADMIN_CASES_RESULT … fail=0`.
 - مفيش ملف تحت `app/` اتغيّر غير عرض «حالة النظام».
 - مفيش أي نداء `zell_erp_*` ممكن يحصل في `legacy` (حالة بتثبت إن resolver الـ legacy مابيلمسش `createAuthClient().rpc`).
+- حالات العلم ورسالة `zell.unimplemented` ناجحة، ومفيش ملف تحت `app/` ولا `lib/*Actions.ts` بيستورد `lib/access` (يعني مفيش أثر runtime).
 
 **الرجوع:** revert (مفيش داتابيز، والوضع `legacy`).
 
@@ -177,10 +184,10 @@
 
 **معيار القبول:**
 - `ZELL_ACCESS_FINDINGS=0` بوضع `enforce` على اللوحة كلها، والـ CI بيفشل لو أي finding.
-- **تكافؤ legacy:** حالة لكل رمز في الجدول بتثبت إن نتيجة legacy لـ (anonymous · forbidden · unavailable · owner · admin) = نتيجة النهارده (نفس الكود، ونفس الرسالة، ونفس الـ redirect).
-- **الاختلافات المعروفة** لازم تتكتب في الوصف، ويوافق عليها المراجع صراحة. مفيش غيرها:
-  1. **علم التعديلات:** `couponActions` و`inventoryActions` النهارده مابيفحصوش `ADMIN_MUTATIONS_ENABLED` (حسب بحث الكود، ويتأكد في الجدول). بعد `mutates: true`، لو العلم `false` هيرجعوا `DISABLED`. العلم `true` على Production، فمفيش فرق ظاهر دلوقتي، والاتجاه أأمن.
-  2. **`zell.unimplemented`:** لو action متعلّمة كده بترجع النهارده «مش متعمل» للأدمن، هترجع `FORBIDDEN` بعد التغليف. لو ده موجود، يتعرض على المالك قبل الدمج.
+- **تكافؤ legacy:** حالة لكل رمز في الجدول بتثبت إن نتيجة legacy لـ (anonymous · forbidden · unavailable · owner · admin) = نتيجة النهارده (نفس الكود، ونفس الرسالة، ونفس الـ redirect)، **ماعدا الفرقين المعتمدين تحت بس**.
+- **الفرقين المعتمدين** (المراجع على `c6ca57a`). مفيش غيرهم، وأي فرق تالت = Blocking:
+  1. **علم التعديلات:** الـ ٤ أكشنز في `couponActions.ts` والـ ١٤ في `inventoryActions.ts` بيتعلّموا `mutates: true`. لو `ADMIN_MUTATIONS_ENABLED` مش `true`، بيرجعوا `DISABLED` بنفس كود ورسالة `guardMutations()` النهارده. **معيار القبول:** حالة لكل أكشن من الـ ١٨ بالعلم `true` (نفس النهارده) و`false` (`DISABLED`). العلم `true` على Production، فمفيش فرق ظاهر دلوقتي.
+  2. **`zell.unimplemented`:** الأكشنز اللي متعلّمة بيها (حسب الكود النهارده: `uploadProductImagePlaceholder` و`resendNotificationAction`، والجدول بيأكد). **معيار القبول:** الأدمن بياخد `{ ok: false, code: 'FORBIDDEN', message: 'العملية غير متاحة حاليًا.' }` بالحرف، مش رسالة `FORBIDDEN` العامة، ومكان العرض في الواجهة بيعرض الـ `message` دي (حالة بتثبت النص). والمالك بيوصل للدالة وبياخد رسالتها بتاعة النهارده زي ما هي. ومفيش كود نتيجة جديد في `MutationResult`.
 - **مفيش نداء مباشر** لـ `requireAdminPage` / `requireAdminAction` برّه `lib/auth` و`lib/access`.
 - `ZELL_ADMIN_CASES_RESULT … fail=0`، وtypecheck + build.
 - **بعد النشر (legacy):** المالك يجرّب بحسابه: ٥ صفحات + حفظ واحد. وبحساب الأدمن التجريبي: صفحة عادية تفتح، والكوبونات والمخزون `/403` زي النهارده.
