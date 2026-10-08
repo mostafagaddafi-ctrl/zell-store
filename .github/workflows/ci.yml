@@ -55,13 +55,16 @@ jobs:
       - name: Admin cases
         run: pnpm --filter @zell/admin cases
 
-      # 0021-P (ب1) — فاحص الحراس: اختبار ذاتي، وتقرير على اللوحة كلها (مابيفشلش لحد ب2)،
-      # وقايمة الصلاحيات في الكود = catalog الداتابيز. العقد: docs/contracts/0021-P-code.md §٥–٦.
+      # 0021-P — فاحص الحراس: اختبار ذاتي، و enforce على اللوحة كلها (أي finding = فشل — من ب2)،
+      # وجدول الربط (manifest) = الكود، وقايمة الصلاحيات في الكود = catalog الداتابيز. العقد: docs/contracts/0021-P-code.md §٥–٧.
       - name: "0021-P: access checker selftest"
         run: node apps/admin/scripts/check-access.selftest.mjs
 
-      - name: "0021-P: access checker (whole admin, report)"
-        run: node apps/admin/scripts/check-access.mjs --root apps/admin --mode report
+      - name: "0021-P: access checker (whole admin, enforce)"
+        run: node apps/admin/scripts/check-access.mjs --root apps/admin --mode enforce
+
+      - name: "0021-P: access manifest = code"
+        run: node apps/admin/scripts/check-access-manifest.mjs --root apps/admin
 
       - name: "0021-P: capabilities = SQL catalog"
         run: node apps/admin/scripts/check-capabilities.mjs

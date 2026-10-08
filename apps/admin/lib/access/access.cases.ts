@@ -36,8 +36,8 @@ import {
 export type AccessCaseFailure = { name: string; expected: string; actual: string }
 export type AccessCasesReport = { passed: number; failures: AccessCaseFailure[] }
 
-const OWNER = { userId: 'u-owner', role: 'owner' as const }
-const ADMIN = { userId: 'u-admin', role: 'admin' as const }
+const OWNER = { userId: 'u-owner', email: 'owner@zell.test', role: 'owner' as const }
+const ADMIN = { userId: 'u-admin', email: 'admin@zell.test', role: 'admin' as const }
 const SALES_CAP: Capability = 'zell.orders.view'
 const OWNER_CAP: Capability = 'zell.coupons.edit'
 
@@ -47,7 +47,7 @@ function makeResolveDeps(
   mode: AccessMode,
   legacy: LegacyOutcome | 'throw',
   myAccess: unknown | 'throw' | 'hang',
-  session: SessionUser = { state: 'user', userId: 'u-x' },
+  session: SessionUser = { state: 'user', userId: 'u-x', email: 'x@zell.test' },
   recordFails = false,
 ): { deps: ResolveDeps; spy: Spy } {
   const spy: Spy = { myAccess: 0, record: [], session: 0, legacy: 0 }
@@ -203,7 +203,7 @@ export async function runAccessCases(): Promise<AccessCasesReport> {
       const role = result.state === 'allowed' || result.state === 'denied' ? result.identity.role : null
       return { state: result.state, role, legacy: spy.legacy }
     }
-    const user: SessionUser = { state: 'user', userId: 'u-1' }
+    const user: SessionUser = { state: 'user', userId: 'u-1', email: 'u1@zell.test' }
     check('F1 anonymous', await run({ state: 'anonymous' }, access(true, true, []), SALES_CAP), { state: 'anonymous', role: null, legacy: 0 })
     check('F2 session unavailable', await run({ state: 'unavailable' }, access(true, true, []), SALES_CAP), { state: 'unavailable', role: null, legacy: 0 })
     check('F3 rpc fails -> unavailable', await run(user, 'throw', SALES_CAP), { state: 'unavailable', role: null, legacy: 0 })

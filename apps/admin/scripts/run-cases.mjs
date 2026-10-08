@@ -29,6 +29,7 @@ const SUITES = [
   { name: 'openings', dir: 'lib/inventory', entry: 'opening.cases.ts', run: 'runOpeningCases' },
   { name: 'ui', dir: 'lib/inventory', entry: 'ui.cases.ts', run: 'runUiCases' },
   { name: 'access', dir: 'lib/access', entry: 'access.cases.ts', run: 'runAccessCases' },
+  { name: 'manifest', dir: 'lib/access', entry: 'manifest.cases.ts', run: 'runManifestCases' },
 ]
 
 const COMPILER_OPTIONS = {

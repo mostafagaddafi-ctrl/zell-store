@@ -8,13 +8,11 @@ import { PageHeader } from '../../../components/shell/PageHeader'
 import { buttonClasses } from '../../../components/ui/Button'
 import { PreviewNotice } from '../../../components/ui/PreviewNotice'
 import { adminData } from '../../../lib/adminData'
-import { requireAdminPage } from '../../../lib/auth/guards'
+import { pageWithAccess } from '../../../lib/access/instance'
 
 export const metadata: Metadata = { title: 'الأقسام' }
 
-export default async function CollectionsPage() {
-  await requireAdminPage()
-
+export default pageWithAccess('zell.collections.view', async function CollectionsPage(_ctx) {
   const [collections, home] = await Promise.all([adminData.listCollections(), readHomeProducts()])
 
   return (
@@ -41,4 +39,4 @@ export default async function CollectionsPage() {
       <CollectionsList collections={collections} />
     </>
   )
-}
+})

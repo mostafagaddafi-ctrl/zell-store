@@ -1,11 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { CouponsList } from '../../../components/coupons/CouponsList'
 import { CouponsToggle } from '../../../components/coupons/CouponsToggle'
 import { PageHeader } from '../../../components/shell/PageHeader'
 import { buttonClasses } from '../../../components/ui/Button'
-import { requireAdminPage } from '../../../lib/auth/guards'
+import { pageWithAccess } from '../../../lib/access/instance'
 import { countLiveCoupons, listCoupons, readCouponsSwitch } from '../../../lib/data/coupons'
 
 export const metadata: Metadata = { title: 'أكواد الخصم' }
@@ -17,9 +16,8 @@ type PageProps = { searchParams: Promise<Record<string, string | string[] | unde
  * أكواد الخصم (0019 · PR5) — للمالك بس. الـadmin بيشوف بيانات الخصم جوه الطلبات بس.
  * ⚠️ إخفاء الصفحة مش الحماية: كل action بيتحقق من الدور على السيرفر (lib/couponActions).
  */
-export default async function CouponsPage({ searchParams }: PageProps) {
-  const identity = await requireAdminPage()
-  if (identity.role !== 'owner') redirect('/403')
+export default pageWithAccess('zell.coupons.view', async function CouponsPage(ctx, { searchParams }: PageProps) {
+  const identity = ctx.identity
 
   const params = await searchParams
   const pageRaw = typeof params['page'] === 'string' ? Number(params['page']) : 1
@@ -59,4 +57,4 @@ export default async function CouponsPage({ searchParams }: PageProps) {
       </div>
     </>
   )
-}
+})

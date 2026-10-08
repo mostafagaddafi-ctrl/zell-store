@@ -3,16 +3,14 @@ import { PageHeader } from '../../../components/shell/PageHeader'
 import { ShippingEditor } from '../../../components/shipping/ShippingEditor'
 import { PreviewNotice } from '../../../components/ui/PreviewNotice'
 import { adminData } from '../../../lib/adminData'
-import { requireAdminPage } from '../../../lib/auth/guards'
+import { pageWithAccess } from '../../../lib/access/instance'
 import { readShippingOrder } from '../../../lib/data/shippingOrder'
 import { readShippingAreas } from '../../../lib/data/shippingAreas'
 import { readInstallationRecord } from '../../../lib/data/installation'
 
 export const metadata: Metadata = { title: 'الشحن' }
 
-export default async function ShippingPage() {
-  await requireAdminPage()
-
+export default pageWithAccess('zell.shipping.view', async function ShippingPage(_ctx) {
   const [shipping, order, areas, installation] = await Promise.all([
     adminData.getShipping(),
     readShippingOrder(),
@@ -33,4 +31,4 @@ export default async function ShippingPage() {
       <ShippingEditor shipping={shipping} order={order} areas={areas} installerAreas={installerAreas} />
     </>
   )
-}
+})

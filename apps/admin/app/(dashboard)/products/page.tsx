@@ -7,7 +7,7 @@ import { buttonClasses } from '../../../components/ui/Button'
 import { EmptyState } from '../../../components/ui/EmptyState'
 import { PreviewNotice } from '../../../components/ui/PreviewNotice'
 import { adminData, type AdminProduct } from '../../../lib/adminData'
-import { requireAdminPage } from '../../../lib/auth/guards'
+import { pageWithAccess } from '../../../lib/access/instance'
 import { cn } from '../../../lib/cn'
 
 export const metadata: Metadata = { title: 'المنتجات' }
@@ -25,9 +25,7 @@ type PageProps = { searchParams: Promise<Record<string, string | string[] | unde
  *
  * المنتج ينفع يبقى في أكتر من قسم — فبيظهر تحت كل قسم هو فيه.
  */
-export default async function ProductsPage({ searchParams }: PageProps) {
-  await requireAdminPage()
-
+export default pageWithAccess('zell.products.view', async function ProductsPage(_ctx, { searchParams }: PageProps) {
   const params = await searchParams
   const requested = typeof params['collection'] === 'string' ? params['collection'] : 'all'
 
@@ -140,4 +138,4 @@ export default async function ProductsPage({ searchParams }: PageProps) {
       )}
     </>
   )
-}
+})

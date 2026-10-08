@@ -8,11 +8,9 @@ import { Card } from '../../components/ui/Field'
 import { Table, TD, TH, THead, TR } from '../../components/ui/Table'
 import { adminData } from '../../lib/adminData'
 import { formatDateTime, formatPiastres } from '../../lib/format'
-import { requireAdminPage } from '../../lib/auth/guards'
+import { pageWithAccess } from '../../lib/access/instance'
 
-export default async function OverviewPage() {
-  await requireAdminPage()
-
+export default pageWithAccess('zell.dashboard.view', async function OverviewPage(_ctx) {
   const [summary, latest, operational] = await Promise.all([
     adminData.getOrdersSummary(),
     adminData.listOrders({ page: 1, pageSize: 5, status: 'all' }),
@@ -130,7 +128,7 @@ export default async function OverviewPage() {
       </div>
     </>
   )
-}
+})
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: 'ok' | 'warn' }) {
   return (

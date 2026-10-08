@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| الحالة | **مسودة للمراجعة.** ممنوع أي كود قبل اعتمادها |
+| الحالة | **معتمد** (#102). أ (#103) وب1 (#105) مدموجين ومنشورين. ب2 (التغليف + الفاحص `enforce`) في PR لوحده بأمر المالك. التعديلات بعد الاعتماد في §١٠ |
 | الأساس | `docs/contracts/0021-P.md` (الداتابيز متطبّقة على Production من 2026-10-07) |
 | قرار التقسيم | المراجع (ج-3): **(أ)** نقل دوال القراءة ← **(ب1)** الأساس + فاحص بيبلّغ ← **(ب2)** التغليف + فاحص بيمنع |
 | المستوى | الـ PRs التلاتة **كاملين** (بيلمسوا `lib/mutations` و`lib/data` وauth وCI) |
@@ -233,3 +233,17 @@
    - **لو مطلوب عنوان ديناميكي بعدين:** helper محمي ليه اختبارات صريحة، في تعديل عقد لوحده.
 6. **الأنواع اتنقلت في ب1 (ملاحظة #103 اتقفلت).** الـ 16 نوع اللي `lib/data` بيعتمد عليهم اتنقلوا بالحرف من `lib/mutations/<x>.ts` لـ `lib/data/<x>.ts` (9 ملفات)، و`lib/mutations` والمكونات و`lib/actions.ts` بقوا يستوردوهم `import type` من `lib/data`. `lib/data` مابقاش يستورد أي حاجة من `lib/mutations/**`، والاتجاه واحد: `lib/mutations` ← `lib/data`. الفاحص من غير أي استثناء.
 7. **تفسير العلم بقى دالة صافية متختبرة.** `lib/access/flag.ts` (`mutationsFlagEnabled`) فيها نفس الشرط بالحرف (`(القيمة ?? '').trim() === 'true'`)، و`mutationsEnabled()` في `lib/mutations.ts` بتناديها (سطر واحد، من غير تغيير في السلوك). حالات K بتغطي `true` · `false` · غايب · قيمة غلط. ده بيكمّل البند 4.
+
+### 2026-10-08 · تصحيح سطر «الحالة» (توثيق بس)
+
+8. سطر «الحالة» في راس العقد كان لسه «مسودة للمراجعة» بعد ما اتعتمد (#102). اتصحّح لحالة التنفيذ الحالية. **مفيش أي تغيير في القواعد ولا النطاق ولا الترتيب.**
+
+### 2026-10-08 · اكتشافات تنفيذ (ب2) — محتاجة موافقة المراجع
+
+9. **الإيميل في الهوية.** `(dashboard)/layout.tsx` بيعرض `identity.email` في `AdminShell`، و`AccessIdentity` كان `userId` و`role` بس. اتضاف `email` (زي `AdminIdentity` بالظبط): في legacy من `resolveAdminIdentity()` نفسها، وفي enforce من `getUser()` اللي بيتنادى أصلًا. مفيش نداء زيادة ولا تغيير سلوك. الملفات: `resolve.ts` · `instance.ts` · 4 سطور fixtures في `access.cases.ts`.
+10. **الأكشنز اللي لسه مش متعملة = 4 مش 2.** الكود النهارده فيه 4 بيرجعوا `INTERNAL` «… لسه ما اتعملش» بعد الحراس: `uploadProductImagePlaceholder` · `resendNotificationAction` · `deleteImageAction` · `saveOperationalSettingsAction`. حسب جدول §٧ («actions لسه مش متعملة ← `zell.unimplemented`») الأربعة اتعلّموا `zell.unimplemented`، فالفرق المعتمد ٢ بيتطبّق عليهم: الأدمن بياخد «العملية غير متاحة حاليًا.» بدل رسالة الدالة، والمالك زي النهارده. (`saveOperationalSettingsAction` مالهاش صلاحية «تعديل» تانية في الـ 29 أصلًا.) **لو المراجع عايز** `deleteImageAction` تفضل زي النهارده للأدمن، تبقى `zell.products.images_edit` بتعديل سطر واحد في الكود والجدول.
+11. **المعاينة في المخزون** (`previewPurchaseAction` · `previewOpeningAction`): `zell.inventory0020.view` و`mutates: false` (قراية تفاعلية مابتكتبش، والصلاحيتين فئة `owner`، فالنتيجة في legacy واحدة).
+12. **الصلاحية للأكشنز اللي منطقتها مش واضحة من الاسم** (فئة sales/operational، فالأدمن مسموح زي النهارده): `setOfferEnabledAction` · `saveSocialLinksAction` · راوت `site-images` ← `zell.identity.edit` (صفحة الهوية) · `saveHomeProductsAction` ← `zell.collections.edit` (الأقسام ← الصفحة الرئيسية) · `saveProductWidthsAction` · `saveProductAddonsAction` · `saveAddonsTitleAction` ← `zell.products.edit` (محرر المنتج) · `revalidateStorefrontAction` (بيفحص العلم) و`refreshStorefrontAction` (مابيفحصوش) ← `zell.storefront.revalidate`.
+13. **الـ manifest والتكافؤ في CI:** الجدول `apps/admin/lib/access/manifest.ts` (79 صف: الرمز · الصلاحية · `mutates` · الحارس والعلم النهارده · الرسالة). `manifest.cases.ts` (suite `manifest`) بيشغّل كل رمز في legacy × (anonymous · forbidden · unavailable · owner · admin) × (العلم مفتوح · مقفول) ويقارن بنتيجة النهارده، ويتأكد إن مفيش نداء `zell_erp_*` في legacy. و`scripts/check-access-manifest.mjs` (خطوة CI) بيتأكد إن الجدول = الكود (الغلاف · الصلاحية · `mutates` · `forbiddenMessage` · `mapFailure`) ومفيش رمز ناقص أو زيادة.
+14. **العناوين الثابتة للـ 3 صفحات:** `collections/[id]` ← 'القسم' · `orders/[orderNumber]` ← 'تفاصيل الطلب' · `products/[id]` ← 'المنتج'.
+15. **`lib/auth/guards.ts` (`requireAdminPage` / `requireAdminAction`) و`ownerGate`** مابقاش حد برّه `lib/auth` و`lib/access` بيستوردهم، بس **ماتمسحوش**: حذف كود «غير مستخدم» قرار لوحده.

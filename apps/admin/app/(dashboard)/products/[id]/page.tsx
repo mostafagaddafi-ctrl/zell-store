@@ -12,19 +12,13 @@ import { Card } from '../../../../components/ui/Field'
 import { PreviewNotice } from '../../../../components/ui/PreviewNotice'
 import { adminData } from '../../../../lib/adminData'
 import { formatDateTime } from '../../../../lib/format'
-import { requireAdminPage } from '../../../../lib/auth/guards'
+import { pageWithAccess } from '../../../../lib/access/instance'
 
 type PageProps = { params: Promise<{ id: string }> }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { id } = await params
-  const product = await adminData.getProduct(Number(id))
-  return { title: product ? product.nameAr : 'منتج' }
-}
+export const metadata: Metadata = { title: 'المنتج' }
 
-export default async function ProductPage({ params }: PageProps) {
-  await requireAdminPage()
-
+export default pageWithAccess('zell.products.view', async function ProductPage(_ctx, { params }: PageProps) {
   const { id } = await params
   const product = await adminData.getProduct(Number(id))
   if (!product) notFound()
@@ -92,4 +86,4 @@ export default async function ProductPage({ params }: PageProps) {
       />
     </>
   )
-}
+})

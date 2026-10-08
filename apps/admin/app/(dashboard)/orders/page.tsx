@@ -9,7 +9,7 @@ import { EmptyState } from '../../../components/ui/EmptyState'
 import { Table, TD, TH, THead, TR } from '../../../components/ui/Table'
 import { ORDER_STATUSES, adminData, type OrderStatus } from '../../../lib/adminData'
 import { formatDateTime, formatPiastres } from '../../../lib/format'
-import { requireAdminPage } from '../../../lib/auth/guards'
+import { pageWithAccess } from '../../../lib/access/instance'
 
 export const metadata: Metadata = { title: 'الطلبات' }
 
@@ -22,9 +22,7 @@ function readStatus(value: string | string[] | undefined): OrderStatus | 'all' {
   return (ORDER_STATUSES as readonly string[]).includes(value) ? (value as OrderStatus) : 'all'
 }
 
-export default async function OrdersPage({ searchParams }: PageProps) {
-  await requireAdminPage()
-
+export default pageWithAccess('zell.orders.view', async function OrdersPage(_ctx, { searchParams }: PageProps) {
   const params = await searchParams
   const pageRaw = typeof params['page'] === 'string' ? Number(params['page']) : 1
   const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1
@@ -167,4 +165,4 @@ export default async function OrdersPage({ searchParams }: PageProps) {
       </div>
     </>
   )
-}
+})

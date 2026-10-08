@@ -15,7 +15,7 @@ import { isCapability, legacyAdminAllows, type Capability } from './capabilities
 import type { AccessMode } from './mode'
 
 export type AccessRole = 'owner' | 'admin'
-export type AccessIdentity = { userId: string; role: AccessRole }
+export type AccessIdentity = { userId: string; email: string; role: AccessRole }
 
 /** نتيجة admin_users (نفس حالات resolveAdminIdentity). */
 export type LegacyOutcome =
@@ -24,7 +24,7 @@ export type LegacyOutcome =
   | { state: 'forbidden' }
   | { state: 'unavailable' }
 
-export type SessionUser = { state: 'user'; userId: string } | { state: 'anonymous' } | { state: 'unavailable' }
+export type SessionUser = { state: 'user'; userId: string; email: string } | { state: 'anonymous' } | { state: 'unavailable' }
 
 export type MyAccess = { owner: boolean; active: boolean; capabilities: ReadonlySet<Capability> }
 
@@ -132,7 +132,7 @@ async function enforceDecision(deps: ResolveDeps, capability: Capability | null)
   const access = await readMyAccess(deps)
   if (access === null) return { state: 'unavailable' }
   if (!access.active) return { state: 'forbidden' }
-  const identity: AccessIdentity = { userId: user.userId, role: access.owner ? 'owner' : 'admin' }
+  const identity: AccessIdentity = { userId: user.userId, email: user.email, role: access.owner ? 'owner' : 'admin' }
   if (capability === null || access.owner || access.capabilities.has(capability)) return { state: 'allowed', identity }
   return { state: 'denied', identity }
 }

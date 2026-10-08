@@ -3,16 +3,14 @@ import { PageHeader } from '../../../components/shell/PageHeader'
 import { SettingsEditor } from '../../../components/settings/SettingsEditor'
 import { SystemHealthView } from '../../../components/settings/SystemHealthView'
 import { adminData } from '../../../lib/adminData'
-import { requireAdminPage } from '../../../lib/auth/guards'
+import { pageWithAccess } from '../../../lib/access/instance'
 import { getSystemHealth } from '../../../lib/systemHealth'
 
 export const metadata: Metadata = { title: 'الإعدادات' }
 // كل فتحة للصفحة = فحص جديد. مفيش كاش لحالة النظام.
 export const dynamic = 'force-dynamic'
 
-export default async function SettingsPage() {
-  await requireAdminPage()
-
+export default pageWithAccess('zell.settings.view', async function SettingsPage(_ctx) {
   const [settings, health] = await Promise.all([adminData.getOperationalSettings(), getSystemHealth()])
 
   return (
@@ -24,4 +22,4 @@ export default async function SettingsPage() {
       </div>
     </>
   )
-}
+})

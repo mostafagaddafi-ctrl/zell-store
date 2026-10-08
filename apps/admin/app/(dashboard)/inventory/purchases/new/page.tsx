@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { redirect } from 'next/navigation'
 import { EditorBlocked } from '../../../../../components/inventory/EditorBlocked'
 import { PurchaseEditor } from '../../../../../components/inventory/PurchaseEditor'
 import { PageHeader } from '../../../../../components/shell/PageHeader'
-import { requireAdminPage } from '../../../../../lib/auth/guards'
+import { pageWithAccess } from '../../../../../lib/access/instance'
 import { loadPurchaseEditorData } from '../../../../../lib/data/inventoryEditor'
 import { cairoToday } from '../../../../../lib/inventory/purchaseForm'
 
@@ -11,9 +10,8 @@ export const metadata: Metadata = { title: 'فاتورة شراء جديدة' }
 export const dynamic = 'force-dynamic'
 
 /** فاتورة شراء جديدة (مسودة) — للمالك بس. */
-export default async function NewPurchasePage() {
-  const identity = await requireAdminPage()
-  if (identity.role !== 'owner') redirect('/403')
+export default pageWithAccess('zell.inventory0020.view', async function NewPurchasePage(ctx) {
+  const identity = ctx.identity
 
   const data = await loadPurchaseEditorData(identity.userId)
 
@@ -36,4 +34,4 @@ export default async function NewPurchasePage() {
       )}
     </>
   )
-}
+})

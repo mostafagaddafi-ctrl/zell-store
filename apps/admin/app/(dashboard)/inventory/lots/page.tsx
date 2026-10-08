@@ -1,13 +1,12 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { LotStatusBadge } from '../../../../components/inventory/InvStatusBadge'
 import { PageHeader } from '../../../../components/shell/PageHeader'
 import { buttonClasses } from '../../../../components/ui/Button'
 import { EmptyState } from '../../../../components/ui/EmptyState'
 import { inputClasses } from '../../../../components/ui/Field'
 import { Table, TD, TH, THead, TR } from '../../../../components/ui/Table'
-import { requireAdminPage } from '../../../../lib/auth/guards'
+import { pageWithAccess } from '../../../../lib/access/instance'
 import { readInventoryProductNames } from '../../../../lib/data/reads'
 import { formatDate } from '../../../../lib/format'
 import { LOT_STATUS_LABELS } from '../../../../lib/inventory/labels'
@@ -42,9 +41,8 @@ const SOURCE_LABELS = { purchase: 'شراء', opening: 'رصيد أول المد
  *   list_lots + أسماء المنتجات الظاهرة (طلب واحد بفلتر ids) + list_locations (صفحات بحد أمان).
  * الاسم الغايب بيظهر «منتج #id» / «مخزن #id»، ولو قايمة المخازن أكبر من الحد بيظهر تنبيه.
  */
-export default async function LotsPage({ searchParams }: PageProps) {
-  const identity = await requireAdminPage()
-  if (identity.role !== 'owner') redirect('/403')
+export default pageWithAccess('zell.inventory0020.view', async function LotsPage(ctx, { searchParams }: PageProps) {
+  const identity = ctx.identity
 
   const params = await searchParams
   const filters: Filters = {
@@ -195,4 +193,4 @@ export default async function LotsPage({ searchParams }: PageProps) {
       )}
     </>
   )
-}
+})

@@ -7,7 +7,7 @@ import { buttonClasses } from '../../../../components/ui/Button'
 import { EmptyState } from '../../../../components/ui/EmptyState'
 import { PreviewNotice } from '../../../../components/ui/PreviewNotice'
 import { adminData } from '../../../../lib/adminData'
-import { requireAdminPage } from '../../../../lib/auth/guards'
+import { pageWithAccess } from '../../../../lib/access/instance'
 
 export const metadata: Metadata = { title: 'منتج جديد' }
 
@@ -19,9 +19,7 @@ type PageProps = { searchParams: Promise<Record<string, string | string[] | unde
  * من غير ?collection= الصفحة بتطلب اختيار القسم الأول. والقاعدة نفسها
  * متطبّقة على السيرفر في saveProductAction — مش في الواجهة بس.
  */
-export default async function NewProductPage({ searchParams }: PageProps) {
-  await requireAdminPage()
-
+export default pageWithAccess('zell.products.view', async function NewProductPage(_ctx, { searchParams }: PageProps) {
   const params = await searchParams
 
   // 0016 — إضافة / منتج بالقطعة: من غير قسم
@@ -120,4 +118,4 @@ export default async function NewProductPage({ searchParams }: PageProps) {
       <ProductEditor product={null} collectionId={collection.id} />
     </>
   )
-}
+})
