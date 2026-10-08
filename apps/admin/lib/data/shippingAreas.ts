@@ -5,7 +5,8 @@ import 'server-only'
  */
 import { parseShippingAreas } from '@zell/core'
 import { restGet } from './client'
-import type { Areas } from '../mutations/shippingAreas'
+
+export type Areas = Record<string, string[]>
 
 /**
  * مناطق كل محافظة (settings.shipping_areas) — اختيار سريع للزبون في صفحة الطلب.
