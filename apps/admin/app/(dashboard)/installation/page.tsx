@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { InstallationEditor } from '../../../components/installation/InstallationEditor'
 import { PageHeader } from '../../../components/shell/PageHeader'
 import { requireAdminPage } from '../../../lib/auth/guards'
-import { readInstallation } from '../../../lib/mutations/installation'
+import { readInstallation } from '../../../lib/data/installation'
 
 export const metadata: Metadata = { title: 'فني التركيب' }
 export const dynamic = 'force-dynamic'
