@@ -13,6 +13,7 @@ import { timestamp } from '../validation/shared'
 import { CONFLICT_MESSAGE, patchGuarded } from './concurrency'
 import { toInternalFailure } from './errors'
 import { readShippingAreaGroups, readInstallationRecord, KEY } from '../data/installation'
+import type { ShippingAreaGroup, InstallationRecord } from '../data/installation'
 
 /**
  * فني التركيب — settings.installation (0018).
@@ -29,8 +30,6 @@ import { readShippingAreaGroups, readInstallationRecord, KEY } from '../data/ins
  *    الحساب نفسه في zell_create_order — هنا إعداد بس.
  */
 
-export type InstallationRecord = { config: InstallationConfig; updatedAt: string | null }
-
 export type InstallationInput = {
   enabled: boolean
   note: string
@@ -38,13 +37,8 @@ export type InstallationInput = {
   areas: InstallationAreas
 }
 
-/** محافظة من الشحن ومناطقها، بنفس ترتيب صفحة الشحن. */
-export type ShippingAreaGroup = { governorate: string; areas: string[]; shippingDisabled: boolean }
-
 /** منطقة متحفظة للفني ومش موجودة في الشحن (اتشالت أو اتغير اسمها). */
 export type OrphanArea = { governorate: string; area: string }
-
-export type SettingRow = { key: string; value: unknown }
 
 /** المناطق المفعّلة للفني اللي مش في مناطق الشحن. */
 export function orphanAreas(areas: InstallationAreas, groups: ShippingAreaGroup[]): OrphanArea[] {
