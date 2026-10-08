@@ -5,7 +5,11 @@ import 'server-only'
  */
 import { restGet } from './client'
 import { isCouponLive, toAdminCoupon, type CouponRow } from '../coupons/form'
-import type { CouponsPage, CouponsSwitch } from '../mutations/coupons'
+import type { AdminCoupon } from '../coupons/form'
+
+export type CouponsPage = { rows: AdminCoupon[]; total: number; page: number; pageSize: number }
+
+export type CouponsSwitch = { enabled: boolean; updatedAt: string | null }
 
 export const TABLE = 'coupons'
 
