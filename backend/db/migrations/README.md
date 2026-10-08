@@ -33,6 +33,7 @@
 | `0013_products_lock_width.sql` | `products.lock_width` (boolean · not null · default false) — تثبيت العرض في صفحة المنتج. عرض بس، `zell_create_order` مابتتلمسش |
 | `0018_installation_fee.sql` (+ `_rollback` + `_ptest`) | فني التركيب: أعمدة التركيب والمنطقة على `orders` + قيد الإجمالي، `zell_create_order` بـ12 معامل (`p_area` · `p_installation`)، والإيصال. `lock_timeout` 5s. الرجوع بعد رجوع ونشر المتجر واللوحة |
 | `0020_inventory_purchasing.sql` (+ `_rollback` + `_ptest` + `_verify`) | المخزون والمشتريات (المرحلة الأولى): مواقع (MAIN) · موردين · مستندات شراء بمصاريف مفصلة وخصم مورد · ترحيل كامل لـlots (رول/دفعة) · رصيد أول المدة · audit و commands append-only · 23 RPC owner-only مملوكة لـ `zell_inventory_definer` · حماية `products.sale_unit`. مفيش دفعات ولا آجل ولا ضرايب. `lock_timeout` 5s |
+
 > **ترتيب ملزم لمسار الطلب:** 0006a ← 0006b ← 0006c. و`0005a/0005b/0005c` **مرفوضة للتنفيذ** واستُبدلت بيهم (الخطة §2.1). ترتيبهم القديم كان 0004 ← 0005a ← 0005b ← 0005c.
 >
 > الراوت بيتوقّع `receipt_expires_at` في الإسقاط، وده جاي من `0006c`.
