@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { ToolsPageEditor } from '../../../components/installation/ToolsPageEditor'
 import { PageHeader } from '../../../components/shell/PageHeader'
 import { requireAdminPage } from '../../../lib/auth/guards'
-import { readInstallationToolsPage, readToolsSummary } from '../../../lib/mutations/installationToolsPage'
+import { readInstallationToolsPage, readToolsSummary } from '../../../lib/data/installationToolsPage'
 
 export const metadata: Metadata = { title: 'أدوات التركيب' }
 export const dynamic = 'force-dynamic'
