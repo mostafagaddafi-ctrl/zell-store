@@ -3,13 +3,13 @@
 /**
  * Server Actions للوحة — **المرحلة د١**.
  *
- * كل دالة بتنادي requireAdminAction() **بنفسها** قبل أي حاجة تانية.
- * ده مقصود ومكرر: الـ layout مش حدود أمان، والـ Server Action نقطة
- * دخول مستقلة تمامًا عن أي صفحة.
+ * كل action متصدّرة من غلاف actionWithAccess (0021-P ب2) بصلاحية مكتوبة نصًا، والغلاف بيتحقق
+ * **بنفسه** قبل أي حاجة تانية. ده مقصود: الـ layout مش حدود أمان، والـ Server Action نقطة
+ * دخول مستقلة تمامًا عن أي صفحة. الجدول (manifest): lib/access/manifest.ts.
  *
- * الترتيب في كل دالة:
- *   ١. requireAdminAction  -> UNAUTHENTICATED | FORBIDDEN
- *   ٢. guardMutations      -> DISABLED
+ * الترتيب في كل دالة (جوه الغلاف ثم الدالة):
+ *   ١. الهوية ثم الصلاحية -> UNAUTHENTICATED | FORBIDDEN (نفس رسايل requireAdminAction)
+ *   ٢. علم التعديلات (mutates: true) -> DISABLED (نتيجة guardMutations() نفسها)
  *   ٣. تحقق المدخلات        -> VALIDATION
  *   ٤. تزامن تفاؤلي         -> CONFLICT | NOT_FOUND
  *   ٥. الكتابة
@@ -31,8 +31,9 @@
  */
 
 import type { AdminCollection, AdminImage, AdminProduct, ImageFit, OrderStatus } from './adminData'
-import { requireAdminAction } from './auth/guards'
-import { guardMutations, type MutationResult } from './mutations'
+import { actionWithAccess } from './access/instance'
+import type { AccessContext } from './access/wrappers'
+import type { MutationResult } from './mutations'
 import type { SaveVersion } from './mutations/concurrency'
 import {
   createCollection,
@@ -88,48 +89,50 @@ async function refreshAfter<T>(result: MutationResult<T>): Promise<MutationResul
  * collectionId: إنشاء من جوه قسم. المنتج بيتضاف آخر القسم بعد ما يتعمل.
  * فشل الربط **مابيلغيش** المنتج — بيرجع نجاح بتحذير يقول يتربط إزاي.
  */
-export async function saveProductAction(
-  input: ProductInput,
-  collectionId?: string,
-): Promise<MutationResult<AdminProduct>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  // كل منتج جديد لازم يكون في قسم — القاعدة على السيرفر مش في الواجهة بس
-  // 0016 — منتج القطعة (إضافة) مش لازم يكون في قسم
-  if (input.id === undefined && input.saleUnit !== 'piece' && (collectionId === undefined || collectionId.trim() === '')) {
-    return { ok: false, code: 'VALIDATION', message: 'اختار قسم للمنتج الأول — كل منتج لازم يكون في قسم.' }
-  }
-  const result = await saveProduct(input)
-  if (!result.ok || input.id !== undefined || collectionId === undefined) return refreshAfter(result)
-  const linked = await addProductToCollection(collectionId, result.data.id)
-  const withLink = linked
-    ? result
-    : { ...result, warning: 'المنتج اتعمل، بس ماتضافش للقسم. ضيفه من صفحة القسم.' }
-  return refreshAfter(withLink)
-}
+export const saveProductAction = actionWithAccess(
+  'zell.products.edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    input: ProductInput,
+    collectionId?: string,
+  ): Promise<MutationResult<AdminProduct>> => {
+    // كل منتج جديد لازم يكون في قسم — القاعدة على السيرفر مش في الواجهة بس
+    // 0016 — منتج القطعة (إضافة) مش لازم يكون في قسم
+    if (input.id === undefined && input.saleUnit !== 'piece' && (collectionId === undefined || collectionId.trim() === '')) {
+      return { ok: false, code: 'VALIDATION', message: 'اختار قسم للمنتج الأول — كل منتج لازم يكون في قسم.' }
+    }
+    const result = await saveProduct(input)
+    if (!result.ok || input.id !== undefined || collectionId === undefined) return refreshAfter(result)
+    const linked = await addProductToCollection(collectionId, result.data.id)
+    const withLink = linked
+      ? result
+      : { ...result, warning: 'المنتج اتعمل، بس ماتضافش للقسم. ضيفه من صفحة القسم.' }
+    return refreshAfter(withLink)
+  },
+)
 
-export async function setProductVisibilityAction(
-  id: number,
-  visible: boolean,
-  expectedUpdatedAt: string,
-): Promise<MutationResult<AdminProduct>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await setProductVisibility(id, visible, expectedUpdatedAt))
-}
+export const setProductVisibilityAction = actionWithAccess(
+  'zell.products.edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    id: number,
+    visible: boolean,
+    expectedUpdatedAt: string,
+  ): Promise<MutationResult<AdminProduct>> => {
+    return refreshAfter(await setProductVisibility(id, visible, expectedUpdatedAt))
+  },
+)
 
 /** لازم تشمل كل المنتجات — المخفية كمان — مرة واحدة بالظبط. */
-export async function reorderProductsAction(orderedIds: number[]): Promise<MutationResult<null>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await reorderProducts(orderedIds))
-}
+export const reorderProductsAction = actionWithAccess(
+  'zell.products.edit',
+  { mutates: true },
+  async (_ctx: AccessContext, orderedIds: number[]): Promise<MutationResult<null>> => {
+    return refreshAfter(await reorderProducts(orderedIds))
+  },
+)
 
 // ── الصور ────────────────────────────────────────────────────
 /**
@@ -137,78 +140,81 @@ export async function reorderProductsAction(orderedIds: number[]): Promise<Mutat
  * تبديل الرئيسية بيغيّر أكتر من صورة (الجديدة تبقى cover والقديمة
  * ترجع contain)، فـ patch محلي لحقل واحد بيعرض حالة غلط.
  */
-export async function setPrimaryImageAction(productId: number, imageId: string): Promise<MutationResult<null>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await setPrimaryImage(productId, imageId))
-}
+export const setPrimaryImageAction = actionWithAccess(
+  'zell.products.images_edit',
+  { mutates: true },
+  async (_ctx: AccessContext, productId: number, imageId: string): Promise<MutationResult<null>> => {
+    return refreshAfter(await setPrimaryImage(productId, imageId))
+  },
+)
 
 /** cover على الرئيسية قيمة افتراضية مش قاعدة — الأدمن يقدر يرجّعها contain. */
-export async function setImageFitAction(
-  imageId: string,
-  fit: ImageFit,
-  expectedUpdatedAt: string,
-): Promise<MutationResult<null>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await setImageFit(imageId, fit, expectedUpdatedAt))
-}
+export const setImageFitAction = actionWithAccess(
+  'zell.products.images_edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    imageId: string,
+    fit: ImageFit,
+    expectedUpdatedAt: string,
+  ): Promise<MutationResult<null>> => {
+    return refreshAfter(await setImageFit(imageId, fit, expectedUpdatedAt))
+  },
+)
 
 /** صور المعرض بس، وبتتكتب من صفر. المعرّفات نصوص. */
-export async function reorderImagesAction(productId: number, orderedIds: string[]): Promise<MutationResult<null>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await reorderProductImages(productId, orderedIds))
-}
+export const reorderImagesAction = actionWithAccess(
+  'zell.products.images_edit',
+  { mutates: true },
+  async (_ctx: AccessContext, productId: number, orderedIds: string[]): Promise<MutationResult<null>> => {
+    return refreshAfter(await reorderProductImages(productId, orderedIds))
+  },
+)
 
 /** برّه نطاق المرحلة — محتاجة تنظيف Storage مع الصف في معاملة واحدة. */
-export async function deleteImageAction(_imageId: string): Promise<MutationResult<null>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return { ok: false, code: 'INTERNAL', message: 'حذف الصور لسه ما اتعملش.' }
-}
+export const deleteImageAction = actionWithAccess(
+  'zell.unimplemented',
+  { mutates: true },
+  async (_ctx: AccessContext, _imageId: string): Promise<MutationResult<null>> => {
+    return { ok: false, code: 'INTERNAL', message: 'حذف الصور لسه ما اتعملش.' }
+  },
+)
 
 // ── الطلبات ──────────────────────────────────────────────────
-export async function updateOrderStatusAction(
-  orderId: number,
-  status: OrderStatus,
-  expectedUpdatedAt: string,
-): Promise<MutationResult<null>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return updateOrderStatus(orderId, status, expectedUpdatedAt)
-}
+export const updateOrderStatusAction = actionWithAccess(
+  'zell.orders.status_edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    orderId: number,
+    status: OrderStatus,
+    expectedUpdatedAt: string,
+  ): Promise<MutationResult<null>> => {
+    return updateOrderStatus(orderId, status, expectedUpdatedAt)
+  },
+)
 
-export async function addOrderNoteAction(
-  orderId: number,
-  note: string,
-  expectedUpdatedAt: string,
-): Promise<MutationResult<null>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return saveInternalNote(orderId, note, expectedUpdatedAt)
-}
+export const addOrderNoteAction = actionWithAccess(
+  'zell.orders.note_edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    orderId: number,
+    note: string,
+    expectedUpdatedAt: string,
+  ): Promise<MutationResult<null>> => {
+    return saveInternalNote(orderId, note, expectedUpdatedAt)
+  },
+)
 
 /** برّه نطاق المرحلة. */
-export async function resendNotificationAction(_orderId: number): Promise<MutationResult<null>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return { ok: false, code: 'INTERNAL', message: 'إعادة إرسال الإشعار لسه ما اتعملتش.' }
-}
+export const resendNotificationAction = actionWithAccess(
+  'zell.unimplemented',
+  { mutates: true },
+  async (_ctx: AccessContext, _orderId: number): Promise<MutationResult<null>> => {
+    return { ok: false, code: 'INTERNAL', message: 'إعادة إرسال الإشعار لسه ما اتعملتش.' }
+  },
+)
 
 // ── المحتوى والإعدادات ───────────────────────────────────────
 /**
@@ -216,281 +222,294 @@ export async function resendNotificationAction(_orderId: number): Promise<Mutati
  * بترجّع الطابع الجديد — الواجهة تستخدمه كرمز تعارض للحفظة الجاية،
  * ولازم تعيد قراءة المحتوى كامل لو هتعرضه.
  */
-export async function saveContentAction(
-  input: ContentInput,
-  expectedUpdatedAt: string,
-): Promise<MutationResult<SaveVersion>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await saveContent(input, expectedUpdatedAt))
-}
+export const saveContentAction = actionWithAccess(
+  'zell.content.edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    input: ContentInput,
+    expectedUpdatedAt: string,
+  ): Promise<MutationResult<SaveVersion>> => {
+    return refreshAfter(await saveContent(input, expectedUpdatedAt))
+  },
+)
 
 /** حفظ كامل مش patch — الدالة بتكتب الأربعة مفاتيح مع بعض. */
 /**
  * order: ترتيب المحافظات في صفحة الطلب (اختياري). بيتحفظ **بعد** الأسعار،
  * ومستقل عنها — لو فشل، الأسعار بتفضل محفوظة والرسالة بتقول كده بالظبط.
  */
-export async function saveShippingAction(
-  input: ShippingInput,
-  expectedUpdatedAt: string,
-  order?: string[],
-  areas?: Record<string, string[]>,
-): Promise<MutationResult<SaveVersion>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  const result = await saveShipping(input, expectedUpdatedAt)
-  if (!result.ok) return refreshAfter(result)
-  const known = Object.keys((input as { rates?: Record<string, unknown> }).rates ?? {})
-  const problems: string[] = []
-  if (order !== undefined) {
-    const ordered = await saveShippingOrder(order, known)
-    if (!ordered.ok) problems.push('ترتيب المحافظات')
-  }
-  const notices: string[] = []
-  if (areas !== undefined) {
-    const saved = await saveShippingAreas(areas, known)
-    if (!saved.ok) problems.push('المناطق (' + saved.message + ')')
-    else {
-      // منطقة متاحة لفني التركيب اتشالت أو اتغير اسمها → الفني مش متاح فيها
-      const lost = await installerAreasMissingFromShipping().catch((): OrphanArea[] => [])
-      if (lost.length > 0) {
-        notices.push(
-          'مناطق متاحة لفني التركيب مابقتش في الشحن: ' +
-            lost.map((item) => item.area + ' (' + item.governorate + ')').join('، ') +
-            ' — الفني مش متاح فيها لحد ما تفعّل الاسم الجديد من صفحة فني التركيب.',
-        )
+export const saveShippingAction = actionWithAccess(
+  'zell.shipping.edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    input: ShippingInput,
+    expectedUpdatedAt: string,
+    order?: string[],
+    areas?: Record<string, string[]>,
+  ): Promise<MutationResult<SaveVersion>> => {
+    const result = await saveShipping(input, expectedUpdatedAt)
+    if (!result.ok) return refreshAfter(result)
+    const known = Object.keys((input as { rates?: Record<string, unknown> }).rates ?? {})
+    const problems: string[] = []
+    if (order !== undefined) {
+      const ordered = await saveShippingOrder(order, known)
+      if (!ordered.ok) problems.push('ترتيب المحافظات')
+    }
+    const notices: string[] = []
+    if (areas !== undefined) {
+      const saved = await saveShippingAreas(areas, known)
+      if (!saved.ok) problems.push('المناطق (' + saved.message + ')')
+      else {
+        // منطقة متاحة لفني التركيب اتشالت أو اتغير اسمها → الفني مش متاح فيها
+        const lost = await installerAreasMissingFromShipping().catch((): OrphanArea[] => [])
+        if (lost.length > 0) {
+          notices.push(
+            'مناطق متاحة لفني التركيب مابقتش في الشحن: ' +
+              lost.map((item) => item.area + ' (' + item.governorate + ')').join('، ') +
+              ' — الفني مش متاح فيها لحد ما تفعّل الاسم الجديد من صفحة فني التركيب.',
+          )
+        }
       }
     }
-  }
-  if (problems.length > 0) {
-    notices.unshift('الأسعار اتحفظت، بس ' + problems.join(' و') + ' ما اتحفظش — دوس حفظ تاني.')
-  }
-  if (notices.length > 0) return refreshAfter({ ...result, warning: notices.join(' ') })
-  return refreshAfter(result)
-}
+    if (problems.length > 0) {
+      notices.unshift('الأسعار اتحفظت، بس ' + problems.join(' و') + ' ما اتحفظش — دوس حفظ تاني.')
+    }
+    if (notices.length > 0) return refreshAfter({ ...result, warning: notices.join(' ') })
+    return refreshAfter(result)
+  },
+)
 
 /**
  * حفظ كامل للأربعة مفاتيح. **اللوجو مش فيهم** — الدالة مابتلمسش
  * logo_url، وطابع النسخة محسوب على الأربعة دول بس.
  */
-export async function saveIdentityAction(
-  input: IdentityInput,
-  expectedUpdatedAt: string,
-): Promise<MutationResult<SaveVersion>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await saveIdentity(input, expectedUpdatedAt))
-}
+export const saveIdentityAction = actionWithAccess(
+  'zell.identity.edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    input: IdentityInput,
+    expectedUpdatedAt: string,
+  ): Promise<MutationResult<SaveVersion>> => {
+    return refreshAfter(await saveIdentity(input, expectedUpdatedAt))
+  },
+)
 
 /** telegramToken مدخل فقط — ما بيترجعش أبدًا. برّه نطاق المرحلة. */
-export async function saveOperationalSettingsAction(_patch: {
-  notifyEmail?: string
-  telegramToken?: string
-}): Promise<MutationResult<null>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return { ok: false, code: 'INTERNAL', message: 'حفظ إعدادات التشغيل لسه ما اتعملش.' }
-}
+export const saveOperationalSettingsAction = actionWithAccess(
+  'zell.unimplemented',
+  { mutates: true },
+  async (_ctx: AccessContext, _patch: {
+    notifyEmail?: string
+    telegramToken?: string
+  }): Promise<MutationResult<null>> => {
+    return { ok: false, code: 'INTERNAL', message: 'حفظ إعدادات التشغيل لسه ما اتعملش.' }
+  },
+)
 
 /** برّه نطاق المرحلة. */
 // ── المجموعات ────────────────────────────────────────────────
-export async function createCollectionAction(input: CollectionInput): Promise<MutationResult<AdminCollection>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await createCollection(input))
-}
+export const createCollectionAction = actionWithAccess(
+  'zell.collections.edit',
+  { mutates: true },
+  async (_ctx: AccessContext, input: CollectionInput): Promise<MutationResult<AdminCollection>> => {
+    return refreshAfter(await createCollection(input))
+  },
+)
 
-export async function updateCollectionAction(
-  id: string,
-  input: CollectionInput,
-  expectedUpdatedAt: string,
-): Promise<MutationResult<AdminCollection>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await updateCollection(id, input, expectedUpdatedAt))
-}
+export const updateCollectionAction = actionWithAccess(
+  'zell.collections.edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    id: string,
+    input: CollectionInput,
+    expectedUpdatedAt: string,
+  ): Promise<MutationResult<AdminCollection>> => {
+    return refreshAfter(await updateCollection(id, input, expectedUpdatedAt))
+  },
+)
 
-export async function setCollectionPlacementAction(
-  id: string,
-  showOnHome: boolean,
-  showInNav: boolean,
-  expectedUpdatedAt: string,
-): Promise<MutationResult<AdminCollection>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await setCollectionPlacement(id, showOnHome, showInNav, expectedUpdatedAt))
-}
+export const setCollectionPlacementAction = actionWithAccess(
+  'zell.collections.edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    id: string,
+    showOnHome: boolean,
+    showInNav: boolean,
+    expectedUpdatedAt: string,
+  ): Promise<MutationResult<AdminCollection>> => {
+    return refreshAfter(await setCollectionPlacement(id, showOnHome, showInNav, expectedUpdatedAt))
+  },
+)
 
-export async function removeCollectionCoverAction(id: string): Promise<MutationResult<AdminCollection>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await removeCollectionCover(id))
-}
+export const removeCollectionCoverAction = actionWithAccess(
+  'zell.collections.edit',
+  { mutates: true },
+  async (_ctx: AccessContext, id: string): Promise<MutationResult<AdminCollection>> => {
+    return refreshAfter(await removeCollectionCover(id))
+  },
+)
 
-export async function deleteCollectionAction(
-  id: string,
-  expectedUpdatedAt: string,
-): Promise<MutationResult<null>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await deleteCollection(id, expectedUpdatedAt))
-}
+export const deleteCollectionAction = actionWithAccess(
+  'zell.collections.edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    id: string,
+    expectedUpdatedAt: string,
+  ): Promise<MutationResult<null>> => {
+    return refreshAfter(await deleteCollection(id, expectedUpdatedAt))
+  },
+)
 
-export async function setCollectionProductsAction(
-  id: string,
-  productIds: number[],
-): Promise<MutationResult<null>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await setCollectionProducts(id, productIds))
-}
+export const setCollectionProductsAction = actionWithAccess(
+  'zell.collections.edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    id: string,
+    productIds: number[],
+  ): Promise<MutationResult<null>> => {
+    return refreshAfter(await setCollectionProducts(id, productIds))
+  },
+)
 
-export async function reorderCollectionsAction(orderedIds: string[]): Promise<MutationResult<null>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await reorderCollections(orderedIds))
-}
+export const reorderCollectionsAction = actionWithAccess(
+  'zell.collections.edit',
+  { mutates: true },
+  async (_ctx: AccessContext, orderedIds: string[]): Promise<MutationResult<null>> => {
+    return refreshAfter(await reorderCollections(orderedIds))
+  },
+)
 
-export async function revalidateStorefrontAction(): Promise<MutationResult<null>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return (await revalidateStorefront())
-    ? { ok: true, data: null }
-    : { ok: false, code: 'INTERNAL', message: 'تحديث المتجر الفوري فشل. قد يتأخر الظهور حتى ٥ دقائق.' }
-}
+export const revalidateStorefrontAction = actionWithAccess(
+  'zell.storefront.revalidate',
+  { mutates: true },
+  async (_ctx: AccessContext): Promise<MutationResult<null>> => {
+    return (await revalidateStorefront())
+      ? { ok: true, data: null }
+      : { ok: false, code: 'INTERNAL', message: 'تحديث المتجر الفوري فشل. قد يتأخر الظهور حتى ٥ دقائق.' }
+  },
+)
 
 /** placeholder لرفع الصور — الراوت الحقيقي ما اتعملش. */
-export async function uploadProductImagePlaceholder(_productId: number): Promise<MutationResult<AdminImage>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return { ok: false, code: 'INTERNAL', message: 'رفع الصور لسه ما اتعملش.' }
-}
+export const uploadProductImagePlaceholder = actionWithAccess(
+  'zell.unimplemented',
+  { mutates: true },
+  async (_ctx: AccessContext, _productId: number): Promise<MutationResult<AdminImage>> => {
+    return { ok: false, code: 'INTERNAL', message: 'رفع الصور لسه ما اتعملش.' }
+  },
+)
 
 /** «إظهار نص العرض» — بيتحفظ فورًا من صفحة الهوية. */
-export async function setOfferEnabledAction(enabled: boolean): Promise<MutationResult<{ enabled: boolean }>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await setOfferEnabled(enabled))
-}
+export const setOfferEnabledAction = actionWithAccess(
+  'zell.identity.edit',
+  { mutates: true },
+  async (_ctx: AccessContext, enabled: boolean): Promise<MutationResult<{ enabled: boolean }>> => {
+    return refreshAfter(await setOfferEnabled(enabled))
+  },
+)
 
 /** رسالة تجربة حقيقية على تليجرام — فحص، مش تعديل، فمش محتاج علم التعديلات. */
-export async function testTelegramAction(): Promise<MutationResult<{ delivered: true }>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  return testTelegram()
-}
+export const testTelegramAction = actionWithAccess(
+  'zell.telegram.test',
+  { mutates: false },
+  async (_ctx: AccessContext): Promise<MutationResult<{ delivered: true }>> => {
+    return testTelegram()
+  },
+)
 
 /** تحديث كاش المتجر فعلًا — نفس revalidateStorefront اللي بعد كل حفظ. */
-export async function refreshStorefrontAction(): Promise<MutationResult<null>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const refreshed = await revalidateStorefront()
-  return refreshed
-    ? { ok: true, data: null }
-    : { ok: false, code: 'INTERNAL', message: 'تحديث المتجر فشل — راجع «الاتصال بالمتجر» في حالة النظام فوق' }
-}
+export const refreshStorefrontAction = actionWithAccess(
+  'zell.storefront.revalidate',
+  { mutates: false },
+  async (_ctx: AccessContext): Promise<MutationResult<null>> => {
+    const refreshed = await revalidateStorefront()
+    return refreshed
+      ? { ok: true, data: null }
+      : { ok: false, code: 'INTERNAL', message: 'تحديث المتجر فشل — راجع «الاتصال بالمتجر» في حالة النظام فوق' }
+  },
+)
 
 /**
  * فني التركيب — التشغيل وسعر المتر والمناطق وانتقالها (settings.installation).
  * expectedUpdatedAt: طابع الصف اللي اللوحة شافته، أو null لو مكانش موجود.
  */
-export async function saveInstallationAction(
-  input: InstallationInput,
-  expectedUpdatedAt: string | null,
-): Promise<MutationResult<InstallationRecord>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await saveInstallation(input, expectedUpdatedAt))
-}
+export const saveInstallationAction = actionWithAccess(
+  'zell.installation.edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    input: InstallationInput,
+    expectedUpdatedAt: string | null,
+  ): Promise<MutationResult<InstallationRecord>> => {
+    return refreshAfter(await saveInstallation(input, expectedUpdatedAt))
+  },
+)
 
 // ── الصفحة الرئيسية ──────────────────────────────────────────
 /** منتجات الرئيسية (الكل · مختارة · ولا حاجة) + اسم رابط «كل المنتجات». */
-export async function saveHomeProductsAction(input: HomeProducts): Promise<MutationResult<HomeProducts>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await saveHomeProducts(input))
-}
+export const saveHomeProductsAction = actionWithAccess(
+  'zell.collections.edit',
+  { mutates: true },
+  async (_ctx: AccessContext, input: HomeProducts): Promise<MutationResult<HomeProducts>> => {
+    return refreshAfter(await saveHomeProducts(input))
+  },
+)
 
 // ── السوشيال ─────────────────────────────────────────────────
 /** روابط السوشيال اللي بتظهر في فوتر المتجر. الفاضي = مخفي. */
-export async function saveSocialLinksAction(input: SocialLinksInput): Promise<MutationResult<SocialLinksInput>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await saveSocialLinks(input))
-}
+export const saveSocialLinksAction = actionWithAccess(
+  'zell.identity.edit',
+  { mutates: true },
+  async (_ctx: AccessContext, input: SocialLinksInput): Promise<MutationResult<SocialLinksInput>> => {
+    return refreshAfter(await saveSocialLinks(input))
+  },
+)
 
 // ── عروض الرول (0015) ────────────────────────────────────────
 /** استبدال كل العروض الإضافية لمنتج — ذرّي عن طريق zell_set_product_widths. */
-export async function saveProductWidthsAction(productId: number, rows: AdminWidth[]): Promise<MutationResult<AdminWidth[]>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await saveProductWidths(productId, rows))
-}
+export const saveProductWidthsAction = actionWithAccess(
+  'zell.products.edit',
+  { mutates: true },
+  async (_ctx: AccessContext, productId: number, rows: AdminWidth[]): Promise<MutationResult<AdminWidth[]>> => {
+    return refreshAfter(await saveProductWidths(productId, rows))
+  },
+)
 
 // ── الإضافات (0016) ──────────────────────────────────────────
 /** إضافات فيلم (منتجات قطعة) بالترتيب — ذرّي عن طريق zell_set_product_addons. */
-export async function saveProductAddonsAction(productId: number, addonIds: number[]): Promise<MutationResult<number[]>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await saveProductAddons(productId, addonIds))
-}
+export const saveProductAddonsAction = actionWithAccess(
+  'zell.products.edit',
+  { mutates: true },
+  async (_ctx: AccessContext, productId: number, addonIds: number[]): Promise<MutationResult<number[]>> => {
+    return refreshAfter(await saveProductAddons(productId, addonIds))
+  },
+)
 
 /** عنوان جزء الإضافات في صفحة المنتج — واحد لكل المنتجات. */
-export async function saveAddonsTitleAction(title: string): Promise<MutationResult<string>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await saveAddonsTitle(title))
-}
+export const saveAddonsTitleAction = actionWithAccess(
+  'zell.products.edit',
+  { mutates: true },
+  async (_ctx: AccessContext, title: string): Promise<MutationResult<string>> => {
+    return refreshAfter(await saveAddonsTitle(title))
+  },
+)
 
 // ── صفحة «أدوات التركيب» ─────────────────────────────────────
 /** المحتوى بس (صف settings واحد بـ updated_at). الربط من صفحة الفيلم. */
-export async function saveInstallationToolsPageAction(
-  input: InstallationToolsPage,
-  expectedUpdatedAt: string | null,
-): Promise<MutationResult<ToolsPageRecord>> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return auth
-  const gate = guardMutations()
-  if (gate) return gate
-  return refreshAfter(await saveInstallationToolsPage(input, expectedUpdatedAt))
-}
+export const saveInstallationToolsPageAction = actionWithAccess(
+  'zell.installation_tools.edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    input: InstallationToolsPage,
+    expectedUpdatedAt: string | null,
+  ): Promise<MutationResult<ToolsPageRecord>> => {
+    return refreshAfter(await saveInstallationToolsPage(input, expectedUpdatedAt))
+  },
+)
