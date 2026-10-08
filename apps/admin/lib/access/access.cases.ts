@@ -12,6 +12,7 @@ import {
   legacyAdminAllows,
   type Capability,
 } from './capabilities'
+import { mutationsFlagEnabled } from './flag'
 import { readAccessMode, type AccessMode } from './mode'
 import {
   authorize,
@@ -307,6 +308,15 @@ export async function runAccessCases(): Promise<AccessCasesReport> {
       out = error instanceof Error ? error.message : 'error'
     }
     check('J1 form action + gate closed -> denyFormAction(DISABLED)', [out, spy.forms.map((f) => f.code)], ['DENY_FORM:DISABLED', ['DISABLED']])
+  }
+
+  // ── K. علم التعديلات: نفس شرط mutationsEnabled() (lib/mutations.ts بتنادي الدالة دي) ──
+  {
+    const f = mutationsFlagEnabled
+    check('K1 true -> enabled (trim like today)', [f('true'), f(' true '), f('true\n')], [true, true, true])
+    check('K2 false -> disabled', f('false'), false)
+    check('K3 missing / empty -> disabled', [f(undefined), f('')], [false, false])
+    check('K4 invalid -> disabled', [f('TRUE'), f('True'), f('1'), f('yes'), f('on'), f('enabled')], [false, false, false, false, false, false])
   }
 
   return { passed, failures }
