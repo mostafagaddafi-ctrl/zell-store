@@ -34,6 +34,7 @@
 | `components/ui` | مكونات مشتركة: `Button` · `Field` · `Table` · `ConfirmDialog` · `SaveBar` · `FailureBanner` … |
 | `lib/` (الجذر) | `actions.ts` (Server Actions) · `mutations.ts` (أنواع نتايج الكتابة) · `adminData.ts` · `systemHealth.ts` (حالة النظام) · `readiness.tsx` · `revalidateStorefront.ts` (بينادي `/api/revalidate` في المتجر) · `couponActions.ts` · `inventoryActions.ts` · `enums.ts` · `format.ts` · `collectionStatus.ts` · `cn.ts` |
 | `lib/auth` | الهوية والحراس: `session.ts` (`readAdminRole`: الدور من `admin_users` بـ service_role) · `guards.ts` (`requireAdminPage` / `requireAdminAction`) · `supabaseServer.ts` · `supabaseMiddleware.ts` · `env.ts` · `nextPath.ts` |
+| `lib/access` | 0021-P: الأغلفة المحمية (`wrappers.ts`)، وقرار الوصول لكل وضع legacy · shadow · enforce (`resolve.ts` · `mode.ts`)، وقايمة الـ 29 صلاحية (`capabilities.ts`)، وحالاتهم (`access.cases.ts`). `instance.ts` = الربط الحقيقي بالجلسة و`admin_users` و`zell_erp_*` (server-only). **لسه مفيش صفحة أو أكشن بيستخدمه (ب2)** |
 | `lib/data` | القراءة من PostgREST: `client.ts` · `reads.ts` · `rows.ts` · `inventoryEditor.ts`، وملف قراءة لكل منطقة بنفس اسم ملف الكتابة في `lib/mutations` (اتنقلوا بالحرف في 0021-P PR أ) |
 | `lib/mutations` | كل الكتابة في الداتابيز، ملف لكل منطقة (منتجات · صور · أقسام · محتوى · شحن · تركيب · كوبونات · مخزون …)، ومعاهم `concurrency.ts` (التزامن التفاؤلي) و`errors.ts`. **الكتابة بس:** القراءة اتنقلت لـ `lib/data` |
 | `lib/validation` | التحقق من المدخلات لكل منطقة |
@@ -42,6 +43,8 @@
 | `lib/client` | كود المتصفح: ضغط ورفع الصور، والـ hooks (`useSaveAction` · `usePreview` · `useInventoryIntent` · `useLineCards`) |
 | `lib/uploads` | فحص حجم ونوع الصورة |
 | `scripts/run-cases.mjs` | بيشغّل كل `*.cases.ts` (في CI: `ZELL_ADMIN_CASES_RESULT`) |
+| `scripts/check-access.mjs` (+ `check-access.selftest.mjs`) | فاحص الحراس بالـ AST (0021-P): كل page/layout/route/action لازم يتصدّر من غلاف بصلاحية معروفة. `report` دلوقتي، و`enforce` من ب2 |
+| `scripts/check-capabilities.mjs` | قايمة الصلاحيات في `lib/access/capabilities.ts` = catalog الداتابيز (المفتاح والفئة) |
 
 ## apps/storefront — المتجر (Next.js على Vercel، للزباين)
 
