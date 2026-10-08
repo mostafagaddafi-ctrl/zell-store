@@ -163,7 +163,16 @@ create table public.product_widths (
   is_active boolean not null default true,
   constraint product_widths_product_width_key unique (product_id, width_cm)
 );
-create table public.orders (id bigserial primary key, total_piastres bigint not null default 0);
+create table public.orders (id bigserial primary key, status text not null default 'new', total_piastres bigint not null default 0);
+create function public.zell_orders_cancelled_final()
+returns trigger language plpgsql set search_path = '' as $f$
+begin
+  return new;
+end
+$f$;
+-- rollback 0020 بيتأكد إن الـ trigger الوحيد الباقي في public هو ده (من 0019).
+create trigger orders_cancelled_final before update of status on public.orders
+  for each row execute function public.zell_orders_cancelled_final();
 create table public.order_items (id bigserial primary key);
 create table public.product_addons (id bigserial primary key);
 create table public.coupons (id bigserial primary key);
@@ -262,12 +271,15 @@ o_new=$(as_user "$A" "select public.zell_inv_session_list_locations(true, 50, nu
 o_old=$(as_service "select public.zell_inv_list_locations('$A'::uuid, true, 50, null)" | tail -n 1)
 ok=no; case "$o_new" in "{"*) if [ "$o_new" = "$o_old" ]; then ok=yes; fi ;; esac
 record "S9a owner via session = old path via service_role" "$ok" "new=$(printf '%s' "$o_new" | cut -c1-160) old=$(printf '%s' "$o_old" | cut -c1-160)"
-ok=no; if as_user "$X" "select public.zell_inv_session_list_locations(true, 50, null)" | grep -q '45200'; then ok=yes; fi
-record "S9b admin (not owner) via session -> 45200" "$ok" ""
-ok=no; if as_service "select public.zell_inv_session_list_locations(true, 50, null)" | grep -q '42501'; then ok=yes; fi
-record "S9c service_role on session function -> 42501" "$ok" ""
-ok=no; if as_user "$A" "select public.zell_inv_list_locations('$A'::uuid, true, 50, null)" | grep -q '42501'; then ok=yes; fi
-record "S9d authenticated on old function (owner p_actor) -> 42501" "$ok" ""
+out=$(as_user "$X" "select public.zell_inv_session_list_locations(true, 50, null)")
+ok=no; case "$out" in *45200*) ok=yes ;; esac
+record "S9b admin (not owner) via session -> 45200" "$ok" "$(printf '%s' "$out" | tail -n 3 | cut -c1-200)"
+out=$(as_service "select public.zell_inv_session_list_locations(true, 50, null)")
+ok=no; case "$out" in *42501*) ok=yes ;; esac
+record "S9c service_role on session function -> 42501" "$ok" "$(printf '%s' "$out" | tail -n 3 | cut -c1-200)"
+out=$(as_user "$A" "select public.zell_inv_list_locations('$A'::uuid, true, 50, null)")
+ok=no; case "$out" in *42501*) ok=yes ;; esac
+record "S9d authenticated on old function (owner p_actor) -> 42501" "$ok" "$(printf '%s' "$out" | tail -n 3 | cut -c1-200)"
 
 # ── S10: rollback 0020 بيرفض طول ما 0020-S متطبّق ──
 ok=no; if ! run_file "$BASE_RB" "$TMP/base_rb1.out" && has "$TMP/base_rb1.out" "ZELL_0020_ROLLBACK_NOT_FULLY_APPLIED" \
