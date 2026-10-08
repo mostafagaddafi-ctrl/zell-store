@@ -49,22 +49,23 @@
 ### قراءة اللوحة
 
     صفحة محمية
-      → requireAdminPage()        ← getUser() + admin_users
+      → pageWithAccess(صلاحية)    ← legacy: getUser() + admin_users (0021-P ب2)
       → lib/adminData.ts → lib/data/*   (reads.ts + ملف قراية لكل منطقة — 0021-P أ)
       → PostgREST بصلاحية الخدمة
       → rows.ts → أنواع اللوحة
 
 مفيش كاش خالص: اللوحة بتعرض حالة تشغيل لحظية، وأي كاش بيضلّل.
 
-- **الحراس النهارده (وضع `legacy`):** `requireAdminPage()` / `requireAdminAction()` من `admin_users`. أغلفة `lib/access`
-  (0021-P ب1) موجودة ومحدش بيستخدمها لسه، والتغليف في ب2 (`docs/contracts/0021-P-code.md`).
+- **الحراس (0021-P ب2، وضع `legacy`):** كل page و layout و route و action محمي متصدّر من غلاف في `lib/access/instance`
+  بصلاحية مكتوبة نصًا (الجدول: `lib/access/manifest.ts`). القرار في legacy من `admin_users` زي قبل كده، ومفيش أي نداء
+  `zell_erp_*`. الفاحص في CI بوضع `enforce` (`docs/contracts/0021-P-code.md`).
 - **`lib/data` مابيستوردش أي حاجة من `lib/mutations/**`.** الأنواع المشتركة مكانها `lib/data`، والكتابة بتستوردها `import type`.
 
 ### كتابة اللوحة
 
     Server Action
-      ١. requireAdminAction()   → UNAUTHENTICATED | FORBIDDEN
-      ٢. guardMutations()       → DISABLED
+      ١. الهوية ثم الصلاحية     → UNAUTHENTICATED | FORBIDDEN   (actionWithAccess)
+      ٢. علم التعديلات          → DISABLED   (mutates: true)
       ٣. تحقق المدخلات           → VALIDATION
       ٤. تزامن تفاؤلي            → CONFLICT | NOT_FOUND
       ٥. الكتابة (PATCH أو دالة ذرّية)
@@ -72,7 +73,7 @@
 **الترتيب ملزم.** الصلاحية قبل علم الجاهزية — العكس بيقول لمجهول إن
 "التعديلات موقوفة"، وده تسريب معلومة عن حالة النظام.
 
-**أكواد الخصم والمخزون (المالك بس):** `requireAdminAction()` ← `ownerGate(identity.role)` ← `guardMutations()`.
+**أكواد الخصم والمخزون (المالك بس):** الغلاف: الهوية ← صلاحية فئة `owner` (`zell.coupons.*` · `zell.inventory0020.*`) برسالة «للمالك بس» ← العلم.
 معاينة المخزون مابتفحصش العلم عن قصد (مابتكتبش). والمخزون بيبعت `p_actor = identity.userId`، عمره ما ييجي من الفورم.
 
 ---
@@ -169,7 +170,7 @@ PostgREST مابيعملش معاملات بين طلبات. فأي عملية �
 
 ⚠️ `service_role` **بيتخطى RLS بالكامل** وهو **حل انتقالي**. لازم يتبدل
 بدور محدود الصلاحية. لحد ساعتها، الحد الوحيد على اللوحة هو كود التطبيق
-نفسه — وده السبب إن `requireAdminAction()` مكررة في كل Action.
+نفسه — وده السبب إن كل Action وصفحة وراوت متغلّف بنفسه (`lib/access`، 0021-P ب2).
 
 **استثناءين:**
 - **0020:** `service_role` صفر على جداول المخزون، وEXECUTE على الـ ٢٣ `zell_inv_*` بس. الممثل `p_actor` من كود السيرفر،
