@@ -14,8 +14,8 @@ import { LOT_STATUS_LABELS } from '../../../../lib/inventory/labels'
 import { locationLabel, parseLotStatusParam, productIdsOf, productLabel, type LotStatusFilter } from '../../../../lib/inventory/lots'
 import { formatMetersAndCm, formatPiastresExact } from '../../../../lib/inventory/money'
 import { parseIdParam } from '../../../../lib/inventory/purchases'
-import { listLots } from '../../../../lib/mutations/inventoryOpenings'
-import { loadLocationOptions } from '../../../../lib/mutations/inventoryPurchases'
+import { listLots } from '../../../../lib/data/inventoryOpenings'
+import { loadLocationOptions } from '../../../../lib/data/inventoryPurchases'
 
 export const metadata: Metadata = { title: 'الدفعات' }
 export const dynamic = 'force-dynamic'
