@@ -2,7 +2,7 @@
 
 import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react'
 import { computeSubtotalPiastres, validateRules } from '@zell/core'
-import type { AdminWidth } from '../../lib/mutations/productWidths'
+import type { AdminWidth } from '../../lib/data/productWidths'
 import { formatLength, formatPiastres, piastresToPounds, poundsToPiastres } from '../../lib/format'
 import { Button } from '../ui/Button'
 import { Card, Field, inputClasses } from '../ui/Field'
