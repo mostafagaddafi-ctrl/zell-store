@@ -13,7 +13,7 @@ import { formatDate } from '../../../../lib/format'
 import { DOC_STATUS_LABELS, type InventoryDocStatus } from '../../../../lib/inventory/labels'
 import { formatPiastresExact } from '../../../../lib/inventory/money'
 import { parseDocStatusParam, parseIdParam } from '../../../../lib/inventory/purchases'
-import { listPurchases, loadSupplierOptions } from '../../../../lib/mutations/inventoryPurchases'
+import { listPurchases, loadSupplierOptions } from '../../../../lib/data/inventoryPurchases'
 
 export const metadata: Metadata = { title: 'المشتريات' }
 export const dynamic = 'force-dynamic'
