@@ -1,23 +1,9 @@
 import 'server-only'
 
-import { restGet, restInsert, restPatch } from '../data/client'
+import { restInsert, restPatch } from '../data/client'
 import type { MutationResult } from '../mutations'
 import { toInternalFailure } from './errors'
-
-/**
- * ترتيب المحافظات في صفحة الطلب (settings.shipping_order) — عرض بس.
- * مستقل عن الأسعار (zell_save_shipping مابتلمسوش)، فمش محتاج دالة ذرّية.
- */
-const KEY = 'shipping_order'
-
-function asNames(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && item !== '') : []
-}
-
-export async function readShippingOrder(): Promise<string[]> {
-  const rows = await restGet<{ value: unknown }>('settings', 'select=value&key=eq.' + KEY + '&limit=1')
-  return asNames(rows.rows[0]?.value)
-}
+import { readShippingOrder, KEY } from '../data/shippingOrder'
 
 export async function saveShippingOrder(raw: unknown, known: readonly string[]): Promise<MutationResult<string[]>> {
   if (!Array.isArray(raw) || raw.length > 60) return { ok: false, code: 'VALIDATION', message: 'الترتيب مش صحيح' }
