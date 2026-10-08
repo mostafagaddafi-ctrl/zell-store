@@ -5,7 +5,6 @@ import type { MutationResult } from '../mutations'
 import {
   CODE_TAKEN_MESSAGE,
   enableGate,
-  isCouponLive,
   lockedFieldsError,
   parseCouponId,
   toAdminCoupon,
@@ -16,6 +15,7 @@ import {
 import { flag, invalid, timestamp } from '../validation/shared'
 import { patchGuarded } from './concurrency'
 import { toInternalFailure } from './errors'
+import { readCouponsSwitch, countLiveCoupons, TABLE, COLUMNS, USES, SWITCH_KEY } from '../data/coupons'
 
 /**
  * أكواد الخصم (0019 · PR5) — القراءة والكتابة على coupons و settings.coupons_enabled.
@@ -26,61 +26,11 @@ import { toInternalFailure } from './errors'
  * ⚠️ مفيش trigger على updated_at، فـpatchGuarded بيبعته (تزامن تفاؤلي).
  */
 
-const TABLE = 'coupons'
-const COLUMNS =
-  'id,code,kind,percent_off,amount_off_piastres,max_discount_piastres,min_subtotal_piastres,' +
-  'starts_at,ends_at,max_uses,max_uses_per_phone,is_active,internal_note,created_at,updated_at'
-/**
- * العدّادين في نفس الطلب (مفيش N+1) — نفس العلاقة باسمين، والفلتر على الاسم الأول بس:
- *   uses = غير الملغية (العرض) · references = كل الأوردرات حتى الملغية (قفل الكود والنوع في النموذج)
- */
-const USES = 'uses:orders(count),references:orders(count)&uses.status=neq.cancelled'
-export const COUPONS_PAGE_SIZE = 20
-const SWITCH_KEY = 'coupons_enabled'
-/** سقف قراءة الكوبونات الفعّالة لفحص التشغيل — الجدول صغير، والفحص على ده بس. */
-const LIVE_SCAN_LIMIT = 1000
-
 const NOT_FOUND_MESSAGE = 'الكوبون مش موجود. يمكن يكون اتغيّر — حدّث الصفحة.'
 const BAD_ID_MESSAGE = 'معرّف الكوبون غير صالح'
 
 export type CouponsPage = { rows: AdminCoupon[]; total: number; page: number; pageSize: number }
 export type CouponsSwitch = { enabled: boolean; updatedAt: string | null }
-
-export async function listCoupons(rawPage: number): Promise<CouponsPage> {
-  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1
-  const offset = (page - 1) * COUPONS_PAGE_SIZE
-  const result = await restGet<CouponRow>(
-    TABLE,
-    [
-      'select=' + COLUMNS + ',' + USES,
-      'order=created_at.desc,id.desc',
-      'limit=' + String(COUPONS_PAGE_SIZE),
-      'offset=' + String(offset),
-    ].join('&'),
-    { exactCount: true },
-  )
-  return { rows: result.rows.map(toAdminCoupon), total: result.total ?? result.rows.length, page, pageSize: COUPONS_PAGE_SIZE }
-}
-
-/** حالة المفتاح — jsonb true بالظبط = شغّال (نفس فحص الداتابيز والمتجر). */
-export async function readCouponsSwitch(): Promise<CouponsSwitch> {
-  const result = await restGet<{ value: unknown; updated_at: string | null }>(
-    'settings',
-    'select=value,updated_at&key=eq.' + SWITCH_KEY + '&limit=1',
-  )
-  const row = result.rows[0]
-  return { enabled: row?.value === true, updatedAt: row?.updated_at ?? null }
-}
-
-/** عدد الكوبونات الفعّالة والسارية دلوقتي (شرط التشغيل). */
-export async function countLiveCoupons(): Promise<number> {
-  const result = await restGet<{ is_active: boolean; starts_at: string | null; ends_at: string | null }>(
-    TABLE,
-    'select=is_active,starts_at,ends_at&is_active=eq.true&limit=' + String(LIVE_SCAN_LIMIT),
-  )
-  const now = Date.now()
-  return result.rows.filter((row) => isCouponLive({ isActive: row.is_active, startsAt: row.starts_at, endsAt: row.ends_at }, now)).length
-}
 
 async function codeTaken(code: string, exceptId: string | null): Promise<boolean> {
   const parts = ['select=id', 'code=eq.' + encodeURIComponent(code), 'limit=1']
