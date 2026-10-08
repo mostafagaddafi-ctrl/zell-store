@@ -5,7 +5,14 @@ import 'server-only'
  */
 import { orderGovernorates, parseInstallationConfig, parseShippingAreas } from '@zell/core'
 import { restGet } from './client'
-import type { ShippingAreaGroup, SettingRow, InstallationRecord } from '../mutations/installation'
+import type { InstallationConfig } from '@zell/core'
+
+export type InstallationRecord = { config: InstallationConfig; updatedAt: string | null }
+
+/** محافظة من الشحن ومناطقها، بنفس ترتيب صفحة الشحن. */
+export type ShippingAreaGroup = { governorate: string; areas: string[]; shippingDisabled: boolean }
+
+export type SettingRow = { key: string; value: unknown }
 
 export const KEY = 'installation'
 
