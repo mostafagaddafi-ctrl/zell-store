@@ -1,25 +1,14 @@
 import 'server-only'
 
-import { parseShippingAreas } from '@zell/core'
-import { restGet, restInsert, restPatch } from '../data/client'
+import { restInsert, restPatch } from '../data/client'
 import type { MutationResult } from '../mutations'
 import { toInternalFailure } from './errors'
+import { readShippingAreas, KEY } from '../data/shippingAreas'
 
-/**
- * مناطق كل محافظة (settings.shipping_areas) — اختيار سريع للزبون في صفحة الطلب.
- * عرض بس: سعر الشحن بالمحافظة زي ما هو، والمنطقة بتتكتب أول العنوان.
- * صف واحد مستقل عن الأسعار — مش محتاج دالة ذرّية. النجاح بيتأكد بالقراءة.
- */
-const KEY = 'shipping_areas'
 const MAX_AREAS = 40
 const MAX_AREA_LENGTH = 40
 
-type Areas = Record<string, string[]>
-
-export async function readShippingAreas(): Promise<Areas> {
-  const rows = await restGet<{ value: unknown }>('settings', 'select=value&key=eq.' + KEY + '&limit=1')
-  return parseShippingAreas(rows.rows[0]?.value)
-}
+export type Areas = Record<string, string[]>
 
 /** jsonb بيعيد ترتيب المفاتيح — فالمقارنة بالمحتوى مش بالنص. */
 function sameAreas(a: Areas, b: Areas): boolean {
