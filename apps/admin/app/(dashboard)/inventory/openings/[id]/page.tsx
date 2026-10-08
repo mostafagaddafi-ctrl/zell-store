@@ -11,7 +11,7 @@ import { requireAdminPage } from '../../../../../lib/auth/guards'
 import { loadOpeningEditorData, loadViewCatalog } from '../../../../../lib/data/inventoryEditor'
 import { cairoToday } from '../../../../../lib/inventory/purchaseForm'
 import { parseIdParam } from '../../../../../lib/inventory/purchases'
-import { getOpening } from '../../../../../lib/mutations/inventoryOpenings'
+import { getOpening } from '../../../../../lib/data/inventoryOpenings'
 
 export const metadata: Metadata = { title: 'رصيد أول المدة' }
 export const dynamic = 'force-dynamic'

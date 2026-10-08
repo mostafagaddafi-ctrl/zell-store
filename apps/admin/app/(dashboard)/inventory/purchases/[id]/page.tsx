@@ -11,7 +11,7 @@ import { requireAdminPage } from '../../../../../lib/auth/guards'
 import { loadPurchaseEditorData, loadViewCatalog } from '../../../../../lib/data/inventoryEditor'
 import { cairoToday } from '../../../../../lib/inventory/purchaseForm'
 import { parseIdParam } from '../../../../../lib/inventory/purchases'
-import { getPurchase } from '../../../../../lib/mutations/inventoryPurchases'
+import { getPurchase } from '../../../../../lib/data/inventoryPurchases'
 
 export const metadata: Metadata = { title: 'فاتورة شراء' }
 export const dynamic = 'force-dynamic'

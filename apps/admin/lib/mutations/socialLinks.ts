@@ -1,38 +1,12 @@
 import 'server-only'
 
 import { normalizeSocialUrl, SOCIAL_LABELS, SOCIAL_PLATFORMS, type SocialPlatform } from '@zell/core'
-import { restGet, restInsert, restPatch } from '../data/client'
+import { restInsert, restPatch } from '../data/client'
 import type { MutationResult } from '../mutations'
 import { toInternalFailure } from './errors'
-
-/**
- * روابط السوشيال (settings.social_links) — { facebook: "https://…" }.
- * الفاضي مابيتحفظش، والرابط بيتظبط لـ https قبل الحفظ.
- * صف واحد — مش محتاج دالة ذرّية. النجاح بيتأكد بالقراءة.
- */
-const KEY = 'social_links'
+import { readSocialLinks, KEY } from '../data/socialLinks'
 
 export type SocialLinksInput = Record<SocialPlatform, string>
-
-function emptyLinks(): SocialLinksInput {
-  return { facebook: '', instagram: '', tiktok: '', youtube: '', snapchat: '', x: '' }
-}
-
-function fromValue(value: unknown): SocialLinksInput {
-  const out = emptyLinks()
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return out
-  const raw = value as Record<string, unknown>
-  for (const platform of SOCIAL_PLATFORMS) {
-    const item = raw[platform]
-    if (typeof item === 'string') out[platform] = item
-  }
-  return out
-}
-
-export async function readSocialLinks(): Promise<SocialLinksInput> {
-  const rows = await restGet<{ value: unknown }>('settings', 'select=value&key=eq.' + KEY + '&limit=1')
-  return fromValue(rows.rows[0]?.value)
-}
 
 export async function saveSocialLinks(raw: unknown): Promise<MutationResult<SocialLinksInput>> {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {

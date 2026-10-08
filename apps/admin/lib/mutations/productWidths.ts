@@ -3,6 +3,7 @@ import 'server-only'
 import { restGet, restRpc } from '../data/client'
 import type { MutationResult } from '../mutations'
 import { toInternalFailure } from './errors'
+import { readProductWidths } from '../data/productWidths'
 
 /**
  * عروض الرول الإضافية لمنتج (0015) — public.product_widths.
@@ -22,25 +23,10 @@ const MAX_WIDTHS = 10
 const MAX_WIDTH_CM = 1000
 const MAX_PRICE = 100000000
 
-type Row = { width_cm: number; price_per_meter_piastres: number; compare_at_piastres: number | null; is_active: boolean }
+export type Row = { width_cm: number; price_per_meter_piastres: number; compare_at_piastres: number | null; is_active: boolean }
 
 function isPositiveInt(value: unknown, max: number): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= max
-}
-
-export async function readProductWidths(productId: number): Promise<AdminWidth[]> {
-  const rows = await restGet<Row>(
-    'product_widths',
-    'select=width_cm,price_per_meter_piastres,compare_at_piastres,is_active&product_id=eq.' +
-      String(productId) +
-      '&order=sort_order.asc,width_cm.asc',
-  )
-  return rows.rows.map((row) => ({
-    widthCm: Number(row.width_cm),
-    pricePerMeterPiastres: Number(row.price_per_meter_piastres),
-    compareAtPiastres: typeof row.compare_at_piastres === 'number' ? row.compare_at_piastres : null,
-    isActive: row.is_active === true,
-  }))
 }
 
 export async function saveProductWidths(productId: unknown, raw: unknown): Promise<MutationResult<AdminWidth[]>> {

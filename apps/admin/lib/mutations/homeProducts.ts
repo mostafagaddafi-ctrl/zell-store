@@ -4,30 +4,13 @@ import { parseHomeProducts, type HomeProducts, type HomeProductsMode } from '@ze
 import { restGet, restInsert, restPatch } from '../data/client'
 import type { MutationResult } from '../mutations'
 import { toInternalFailure } from './errors'
+import { KEY } from '../data/homeProducts'
 
-/**
- * «الصفحة الرئيسية» (settings.home_products):
- *   mode      all · selected · none — إيه اللي يظهر في جزء المنتجات في الرئيسية
- *   ids       المنتجات المختارة (لما mode = selected)
- *   allLabel  اسم رابط «كل المنتجات» في القائمة — فاضي = مخفي
- */
-const KEY = 'home_products'
 const MAX_LABEL = 30
 const MAX_IDS = 200
 const MODES: readonly HomeProductsMode[] = ['all', 'selected', 'none']
 
 export type HomeProductOption = { id: number; nameAr: string; isActive: boolean }
-
-export async function readHomeProducts(): Promise<{ settings: HomeProducts; products: HomeProductOption[] }> {
-  const [rows, products] = await Promise.all([
-    restGet<{ value: unknown }>('settings', 'select=value&key=eq.' + KEY + '&limit=1'),
-    restGet<{ id: number; name_ar: string; is_active: boolean }>('products', 'select=id,name_ar,is_active&order=sort_order.asc,id.asc'),
-  ])
-  return {
-    settings: parseHomeProducts(rows.rows[0]?.value),
-    products: products.rows.map((row) => ({ id: Number(row.id), nameAr: row.name_ar, isActive: row.is_active })),
-  }
-}
 
 export async function saveHomeProducts(raw: unknown): Promise<MutationResult<HomeProducts>> {
   if (typeof raw !== 'object' || raw === null) return { ok: false, code: 'VALIDATION', message: 'البيانات مش صحيحة' }

@@ -12,7 +12,7 @@ import { formatDate } from '../../../../lib/format'
 import { DOC_STATUS_LABELS, type InventoryDocStatus } from '../../../../lib/inventory/labels'
 import { formatPiastresExact } from '../../../../lib/inventory/money'
 import { parseDocStatusParam, parseIdParam } from '../../../../lib/inventory/purchases'
-import { listOpenings } from '../../../../lib/mutations/inventoryOpenings'
+import { listOpenings } from '../../../../lib/data/inventoryOpenings'
 
 export const metadata: Metadata = { title: 'رصيد أول المدة' }
 export const dynamic = 'force-dynamic'

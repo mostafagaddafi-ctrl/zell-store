@@ -4,17 +4,15 @@ import {
   INSTALLATION_LIMITS,
   installationGovernorates,
   isInstallationMoney,
-  orderGovernorates,
-  parseInstallationConfig,
-  parseShippingAreas,
   type InstallationAreas,
   type InstallationConfig,
 } from '@zell/core'
-import { restGet, restInsert } from '../data/client'
+import { restInsert } from '../data/client'
 import type { MutationResult } from '../mutations'
 import { timestamp } from '../validation/shared'
 import { CONFLICT_MESSAGE, patchGuarded } from './concurrency'
 import { toInternalFailure } from './errors'
+import { readShippingAreaGroups, readInstallationRecord, KEY } from '../data/installation'
 
 /**
  * فني التركيب — settings.installation (0018).
@@ -31,8 +29,6 @@ import { toInternalFailure } from './errors'
  *    الحساب نفسه في zell_create_order — هنا إعداد بس.
  */
 
-const KEY = 'installation'
-
 export type InstallationRecord = { config: InstallationConfig; updatedAt: string | null }
 
 export type InstallationInput = {
@@ -48,41 +44,7 @@ export type ShippingAreaGroup = { governorate: string; areas: string[]; shipping
 /** منطقة متحفظة للفني ومش موجودة في الشحن (اتشالت أو اتغير اسمها). */
 export type OrphanArea = { governorate: string; area: string }
 
-type SettingRow = { key: string; value: unknown }
-
-export async function readShippingAreaGroups(): Promise<ShippingAreaGroup[]> {
-  const rows = await restGet<SettingRow>(
-    'settings',
-    'select=key,value&key=in.(shipping_rates,shipping_order,shipping_areas,shipping_disabled_governorates)',
-  )
-  const read = (key: string): unknown => rows.rows.find((row) => row.key === key)?.value
-  const rates = read('shipping_rates')
-  if (typeof rates !== 'object' || rates === null || Array.isArray(rates)) return []
-  const savedOrder = read('shipping_order')
-  const order = Array.isArray(savedOrder) ? savedOrder.filter((item): item is string => typeof item === 'string') : []
-  const disabledRaw = read('shipping_disabled_governorates')
-  const disabled = Array.isArray(disabledRaw) ? disabledRaw.filter((item): item is string => typeof item === 'string') : []
-  const areas = parseShippingAreas(read('shipping_areas'))
-  return orderGovernorates(Object.keys(rates as Record<string, unknown>), order).map((governorate) => ({
-    governorate,
-    areas: areas[governorate] ?? [],
-    shippingDisabled: disabled.includes(governorate),
-  }))
-}
-
-export async function readInstallationRecord(): Promise<InstallationRecord> {
-  const rows = await restGet<{ value: unknown; updated_at: string }>(
-    'settings',
-    'select=value,updated_at&key=eq.' + KEY + '&limit=1',
-  )
-  const row = rows.rows[0]
-  return { config: parseInstallationConfig(row?.value), updatedAt: row ? row.updated_at : null }
-}
-
-export async function readInstallation(): Promise<{ record: InstallationRecord; groups: ShippingAreaGroup[] }> {
-  const [record, groups] = await Promise.all([readInstallationRecord(), readShippingAreaGroups()])
-  return { record, groups }
-}
+export type SettingRow = { key: string; value: unknown }
 
 /** المناطق المفعّلة للفني اللي مش في مناطق الشحن. */
 export function orphanAreas(areas: InstallationAreas, groups: ShippingAreaGroup[]): OrphanArea[] {

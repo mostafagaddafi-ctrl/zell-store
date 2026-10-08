@@ -2,21 +2,10 @@ import 'server-only'
 
 import { COMMAND_ID_MESSAGE, validationFailure, type InventoryResult } from '../inventory/errors'
 import { isUuid, parseDbId, parseVersion } from '../inventory/ids'
-import type { InventoryDocStatus } from '../inventory/labels'
-import { LOTS_PAGE_SIZE, isLotsPage, type LotStatusFilter, type LotsPage } from '../inventory/lots'
 import { validateOpeningDoc } from '../inventory/openingForm'
-import {
-  OPENINGS_PAGE_SIZE,
-  isOpeningPreview,
-  isOpeningsPage,
-  parseOpeningDetail,
-  type OpeningDetail,
-  type OpeningPreview,
-  type OpeningWriteResult,
-  type OpeningsPage,
-} from '../inventory/openings'
+import { isOpeningPreview, type OpeningPreview, type OpeningWriteResult } from '../inventory/openings'
 import { normalizeReason } from '../inventory/purchaseForm'
-import { callInventory, callInventoryWith } from '../inventory/rpc'
+import { callInventory } from '../inventory/rpc'
 import { writeResultGuard } from '../inventory/writeResults'
 
 /**
@@ -32,43 +21,10 @@ const BAD_VERSION = 'رقم نسخة المستند غير صالح. حدّث ا
 
 // ── القراءة ────────────────────────────────────────────────────────
 
-export async function listOpenings(
-  actor: string,
-  options: { status: InventoryDocStatus | null; beforeId: number | null },
-): Promise<InventoryResult<OpeningsPage>> {
-  return callInventory(
-    'listOpenings',
-    { p_actor: actor, p_status: options.status, p_limit: OPENINGS_PAGE_SIZE, p_before_id: options.beforeId },
-    isOpeningsPage,
-  )
-}
-
-export async function getOpening(actor: string, docId: number): Promise<InventoryResult<OpeningDetail>> {
-  return callInventoryWith('getOpening', { p_actor: actor, p_doc_id: docId }, parseOpeningDetail)
-}
-
 export async function previewOpening(actor: string, rawDoc: unknown): Promise<InventoryResult<OpeningPreview>> {
   const doc = validateOpeningDoc(rawDoc)
   if (!doc.ok) return validationFailure(doc.message)
   return callInventory('previewOpening', { p_actor: actor, p_doc: doc.value }, isOpeningPreview)
-}
-
-export async function listLots(
-  actor: string,
-  options: { status: LotStatusFilter; productId: number | null; locationId: number | null; beforeId: number | null },
-): Promise<InventoryResult<LotsPage>> {
-  return callInventory(
-    'listLots',
-    {
-      p_actor: actor,
-      p_status: options.status,
-      p_product_id: options.productId,
-      p_location_id: options.locationId,
-      p_limit: LOTS_PAGE_SIZE,
-      p_before_id: options.beforeId,
-    },
-    isLotsPage,
-  )
 }
 
 // ── الكتابة ────────────────────────────────────────────────────────

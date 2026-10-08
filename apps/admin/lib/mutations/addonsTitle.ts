@@ -1,19 +1,11 @@
 import 'server-only'
 
-import { DEFAULT_ADDONS_TITLE } from '@zell/core'
-import { restGet, restInsert, restPatch } from '../data/client'
+import { restInsert, restPatch } from '../data/client'
 import type { MutationResult } from '../mutations'
 import { toInternalFailure } from './errors'
+import { readAddonsTitle, KEY } from '../data/addonsTitle'
 
-/** 0016 — عنوان جزء الإضافات في صفحة المنتج (settings.addons_title). */
-const KEY = 'addons_title'
 const MAX_TITLE = 60
-
-export async function readAddonsTitle(): Promise<string> {
-  const rows = await restGet<{ value: unknown }>('settings', 'select=value&key=eq.' + KEY + '&limit=1')
-  const value = rows.rows[0]?.value
-  return typeof value === 'string' && value.trim() !== '' ? value : DEFAULT_ADDONS_TITLE
-}
 
 export async function saveAddonsTitle(raw: unknown): Promise<MutationResult<string>> {
   const title = typeof raw === 'string' ? raw.trim() : ''

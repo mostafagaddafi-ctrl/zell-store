@@ -4,13 +4,10 @@ import { COMMAND_ID_MESSAGE, validationFailure, type InventoryResult } from '../
 import { isUuid, parseDbId, parseVersion } from '../inventory/ids'
 import { callInventory } from '../inventory/rpc'
 import {
-  SUPPLIERS_PAGE_SIZE,
   isSupplierWriteResult,
-  isSuppliersPage,
   normalizeSupplierInput,
   normalizeSupplierUpdate,
   type SupplierWriteResult,
-  type SuppliersPage,
 } from '../inventory/suppliers'
 
 /**
@@ -23,22 +20,6 @@ import {
  *
  * التحقق بيتعاد هنا كامل قبل النداء — الواجهة مش خط الدفاع.
  */
-
-export async function listSuppliers(
-  actor: string,
-  options: { includeInactive: boolean; after: string | null },
-): Promise<InventoryResult<SuppliersPage>> {
-  return callInventory(
-    'listSuppliers',
-    {
-      p_actor: actor,
-      p_include_inactive: options.includeInactive,
-      p_limit: SUPPLIERS_PAGE_SIZE,
-      p_after_name_key: options.after,
-    },
-    isSuppliersPage,
-  )
-}
 
 export async function createSupplier(
   actor: string,

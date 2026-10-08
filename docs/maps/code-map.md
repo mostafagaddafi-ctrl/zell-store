@@ -34,8 +34,8 @@
 | `components/ui` | مكونات مشتركة: `Button` · `Field` · `Table` · `ConfirmDialog` · `SaveBar` · `FailureBanner` … |
 | `lib/` (الجذر) | `actions.ts` (Server Actions) · `mutations.ts` (أنواع نتايج الكتابة) · `adminData.ts` · `systemHealth.ts` (حالة النظام) · `readiness.tsx` · `revalidateStorefront.ts` (بينادي `/api/revalidate` في المتجر) · `couponActions.ts` · `inventoryActions.ts` · `enums.ts` · `format.ts` · `collectionStatus.ts` · `cn.ts` |
 | `lib/auth` | الهوية والحراس: `session.ts` (`readAdminRole`: الدور من `admin_users` بـ service_role) · `guards.ts` (`requireAdminPage` / `requireAdminAction`) · `supabaseServer.ts` · `supabaseMiddleware.ts` · `env.ts` · `nextPath.ts` |
-| `lib/data` | القراءة من PostgREST: `reads.ts` · `rows.ts` · `client.ts` · `inventoryEditor.ts` |
-| `lib/mutations` | كل الكتابة في الداتابيز، ملف لكل منطقة (منتجات · صور · أقسام · محتوى · شحن · تركيب · كوبونات · مخزون …)، ومعاهم `concurrency.ts` (التزامن التفاؤلي) و`errors.ts` |
+| `lib/data` | القراءة من PostgREST: `client.ts` · `reads.ts` · `rows.ts` · `inventoryEditor.ts`، وملف قراءة لكل منطقة بنفس اسم ملف الكتابة في `lib/mutations` (اتنقلوا بالحرف في 0021-P PR أ) |
+| `lib/mutations` | كل الكتابة في الداتابيز، ملف لكل منطقة (منتجات · صور · أقسام · محتوى · شحن · تركيب · كوبونات · مخزون …)، ومعاهم `concurrency.ts` (التزامن التفاؤلي) و`errors.ts`. **الكتابة بس:** القراءة اتنقلت لـ `lib/data` |
 | `lib/validation` | التحقق من المدخلات لكل منطقة |
 | `lib/inventory` | منطق شاشات المخزون: النماذج والتسعير والتوزيع، و`rpc.ts` (نداء دوال `zell_inv_*`)، والرسايل، وحالات الاختبار (`*.cases.ts`) |
 | `lib/coupons` | نموذج الكوبون وحالاته |
