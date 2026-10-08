@@ -15,7 +15,7 @@
 | الدور | اتعرّف في | بيعمل إيه |
 | --- | --- | --- |
 | `anon` · `authenticated` | Supabase | مالهمش أي وصول للجداول (RLS + سحب الصلاحيات في 0002). `authenticated` عنده EXECUTE على ١٢ دالة `zell_erp_*` بس (0021-P) |
-| `service_role` | Supabase | بيتخطى RLS. اللوحة والمتجر بيقروا بيه من السيرفر بس (حل انتقالي)، وعنده EXECUTE على دوال اللوحة القديمة. صفر على `erp_*` و`zell_erp_*` |
+| `service_role` | Supabase | بيتخطى RLS. اللوحة والمتجر بيقروا بيه من السيرفر بس (حل انتقالي)، وعنده EXECUTE على دوال اللوحة القديمة وعلى الـ ٢٣ `zell_inv_*` (وصفر على جداول 0020). صفر على `erp_*` و`zell_erp_*` |
 | `postgres` | Supabase | مالك الجداول، واللي بيطبّق الـ migrations (الـ preflight بيتأكد) |
 | `zell_definer` | `0005c` (مسودة) | دور مسودة `create_order` القديمة |
 | `zell_order_writer` | `0006b` | مالك دوال مسار الطلب (`zell_create_order` · `zell_get_order_receipt`)، ومن غير صلاحيات جداول مباشرة |
@@ -60,6 +60,7 @@
 | `inventory_audit_log` | سجل المخزون (append-only) |
 
 - **Sequences:** `purchase_doc_no_seq` · `opening_doc_no_seq` · `roll_lot_seq` · `batch_lot_seq` (أرقام المستندات والـ lots، والفجوات عادية).
+- **الصلاحيات:** RLS + policy واحدة للدور `zell_inventory_definer` بس. `service_role` مالوش أي صلاحية على الجداول دي، والقراية والكتابة من الـ RPCs (§٥). مفيش DELETE/TRUNCATE (triggers).
 
 ### الصلاحيات (0021-P)
 
@@ -112,7 +113,11 @@
 
 ## ٥) دوال المخزون (0020، مالكها `zell_inventory_definer`)
 
-- **الحد العام: ٢٣ دالة owner-only** بتاخد `p_actor` وبتتأكد منه في `admin_users` (`zell_inv_assert_owner`). ⚠ سؤال مفتوح: نحوّلها لهوية الجلسة زي 0021-P؟
+- **الحد العام: ٢٣ دالة owner-only** بتاخد `p_actor` وبتتأكد منه في `admin_users` (`zell_inv_assert_owner`).
+- ⚠ **الحماية من السيرفر بس:** الـ ٢٣ (١٤ كتابة · ٩ قراية) EXECUTE لـ `service_role` بس، والممثل `p_actor` بيحدده كود اللوحة
+  (`requireAdminAction()` ← `ownerGate` ← `p_actor = identity.userId`، عمره ما ييجي من الفورم)، مش جلسة المستخدم. ده نفس نمط
+  `p_actor` اللي 0021-P قفلته في دوالها. **القرار (2026-10-08، `10-DECISIONS.md` في zell-skills):** عقد لوحده لنقلها لهوية الجلسة،
+  بعد 0021-P ب2 وقبل الإطلاق، ومش مشروط بتشغيل shadow أو enforce ولا بصفحة إدارة الصلاحيات (`docs/contracts/0021-P-code.md` §٨ بند 4).
 
 | المجموعة | الدوال |
 | --- | --- |
