@@ -4,7 +4,12 @@ import 'server-only'
  * قراءات اتنقلت بالحرف من lib/mutations/productAddons.ts (0021-P PR أ). مفيش أي تغيير جوه الدوال.
  */
 import { restGet } from './client'
-import type { AddonOption } from '../mutations/productAddons'
+
+/**
+ * 0016 — إضافات منتج (product_addons) — استبدال ذرّي عن طريق zell_set_product_addons.
+ * الإضافة لازم تكون منتج بالقطعة؛ الدالة بترفض غير كده.
+ */
+export type AddonOption = { id: number; nameAr: string; isActive: boolean; pricePiastres: number }
 
 export async function readAddonOptions(): Promise<AddonOption[]> {
   const rows = await restGet<{ id: number; name_ar: string; is_active: boolean; price_per_meter_piastres: number }>(
