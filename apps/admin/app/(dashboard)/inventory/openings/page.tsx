@@ -1,13 +1,12 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { DocStatusBadge } from '../../../../components/inventory/InvStatusBadge'
 import { PageHeader } from '../../../../components/shell/PageHeader'
 import { buttonClasses } from '../../../../components/ui/Button'
 import { EmptyState } from '../../../../components/ui/EmptyState'
 import { Table, TD, TH, THead, TR } from '../../../../components/ui/Table'
-import { requireAdminPage } from '../../../../lib/auth/guards'
+import { pageWithAccess } from '../../../../lib/access/instance'
 import { formatDate } from '../../../../lib/format'
 import { DOC_STATUS_LABELS, type InventoryDocStatus } from '../../../../lib/inventory/labels'
 import { formatPiastresExact } from '../../../../lib/inventory/money'
@@ -30,9 +29,8 @@ function openingsHref(status: InventoryDocStatus | null, beforeId: number | null
 }
 
 /** رصيد أول المدة (0020-UI · PR-C) — للمالك بس. فلتر بالحالة، و keyset بالأحدث (25). */
-export default async function OpeningsPage({ searchParams }: PageProps) {
-  const identity = await requireAdminPage()
-  if (identity.role !== 'owner') redirect('/403')
+export default pageWithAccess('zell.inventory0020.view', async function OpeningsPage(ctx, { searchParams }: PageProps) {
+  const identity = ctx.identity
 
   const params = await searchParams
   const status = parseDocStatusParam(params['status'])
@@ -124,4 +122,4 @@ export default async function OpeningsPage({ searchParams }: PageProps) {
       )}
     </>
   )
-}
+})

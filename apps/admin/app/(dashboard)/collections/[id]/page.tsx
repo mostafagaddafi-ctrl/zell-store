@@ -3,19 +3,13 @@ import { notFound } from 'next/navigation'
 import { CollectionEditor } from '../../../../components/collections/CollectionEditor'
 import { PageHeader } from '../../../../components/shell/PageHeader'
 import { adminData } from '../../../../lib/adminData'
-import { requireAdminPage } from '../../../../lib/auth/guards'
+import { pageWithAccess } from '../../../../lib/access/instance'
 
 type Params = { id: string }
 
-export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
-  const { id } = await params
-  const collection = await adminData.getCollection(id)
-  return { title: collection ? collection.title : 'القسم مش موجود' }
-}
+export const metadata: Metadata = { title: 'القسم' }
 
-export default async function CollectionPage({ params }: { params: Promise<Params> }) {
-  await requireAdminPage()
-
+export default pageWithAccess('zell.collections.view', async function CollectionPage(_ctx, { params }: { params: Promise<Params> }) {
   const { id } = await params
   const [collection, products] = await Promise.all([adminData.getCollection(id), adminData.listProducts()])
   if (!collection) notFound()
@@ -29,4 +23,4 @@ export default async function CollectionPage({ params }: { params: Promise<Param
       <CollectionEditor collection={collection} products={products} />
     </>
   )
-}
+})

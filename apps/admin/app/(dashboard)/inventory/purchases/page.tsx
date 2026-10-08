@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { DocStatusBadge } from '../../../../components/inventory/InvStatusBadge'
 import { PageHeader } from '../../../../components/shell/PageHeader'
@@ -8,7 +7,7 @@ import { buttonClasses } from '../../../../components/ui/Button'
 import { EmptyState } from '../../../../components/ui/EmptyState'
 import { inputClasses } from '../../../../components/ui/Field'
 import { Table, TD, TH, THead, TR } from '../../../../components/ui/Table'
-import { requireAdminPage } from '../../../../lib/auth/guards'
+import { pageWithAccess } from '../../../../lib/access/instance'
 import { formatDate } from '../../../../lib/format'
 import { DOC_STATUS_LABELS, type InventoryDocStatus } from '../../../../lib/inventory/labels'
 import { formatPiastresExact } from '../../../../lib/inventory/money'
@@ -35,9 +34,8 @@ function purchasesHref(status: InventoryDocStatus | null, supplierId: number | n
  * فواتير الشراء (0020-UI · PR-B) — للمالك بس.
  * فلتر بالحالة وبالمورد، وتقسيم keyset بالأحدث (25 في الصفحة) من غير عدّ كلي.
  */
-export default async function PurchasesPage({ searchParams }: PageProps) {
-  const identity = await requireAdminPage()
-  if (identity.role !== 'owner') redirect('/403')
+export default pageWithAccess('zell.inventory0020.view', async function PurchasesPage(ctx, { searchParams }: PageProps) {
+  const identity = ctx.identity
 
   const params = await searchParams
   const status = parseDocStatusParam(params['status'])
@@ -159,4 +157,4 @@ export default async function PurchasesPage({ searchParams }: PageProps) {
       )}
     </>
   )
-}
+})

@@ -115,7 +115,7 @@
 
 - **الحد العام: ٢٣ دالة owner-only** بتاخد `p_actor` وبتتأكد منه في `admin_users` (`zell_inv_assert_owner`).
 - ⚠ **الحماية من السيرفر بس:** الـ ٢٣ (١٤ كتابة · ٩ قراية) EXECUTE لـ `service_role` بس، والممثل `p_actor` بيحدده كود اللوحة
-  (`requireAdminAction()` ← `ownerGate` ← `p_actor = identity.userId`، عمره ما ييجي من الفورم)، مش جلسة المستخدم. ده نفس نمط
+  (غلاف `actionWithAccess` بصلاحية فئة `owner` ← `p_actor = ctx.identity.userId`، عمره ما ييجي من الفورم)، مش جلسة المستخدم. ده نفس نمط
   `p_actor` اللي 0021-P قفلته في دوالها. **القرار (2026-10-08، `10-DECISIONS.md` في zell-skills):** عقد لوحده لنقلها لهوية الجلسة،
   بعد 0021-P ب2 وقبل الإطلاق، ومش مشروط بتشغيل shadow أو enforce ولا بصفحة إدارة الصلاحيات (`docs/contracts/0021-P-code.md` §٨ بند 4).
 

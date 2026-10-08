@@ -5,13 +5,11 @@ import { SocialLinksEditor } from '../../../components/identity/SocialLinksEdito
 import { readSocialLinks } from '../../../lib/data/socialLinks'
 import { PreviewNotice } from '../../../components/ui/PreviewNotice'
 import { adminData } from '../../../lib/adminData'
-import { requireAdminPage } from '../../../lib/auth/guards'
+import { pageWithAccess } from '../../../lib/access/instance'
 
 export const metadata: Metadata = { title: 'هوية المتجر' }
 
-export default async function IdentityPage() {
-  await requireAdminPage()
-
+export default pageWithAccess('zell.identity.view', async function IdentityPage(_ctx) {
   const [identity, social] = await Promise.all([adminData.getIdentity(), readSocialLinks()])
 
   return (
@@ -26,4 +24,4 @@ export default async function IdentityPage() {
       </div>
     </>
   )
-}
+})

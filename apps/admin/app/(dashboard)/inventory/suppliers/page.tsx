@@ -1,10 +1,9 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { SuppliersList } from '../../../../components/inventory/SuppliersList'
 import { PageHeader } from '../../../../components/shell/PageHeader'
 import { buttonClasses } from '../../../../components/ui/Button'
-import { requireAdminPage } from '../../../../lib/auth/guards'
+import { pageWithAccess } from '../../../../lib/access/instance'
 import { parseSupplierCursor } from '../../../../lib/inventory/suppliers'
 import { listSuppliers } from '../../../../lib/data/inventory'
 
@@ -27,9 +26,8 @@ function suppliersHref(includeInactive: boolean, after: string | null): string {
  *    ودوال 0020 نفسها بتتأكد إن p_actor مالك نشط.
  * التقسيم keyset بالاسم (25 في الصفحة) من غير عدّ كلي: «أول صفحة» و«التالي».
  */
-export default async function SuppliersPage({ searchParams }: PageProps) {
-  const identity = await requireAdminPage()
-  if (identity.role !== 'owner') redirect('/403')
+export default pageWithAccess('zell.inventory0020.view', async function SuppliersPage(ctx, { searchParams }: PageProps) {
+  const identity = ctx.identity
 
   const params = await searchParams
   const includeInactive = params['inactive'] === '1'
@@ -88,4 +86,4 @@ export default async function SuppliersPage({ searchParams }: PageProps) {
       )}
     </>
   )
-}
+})

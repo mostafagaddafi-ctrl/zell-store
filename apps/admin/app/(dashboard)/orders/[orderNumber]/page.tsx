@@ -12,18 +12,13 @@ import { Table, TD, TH, THead, TR } from '../../../../components/ui/Table'
 import { adminData } from '../../../../lib/adminData'
 import { formatDateTime, formatLength, formatPiastres } from '../../../../lib/format'
 import { couponValueLabel, discountRowLabel, discountRowValue, orderTotalFormula } from '../../../../lib/coupons/form'
-import { requireAdminPage } from '../../../../lib/auth/guards'
+import { pageWithAccess } from '../../../../lib/access/instance'
 
 type PageProps = { params: Promise<{ orderNumber: string }> }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { orderNumber } = await params
-  return { title: 'طلب ' + orderNumber }
-}
+export const metadata: Metadata = { title: 'تفاصيل الطلب' }
 
-export default async function OrderDetailPage({ params }: PageProps) {
-  await requireAdminPage()
-
+export default pageWithAccess('zell.orders.view', async function OrderDetailPage(_ctx, { params }: PageProps) {
   const { orderNumber } = await params
   const order = await adminData.getOrder(orderNumber)
   if (!order) notFound()
@@ -216,7 +211,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
       </div>
     </>
   )
-}
+})
 
 function Row({ label, value, ltr = false }: { label: string; value: string; ltr?: boolean }) {
   return (

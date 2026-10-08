@@ -3,23 +3,25 @@
 /**
  * المخزون (0020-UI · PR-A) — Server Actions للمالك بس.
  *
- * الترتيب في كل دالة كتابة:
- *   ١. requireAdminAction  -> UNAUTHENTICATED | FORBIDDEN
- *   ٢. ownerGate           -> FORBIDDEN للـadmin (حتى لو نادى الـaction مباشرة من غير الواجهة)
- *   ٣. guardMutations      -> DISABLED
- *   ٤. التحقق ثم النداء (lib/mutations/inventory) بـ p_actor = identity.userId
+ * الترتيب في كل دالة كتابة (غلاف actionWithAccess — 0021-P ب2):
+ *   ١. الهوية                -> UNAUTHENTICATED | FORBIDDEN
+ *   ٢. الصلاحية 'zell.inventory0020.edit' (فئة owner) -> FORBIDDEN برسالة INVENTORY_OWNER_ONLY_MESSAGE
+ *      للـadmin (حتى لو نادى الـaction مباشرة من غير الواجهة)
+ *   ٣. علم التعديلات (mutates: true) -> DISABLED
+ *   ٤. التحقق ثم النداء (lib/mutations/inventory) بـ p_actor = ctx.identity.userId
+ *   والفشل بيتحوّل لشكل InventoryFailure بـ rejectedFailure (mapFailure) زي النهارده.
+ * المعاينة 'zell.inventory0020.view' و mutates: false: مابتكتبش، ولازم تشتغل والتعديلات موقوفة.
  *
  * 🔒 p_actor عمره ما بييجي من الفورم.
  * 🔒 p_command_id بييجي من «نية الكتابة» في الواجهة (lib/inventory/intent.ts) والسيرفر بيتأكد إنه UUID.
  * أي فشل قبل النداء resolution = rejected (العملية أكيد ماتنفذتش).
  */
 
-import { requireAdminAction } from './auth/guards'
-import { ownerGate } from './coupons/form'
+import { actionWithAccess } from './access/instance'
+import type { AccessContext } from './access/wrappers'
 import {
   INVENTORY_OWNER_ONLY_MESSAGE,
   rejectedFailure,
-  type InventoryFailure,
   type InventoryResult,
 } from './inventory/errors'
 import type { OpeningDocPayload } from './inventory/openingForm'
@@ -27,7 +29,6 @@ import type { OpeningPreview, OpeningWriteResult } from './inventory/openings'
 import type { PurchaseDocPayload } from './inventory/purchaseForm'
 import type { PurchasePreview, PurchaseWriteResult } from './inventory/purchases'
 import type { SupplierInput, SupplierUpdateInput, SupplierWriteResult } from './inventory/suppliers'
-import { guardMutations } from './mutations'
 import { createSupplier, updateSupplier } from './mutations/inventory'
 import {
   createPurchase,
@@ -46,166 +47,168 @@ import {
   voidOpening,
 } from './mutations/inventoryOpenings'
 
-async function ownerWriter(): Promise<{ ok: true; actor: string } | InventoryFailure> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return rejectedFailure(auth)
-  if (ownerGate(auth.identity.role) !== null) {
-    return rejectedFailure({ code: 'FORBIDDEN', message: INVENTORY_OWNER_ONLY_MESSAGE })
-  }
-  const disabled = guardMutations()
-  if (disabled !== null && !disabled.ok) return rejectedFailure(disabled)
-  return { ok: true, actor: auth.identity.userId }
-}
+export const createSupplierAction = actionWithAccess(
+  'zell.inventory0020.edit',
+  { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
+  async (
+    ctx: AccessContext,
+    commandId: string,
+    input: SupplierInput,
+  ): Promise<InventoryResult<SupplierWriteResult>> =>
+    createSupplier(ctx.identity.userId, commandId, input),
+)
 
-/**
- * قراءة تفاعلية (المعاينة): نفس الحراس من غير guardMutations — المعاينة مابتكتبش حاجة،
- * ولازم تفضل شغالة حتى لو التعديلات موقوفة.
- */
-async function ownerReader(): Promise<{ ok: true; actor: string } | InventoryFailure> {
-  const auth = await requireAdminAction()
-  if (!auth.ok) return rejectedFailure(auth)
-  if (ownerGate(auth.identity.role) !== null) {
-    return rejectedFailure({ code: 'FORBIDDEN', message: INVENTORY_OWNER_ONLY_MESSAGE })
-  }
-  return { ok: true, actor: auth.identity.userId }
-}
-
-export async function createSupplierAction(
-  commandId: string,
-  input: SupplierInput,
-): Promise<InventoryResult<SupplierWriteResult>> {
-  const gate = await ownerWriter()
-  if (!gate.ok) return gate
-  return createSupplier(gate.actor, commandId, input)
-}
-
-export async function updateSupplierAction(
-  commandId: string,
-  supplierId: number,
-  expectedVersion: number,
-  input: SupplierUpdateInput,
-): Promise<InventoryResult<SupplierWriteResult>> {
-  const gate = await ownerWriter()
-  if (!gate.ok) return gate
-  return updateSupplier(gate.actor, commandId, supplierId, expectedVersion, input)
-}
+export const updateSupplierAction = actionWithAccess(
+  'zell.inventory0020.edit',
+  { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
+  async (
+    ctx: AccessContext,
+    commandId: string,
+    supplierId: number,
+    expectedVersion: number,
+    input: SupplierUpdateInput,
+  ): Promise<InventoryResult<SupplierWriteResult>> =>
+    updateSupplier(ctx.identity.userId, commandId, supplierId, expectedVersion, input),
+)
 
 // ── فواتير الشراء (PR-B) ────────────────────────────────────────
 
-export async function previewPurchaseAction(doc: PurchaseDocPayload): Promise<InventoryResult<PurchasePreview>> {
-  const gate = await ownerReader()
-  if (!gate.ok) return gate
-  return previewPurchase(gate.actor, doc)
-}
+export const previewPurchaseAction = actionWithAccess(
+  'zell.inventory0020.view',
+  { mutates: false, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
+  async (ctx: AccessContext, doc: PurchaseDocPayload): Promise<InventoryResult<PurchasePreview>> =>
+    previewPurchase(ctx.identity.userId, doc),
+)
 
-export async function createPurchaseAction(
-  commandId: string,
-  doc: PurchaseDocPayload,
-): Promise<InventoryResult<PurchaseWriteResult>> {
-  const gate = await ownerWriter()
-  if (!gate.ok) return gate
-  return createPurchase(gate.actor, commandId, doc)
-}
+export const createPurchaseAction = actionWithAccess(
+  'zell.inventory0020.edit',
+  { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
+  async (
+    ctx: AccessContext,
+    commandId: string,
+    doc: PurchaseDocPayload,
+  ): Promise<InventoryResult<PurchaseWriteResult>> =>
+    createPurchase(ctx.identity.userId, commandId, doc),
+)
 
-export async function updatePurchaseAction(
-  commandId: string,
-  docId: number,
-  expectedVersion: number,
-  doc: PurchaseDocPayload,
-): Promise<InventoryResult<PurchaseWriteResult>> {
-  const gate = await ownerWriter()
-  if (!gate.ok) return gate
-  return updatePurchase(gate.actor, commandId, docId, expectedVersion, doc)
-}
+export const updatePurchaseAction = actionWithAccess(
+  'zell.inventory0020.edit',
+  { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
+  async (
+    ctx: AccessContext,
+    commandId: string,
+    docId: number,
+    expectedVersion: number,
+    doc: PurchaseDocPayload,
+  ): Promise<InventoryResult<PurchaseWriteResult>> =>
+    updatePurchase(ctx.identity.userId, commandId, docId, expectedVersion, doc),
+)
 
-export async function postPurchaseAction(
-  commandId: string,
-  docId: number,
-  expectedVersion: number,
-): Promise<InventoryResult<PurchaseWriteResult>> {
-  const gate = await ownerWriter()
-  if (!gate.ok) return gate
-  return postPurchase(gate.actor, commandId, docId, expectedVersion)
-}
+export const postPurchaseAction = actionWithAccess(
+  'zell.inventory0020.edit',
+  { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
+  async (
+    ctx: AccessContext,
+    commandId: string,
+    docId: number,
+    expectedVersion: number,
+  ): Promise<InventoryResult<PurchaseWriteResult>> =>
+    postPurchase(ctx.identity.userId, commandId, docId, expectedVersion),
+)
 
-export async function discardPurchaseAction(
-  commandId: string,
-  docId: number,
-  expectedVersion: number,
-  reason: string,
-): Promise<InventoryResult<PurchaseWriteResult>> {
-  const gate = await ownerWriter()
-  if (!gate.ok) return gate
-  return discardPurchase(gate.actor, commandId, docId, expectedVersion, reason)
-}
+export const discardPurchaseAction = actionWithAccess(
+  'zell.inventory0020.edit',
+  { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
+  async (
+    ctx: AccessContext,
+    commandId: string,
+    docId: number,
+    expectedVersion: number,
+    reason: string,
+  ): Promise<InventoryResult<PurchaseWriteResult>> =>
+    discardPurchase(ctx.identity.userId, commandId, docId, expectedVersion, reason),
+)
 
-export async function voidPurchaseAction(
-  commandId: string,
-  docId: number,
-  expectedVersion: number,
-  reason: string,
-): Promise<InventoryResult<PurchaseWriteResult>> {
-  const gate = await ownerWriter()
-  if (!gate.ok) return gate
-  return voidPurchase(gate.actor, commandId, docId, expectedVersion, reason)
-}
+export const voidPurchaseAction = actionWithAccess(
+  'zell.inventory0020.edit',
+  { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
+  async (
+    ctx: AccessContext,
+    commandId: string,
+    docId: number,
+    expectedVersion: number,
+    reason: string,
+  ): Promise<InventoryResult<PurchaseWriteResult>> =>
+    voidPurchase(ctx.identity.userId, commandId, docId, expectedVersion, reason),
+)
 
 // ── رصيد أول المدة (PR-C) ───────────────────────────────────────
 
-export async function previewOpeningAction(doc: OpeningDocPayload): Promise<InventoryResult<OpeningPreview>> {
-  const gate = await ownerReader()
-  if (!gate.ok) return gate
-  return previewOpening(gate.actor, doc)
-}
+export const previewOpeningAction = actionWithAccess(
+  'zell.inventory0020.view',
+  { mutates: false, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
+  async (ctx: AccessContext, doc: OpeningDocPayload): Promise<InventoryResult<OpeningPreview>> =>
+    previewOpening(ctx.identity.userId, doc),
+)
 
-export async function createOpeningAction(
-  commandId: string,
-  doc: OpeningDocPayload,
-): Promise<InventoryResult<OpeningWriteResult>> {
-  const gate = await ownerWriter()
-  if (!gate.ok) return gate
-  return createOpening(gate.actor, commandId, doc)
-}
+export const createOpeningAction = actionWithAccess(
+  'zell.inventory0020.edit',
+  { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
+  async (
+    ctx: AccessContext,
+    commandId: string,
+    doc: OpeningDocPayload,
+  ): Promise<InventoryResult<OpeningWriteResult>> =>
+    createOpening(ctx.identity.userId, commandId, doc),
+)
 
-export async function updateOpeningAction(
-  commandId: string,
-  docId: number,
-  expectedVersion: number,
-  doc: OpeningDocPayload,
-): Promise<InventoryResult<OpeningWriteResult>> {
-  const gate = await ownerWriter()
-  if (!gate.ok) return gate
-  return updateOpening(gate.actor, commandId, docId, expectedVersion, doc)
-}
+export const updateOpeningAction = actionWithAccess(
+  'zell.inventory0020.edit',
+  { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
+  async (
+    ctx: AccessContext,
+    commandId: string,
+    docId: number,
+    expectedVersion: number,
+    doc: OpeningDocPayload,
+  ): Promise<InventoryResult<OpeningWriteResult>> =>
+    updateOpening(ctx.identity.userId, commandId, docId, expectedVersion, doc),
+)
 
-export async function postOpeningAction(
-  commandId: string,
-  docId: number,
-  expectedVersion: number,
-): Promise<InventoryResult<OpeningWriteResult>> {
-  const gate = await ownerWriter()
-  if (!gate.ok) return gate
-  return postOpening(gate.actor, commandId, docId, expectedVersion)
-}
+export const postOpeningAction = actionWithAccess(
+  'zell.inventory0020.edit',
+  { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
+  async (
+    ctx: AccessContext,
+    commandId: string,
+    docId: number,
+    expectedVersion: number,
+  ): Promise<InventoryResult<OpeningWriteResult>> =>
+    postOpening(ctx.identity.userId, commandId, docId, expectedVersion),
+)
 
-export async function discardOpeningAction(
-  commandId: string,
-  docId: number,
-  expectedVersion: number,
-  reason: string,
-): Promise<InventoryResult<OpeningWriteResult>> {
-  const gate = await ownerWriter()
-  if (!gate.ok) return gate
-  return discardOpening(gate.actor, commandId, docId, expectedVersion, reason)
-}
+export const discardOpeningAction = actionWithAccess(
+  'zell.inventory0020.edit',
+  { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
+  async (
+    ctx: AccessContext,
+    commandId: string,
+    docId: number,
+    expectedVersion: number,
+    reason: string,
+  ): Promise<InventoryResult<OpeningWriteResult>> =>
+    discardOpening(ctx.identity.userId, commandId, docId, expectedVersion, reason),
+)
 
-export async function voidOpeningAction(
-  commandId: string,
-  docId: number,
-  expectedVersion: number,
-  reason: string,
-): Promise<InventoryResult<OpeningWriteResult>> {
-  const gate = await ownerWriter()
-  if (!gate.ok) return gate
-  return voidOpening(gate.actor, commandId, docId, expectedVersion, reason)
-}
+export const voidOpeningAction = actionWithAccess(
+  'zell.inventory0020.edit',
+  { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
+  async (
+    ctx: AccessContext,
+    commandId: string,
+    docId: number,
+    expectedVersion: number,
+    reason: string,
+  ): Promise<InventoryResult<OpeningWriteResult>> =>
+    voidOpening(ctx.identity.userId, commandId, docId, expectedVersion, reason),
+)

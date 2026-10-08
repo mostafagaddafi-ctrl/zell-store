@@ -1,13 +1,13 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { EditorBlocked } from '../../../../../components/inventory/EditorBlocked'
 import { DocStatusBadge } from '../../../../../components/inventory/InvStatusBadge'
 import { OpeningEditor } from '../../../../../components/inventory/OpeningEditor'
 import { OpeningView } from '../../../../../components/inventory/OpeningView'
 import { PageHeader } from '../../../../../components/shell/PageHeader'
 import { buttonClasses } from '../../../../../components/ui/Button'
-import { requireAdminPage } from '../../../../../lib/auth/guards'
+import { pageWithAccess } from '../../../../../lib/access/instance'
 import { loadOpeningEditorData, loadViewCatalog } from '../../../../../lib/data/inventoryEditor'
 import { cairoToday } from '../../../../../lib/inventory/purchaseForm'
 import { parseIdParam } from '../../../../../lib/inventory/purchases'
@@ -23,9 +23,8 @@ type PageProps = { params: Promise<{ id: string }> }
  *   • مسودة: النموذج (مفتاحه docId:version، فأي نسخة جديدة من السيرفر بتبنيه من البيانات الطازة).
  *   • مرحّل / مُبطَل / مستبعَد: عرض بس (والإبطال للمرحّل).
  */
-export default async function OpeningPage({ params }: PageProps) {
-  const identity = await requireAdminPage()
-  if (identity.role !== 'owner') redirect('/403')
+export default pageWithAccess('zell.inventory0020.view', async function OpeningPage(ctx, { params }: PageProps) {
+  const identity = ctx.identity
 
   const { id } = await params
   const docId = parseIdParam(id)
@@ -92,4 +91,4 @@ export default async function OpeningPage({ params }: PageProps) {
       )}
     </>
   )
-}
+})

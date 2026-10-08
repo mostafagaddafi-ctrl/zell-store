@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { redirect } from 'next/navigation'
 import { EditorBlocked } from '../../../../../components/inventory/EditorBlocked'
 import { OpeningEditor } from '../../../../../components/inventory/OpeningEditor'
 import { PageHeader } from '../../../../../components/shell/PageHeader'
-import { requireAdminPage } from '../../../../../lib/auth/guards'
+import { pageWithAccess } from '../../../../../lib/access/instance'
 import { loadOpeningEditorData } from '../../../../../lib/data/inventoryEditor'
 import { cairoToday } from '../../../../../lib/inventory/purchaseForm'
 
@@ -11,9 +10,8 @@ export const metadata: Metadata = { title: 'رصيد أول مدة جديد' }
 export const dynamic = 'force-dynamic'
 
 /** رصيد أول مدة جديد (مسودة) — للمالك بس. */
-export default async function NewOpeningPage() {
-  const identity = await requireAdminPage()
-  if (identity.role !== 'owner') redirect('/403')
+export default pageWithAccess('zell.inventory0020.view', async function NewOpeningPage(ctx) {
+  const identity = ctx.identity
 
   const data = await loadOpeningEditorData(identity.userId)
 
@@ -27,4 +25,4 @@ export default async function NewOpeningPage() {
       )}
     </>
   )
-}
+})
