@@ -225,3 +225,11 @@
 2. **رسايل «للمالك بس» وشكل نتيجة المخزون.** الكوبونات بترجّع `OWNER_ONLY_MESSAGE`، والمخزون `INVENTORY_OWNER_ONLY_MESSAGE` جوه `InventoryFailure` (`rejectedFailure`). علشان تكافؤ legacy، `actionWithAccess` بياخد `forbiddenMessage` (رسالة `FORBIDDEN` لما الصلاحية مش موجودة) و`mapFailure` (تحويل الفشل لشكل نتيجة الأكشن). ده في ب1 كمنطق واختبارات بس.
 3. **`unavailable` في الأكشنز والراوتات = `UNAUTHENTICATED`** (401 في الراوتات)، زي `requireAdminAction` النهارده، في كل الأوضاع. `MutationResult` مافيهوش كود `UNAVAILABLE`، والصفحات بس هي اللي بتفرّق (`/login?error=unavailable`).
 4. **العلم:** الأغلفة بتنادي `guardMutations()` نفسها (في `instance.ts`) وبترجّع كودها ورسالتها بالحرف. حالات ب1 بتغطي: العلم مفتوح ومقفول، والترتيب (بعد الصلاحية)، وإن `mutates: false` مابيسألش العلم، و409 في الراوت. أما قراية قيمة المتغير نفسه (`true` / `false` / غايب / غلط) فهي منطق `guardMutations()` الموجود ومااتغيّرش (`trim() === 'true'`)، ومابتتشغّلش في حالات اللوحة لأنها `server-only`.
+
+### 2026-10-08 · قرارات المراجع على `cfa3124` (اتطبّقت في ب1)
+
+5. **`generateMetadata` في 3 صفحات = عنوان ثابت من غير قراءة بيانات.** `collections/[id]` · `orders/[orderNumber]` · `products/[id]` بيصدّروا `generateMetadata`، ودي بتشتغل برّه غلاف الصفحة، وتغليفها بنفس الـ wrapper مش مضمون يفرض التحقق قبل أي قراءة.
+   - **في ب2:** كل صفحة من التلاتة بتصدّر `export const metadata = { title: '…' }` ثابت (مسموح في الفاحص كـ config)، و`generateMetadata` بتتشال. مفيش أي قراءة بيانات للعنوان.
+   - **لو مطلوب عنوان ديناميكي بعدين:** helper محمي ليه اختبارات صريحة، في تعديل عقد لوحده.
+6. **الأنواع اتنقلت في ب1 (ملاحظة #103 اتقفلت).** الـ 17 نوع اللي `lib/data` بيعتمد عليهم اتنقلوا بالحرف من `lib/mutations/<x>.ts` لـ `lib/data/<x>.ts` (9 ملفات)، و`lib/mutations` والمكونات و`lib/actions.ts` بقوا يستوردوهم `import type` من `lib/data`. `lib/data` مابقاش يستورد أي حاجة من `lib/mutations/**`، والاتجاه واحد: `lib/mutations` ← `lib/data`. الفاحص من غير أي استثناء.
+7. **تفسير العلم بقى دالة صافية متختبرة.** `lib/access/flag.ts` (`mutationsFlagEnabled`) فيها نفس الشرط بالحرف (`(القيمة ?? '').trim() === 'true'`)، و`mutationsEnabled()` في `lib/mutations.ts` بتناديها (سطر واحد، من غير تغيير في السلوك). حالات K بتغطي `true` · `false` · غايب · قيمة غلط. ده بيكمّل البند 4.
