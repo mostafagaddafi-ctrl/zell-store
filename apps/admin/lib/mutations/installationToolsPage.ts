@@ -1,11 +1,12 @@
 import 'server-only'
 
-import { INSTALLATION_TOOLS_PAGE_LIMITS, parseInstallationToolsPage, type InstallationToolsPage } from '@zell/core'
-import { restGet, restInsert } from '../data/client'
+import { INSTALLATION_TOOLS_PAGE_LIMITS, type InstallationToolsPage } from '@zell/core'
+import { restInsert } from '../data/client'
 import type { MutationResult } from '../mutations'
 import { timestamp } from '../validation/shared'
 import { CONFLICT_MESSAGE, patchGuarded } from './concurrency'
 import { toInternalFailure } from './errors'
+import { readInstallationToolsPage, KEY } from '../data/installationToolsPage'
 
 /**
  * صفحة «أدوات التركيب» — صف واحد settings.installation_tools_page.
@@ -18,8 +19,6 @@ import { toInternalFailure } from './errors'
  *    وبعدين قراءة تأكيد.
  */
 
-const KEY = 'installation_tools_page'
-
 export type ToolsPageRecord = { page: InstallationToolsPage; updatedAt: string | null }
 
 export type ToolsSummary = {
@@ -29,43 +28,8 @@ export type ToolsSummary = {
   unlinkedPieces: { id: number; name: string }[]
 }
 
-export async function readInstallationToolsPage(): Promise<ToolsPageRecord> {
-  const rows = await restGet<{ value: unknown; updated_at: string }>(
-    'settings',
-    'select=value,updated_at&key=eq.' + KEY + '&limit=1',
-  )
-  const row = rows.rows[0]
-  return { page: parseInstallationToolsPage(row?.value), updatedAt: row ? row.updated_at : null }
-}
-
-type ProductLite = { id: number; name_ar: string; is_active: boolean; sale_unit: string }
-type AddonLink = { product_id: number; addon_id: number; sort_order: number }
-
-export async function readToolsSummary(): Promise<ToolsSummary> {
-  const [products, links] = await Promise.all([
-    restGet<ProductLite>('products', 'select=id,name_ar,is_active,sale_unit&order=sort_order.asc,id.asc'),
-    restGet<AddonLink>('product_addons', 'select=product_id,addon_id,sort_order&order=sort_order.asc,addon_id.asc'),
-  ])
-  const byId = new Map<number, ProductLite>(products.rows.map((row) => [Number(row.id), row]))
-  const linked = new Set<number>()
-  const films: ToolsSummary['films'] = []
-  for (const film of products.rows) {
-    if (film.sale_unit === 'piece' || !film.is_active) continue
-    const tools: ToolsSummary['films'][number]['tools'] = []
-    for (const link of links.rows) {
-      if (Number(link.product_id) !== Number(film.id)) continue
-      const tool = byId.get(Number(link.addon_id))
-      if (!tool || tool.sale_unit !== 'piece') continue
-      tools.push({ id: Number(tool.id), name: tool.name_ar, isActive: tool.is_active })
-      if (tool.is_active) linked.add(Number(tool.id))
-    }
-    films.push({ id: Number(film.id), name: film.name_ar, tools })
-  }
-  const unlinkedPieces = products.rows
-    .filter((row) => row.sale_unit === 'piece' && row.is_active && !linked.has(Number(row.id)))
-    .map((row) => ({ id: Number(row.id), name: row.name_ar }))
-  return { films, unlinkedPieces }
-}
+export type ProductLite = { id: number; name_ar: string; is_active: boolean; sale_unit: string }
+export type AddonLink = { product_id: number; addon_id: number; sort_order: number }
 
 type TextField = 'title' | 'description' | 'videoNote' | 'browseButtonLabel' | 'checkoutButtonLabel'
 type TextResult = { ok: true; value: string } | { ok: false; code: 'VALIDATION'; message: string }
