@@ -4,9 +4,9 @@ import { ShippingEditor } from '../../../components/shipping/ShippingEditor'
 import { PreviewNotice } from '../../../components/ui/PreviewNotice'
 import { adminData } from '../../../lib/adminData'
 import { requireAdminPage } from '../../../lib/auth/guards'
-import { readShippingOrder } from '../../../lib/mutations/shippingOrder'
-import { readShippingAreas } from '../../../lib/mutations/shippingAreas'
-import { readInstallationRecord } from '../../../lib/mutations/installation'
+import { readShippingOrder } from '../../../lib/data/shippingOrder'
+import { readShippingAreas } from '../../../lib/data/shippingAreas'
+import { readInstallationRecord } from '../../../lib/data/installation'
 
 export const metadata: Metadata = { title: 'الشحن' }
 
