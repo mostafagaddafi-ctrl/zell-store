@@ -6,7 +6,7 @@ import { CouponsToggle } from '../../../components/coupons/CouponsToggle'
 import { PageHeader } from '../../../components/shell/PageHeader'
 import { buttonClasses } from '../../../components/ui/Button'
 import { requireAdminPage } from '../../../lib/auth/guards'
-import { countLiveCoupons, listCoupons, readCouponsSwitch } from '../../../lib/mutations/coupons'
+import { countLiveCoupons, listCoupons, readCouponsSwitch } from '../../../lib/data/coupons'
 
 export const metadata: Metadata = { title: 'أكواد الخصم' }
 export const dynamic = 'force-dynamic'
