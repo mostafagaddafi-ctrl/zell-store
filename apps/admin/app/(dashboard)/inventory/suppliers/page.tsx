@@ -6,7 +6,7 @@ import { PageHeader } from '../../../../components/shell/PageHeader'
 import { buttonClasses } from '../../../../components/ui/Button'
 import { requireAdminPage } from '../../../../lib/auth/guards'
 import { parseSupplierCursor } from '../../../../lib/inventory/suppliers'
-import { listSuppliers } from '../../../../lib/mutations/inventory'
+import { listSuppliers } from '../../../../lib/data/inventory'
 
 export const metadata: Metadata = { title: 'الموردين' }
 export const dynamic = 'force-dynamic'
