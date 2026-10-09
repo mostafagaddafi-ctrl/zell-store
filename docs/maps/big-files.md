@@ -10,6 +10,7 @@
 | الملف | الحجم | السطور | بيعمل إيه |
 | --- | --- | --- | --- |
 | `README.md` | 24 KB | 323 | حالة النظام الحي: الميزات · اللوحة · الهيكل · الأمان · التوثيق |
+| `backend/db/ci/0021a_sql_ci.sh` | 39 KB | 537 | اختبارات SQL لـ 0021-A A1 في CI (S0–S13: ptest · تطبيق · البوابة قبل/بعد · rollback · اتصالين) |
 | `backend/db/ci/0021p_sql_ci.sh` | 30 KB | 446 | اختبارات SQL لـ 0021-P في CI (S0–S8 و C1–C4) |
 | `backend/db/migrations/0006b_order_functions.sql` | 38 KB | 766 | دور `zell_order_writer` وأول نسخة من `zell_create_order` و`zell_get_order_receipt` |
 | `backend/db/migrations/0006c_order_receipt_expiry.sql` | 23 KB | 505 | `zell_create_order` بترجّع `receipt_expires_at` |
@@ -25,12 +26,15 @@
 | `backend/db/migrations/0020_inventory_purchasing.sql` | 219 KB | 4066 | المخزون والمشتريات: الدور والجداول والـ 23 RPC والـ triggers |
 | `backend/db/migrations/0020_inventory_purchasing_ptest.sql` | 306 KB | 5440 | اختبار 0020 (الجسم منسوخ بين علامات >>> و <<<) |
 | `backend/db/migrations/0020_inventory_purchasing_verify.sql` | 26 KB | 368 | التحقق بعد تطبيق 0020 |
+| `backend/db/migrations/0021a_a1_order_cycle.sql` | 47 KB | 892 | 0021-A A1 دورة الطلب: الحالتين ورا البوابة · الانتقالات · السجل · الفترات · 11 دالة بالجلسة |
+| `backend/db/migrations/0021a_a1_order_cycle_ptest.sql` | 67 KB | 1233 | 0021-A A1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، والنتيجة صفوف) |
 | `backend/db/migrations/0021p_access_ptest.sql` | 123 KB | 2685 | 0021-P اختبار قبل التطبيق (الجسمين منسوخين بالحرف، والنتيجة صفوف) |
 | `backend/db/migrations/0021p_access_verify.sql` | 21 KB | 339 | 0021-P التحقق بعد التطبيق (15 فحص، والنتيجة صفوف) |
 | `backend/db/migrations/0021p_erp_access.sql` | 46 KB | 1049 | 0021-P المحرك `erp_*` |
 | `backend/db/migrations/0021p_zell_erp_access.sql` | 42 KB | 984 | 0021-P محوّل ZELL `zell_erp_*` |
-| `docs/contracts/0021-A.md` | 64 KB | 359 | عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر |
+| `docs/contracts/0021-A.md` | 70 KB | 376 | عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر |
 | `docs/contracts/0021-P-code.md` | 29 KB | 249 | عقد كود 0021-P: أ ← ب1 ← ب2 · الأوضاع · الفاحص · التعديلات بعد الاعتماد |
+| `docs/maps/db-map.md` | 22 KB | 215 | خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف |
 | `docs/plans/ORDER-FLOW-PLAN.md` | 119 KB | 1585 | خطة مسار الطلب |
 
 ---
@@ -58,6 +62,31 @@
 | 283 | ### خطة مستقبلية — **مش منفّذة** |
 | 293 | ### أرشيف تاريخي |
 | 303 | ## اللي لسه ناقص |
+
+## `backend/db/ci/0021a_sql_ci.sh`
+
+اختبارات SQL لـ 0021-A A1 في CI (S0–S13: ptest · تطبيق · البوابة قبل/بعد · rollback · اتصالين) · 537 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 88 | init_cluster() { |
+| 119 | reset_db() { |
+| 196 | seed_legacy() { |
+| 219 | IMPACT_SQL=$(cat <<'SQL' |
+| 240 | # ── S0: شكل الملفات ── |
+| 254 | # ── S1: ptest قبل التطبيق ── |
+| 279 | # ── S2: التطبيق ── |
+| 301 | # ── S3: التوافق والبوابة مقفولة ── |
+| 335 | # ── S4: الهوية ── |
+| 348 | # ── S5: الانتقالات (البوابة مقفولة) ── |
+| 370 | # ── S6: المكالمة والمتابعة ── |
+| 385 | # ── S7: التعديل والموعد والملاحظة ── |
+| 410 | # ── S8: الفترات ── |
+| 422 | # ── S9: append-only والمسح ── |
+| 435 | # ── S10: البوابة ── |
+| 472 | # ── S11: rollback مرفوض ── |
+| 495 | # ── S12: rollback نضيف + إعادة تطبيق ── |
+| 512 | # ── S13: التعارض باتصالين ── |
 
 ## `backend/db/ci/0021p_sql_ci.sh`
 
@@ -464,6 +493,55 @@
 | 340 | DO $zverify_end$ |
 | 367 | ROLLBACK |
 
+## `backend/db/migrations/0021a_a1_order_cycle.sql`
+
+0021-A A1 دورة الطلب: الحالتين ورا البوابة · الانتقالات · السجل · الفترات · 11 دالة بالجلسة · 892 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 21 | begin; |
+| 22 | -- >>> 0021A1 BODY |
+| 26 | -- (0) preflight |
+| 27 | do $a1pre$ |
+| 100 | -- (1) الدور: NOLOGIN + NOBYPASSRLS + NOINHERIT. عضوية postgres: ADMIN (تلقائي) + SET، و INHERIT FALSE. |
+| 101 | create role zell_order_definer nologin nobypassrls noinherit nocreaterole nocreatedb noreplication; |
+| 104 | do $a1role$ |
+| 119 | -- (2) orders: أعمدة جديدة (فاضية) + الحالتين الجداد في القيد. الصفوف القديمة ماتتغيّرش. |
+| 136 | do $a1status$ |
+| 160 | -- (3) الجداول الجديدة (مالكها postgres): RLS + policy للدور بس، وصفر صلاحيات لأي دور تاني. |
+| 161 | create table public.order_status_transitions ( |
+| 178 | create table public.order_events ( |
+| 192 | create table public.order_delivery_periods ( |
+| 205 | create table public.zell_order_gate ( |
+| 214 | create table public.zell_order_config_log ( |
+| 243 | -- (4) الثبات: السجلين append-only، والبوابة صف واحد ومفيش مسح. دوال الـ triggers مالكها postgres (invoker). |
+| 298 | -- (5) الدوال: CREATE كـ zell_order_definer (SET LOCAL ROLE). |
+| 772 | -- (6) triggers على orders. |
+| 806 | -- (7) EXECUTE: الكل مسحوب، وبعدين: العامة الـ 11 لـ authenticated (منهم البوابة، للمالك بس جوه الدالة) · ح… |
+| 843 | -- (8) postflight |
+| 844 | do $a1post$ |
+| 891 | -- <<< 0021A1 BODY |
+| 892 | commit; |
+
+## `backend/db/migrations/0021a_a1_order_cycle_ptest.sql`
+
+0021-A A1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، والنتيجة صفوف) · 1233 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 13 | begin; |
+| 17 | do $zguard$ |
+| 104 | do $zfx$ |
+| 130 | -- >>> 0021A1 BODY |
+| 530 | -- ── الدوال العامة (EXECUTE لـ authenticated بس) ── |
+| 999 | -- <<< 0021A1 BODY |
+| 1001 | -- ── P: البنية والهوية والبوابة والفترات (من غير أي صف في orders) ── |
+| 1002 | do $zP$ |
+| 1118 | -- ── O: دورة طلب تجربة (ci بس — في production مفيش أي كتابة على orders) ── |
+| 1119 | do $zO$ |
+| 1199 | with r as ( |
+| 1233 | rollback; |
+
 ## `backend/db/migrations/0021p_access_ptest.sql`
 
 0021-P اختبار قبل التطبيق (الجسمين منسوخين بالحرف، والنتيجة صفوف) · 2685 سطر
@@ -613,7 +691,7 @@
 
 ## `docs/contracts/0021-A.md`
 
-عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر · 359 سطر
+عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر · 376 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -651,6 +729,7 @@
 | 316 | ## ١١) أسئلة للمالك (مش محسومة — العقد مش هيفترض إجابة) |
 | 339 | ## ١٢) قرارات تقنية للمراجع |
 | 350 | ## ١٣) سجل التعديلات |
+| 362 | ## ١٤) تفاصيل تنفيذ A1 (`backend/db/migrations/0021a_a1_order_cycle.sql`) |
 
 ## `docs/contracts/0021-P-code.md`
 
@@ -673,6 +752,29 @@
 | 229 | ### 2026-10-08 · قرارات المراجع على `cfa3124` (اتطبّقت في ب1) |
 | 237 | ### 2026-10-08 · تصحيح سطر «الحالة» (توثيق بس) |
 | 241 | ### 2026-10-08 · اكتشافات تنفيذ (ب2) — محتاجة موافقة المراجع |
+
+## `docs/maps/db-map.md`
+
+خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف · 215 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 1 | # خريطة الداتابيز |
+| 13 | ## ١) الأدوار |
+| 29 | ## ٢) الجداول |
+| 31 | ### المتجر والطلبات |
+| 49 | ### دورة الطلب (0021-A A1) |
+| 61 | ### المخزون والمشتريات (0020) |
+| 78 | ### الصلاحيات (0021-P) |
+| 94 | ## ٣) دوال المتجر والطلب |
+| 105 | ## ٤) دوال اللوحة (الكتابة الذرّية) |
+| 127 | ## ٥) دوال المخزون (0020، مالكها `zell_inventory_definer`) |
+| 155 | ## ٦) دوال الصلاحيات (0021-P) |
+| 159 | ### المحرك (`0021p_erp_access.sql`، مالكها `erp_definer`، كلها داخلية) |
+| 171 | ### المحوّل (`0021p_zell_erp_access.sql`) |
+| 180 | ### Triggers 0021-P |
+| 191 | ## ٧) دوال دورة الطلب (0021-A A1، مالكها `zell_order_definer`) |
+| 204 | ## ٨) ملفات من غير جداول أو دوال جديدة |
 
 ## `docs/plans/ORDER-FLOW-PLAN.md`
 
