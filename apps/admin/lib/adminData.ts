@@ -8,6 +8,7 @@
  */
 import { supabaseAdminData } from './data/reads'
 import type { ImageFit, OrderStatus, SectionKey } from './enums'
+import type { DeliveryPeriod, FollowUpFilter } from './orders/cycle'
 import type { CatalogLayout } from '@zell/core'
 import type { OrderCouponSnapshot } from './coupons/form'
 
@@ -37,6 +38,8 @@ export type AdminOrder = {
   /** 0019 — كود الكوبون من لقطة الأوردر (null للقديم أو من غير كوبون). */
   couponCode: string | null
   discountPiastres: number
+  /** 0021-A — معاد المتابعة (timestamptz) أو null. */
+  nextFollowUpAt: string | null
 }
 
 export type AdminOrderItem = {
@@ -65,11 +68,17 @@ export type AdminOrderDetail = AdminOrder & {
   coupon: OrderCouponSnapshot | null
   /** رمز التعارض لتعديل الحالة والملاحظات الداخلية. */
   updatedAt: string
+  /** 0021-A — الطلب عليه كوبون (coupon_id)، فالموبايل مايتعدّلش. */
+  hasCoupon: boolean
+  /** 0021-A — معاد التسليم المؤكد أو null. */
+  deliveryConfirmed: { date: string; period: DeliveryPeriod | null; note: string | null } | null
 }
 
 export type OrdersQuery = {
   status?: OrderStatus | 'all'
   search?: string
+  /** 0021-A — فلتر المتابعة (الطلبات الجديدة بس، بالأقرب). */
+  followUp?: FollowUpFilter | null
   page: number
   pageSize: number
 }
@@ -284,6 +293,8 @@ export interface AdminDataSource {
   listOrders(query: OrdersQuery): Promise<OrdersPage>
   getOrder(orderNumber: string): Promise<AdminOrderDetail | null>
   getOrdersSummary(): Promise<OrdersSummary>
+  /** 0021-A — عدد المتابعات المتأخرة واللي النهارده (الطلبات الجديدة). */
+  getFollowUpCounts(): Promise<{ overdue: number; today: number }>
   /** بترجّع النشط وغير النشط — مفيش بارامتر includeInactive */
   listProducts(): Promise<AdminProduct[]>
   getProduct(id: number): Promise<AdminProductDetail | null>
