@@ -13,6 +13,9 @@ import { adminData } from '../../../../lib/adminData'
 import { formatDateTime, formatLength, formatPiastres } from '../../../../lib/format'
 import { couponValueLabel, discountRowLabel, discountRowValue, orderTotalFormula } from '../../../../lib/coupons/form'
 import { pageWithAccess } from '../../../../lib/access/instance'
+import { OrderCallCard, OrderCustomerEditor, OrderDeliveryCard, OrderFollowUpCard } from '../../../../components/orders/OrderCycle'
+import { OrderTimeline } from '../../../../components/orders/OrderTimeline'
+import { getOrderCycleView } from '../../../../lib/data/orderCycle'
 
 type PageProps = { params: Promise<{ orderNumber: string }> }
 
@@ -22,6 +25,8 @@ export default pageWithAccess('zell.orders.view', async function OrderDetailPage
   const { orderNumber } = await params
   const order = await adminData.getOrder(orderNumber)
   if (!order) notFound()
+  // 0021-A A2 — السجل والبوابة والفترات بجلسة المستخدم (أي فشل = «مش متاح دلوقتي» من غير ما الصفحة تقع)
+  const cycle = await getOrderCycleView(order.id)
 
   const waHref = 'https://wa.me/2' + order.customerPhone
 
@@ -164,6 +169,8 @@ export default pageWithAccess('zell.orders.view', async function OrderDetailPage
             notes={order.internalNotes ?? ''}
             expectedUpdatedAt={order.updatedAt}
           />
+
+          <OrderTimeline events={cycle.events} />
         </div>
 
         <div className="order-first space-y-5 xl:order-none">
@@ -191,9 +198,42 @@ export default pageWithAccess('zell.orders.view', async function OrderDetailPage
             </div>
           </Card>
 
+          <OrderCustomerEditor
+            orderId={order.id}
+            status={order.status}
+            current={{
+              customerName: order.customerName,
+              customerPhone: order.customerPhone,
+              address: order.address,
+              notes: order.notes,
+              hasCoupon: order.hasCoupon,
+            }}
+            expectedUpdatedAt={order.updatedAt}
+          />
+
           <OrderStatusControls
             orderId={order.id}
             status={order.status}
+            gateOpen={cycle.gate === null ? null : cycle.gate.isOpen}
+            expectedUpdatedAt={order.updatedAt}
+          />
+
+          <OrderCallCard orderId={order.id} status={order.status} expectedUpdatedAt={order.updatedAt} />
+
+          <OrderFollowUpCard
+            key={'follow-up-' + order.updatedAt}
+            orderId={order.id}
+            status={order.status}
+            nextFollowUpAt={order.nextFollowUpAt}
+            expectedUpdatedAt={order.updatedAt}
+          />
+
+          <OrderDeliveryCard
+            key={'delivery-' + order.updatedAt}
+            orderId={order.id}
+            status={order.status}
+            delivery={order.deliveryConfirmed}
+            periods={cycle.periods}
             expectedUpdatedAt={order.updatedAt}
           />
 

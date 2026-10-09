@@ -65,6 +65,11 @@ export const ACCESS_MANIFEST: readonly ManifestEntry[] = [
   { kind: 'action', file: 'lib/actions.ts', symbol: 'updateOrderStatusAction', capability: 'zell.orders.status_edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
   { kind: 'action', file: 'lib/actions.ts', symbol: 'addOrderNoteAction', capability: 'zell.orders.note_edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
   { kind: 'action', file: 'lib/actions.ts', symbol: 'resendNotificationAction', capability: 'zell.unimplemented', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
+  // 0021-A A2 — دورة الطلب (actions جديدة، الحارس admin والعلم زي باقي كتابات الطلب)
+  { kind: 'action', file: 'lib/orderActions.ts', symbol: 'recordOrderCallAction', capability: 'zell.orders.status_edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
+  { kind: 'action', file: 'lib/orderActions.ts', symbol: 'setOrderFollowUpAction', capability: 'zell.orders.status_edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
+  { kind: 'action', file: 'lib/orderActions.ts', symbol: 'setOrderDeliveryAction', capability: 'zell.orders.status_edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
+  { kind: 'action', file: 'lib/orderActions.ts', symbol: 'editOrderDetailsAction', capability: 'zell.orders.note_edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
   { kind: 'action', file: 'lib/actions.ts', symbol: 'saveContentAction', capability: 'zell.content.edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
   { kind: 'action', file: 'lib/actions.ts', symbol: 'saveShippingAction', capability: 'zell.shipping.edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
   { kind: 'action', file: 'lib/actions.ts', symbol: 'saveIdentityAction', capability: 'zell.identity.edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },

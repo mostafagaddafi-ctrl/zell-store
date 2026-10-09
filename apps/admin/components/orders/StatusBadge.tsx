@@ -4,8 +4,10 @@ import { ORDER_STATUS_LABELS, type OrderStatus } from '../../lib/enums'
 const TONES: Record<OrderStatus, BadgeTone> = {
   new: 'warn',
   confirmed: 'info',
+  preparing: 'info',
   shipped: 'info',
   delivered: 'ok',
+  refused: 'danger',
   cancelled: 'danger',
 }
 

@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { addOrderNoteAction, updateOrderStatusAction } from '../../lib/actions'
 import { useSaveAction } from '../../lib/client/useSaveAction'
-import { ORDER_CANCELLED_FINAL_MESSAGE, ORDER_STATUSES, ORDER_STATUS_LABELS, type OrderStatus } from '../../lib/enums'
+import { ORDER_CANCELLED_FINAL_MESSAGE, ORDER_STATUS_LABELS, type OrderStatus } from '../../lib/enums'
+import { statusControls } from '../../lib/orders/cycle'
 import { useMutationsEnabled } from '../../lib/readiness'
 import { Button } from '../ui/Button'
 import { Card, textareaClasses } from '../ui/Field'
@@ -23,10 +24,13 @@ import { FailureBanner } from '../ui/FailureBanner'
 export function OrderStatusControls({
   orderId,
   status,
+  gateOpen,
   expectedUpdatedAt,
 }: {
   orderId: number
   status: OrderStatus
+  /** حالة البوابة من zell_order_gate_state — null = مش معروفة = مقفولة. */
+  gateOpen: boolean | null
   expectedUpdatedAt: string
 }) {
   const router = useRouter()
@@ -39,8 +43,11 @@ export function OrderStatusControls({
   const targetRef = useRef<OrderStatus | null>(null)
 
   const busy = state === 'saving'
+  // 0021-A A2 — الأهداف من جدول الانتقالات والبوابة (والداتابيز بتتأكد تاني)، مش «أي حالة لأي حالة».
+  const controls = statusControls(status, gateOpen, ORDER_CANCELLED_FINAL_MESSAGE)
 
   function choose(next: OrderStatus) {
+    if (next === 'cancelled' && !window.confirm('إلغاء الطلب نهائي — مايرجعش لأي حالة تانية. تكمّل؟')) return
     targetRef.current = next
     setTarget(next)
     // targetRef عشان «حاول تاني» تبعت آخر حالة مختارة مش الأولى
@@ -49,12 +56,12 @@ export function OrderStatusControls({
     })
   }
 
-  // 0019 — الإلغاء نهائي: مفيش أزرار انتقال خالص (والداتابيز بترفض أي محاولة برضه)
-  if (status === 'cancelled') {
+  // 0019 — الإلغاء نهائي، والحالات الأخيرة مالهاش انتقالات (والداتابيز بترفض أي محاولة برضه)
+  if (controls.kind !== 'buttons') {
     return (
       <Card title="الحالة">
         <p role="status" className="rounded border border-border bg-bg p-2.5 text-xs font-medium text-fg">
-          {ORDER_CANCELLED_FINAL_MESSAGE}
+          {controls.message}
         </p>
       </Card>
     )
@@ -64,12 +71,12 @@ export function OrderStatusControls({
     <Card title="الحالة">
       <div className="space-y-2.5">
         <div className="grid grid-cols-2 gap-1.5">
-          {ORDER_STATUSES.map((item) => (
+          {controls.targets.map((item) => (
             <Button
               key={item}
-              variant={item === status ? 'primary' : 'secondary'}
+              variant={item === 'cancelled' ? 'danger' : 'secondary'}
               size="sm"
-              disabled={!mutationsOn || busy || item === status}
+              disabled={!mutationsOn || busy}
               onClick={() => choose(item)}
             >
               {ORDER_STATUS_LABELS[item]}

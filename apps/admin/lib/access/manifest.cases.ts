@@ -3,7 +3,7 @@
  * بتتشغّل فعليًا بـ: pnpm --filter @zell/admin cases  (suite: manifest)
  * العقد: docs/contracts/0021-P-code.md §٧ و§١٠.
  *
- * لكل رمز من الـ 79: نتيجة الغلاف في legacy لـ (anonymous · forbidden · unavailable · owner · admin) × (العلم مفتوح · مقفول)
+ * لكل رمز من الـ 83 (79 من ب2 + 4 actions من 0021-A A2): نتيجة الغلاف في legacy لـ (anonymous · forbidden · unavailable · owner · admin) × (العلم مفتوح · مقفول)
  * = نتيجة النهارده (قبل ب2)، المحسوبة من عمودي todayGuard و todayFlag في الجدول — ماعدا الفرق المعتمد ٢ (zell.unimplemented).
  * وفي legacy مفيش ولا نداء zell_erp_* (sessionUser · myAccessRaw · recordShadow = صفر في كل الحالات).
  * التطابق بين الجدول والكود نفسه (الغلاف · الصلاحية · mutates · الرسالة): scripts/check-access-manifest.mjs في CI.
@@ -194,8 +194,8 @@ export async function runManifestCases(): Promise<ManifestCasesReport> {
   const count = (kind: ManifestEntry['kind']) => all.filter((e) => e.kind === kind).length
 
   // ── M. الجدول نفسه ──────────────────────────────────────
-  check('M1 79 symbols: 51 action · 24 page · 1 layout · 3 route', [all.length, count('action'), count('page'), count('layout'), count('route')], [79, 51, 24, 1, 3])
-  check('M2 file + symbol unique', new Set(all.map((e) => e.file + '#' + e.symbol)).size, 79)
+  check('M1 83 symbols: 55 action · 24 page · 1 layout · 3 route (79 من ب2 + 4 من 0021-A A2)', [all.length, count('action'), count('page'), count('layout'), count('route')], [83, 55, 24, 1, 3])
+  check('M2 file + symbol unique', new Set(all.map((e) => e.file + '#' + e.symbol)).size, 83)
   check(
     'M3 capability is one of the 29 (layout = null only)',
     all.filter((e) => (e.kind === 'layout' ? e.capability !== null : e.capability === null || !isCapability(e.capability))).map((e) => e.symbol + '@' + e.file),

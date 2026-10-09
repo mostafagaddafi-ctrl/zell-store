@@ -139,6 +139,12 @@ export type OrderRow = {
   coupon_amount_piastres?: number | null
   coupon_max_discount_piastres?: number | null
   discount_piastres?: number
+  // 0021-A — دورة الطلب
+  coupon_id?: number | null
+  next_follow_up_at?: string | null
+  delivery_confirmed_date?: string | null
+  delivery_confirmed_period?: string | null
+  delivery_confirmed_note?: string | null
   notified_at: string | null
   notify_error: string | null
   created_at: string
@@ -300,6 +306,8 @@ export function toAdminOrder(row: OrderRow, itemCount: number): AdminOrder {
     // 0019 — من لقطة الأوردر؛ null و 0 للأوردر القديم أو من غير كوبون
     couponCode: orderCouponSnapshot(row)?.code ?? null,
     discountPiastres: orderCouponSnapshot(row)?.discountPiastres ?? 0,
+    // 0021-A — null للأوردرات القديمة
+    nextFollowUpAt: typeof row.next_follow_up_at === 'string' ? row.next_follow_up_at : null,
   }
 }
 

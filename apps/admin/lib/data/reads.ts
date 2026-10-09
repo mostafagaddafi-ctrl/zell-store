@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { followUpQueryParts, isDeliveryPeriod } from '../orders/cycle'
+
 import type {
   AdminCollection,
   AdminCollectionDetail,
@@ -125,6 +127,12 @@ const ORDER_COLUMNS = [
   'coupon_amount_piastres',
   'coupon_max_discount_piastres',
   'discount_piastres',
+  // 0021-A — دورة الطلب (الكوبون للموبايل · المتابعة · الموعد المؤكد)
+  'coupon_id',
+  'next_follow_up_at',
+  'delivery_confirmed_date',
+  'delivery_confirmed_period',
+  'delivery_confirmed_note',
   'notified_at',
   'notify_error',
   'created_at',
@@ -184,14 +192,16 @@ export const supabaseAdminData: AdminDataSource = {
     const pageSize = Math.max(1, Math.floor(query.pageSize))
     const offset = (page - 1) * pageSize
 
+    // 0021-A A2 — فلتر المتابعة = الطلبات الجديدة بس، بالأقرب (بيغطي فلتر الحالة).
+    const followUp = query.followUp ?? null
     const parts = [
       'select=' + ORDER_COLUMNS,
-      'order=created_at.desc,id.desc',
+      ...(followUp !== null ? followUpQueryParts(followUp, Date.now()) : ['order=created_at.desc,id.desc']),
       'limit=' + String(pageSize),
       'offset=' + String(offset),
     ]
 
-    if (query.status && query.status !== 'all') parts.push('status=eq.' + query.status)
+    if (followUp === null && query.status && query.status !== 'all') parts.push('status=eq.' + query.status)
 
     const search = sanitizeSearch(query.search ?? '')
     if (search !== '') {
@@ -257,6 +267,15 @@ export const supabaseAdminData: AdminDataSource = {
       installationLengthCm: typeof row.installation_length_cm === 'number' ? row.installation_length_cm : null,
       items: items.rows.map(toAdminOrderItem),
       coupon: orderCouponSnapshot(row),
+      hasCoupon: row.coupon_id !== null && row.coupon_id !== undefined,
+      deliveryConfirmed:
+        typeof row.delivery_confirmed_date === 'string'
+          ? {
+              date: row.delivery_confirmed_date,
+              period: isDeliveryPeriod(row.delivery_confirmed_period) ? row.delivery_confirmed_period : null,
+              note: typeof row.delivery_confirmed_note === 'string' ? row.delivery_confirmed_note : null,
+            }
+          : null,
     }
   },
 
@@ -294,6 +313,19 @@ export const supabaseAdminData: AdminDataSource = {
       salesPiastres: sales,
       salesMonthPiastres: salesMonth,
     }
+  },
+
+  async getFollowUpCounts(): Promise<{ overdue: number; today: number }> {
+    // 0021-A A2 — نفس استعلام فلتر المتابعة، من غير ترتيب، وبعدّ دقيق بس.
+    const now = Date.now()
+    const count = (filter: 'overdue' | 'today') =>
+      restGet<{ id: number }>(
+        'orders',
+        ['select=id', ...followUpQueryParts(filter, now).filter((part) => !part.startsWith('order=')), 'limit=1'].join('&'),
+        { exactCount: true },
+      )
+    const [overdue, today] = await Promise.all([count('overdue'), count('today')])
+    return { overdue: overdue.total ?? 0, today: today.total ?? 0 }
   },
 
   async listProducts(): Promise<AdminProduct[]> {

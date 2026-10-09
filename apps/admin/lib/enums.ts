@@ -8,24 +8,19 @@
  *      كان هيحصل استيراد دائري: adminData ← reads ← rows ← adminData.
  */
 
-export const ORDER_STATUSES = ['new', 'confirmed', 'shipped', 'delivered', 'cancelled'] as const
-export type OrderStatus = (typeof ORDER_STATUSES)[number]
+import { ORDER_STATUSES as CORE_ORDER_STATUSES, STATUS_LABELS, type OrderStatus as CoreOrderStatus } from '@zell/core'
 
-export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  new: 'جديد',
-  confirmed: 'مؤكد',
-  shipped: 'اتشحن',
-  delivered: 'اتسلّم',
-  cancelled: 'ملغي',
-}
+/**
+ * 0021-A A2 — الحالات وأسماؤها من @zell/core (مصدر واحد للوحة والمتجر). preparing و refused بيظهروا في العرض،
+ * والانتقال ليهم ورا البوابة (lib/orders/cycle.ts + الداتابيز).
+ */
+export const ORDER_STATUSES = CORE_ORDER_STATUSES
+export type OrderStatus = CoreOrderStatus
+
+export const ORDER_STATUS_LABELS: Readonly<Record<OrderStatus, string>> = STATUS_LABELS
 
 /** 0019 — الإلغاء نهائي (trigger orders_cancelled_final · 45080). نفس الرسالة في الواجهة والسيرفر. */
 export const ORDER_CANCELLED_FINAL_MESSAGE = 'الطلب ده ملغي، والإلغاء نهائي — مينفعش يرجع لأي حالة تانية.'
-
-/** الحالات اللي ينفع الطلب يتنقل لها من حالته. الملغي مالوش انتقالات. */
-export function statusTargets(status: OrderStatus): OrderStatus[] {
-  return status === 'cancelled' ? [] : ORDER_STATUSES.filter((item) => item !== status)
-}
 
 export const SECTION_KEYS = ['hero', 'products', 'how_it_works', 'faq'] as const
 export type SectionKey = (typeof SECTION_KEYS)[number]

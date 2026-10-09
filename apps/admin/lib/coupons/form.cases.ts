@@ -6,7 +6,8 @@
  * ⚠️ مفيش هنا أي إنشاء كوبون ولا تغيير coupons_enabled ولا حالة أوردر.
  */
 
-import { ORDER_CANCELLED_FINAL_MESSAGE, statusTargets } from '../enums'
+import { ORDER_CANCELLED_FINAL_MESSAGE } from '../enums'
+import { allowedTargets } from '../orders/cycle'
 import * as form from './form'
 import {
   CODE_LOCKED_MESSAGE,
@@ -273,8 +274,9 @@ export function runAdminCouponCases(): AdminCouponCaseFailure[] {
   )
 
   // ── الإلغاء النهائي ──
-  check('cancelled: no transitions', '', statusTargets('cancelled').join(','))
-  check('new: other statuses', 'confirmed,shipped,delivered,cancelled', statusTargets('new').join(','))
+  // 0021-A A2: الانتقالات من جدول الداتابيز والبوابة (lib/orders/cycle.ts)، مش «أي حالة لأي حالة».
+  check('cancelled: no transitions', '', allowedTargets('cancelled', true).join(','))
+  check('new: table targets (gate closed)', 'confirmed,cancelled', allowedTargets('new', false).join(','))
   check('cancelled: message', 'الطلب ده ملغي، والإلغاء نهائي — مينفعش يرجع لأي حالة تانية.', ORDER_CANCELLED_FINAL_MESSAGE)
 
   return failures

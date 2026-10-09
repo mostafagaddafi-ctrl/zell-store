@@ -18,8 +18,8 @@ DISABLED في التشغيل. الكود موجود للمراجعة مش للت
 | `setProductVisibilityAction` | `expectedUpdatedAt` إلزامي | PATCH واحد محمي |
 | `setImageFitAction` | `expectedUpdatedAt` للصورة | PATCH واحد محمي |
 | `setPrimaryImageAction` | أقفال في الداتابيز | `zell_set_primary_product_image` |
-| `updateOrderStatusAction` | `expectedUpdatedAt` للطلب | PATCH واحد محمي |
-| `addOrderNoteAction` | `expectedUpdatedAt` للطلب | PATCH واحد محمي |
+| `updateOrderStatusAction` | `expectedUpdatedAt` للطلب | `zell_order_transition` بجلسة المستخدم (0021-A A2) |
+| `addOrderNoteAction` | `expectedUpdatedAt` للطلب | `zell_order_set_internal_note` بجلسة المستخدم (0021-A A2) |
 
 ## ✅ اتعمل لاحقًا: الخمس عمليات الذرّية
 
@@ -148,7 +148,7 @@ layout ولا على أي سياق مشترك.
 | `widthCm` · `minLengthCm` · `stepCm` | > ٠ | `products_min_length_cm_check` |
 | `maxLengthCm` | ≥ `minLengthCm` | `products_max_length_cm_check` |
 | `sortOrder` | ≥ ٠ | — |
-| `status` | واحد من الخمسة | `orders_status_check` |
+| `status` | واحد من السبعة، والانتقال من الجدول والبوابة (0021-A) | `orders_status_check` + `order_status_transitions` |
 | `internalNotes` | ≤ ٢٠٠٠ | `orders_internal_notes_length` |
 | `fit` | `cover` أو `contain` | `product_images_fit_check` |
 

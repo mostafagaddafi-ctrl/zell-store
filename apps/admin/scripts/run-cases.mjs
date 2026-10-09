@@ -33,6 +33,7 @@ const SUITES = [
   { name: 'session', dir: 'lib/inventory', entry: 'session.cases.ts', run: 'runSessionCases' },
   { name: 'doclist', dir: 'lib/inventory', entry: 'docList.cases.ts', run: 'runDocListCases' },
   { name: 'duplicate', dir: 'lib/inventory', entry: 'purchaseDuplicate.cases.ts', run: 'runDuplicateCases' },
+  { name: 'orders', dir: 'lib/orders', entry: 'orders.cases.ts', run: 'runOrderCases' },
 ]
 
 const COMPILER_OPTIONS = {
