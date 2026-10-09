@@ -5,6 +5,7 @@
 --     الدوال المملوكة لـ zell_inventory_definer (31 = 23 RPC + 8 دوال مساعدة) بتتمسح تحت SET LOCAL ROLE،
 --     والمملوكة لـ postgres (4 دوال مساعدة + 8 دوال triggers) بتتمسح كـ postgres. بعدين DROP ROLE.
 -- (ب) بعد وجود بيانات: الملف ده بيرفض. مفيش مسار حذف في الريبو. فيه قسم «تجميد» متعلّق في الآخر (بموافقة بس).
+-- • لو 0020-S (0020s_inv_session.sql) موجود ولو جزئيًا: بيرفض بـ ZELL_0020_ROLLBACK_0020S_FIRST (rollback 0020-S الأول). من غيره زي القديم بالحرف.
 -- ⚠ بيتشغّل على Production بموافقة صريحة بس. البروفة الكاملة للملف ده جوه 0020_inventory_purchasing_ptest.sql.
 
 begin;
@@ -15,6 +16,12 @@ do $zrb_pre$
 begin
   if current_user <> 'postgres' then
     raise exception 'ZELL_0020_WRONG_CALLER';
+  end if;
+  if exists (select 1 from pg_catalog.pg_proc p
+              where p.pronamespace = 'public'::regnamespace
+                and (p.proname like 'zell\_inv\_session\_%' or p.proname = 'zell_inv_claims_actor')) then
+    raise exception 'ZELL_0020_ROLLBACK_0020S_FIRST'
+      using hint = 'run 0020s_inv_session_rollback.sql first (0020-S contract §8)';
   end if;
   if pg_catalog.to_regrole('zell_inventory_definer') is null
      or (select count(*) from pg_catalog.pg_proc p

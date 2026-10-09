@@ -6,6 +6,8 @@
 -- • الجزء B (اختياري، محتاج موافقة لوحده): سيناريو قصير جوه معاملة بترجع، كـ service_role. الـsequences الحقيقية
 --   بتتقدم (فجوات في PUR- / B-)، وفيه WAL قليل. بيتشغّل بس لو zell.verify_part_b = 'on'.
 -- • النتيجة بترجع في رسالة ZELL_0020_VERIFY_RESULT، والمعاملة بترجع دايمًا.
+-- • 0020-S (0020s_inv_session.sql): صالح قبله وبعده. العدد بيتحسب للـ 43 الأصلية لوحدها، وإضافات 0020-S لازم 0 أو 24 بالظبط،
+--   ولو متطبّق الرسالة بتخلص بـ « 0020s=applied». من غيره السلوك والرسالة زي النسخة القديمة بالحرف (CI 0020-S S17).
 
 begin;
 select pg_catalog.set_config('zell.verify_part_b', 'off', true);   -- 'off' | 'on'
@@ -143,8 +145,13 @@ begin
   end loop;
 
   -- (g) الدوال: العدد، المالك، الأمان، التقلب، search_path، والـACL المباشر والفعلي
+  -- 0020-S بيضيف 23 zell_inv_session_* + zell_inv_claims_actor: الـ 43 الأصلية لازم تفضل 43، والإضافات 0 أو 24 بالظبط.
   if (select count(*) from pg_catalog.pg_proc p
-       where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_%') <> 43 then
+       where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_%'
+         and p.proname not like 'zell\_inv\_session\_%' and p.proname <> 'zell_inv_claims_actor') <> 43
+     or (select count(*) from pg_catalog.pg_proc p
+          where p.pronamespace = 'public'::regnamespace
+            and (p.proname like 'zell\_inv\_session\_%' or p.proname = 'zell_inv_claims_actor')) not in (0, 24) then
     raise exception 'ZELL_0020_FUNCTION_COUNT';
   end if;
   for r in
@@ -360,6 +367,11 @@ begin
     where p.pronamespace = 'public'::regnamespace
       and p.proname in ('zell_create_order', 'zell_get_order_receipt', 'zell_preview_coupon',
                         'zell_set_product_widths', 'zell_set_product_addons', 'zell_orders_cancelled_final')) as functions_md5) n;
+  -- 0020-S متطبّق: علامة في آخر الرسالة (من غيره الرسالة زي ما هي بالحرف).
+  if exists (select 1 from pg_catalog.pg_proc p
+              where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_session\_%') then
+    v_fp := v_fp || ' 0020s=applied';
+  end if;
   raise exception 'ZELL_0020_VERIFY_RESULT part_a=ok part_b=% fingerprint_md5=%',
     pg_catalog.current_setting('zell.verify_part_b'), v_fp;
 end

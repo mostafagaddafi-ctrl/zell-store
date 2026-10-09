@@ -14,12 +14,12 @@
 
 | الدور | اتعرّف في | بيعمل إيه |
 | --- | --- | --- |
-| `anon` · `authenticated` | Supabase | مالهمش أي وصول للجداول (RLS + سحب الصلاحيات في 0002). `authenticated` عنده EXECUTE على ١٢ دالة `zell_erp_*` بس (0021-P) |
+| `anon` · `authenticated` | Supabase | مالهمش أي وصول للجداول (RLS + سحب الصلاحيات في 0002). `authenticated` عنده EXECUTE على ١٢ دالة `zell_erp_*` (0021-P) و٢٣ دالة `zell_inv_session_*` (0020-S PR-1) بس |
 | `service_role` | Supabase | بيتخطى RLS. اللوحة والمتجر بيقروا بيه من السيرفر بس (حل انتقالي)، وعنده EXECUTE على دوال اللوحة القديمة وعلى الـ ٢٣ `zell_inv_*` (وصفر على جداول 0020). صفر على `erp_*` و`zell_erp_*` |
 | `postgres` | Supabase | مالك الجداول، واللي بيطبّق الـ migrations (الـ preflight بيتأكد) |
 | `zell_definer` | `0005c` (مسودة) | دور مسودة `create_order` القديمة |
 | `zell_order_writer` | `0006b` | مالك دوال مسار الطلب (`zell_create_order` · `zell_get_order_receipt`)، ومن غير صلاحيات جداول مباشرة |
-| `zell_inventory_definer` | `0020` | مالك دوال المخزون `zell_inv_*` (NOLOGIN · NOBYPASSRLS) |
+| `zell_inventory_definer` | `0020` | مالك دوال المخزون `zell_inv_*`، ومنها `zell_inv_session_*` و`zell_inv_claims_actor` من 0020-S (NOLOGIN · NOBYPASSRLS) |
 | `erp_definer` | `0021p_erp_access` | مالك دوال المحرك `erp_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS) |
 | `zell_erp_definer` | `0021p_zell_erp_access` | مالك دوال المحوّل والواجهة `erp_actor_status_v1`. مالوش أي صلاحية على `admin_users` |
 
@@ -118,6 +118,11 @@
   (غلاف `actionWithAccess` بصلاحية فئة `owner` ← `p_actor = ctx.identity.userId`، عمره ما ييجي من الفورم)، مش جلسة المستخدم. ده نفس نمط
   `p_actor` اللي 0021-P قفلته في دوالها. **القرار (2026-10-08، `10-DECISIONS.md` في zell-skills):** عقد لوحده لنقلها لهوية الجلسة،
   بعد 0021-P ب2 وقبل الإطلاق، ومش مشروط بتشغيل shadow أو enforce ولا بصفحة إدارة الصلاحيات (`docs/contracts/0021-P-code.md` §٨ بند 4).
+- **0020-S PR-1 (`0020s_inv_session.sql`، إضافة بس):** ٢٣ دالة `zell_inv_session_<x>` بنفس معاملات `zell_inv_<x>` ناقص `p_actor`
+  (أسماء مختلفة، مفيش overload). الممثل = `sub` الجلسة من `zell_inv_claims_actor()` (داخلية، بشرط `role = authenticated`)، وبتنادي الدالة
+  القديمة بيه، وفحص المالك زي ما هو (`zell_inv_assert_owner`). EXECUTE لـ `authenticated` بس. الدوال القديمة وصلاحياتها زي ما هي:
+  اللوحة بتنادي القديمة لحد PR-2، والقديمة بتبقى داخلية في PR-3 ومابتتمسحش. العقد: `docs/contracts/0020-S.md`.
+  ملفي 0020 القديمين صالحين مع 0020-S: الـ verify بيكتب `0020s=applied`، والـ rollback بيرفض بـ `ZELL_0020_ROLLBACK_0020S_FIRST` لحد rollback 0020-S الأول.
 
 | المجموعة | الدوال |
 | --- | --- |
@@ -126,7 +131,8 @@
 | الشراء | `zell_inv_create_purchase` · `zell_inv_update_purchase` · `zell_inv_post_purchase` (ترحيل لـ lots) · `zell_inv_discard_purchase` (مسح مسودة) · `zell_inv_void_purchase` (إلغاء مترحّل) · `zell_inv_list_purchases` · `zell_inv_get_purchase` · `zell_inv_preview_purchase` (التوزيع والتكلفة قبل الترحيل) |
 | أول المدة | `zell_inv_create_opening` · `zell_inv_update_opening` · `zell_inv_post_opening` · `zell_inv_discard_opening` · `zell_inv_void_opening` · `zell_inv_list_openings` · `zell_inv_get_opening` · `zell_inv_preview_opening` |
 | الـ lots | `zell_inv_list_lots` |
-| مساعدة داخلية | `zell_inv_assert_owner` (المالك الشغال) · `zell_inv_lock_products` · `zell_inv_read_products` · `zell_inv_product_has_stock_refs` · `zell_inv_width_allowed` · `zell_inv_allocate_lr` (توزيع largest remainder) · `zell_inv_normalize_purchase` · `zell_inv_normalize_opening` · `zell_inv_command_check` (idempotency) · `zell_inv_doc_void_blockers` · `zell_inv_unknown_lot_references` · `zell_inv_void_contract_version` |
+| الجلسة (0020-S، EXECUTE لـ `authenticated`) | `zell_inv_session_*` (٢٣، واحدة لكل دالة فوق بنفس الاسم بعد `zell_inv_`) |
+| مساعدة داخلية | `zell_inv_claims_actor` (0020-S: `sub` الجلسة أو NULL) · `zell_inv_assert_owner` (المالك الشغال) · `zell_inv_lock_products` · `zell_inv_read_products` · `zell_inv_product_has_stock_refs` · `zell_inv_width_allowed` · `zell_inv_allocate_lr` (توزيع largest remainder) · `zell_inv_normalize_purchase` · `zell_inv_normalize_opening` · `zell_inv_command_check` (idempotency) · `zell_inv_doc_void_blockers` · `zell_inv_unknown_lot_references` · `zell_inv_void_contract_version` |
 | دوال الـ triggers (مالكها `postgres`) | `zell_inv_trg_no_delete` · `zell_inv_trg_no_truncate` · `zell_inv_trg_append_only` · `zell_inv_trg_doc_guard` · `zell_inv_trg_child_insert_guard` · `zell_inv_trg_lot_update_guard` · `zell_inv_trg_master_guard` · `zell_inv_trg_products_sale_unit` |
 
 - **Triggers:** `zinv_no_delete` · `zinv_no_truncate` · `zinv_doc_guard` · `zinv_child_insert_guard` · `zinv_append_only` · `zinv_lot_update_guard` · `zinv_master_guard` · `zinv_products_sale_unit` (على `products`).
