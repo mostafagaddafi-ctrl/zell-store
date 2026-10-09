@@ -66,6 +66,9 @@ jobs:
       - name: "0021-P: access manifest = code"
         run: node apps/admin/scripts/check-access-manifest.mjs --root apps/admin
 
+      - name: "0020-S: inventory calls use the user session (no actor param, no service_role, manifest unchanged)"
+        run: node apps/admin/scripts/check-inventory-session.mjs
+
       - name: "0021-P: capabilities = SQL catalog"
         run: node apps/admin/scripts/check-capabilities.mjs
 
