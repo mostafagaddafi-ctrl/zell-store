@@ -1,48 +1,23 @@
 import 'server-only'
 
-import { restRpc, sentinelOf, type DbSentinel } from '../data/client'
+import { createAuthClient } from '../auth/supabaseServer'
 import { failureFromSentinel, type InventoryResult } from './errors'
-import { isInventorySentinel, type InventorySentinel } from './sentinels'
+import { INVENTORY_SESSION_FUNCTIONS, sessionResult, type InventoryFunction, type SessionRpcResponse } from './sessionCall'
 
 /**
- * غلاف نداء دوال 0020 — سيرفر بس.
+ * غلاف نداء دوال المخزون — سيرفر بس. من 0020-S PR-2: بجلسة المستخدم (createAuthClient: anon key + كوكيز الجلسة)
+ * على zell_inv_session_* بس. ممنوع service_role (scripts/check-inventory-session.mjs في CI).
  *
- *   • أسماء الدوال ثابتة هنا؛ مفيش اسم دالة بييجي من أي مدخلات.
- *   • p_actor بيتحط من الجلسة في lib/mutations/inventory.ts — عمره ما بييجي من الفورم.
- *   • أي فشل: اسم من قايمة المخزون → جدول الأخطاء، وأي حاجة تانية → INTERNAL غير محسوم.
- *     ولا حرف من رد Supabase بيطلع (client.ts بيرمي الجسم بعد استخراج الاسم).
+ *   • أسماء الدوال ثابتة في sessionCall.ts؛ مفيش اسم دالة بييجي من أي مدخلات.
+ *   • الممثل = sub من JWT الجلسة جوه الداتابيز (zell_inv_claims_actor)، ومفيش أي معامل ممثل من الكود ولا من الفورم.
+ *   • الغلاف (actionWithAccess / pageWithAccess) بيفضل الطبقة الأولى زي ما هو.
+ *   • أي فشل: اسم من قايمة المخزون → جدول الأخطاء، 401 → UNAUTHENTICATED، وأي حاجة تانية → INTERNAL غير محسوم.
  *   • رد بشكل غير متوقع → INTERNAL غير محسوم (لأن الكتابة ممكن تكون حصلت فعلًا).
  */
 
-/** إثبات وقت الـtypecheck إن الـ23 اسم متسجلين في KNOWN_SENTINELS (lib/data/client.ts). */
-type AssertTrue<T extends true> = T
-export type InventorySentinelsRegistered = AssertTrue<[InventorySentinel] extends [DbSentinel] ? true : false>
+const TIMEOUT_MS = 10000
 
-const FUNCTIONS = {
-  listSuppliers: 'zell_inv_list_suppliers',
-  createSupplier: 'zell_inv_create_supplier',
-  updateSupplier: 'zell_inv_update_supplier',
-  listLocations: 'zell_inv_list_locations',
-  listPurchases: 'zell_inv_list_purchases',
-  getPurchase: 'zell_inv_get_purchase',
-  previewPurchase: 'zell_inv_preview_purchase',
-  createPurchase: 'zell_inv_create_purchase',
-  updatePurchase: 'zell_inv_update_purchase',
-  postPurchase: 'zell_inv_post_purchase',
-  discardPurchase: 'zell_inv_discard_purchase',
-  voidPurchase: 'zell_inv_void_purchase',
-  listOpenings: 'zell_inv_list_openings',
-  getOpening: 'zell_inv_get_opening',
-  previewOpening: 'zell_inv_preview_opening',
-  createOpening: 'zell_inv_create_opening',
-  updateOpening: 'zell_inv_update_opening',
-  postOpening: 'zell_inv_post_opening',
-  discardOpening: 'zell_inv_discard_opening',
-  voidOpening: 'zell_inv_void_opening',
-  listLots: 'zell_inv_list_lots',
-} as const
-
-export type InventoryFunction = keyof typeof FUNCTIONS
+export type { InventoryFunction } from './sessionCall'
 
 export async function callInventory<T>(
   fn: InventoryFunction,
@@ -61,14 +36,15 @@ export async function callInventoryWith<T>(
   args: Record<string, unknown>,
   parse: (value: unknown) => T | null,
 ): Promise<InventoryResult<T>> {
-  let raw: unknown
+  let response: SessionRpcResponse
   try {
-    raw = await restRpc<unknown>(FUNCTIONS[fn], args)
-  } catch (error) {
-    const sentinel = sentinelOf(error)
-    return failureFromSentinel(isInventorySentinel(sentinel) ? sentinel : null)
+    const supabase = await createAuthClient()
+    const result = await supabase
+      .rpc(INVENTORY_SESSION_FUNCTIONS[fn], args)
+      .abortSignal(AbortSignal.timeout(TIMEOUT_MS))
+    response = { data: result.data as unknown, error: result.error, status: result.status }
+  } catch {
+    return failureFromSentinel(null)
   }
-  const parsed = parse(raw)
-  if (parsed === null) return failureFromSentinel(null)
-  return { ok: true, data: parsed }
+  return sessionResult(response, parse)
 }
