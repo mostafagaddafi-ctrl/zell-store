@@ -15,7 +15,7 @@
 | الدور | اتعرّف في | بيعمل إيه |
 | --- | --- | --- |
 | `anon` · `authenticated` | Supabase | مالهمش أي وصول للجداول (RLS + سحب الصلاحيات في 0002). `authenticated` عنده EXECUTE على ١٢ دالة `zell_erp_*` (0021-P) و٢٣ دالة `zell_inv_session_*` (0020-S PR-1) بس |
-| `service_role` | Supabase | بيتخطى RLS. اللوحة والمتجر بيقروا بيه من السيرفر بس (حل انتقالي)، وعنده EXECUTE على دوال اللوحة القديمة وعلى الـ ٢٣ `zell_inv_*` (وصفر على جداول 0020). صفر على `erp_*` و`zell_erp_*` |
+| `service_role` | Supabase | بيتخطى RLS. اللوحة والمتجر بيقروا بيه من السيرفر بس (حل انتقالي)، وعنده EXECUTE على دوال اللوحة القديمة بس: صفر على أي `zell_inv_*` (من 0020-S PR-3) وعلى جداول 0020. صفر على `erp_*` و`zell_erp_*` |
 | `postgres` | Supabase | مالك الجداول، واللي بيطبّق الـ migrations (الـ preflight بيتأكد) |
 | `zell_definer` | `0005c` (مسودة) | دور مسودة `create_order` القديمة |
 | `zell_order_writer` | `0006b` | مالك دوال مسار الطلب (`zell_create_order` · `zell_get_order_receipt`)، ومن غير صلاحيات جداول مباشرة |
@@ -114,15 +114,16 @@
 ## ٥) دوال المخزون (0020، مالكها `zell_inventory_definer`)
 
 - **الحد العام: ٢٣ دالة owner-only** بتاخد `p_actor` وبتتأكد منه في `admin_users` (`zell_inv_assert_owner`).
-- ⚠ **الحماية من السيرفر بس:** الـ ٢٣ (١٤ كتابة · ٩ قراية) EXECUTE لـ `service_role` بس، والممثل `p_actor` بيحدده كود اللوحة
+- ✅ **اتقفل في 0020-S** (PR-1 #109 · PR-2 #110 · PR-3 `0020s_pr3_revoke_service_role.sql`): مفيش `zell_inv_*` لـ `service_role`، والممثل = `sub` الجلسة بس. الفقرة اللي تحت تاريخية.
+- ⚠ (تاريخي) **الحماية من السيرفر بس:** الـ ٢٣ (١٤ كتابة · ٩ قراية) EXECUTE لـ `service_role` بس، والممثل `p_actor` بيحدده كود اللوحة
   (غلاف `actionWithAccess` بصلاحية فئة `owner` ← `p_actor = ctx.identity.userId`، عمره ما ييجي من الفورم)، مش جلسة المستخدم. ده نفس نمط
   `p_actor` اللي 0021-P قفلته في دوالها. **القرار (2026-10-08، `10-DECISIONS.md` في zell-skills):** عقد لوحده لنقلها لهوية الجلسة،
   بعد 0021-P ب2 وقبل الإطلاق، ومش مشروط بتشغيل shadow أو enforce ولا بصفحة إدارة الصلاحيات (`docs/contracts/0021-P-code.md` §٨ بند 4).
 - **0020-S PR-1 (`0020s_inv_session.sql`، إضافة بس):** ٢٣ دالة `zell_inv_session_<x>` بنفس معاملات `zell_inv_<x>` ناقص `p_actor`
   (أسماء مختلفة، مفيش overload). الممثل = `sub` الجلسة من `zell_inv_claims_actor()` (داخلية، بشرط `role = authenticated`)، وبتنادي الدالة
   القديمة بيه، وفحص المالك زي ما هو (`zell_inv_assert_owner`). EXECUTE لـ `authenticated` بس. الدوال القديمة وصلاحياتها زي ما هي:
-  من PR-2 اللوحة بتنادي `zell_inv_session_*` بجلسة المستخدم بس (`apps/admin/lib/inventory/rpc.ts`). القديمة لسه EXECUTE لـ `service_role`
-  لحد PR-3، وبعده بتبقى داخلية ومابتتمسحش. العقد: `docs/contracts/0020-S.md`.
+  من PR-2 اللوحة بتنادي `zell_inv_session_*` بجلسة المستخدم بس (`apps/admin/lib/inventory/rpc.ts`). من PR-3 (`0020s_pr3_revoke_service_role.sql`)
+  القديمة داخلية (EXECUTE لمالكها بس) ومابتتمسحش. العقد: `docs/contracts/0020-S.md`.
   ملفي 0020 القديمين صالحين مع 0020-S: الـ verify بيكتب `0020s=applied`، والـ rollback بيرفض بـ `ZELL_0020_ROLLBACK_0020S_FIRST` لحد rollback 0020-S الأول.
 
 | المجموعة | الدوال |
