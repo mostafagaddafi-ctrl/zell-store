@@ -21,13 +21,11 @@ import { isSuppliersPage, type InventorySupplier, type SuppliersPage } from '../
 export type OptionList<T> = { items: T[]; complete: boolean }
 
 export async function listPurchases(
-  actor: string,
   options: { status: InventoryDocStatus | null; supplierId: number | null; beforeId: number | null },
 ): Promise<InventoryResult<PurchasesPage>> {
   return callInventory(
     'listPurchases',
     {
-      p_actor: actor,
       p_status: options.status,
       p_supplier_id: options.supplierId,
       p_limit: PURCHASES_PAGE_SIZE,
@@ -37,8 +35,8 @@ export async function listPurchases(
   )
 }
 
-export async function getPurchase(actor: string, docId: number): Promise<InventoryResult<PurchaseDetail>> {
-  return callInventoryWith('getPurchase', { p_actor: actor, p_doc_id: docId }, parsePurchaseDetail)
+export async function getPurchase(docId: number): Promise<InventoryResult<PurchaseDetail>> {
+  return callInventoryWith('getPurchase', { p_doc_id: docId }, parsePurchaseDetail)
 }
 
 /** حد أمان: 5 صفحات × 100. أكتر من كده = القايمة مش كاملة، والنموذج بيتوقف. */
@@ -48,7 +46,6 @@ const OPTION_PAGE_SIZE = 100
 
 /** الموردين لاختيار المورد (keyset بالاسم). complete = false لو فيه أكتر من الحد. */
 export async function loadSupplierOptions(
-  actor: string,
   includeInactive: boolean,
 ): Promise<InventoryResult<OptionList<InventorySupplier>>> {
   const items: InventorySupplier[] = []
@@ -56,7 +53,7 @@ export async function loadSupplierOptions(
   for (let page = 0; page < OPTION_PAGES; page += 1) {
     const result: InventoryResult<SuppliersPage> = await callInventory(
       'listSuppliers',
-      { p_actor: actor, p_include_inactive: includeInactive, p_limit: OPTION_PAGE_SIZE, p_after_name_key: after },
+      { p_include_inactive: includeInactive, p_limit: OPTION_PAGE_SIZE, p_after_name_key: after },
       isSuppliersPage,
     )
     if (!result.ok) return result
@@ -69,7 +66,6 @@ export async function loadSupplierOptions(
 
 /** المخازن لاختيار المخزن (النشطة بس، افتراضيًا) أو لأسماء صفحة الدفعات (includeInactive). keyset بالـid. */
 export async function loadLocationOptions(
-  actor: string,
   includeInactive = false,
 ): Promise<InventoryResult<OptionList<InventoryLocationOption>>> {
   const items: InventoryLocationOption[] = []
@@ -77,7 +73,7 @@ export async function loadLocationOptions(
   for (let page = 0; page < OPTION_PAGES; page += 1) {
     const result: InventoryResult<LocationsPage> = await callInventory(
       'listLocations',
-      { p_actor: actor, p_include_inactive: includeInactive, p_limit: OPTION_PAGE_SIZE, p_after_id: after },
+      { p_include_inactive: includeInactive, p_limit: OPTION_PAGE_SIZE, p_after_id: after },
       isLocationsPage,
     )
     if (!result.ok) return result
