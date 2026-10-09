@@ -8,10 +8,14 @@ import {
   CALL_NOTE_MAX,
   CALL_OUTCOMES,
   CALL_OUTCOME_LABELS,
+  CALL_TEXT,
+  CUSTOMER_TEXT,
   DELIVERY_NOTE_MAX,
   DELIVERY_PERIODS,
   DELIVERY_PERIOD_LABELS,
+  DELIVERY_TEXT,
   FOLLOW_UP_FILTER_LABELS,
+  FOLLOW_UP_TEXT,
   PHONE_LOCKED_MESSAGE,
   cairoInputToIso,
   callFormIssue,
@@ -36,9 +40,9 @@ import { Card, Field, inputClasses, textareaClasses } from '../ui/Field'
 import { FailureBanner } from '../ui/FailureBanner'
 
 /**
- * 0021-A A2 — كروت دورة الطلب في صفحة الطلب: المكالمة · معاد المتابعة · معاد التسليم المؤكد · تعديل بيانات الزبون.
+ * 0021-A A2 — كروت دورة الطلب في صفحة الطلب: نتيجة التواصل · موعد المتابعة · موعد التسليم المتفق عليه · بيانات العميل.
  * كل كارت بيبعت آخر طابع (expectedUpdatedAt) وبيعمل refresh بعد النجاح؛ القرار النهائي في دوال zell_order_* .
- * الأوقات بتتدخّل وبتتعرض بتوقيت القاهرة.
+ * الأوقات بتتدخّل وبتتعرض بتوقيت القاهرة. النصوص كلها من lib/orders/cycle.ts.
  */
 
 function useStamp(expectedUpdatedAt: string) {
@@ -47,7 +51,19 @@ function useStamp(expectedUpdatedAt: string) {
   return ref
 }
 
-// ── المكالمة ─────────────────────────────────────────────────────────
+function Issue({ text }: { text: string | null }) {
+  return text === null ? null : <p className="text-xs font-medium text-danger">{text}</p>
+}
+
+function Done({ text }: { text: string | null }) {
+  return text === null ? null : (
+    <p role="status" className="text-xs text-ok">
+      {text}
+    </p>
+  )
+}
+
+// ── نتيجة التواصل ─────────────────────────────────────────────────────
 export function OrderCallCard({ orderId, status, expectedUpdatedAt }: { orderId: number; status: OrderStatus; expectedUpdatedAt: string }) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
@@ -66,7 +82,7 @@ export function OrderCallCard({ orderId, status, expectedUpdatedAt }: { orderId:
     const problem = callFormIssue(outcome, iso, note, Date.now())
     setIssue(problem)
     if (problem !== null || outcome === null) return
-    if (outcome === 'customer_cancelled' && !window.confirm('«لغى» بتلغي الطلب، والإلغاء نهائي. تكمّل؟')) return
+    if (outcome === 'customer_cancelled' && !window.confirm(CALL_TEXT.cancelledConfirm)) return
     const chosen = outcome
     void run(() => recordOrderCallAction(orderId, chosen, note, chosen === 'callback_later' ? iso : null, stampRef.current), {
       onSuccess: () => {
@@ -79,9 +95,9 @@ export function OrderCallCard({ orderId, status, expectedUpdatedAt }: { orderId:
   }
 
   return (
-    <Card title="تسجيل مكالمة">
+    <Card title={CALL_TEXT.title}>
       <div className="space-y-2.5">
-        <div className="grid grid-cols-2 gap-1.5" role="radiogroup" aria-label="نتيجة المكالمة">
+        <div className="grid grid-cols-2 gap-1.5" role="radiogroup" aria-label={CALL_TEXT.outcomeLabel}>
           {CALL_OUTCOMES.map((item) => (
             <Button
               key={item}
@@ -101,7 +117,7 @@ export function OrderCallCard({ orderId, status, expectedUpdatedAt }: { orderId:
         </div>
 
         {outcome === 'callback_later' ? (
-          <Field htmlFor="call-follow-up" label="معاد المتابعة (بتوقيت القاهرة)" hint="إجباري مع «يتكلم بعدين».">
+          <Field htmlFor="call-follow-up" label={CALL_TEXT.followUpLabel} hint={CALL_TEXT.followUpHint}>
             <input
               id="call-follow-up"
               type="datetime-local"
@@ -113,7 +129,7 @@ export function OrderCallCard({ orderId, status, expectedUpdatedAt }: { orderId:
           </Field>
         ) : null}
 
-        <Field htmlFor="call-note" label="ملاحظة (اختياري)">
+        <Field htmlFor="call-note" label={CALL_TEXT.noteLabel}>
           <textarea
             id="call-note"
             value={note}
@@ -124,13 +140,13 @@ export function OrderCallCard({ orderId, status, expectedUpdatedAt }: { orderId:
           />
         </Field>
 
-        {outcome === 'confirmed' ? <p className="text-xs text-muted">«أكّد» بتنقل الطلب لـ «مؤكد».</p> : null}
-        {outcome === 'customer_cancelled' ? <p className="text-xs text-danger">«لغى» بتلغي الطلب، والإلغاء نهائي.</p> : null}
-        {issue !== null ? <p className="text-xs font-medium text-danger">{issue}</p> : null}
-        {state === 'saved' ? <p className="text-xs text-ok">المكالمة اتسجّلت</p> : null}
+        {outcome === 'confirmed' ? <p className="text-xs text-muted">{CALL_TEXT.confirmedHint}</p> : null}
+        {outcome === 'customer_cancelled' ? <p className="text-xs text-danger">{CALL_TEXT.cancelledHint}</p> : null}
+        <Issue text={issue} />
+        <Done text={state === 'saved' ? CALL_TEXT.saved : null} />
 
         <Button size="sm" disabled={!mutationsOn || busy} onClick={submit}>
-          {busy ? 'بيسجّل…' : 'سجّل المكالمة'}
+          {busy ? CALL_TEXT.saving : CALL_TEXT.submit}
         </Button>
         <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
       </div>
@@ -138,7 +154,7 @@ export function OrderCallCard({ orderId, status, expectedUpdatedAt }: { orderId:
   )
 }
 
-// ── معاد المتابعة ─────────────────────────────────────────────────────
+// ── موعد المتابعة ─────────────────────────────────────────────────────
 export function OrderFollowUpCard({
   orderId,
   status,
@@ -157,17 +173,22 @@ export function OrderFollowUpCard({
   const [value, setValue] = useState(isoToCairoInput(nextFollowUpAt))
   const [note, setNote] = useState('')
   const [issue, setIssue] = useState<string | null>(null)
+  const [last, setLast] = useState<'saved' | 'cleared'>('saved')
   const busy = state === 'saving'
   const editable = callPanelOpen(status)
   const bucket = followUpBucket(nextFollowUpAt, status, Date.now())
 
   function save(clear: boolean) {
     const iso = clear ? null : cairoInputToIso(value)
-    if (!clear) {
+    if (clear) {
+      if (!window.confirm(FOLLOW_UP_TEXT.clearConfirm)) return
+      setIssue(null)
+    } else {
       const problem = followUpIssue(iso, Date.now())
       setIssue(problem)
       if (problem !== null) return
-    } else setIssue(null)
+    }
+    setLast(clear ? 'cleared' : 'saved')
     void run(() => setOrderFollowUpAction(orderId, iso, note, stampRef.current), {
       onSuccess: () => {
         setNote('')
@@ -178,15 +199,15 @@ export function OrderFollowUpCard({
   }
 
   return (
-    <Card title="معاد المتابعة">
+    <Card title={FOLLOW_UP_TEXT.title}>
       <div className="space-y-2.5">
         <p className="text-sm text-fg">
-          {nextFollowUpAt === null ? 'مفيش معاد متابعة.' : formatCairoDateTime(nextFollowUpAt)}
+          {nextFollowUpAt === null ? FOLLOW_UP_TEXT.none : formatCairoDateTime(nextFollowUpAt)}
           {bucket !== null ? <span className="ms-2 text-xs font-semibold text-muted">{FOLLOW_UP_FILTER_LABELS[bucket]}</span> : null}
         </p>
         {editable ? (
           <>
-            <Field htmlFor="follow-up-at" label="معاد جديد (بتوقيت القاهرة)">
+            <Field htmlFor="follow-up-at" label={FOLLOW_UP_TEXT.inputLabel}>
               <input
                 id="follow-up-at"
                 type="datetime-local"
@@ -196,7 +217,7 @@ export function OrderFollowUpCard({
                 disabled={!mutationsOn || busy}
               />
             </Field>
-            <Field htmlFor="follow-up-note" label="ملاحظة (اختياري)">
+            <Field htmlFor="follow-up-note" label={FOLLOW_UP_TEXT.noteLabel}>
               <input
                 id="follow-up-note"
                 value={note}
@@ -206,29 +227,29 @@ export function OrderFollowUpCard({
                 disabled={!mutationsOn || busy}
               />
             </Field>
-            {issue !== null ? <p className="text-xs font-medium text-danger">{issue}</p> : null}
-            {state === 'saved' ? <p className="text-xs text-ok">اتحفظ</p> : null}
+            <Issue text={issue} />
+            <Done text={state === 'saved' ? (last === 'cleared' ? FOLLOW_UP_TEXT.cleared : FOLLOW_UP_TEXT.saved) : null} />
             <div className="flex flex-wrap gap-2">
               <Button size="sm" disabled={!mutationsOn || busy} onClick={() => save(false)}>
-                احفظ المعاد
+                {FOLLOW_UP_TEXT.save}
               </Button>
               {nextFollowUpAt !== null ? (
                 <Button size="sm" variant="secondary" disabled={!mutationsOn || busy} onClick={() => save(true)}>
-                  امسح المعاد
+                  {FOLLOW_UP_TEXT.clear}
                 </Button>
               ) : null}
             </div>
             <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
           </>
         ) : (
-          <p className="text-xs text-muted">المتابعة للطلبات الجديدة بس.</p>
+          <p className="text-xs text-muted">{FOLLOW_UP_TEXT.onlyNew}</p>
         )}
       </div>
     </Card>
   )
 }
 
-// ── معاد التسليم المؤكد ───────────────────────────────────────────────
+// ── موعد التسليم المتفق عليه ───────────────────────────────────────────
 export type DeliveryShown = { date: string; period: DeliveryPeriod | null; note: string | null } | null
 
 export function OrderDeliveryCard({
@@ -252,16 +273,19 @@ export function OrderDeliveryCard({
   const [period, setPeriod] = useState<string>(delivery?.period ?? '')
   const [note, setNote] = useState(delivery?.note ?? '')
   const [issue, setIssue] = useState<string | null>(null)
+  const [last, setLast] = useState<'saved' | 'cleared'>('saved')
   const busy = state === 'saving'
   const editable = deliveryEditable(status)
 
   function save(clear: boolean) {
+    if (clear && !window.confirm(DELIVERY_TEXT.clearConfirm)) return
     const result = deliveryValue(clear ? { date: '', period: '', note: '' } : { date, period, note })
     if (!result.ok) {
       setIssue(result.message)
       return
     }
     setIssue(null)
+    setLast(clear ? 'cleared' : 'saved')
     void run(() => setOrderDeliveryAction(orderId, result.value, stampRef.current), {
       onSuccess: () => {
         if (clear) {
@@ -275,19 +299,20 @@ export function OrderDeliveryCard({
   }
 
   return (
-    <Card title="معاد التسليم المؤكد">
+    <Card title={DELIVERY_TEXT.title}>
       <div className="space-y-2.5">
         <p className="text-sm text-fg">
           {delivery === null
-            ? 'مفيش معاد مؤكد.'
-            : delivery.date + (delivery.period !== null ? ' · ' + DELIVERY_PERIOD_LABELS[delivery.period] : ' · من غير فترة')}
+            ? DELIVERY_TEXT.none
+            : delivery.date + ' · ' + (delivery.period !== null ? DELIVERY_PERIOD_LABELS[delivery.period] : DELIVERY_TEXT.noPeriod)}
         </p>
         {delivery !== null && delivery.note !== null ? <p className="text-xs text-muted">{delivery.note}</p> : null}
+        <p className="text-xs text-muted">{DELIVERY_TEXT.hint}</p>
 
         <div className="rounded border border-border bg-bg p-2 text-xs text-muted">
-          <p className="mb-1 font-semibold text-fg">الفترات (بتوقيت القاهرة)</p>
+          <p className="mb-1 font-semibold text-fg">{DELIVERY_TEXT.periodsTitle}</p>
           {periods === null ? (
-            <p>الفترات مش متاحة دلوقتي.</p>
+            <p>{DELIVERY_TEXT.periodsUnavailable}</p>
           ) : (
             <ul className="space-y-0.5">
               {periods.periods.map((row) => (
@@ -302,7 +327,7 @@ export function OrderDeliveryCard({
         {editable ? (
           <>
             <div className="grid grid-cols-2 gap-2">
-              <Field htmlFor="delivery-date" label="التاريخ">
+              <Field htmlFor="delivery-date" label={DELIVERY_TEXT.dateLabel}>
                 <input
                   id="delivery-date"
                   type="date"
@@ -312,7 +337,7 @@ export function OrderDeliveryCard({
                   disabled={!mutationsOn || busy}
                 />
               </Field>
-              <Field htmlFor="delivery-period" label="الفترة">
+              <Field htmlFor="delivery-period" label={DELIVERY_TEXT.periodLabel}>
                 <select
                   id="delivery-period"
                   value={period}
@@ -320,7 +345,7 @@ export function OrderDeliveryCard({
                   className={inputClasses}
                   disabled={!mutationsOn || busy}
                 >
-                  <option value="">من غير فترة</option>
+                  <option value="">{DELIVERY_TEXT.noPeriod}</option>
                   {DELIVERY_PERIODS.map((item) => (
                     <option key={item} value={item}>
                       {DELIVERY_PERIOD_LABELS[item]}
@@ -329,7 +354,7 @@ export function OrderDeliveryCard({
                 </select>
               </Field>
             </div>
-            <Field htmlFor="delivery-note" label="ملاحظة (اختياري)">
+            <Field htmlFor="delivery-note" label={DELIVERY_TEXT.noteLabel}>
               <input
                 id="delivery-note"
                 value={note}
@@ -339,29 +364,29 @@ export function OrderDeliveryCard({
                 disabled={!mutationsOn || busy}
               />
             </Field>
-            {issue !== null ? <p className="text-xs font-medium text-danger">{issue}</p> : null}
-            {state === 'saved' ? <p className="text-xs text-ok">اتحفظ</p> : null}
+            <Issue text={issue} />
+            <Done text={state === 'saved' ? (last === 'cleared' ? DELIVERY_TEXT.cleared : DELIVERY_TEXT.saved) : null} />
             <div className="flex flex-wrap gap-2">
               <Button size="sm" disabled={!mutationsOn || busy} onClick={() => save(false)}>
-                احفظ المعاد
+                {DELIVERY_TEXT.save}
               </Button>
               {delivery !== null ? (
                 <Button size="sm" variant="secondary" disabled={!mutationsOn || busy} onClick={() => save(true)}>
-                  امسح المعاد
+                  {DELIVERY_TEXT.clear}
                 </Button>
               ) : null}
             </div>
             <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
           </>
         ) : (
-          <p className="text-xs text-muted">المعاد مايتعدّلش بعد التسليم أو رفض الاستلام أو الإلغاء.</p>
+          <p className="text-xs text-muted">{DELIVERY_TEXT.locked}</p>
         )}
       </div>
     </Card>
   )
 }
 
-// ── تعديل بيانات الزبون ────────────────────────────────────────────────
+// ── بيانات العميل ─────────────────────────────────────────────────────
 export function OrderCustomerEditor({
   orderId,
   status,
@@ -412,28 +437,31 @@ export function OrderCustomerEditor({
 
   if (!open) {
     return (
-      <Button
-        variant="secondary"
-        size="sm"
-        className="w-full"
-        disabled={!mutationsOn}
-        onClick={() => {
-          reset()
-          setOpen(true)
-        }}
-      >
-        تعديل بيانات العميل
-      </Button>
+      <div className="space-y-1.5">
+        <Done text={state === 'saved' ? CUSTOMER_TEXT.saved : null} />
+        <Button
+          variant="secondary"
+          size="sm"
+          className="w-full"
+          disabled={!mutationsOn}
+          onClick={() => {
+            reset()
+            setOpen(true)
+          }}
+        >
+          {CUSTOMER_TEXT.edit}
+        </Button>
+      </div>
     )
   }
 
   return (
-    <Card title="تعديل بيانات العميل">
+    <Card title={CUSTOMER_TEXT.edit}>
       <div className="space-y-2.5">
-        <Field htmlFor="edit-name" label="الاسم">
+        <Field htmlFor="edit-name" label={CUSTOMER_TEXT.name}>
           <input id="edit-name" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} className={inputClasses} disabled={busy} />
         </Field>
-        <Field htmlFor="edit-phone" label="الموبايل" hint={current.hasCoupon ? PHONE_LOCKED_MESSAGE : undefined}>
+        <Field htmlFor="edit-phone" label={CUSTOMER_TEXT.phone} hint={current.hasCoupon ? PHONE_LOCKED_MESSAGE : undefined}>
           <input
             id="edit-phone"
             dir="ltr"
@@ -445,20 +473,20 @@ export function OrderCustomerEditor({
             disabled={busy || current.hasCoupon}
           />
         </Field>
-        <Field htmlFor="edit-address" label="العنوان">
+        <Field htmlFor="edit-address" label={CUSTOMER_TEXT.address}>
           <textarea id="edit-address" value={address} maxLength={500} onChange={(e) => setAddress(e.target.value)} className={textareaClasses} disabled={busy} />
         </Field>
-        <Field htmlFor="edit-notes" label="ملاحظات الزبون">
+        <Field htmlFor="edit-notes" label={CUSTOMER_TEXT.notes}>
           <textarea id="edit-notes" value={notes} maxLength={500} onChange={(e) => setNotes(e.target.value)} className={textareaClasses} disabled={busy} />
         </Field>
-        <p className="text-xs text-muted">الأصناف والمحافظة والمنطقة والفني والكوبون وأي فلوس مابتتعدّلش — الغي الطلب واعمل طلب جديد.</p>
-        {issue !== null ? <p className="text-xs font-medium text-danger">{issue}</p> : null}
+        <p className="text-xs text-muted">{CUSTOMER_TEXT.lockedFields}</p>
+        <Issue text={issue} />
         <div className="flex flex-wrap gap-2">
           <Button size="sm" disabled={!mutationsOn || busy} onClick={save}>
-            {busy ? 'بيحفظ…' : 'احفظ التعديلات'}
+            {busy ? CUSTOMER_TEXT.saving : CUSTOMER_TEXT.save}
           </Button>
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => setOpen(false)}>
-            إلغاء
+            {CUSTOMER_TEXT.cancel}
           </Button>
         </div>
         <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
