@@ -8,6 +8,8 @@
 -- • النتيجة بترجع في رسالة ZELL_0020_VERIFY_RESULT، والمعاملة بترجع دايمًا.
 -- • 0020-S (0020s_inv_session.sql): صالح قبله وبعده. العدد بيتحسب للـ 43 الأصلية لوحدها، وإضافات 0020-S لازم 0 أو 24 بالظبط،
 --   ولو متطبّق الرسالة بتخلص بـ « 0020s=applied». من غيره السلوك والرسالة زي النسخة القديمة بالحرف (CI 0020-S S17).
+-- • 0020-S PR-3 (0020s_pr3_revoke_service_role.sql): لو متطبّق (0020-S موجود ومفيش ولا دالة قديمة لـ service_role)، الـ 23 RPC
+--   بتتوقع ACL = المالك بس، والرسالة بتخلص بـ « pr3=applied»، والجزء B بيرفض (ZELL_0020_VERIFY_B_PR3) لأنه بيستخدم service_role.
 
 begin;
 select pg_catalog.set_config('zell.verify_part_b', 'off', true);   -- 'off' | 'on'
@@ -19,6 +21,12 @@ declare
   v_definer oid := 'zell_inventory_definer'::regrole;
   v_postgres oid := 'postgres'::regrole;
   v_service oid := 'service_role'::regrole;
+  -- 0020-S PR-3: بيتحسب بس لو 0020-S متطبّق، ومن غيره false فالسلوك زي القديم بالحرف.
+  v_pr3 boolean := exists (select 1 from pg_catalog.pg_proc p
+                            where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_session\_%')
+                   and not exists (select 1 from pg_catalog.pg_proc p cross join lateral pg_catalog.aclexplode(p.proacl) a
+                                    where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_%'
+                                      and p.proname not like 'zell\_inv\_session\_%' and a.grantee = 'service_role'::regrole);
   v_tables text[] := array['inventory_locations', 'suppliers', 'purchase_docs', 'purchase_doc_lines', 'purchase_doc_charges', 'opening_stock_docs', 'opening_stock_lines', 'stock_lots', 'inventory_commands', 'inventory_audit_log'];
   v_table_oids oid[];
   v_seqs text[];
@@ -220,7 +228,7 @@ begin
          where p.oid = r.oid)
        is distinct from
        (select array_agg(g order by g) from unnest(case r.cat
-          when 'rpc' then array[v_definer, v_service]
+          when 'rpc' then case when v_pr3 then array[v_definer] else array[v_definer, v_service] end
           when 'pg_helper' then array[v_postgres, v_definer]
           when 'def_helper' then array[v_definer]
           else array[v_postgres] end) g) then
@@ -232,7 +240,7 @@ begin
     end if;
     if pg_catalog.has_function_privilege('anon', r.oid, 'EXECUTE')
        or pg_catalog.has_function_privilege('authenticated', r.oid, 'EXECUTE')
-       or pg_catalog.has_function_privilege('service_role', r.oid, 'EXECUTE') <> (r.cat = 'rpc') then
+       or pg_catalog.has_function_privilege('service_role', r.oid, 'EXECUTE') <> (r.cat = 'rpc' and not v_pr3) then
       raise exception 'ZELL_0020_FUNCTION_EFFECTIVE %', r.sig;
     end if;
   end loop;
@@ -321,6 +329,11 @@ begin
   if pg_catalog.current_setting('zell.verify_part_b') <> 'on' then
     return;
   end if;
+  -- 0020-S PR-3: الجزء B بيستخدم service_role، والـ 23 بقت داخلية. التحقق بعد PR-3 من 0020s_inv_session_verify.sql.
+  if exists (select 1 from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_session\_%')
+     and not pg_catalog.has_function_privilege('service_role', pg_catalog.to_regprocedure('public.zell_inv_create_purchase(uuid, uuid, jsonb)'), 'EXECUTE') then
+    raise exception 'ZELL_0020_VERIFY_B_PR3';
+  end if;
   select u.user_id into v_owner from public.admin_users u where u.role = 'owner' and u.is_active order by u.created_at limit 1;
   select p.id into v_pc from public.products p where p.sale_unit = 'piece' order by p.id limit 1;
   select l.id into v_main from public.inventory_locations l where l.code = 'MAIN';
@@ -371,6 +384,11 @@ begin
   if exists (select 1 from pg_catalog.pg_proc p
               where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_session\_%') then
     v_fp := v_fp || ' 0020s=applied';
+    if not exists (select 1 from pg_catalog.pg_proc p cross join lateral pg_catalog.aclexplode(p.proacl) a
+                    where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_%'
+                      and p.proname not like 'zell\_inv\_session\_%' and a.grantee = 'service_role'::regrole) then
+      v_fp := v_fp || ' pr3=applied';
+    end if;
   end if;
   raise exception 'ZELL_0020_VERIFY_RESULT part_a=ok part_b=% fingerprint_md5=%',
     pg_catalog.current_setting('zell.verify_part_b'), v_fp;
