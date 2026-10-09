@@ -34,8 +34,7 @@ function purchasesHref(status: InventoryDocStatus | null, supplierId: number | n
  * فواتير الشراء (0020-UI · PR-B) — للمالك بس.
  * فلتر بالحالة وبالمورد، وتقسيم keyset بالأحدث (25 في الصفحة) من غير عدّ كلي.
  */
-export default pageWithAccess('zell.inventory0020.view', async function PurchasesPage(ctx, { searchParams }: PageProps) {
-  const identity = ctx.identity
+export default pageWithAccess('zell.inventory0020.view', async function PurchasesPage(_ctx, { searchParams }: PageProps) {
 
   const params = await searchParams
   const status = parseDocStatusParam(params['status'])
@@ -43,8 +42,8 @@ export default pageWithAccess('zell.inventory0020.view', async function Purchase
   const beforeId = parseIdParam(params['before'])
 
   const [result, suppliers] = await Promise.all([
-    listPurchases(identity.userId, { status, supplierId, beforeId }),
-    loadSupplierOptions(identity.userId, true),
+    listPurchases({ status, supplierId, beforeId }),
+    loadSupplierOptions(true),
   ])
 
   return (

@@ -24,14 +24,13 @@ type PageProps = { params: Promise<{ id: string }> }
  *     السيرفر (بعد حفظ أو مصالحة) بتبني النموذج من البيانات الطازة.
  *   • مرحّل / مُبطَل / مستبعَد: عرض بس (والإبطال للمرحّل).
  */
-export default pageWithAccess('zell.inventory0020.view', async function PurchasePage(ctx, { params }: PageProps) {
-  const identity = ctx.identity
+export default pageWithAccess('zell.inventory0020.view', async function PurchasePage(_ctx, { params }: PageProps) {
 
   const { id } = await params
   const docId = parseIdParam(id)
   if (docId === null) notFound()
 
-  const result = await getPurchase(identity.userId, docId)
+  const result = await getPurchase(docId)
   if (!result.ok && result.code === 'NOT_FOUND') notFound()
 
   const back = (
@@ -65,7 +64,7 @@ export default pageWithAccess('zell.inventory0020.view', async function Purchase
     )
   }
 
-  const data = await loadPurchaseEditorData(identity.userId)
+  const data = await loadPurchaseEditorData()
 
   return (
     <>

@@ -38,7 +38,7 @@
 | `lib/data` | القراءة من PostgREST: `client.ts` · `reads.ts` · `rows.ts` · `inventoryEditor.ts`، وملف قراءة لكل منطقة بنفس اسم ملف الكتابة في `lib/mutations` (اتنقلوا بالحرف في 0021-P PR أ، وأنواعهم في ب1). `lib/data` مابيستوردش من `lib/mutations/**` |
 | `lib/mutations` | كل الكتابة في الداتابيز، ملف لكل منطقة (منتجات · صور · أقسام · محتوى · شحن · تركيب · كوبونات · مخزون …)، ومعاهم `concurrency.ts` (التزامن التفاؤلي) و`errors.ts`. **الكتابة بس:** القراءة اتنقلت لـ `lib/data` |
 | `lib/validation` | التحقق من المدخلات لكل منطقة |
-| `lib/inventory` | منطق شاشات المخزون: النماذج والتسعير والتوزيع، و`rpc.ts` (نداء دوال `zell_inv_*`)، والرسايل، وحالات الاختبار (`*.cases.ts`) |
+| `lib/inventory` | منطق شاشات المخزون: النماذج والتسعير والتوزيع، و`rpc.ts` + `sessionCall.ts` (نداء `zell_inv_session_*` بجلسة المستخدم، 0020-S PR-2)، والرسايل، وحالات الاختبار (`*.cases.ts`) |
 | `lib/coupons` | نموذج الكوبون وحالاته |
 | `lib/client` | كود المتصفح: ضغط ورفع الصور، والـ hooks (`useSaveAction` · `usePreview` · `useInventoryIntent` · `useLineCards`) |
 | `lib/uploads` | فحص حجم ونوع الصورة |

@@ -10,10 +10,9 @@ export const metadata: Metadata = { title: 'فاتورة شراء جديدة' }
 export const dynamic = 'force-dynamic'
 
 /** فاتورة شراء جديدة (مسودة) — للمالك بس. */
-export default pageWithAccess('zell.inventory0020.view', async function NewPurchasePage(ctx) {
-  const identity = ctx.identity
+export default pageWithAccess('zell.inventory0020.view', async function NewPurchasePage(_ctx) {
 
-  const data = await loadPurchaseEditorData(identity.userId)
+  const data = await loadPurchaseEditorData()
 
   return (
     <>

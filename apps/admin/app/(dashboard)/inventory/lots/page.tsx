@@ -41,8 +41,7 @@ const SOURCE_LABELS = { purchase: 'شراء', opening: 'رصيد أول المد
  *   list_lots + أسماء المنتجات الظاهرة (طلب واحد بفلتر ids) + list_locations (صفحات بحد أمان).
  * الاسم الغايب بيظهر «منتج #id» / «مخزن #id»، ولو قايمة المخازن أكبر من الحد بيظهر تنبيه.
  */
-export default pageWithAccess('zell.inventory0020.view', async function LotsPage(ctx, { searchParams }: PageProps) {
-  const identity = ctx.identity
+export default pageWithAccess('zell.inventory0020.view', async function LotsPage(_ctx, { searchParams }: PageProps) {
 
   const params = await searchParams
   const filters: Filters = {
@@ -53,8 +52,8 @@ export default pageWithAccess('zell.inventory0020.view', async function LotsPage
   const beforeId = parseIdParam(params['before'])
 
   const [result, locations] = await Promise.all([
-    listLots(identity.userId, { ...filters, beforeId }),
-    loadLocationOptions(identity.userId, true),
+    listLots({ ...filters, beforeId }),
+    loadLocationOptions(true),
   ])
 
   let productNames = new Map<number, string>()

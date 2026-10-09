@@ -29,13 +29,12 @@ function openingsHref(status: InventoryDocStatus | null, beforeId: number | null
 }
 
 /** رصيد أول المدة (0020-UI · PR-C) — للمالك بس. فلتر بالحالة، و keyset بالأحدث (25). */
-export default pageWithAccess('zell.inventory0020.view', async function OpeningsPage(ctx, { searchParams }: PageProps) {
-  const identity = ctx.identity
+export default pageWithAccess('zell.inventory0020.view', async function OpeningsPage(_ctx, { searchParams }: PageProps) {
 
   const params = await searchParams
   const status = parseDocStatusParam(params['status'])
   const beforeId = parseIdParam(params['before'])
-  const result = await listOpenings(identity.userId, { status, beforeId })
+  const result = await listOpenings({ status, beforeId })
 
   return (
     <>
