@@ -4,8 +4,15 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { addOrderNoteAction, updateOrderStatusAction } from '../../lib/actions'
 import { useSaveAction } from '../../lib/client/useSaveAction'
-import { ORDER_CANCELLED_FINAL_MESSAGE, ORDER_STATUS_LABELS, type OrderStatus } from '../../lib/enums'
-import { statusControls } from '../../lib/orders/cycle'
+import { ORDER_CANCELLED_FINAL_MESSAGE, type OrderStatus } from '../../lib/enums'
+import {
+  INTERNAL_NOTES_TEXT,
+  TRANSITION_ACTION_LABELS,
+  TRANSITION_SAVED_MESSAGE,
+  statusControls,
+  transitionBusyMessage,
+  transitionConfirmation,
+} from '../../lib/orders/cycle'
 import { useMutationsEnabled } from '../../lib/readiness'
 import { Button } from '../ui/Button'
 import { Card, textareaClasses } from '../ui/Field'
@@ -47,7 +54,9 @@ export function OrderStatusControls({
   const controls = statusControls(status, gateOpen, ORDER_CANCELLED_FINAL_MESSAGE)
 
   function choose(next: OrderStatus) {
-    if (next === 'cancelled' && !window.confirm('إلغاء الطلب نهائي — مايرجعش لأي حالة تانية. تكمّل؟')) return
+    // تأكيد واضح قبل العمليات النهائية أو الخطرة: الإلغاء والتسليم ورفض الاستلام
+    const question = transitionConfirmation(next)
+    if (question !== null && !window.confirm(question)) return
     targetRef.current = next
     setTarget(next)
     // targetRef عشان «حاول تاني» تبعت آخر حالة مختارة مش الأولى
@@ -59,7 +68,7 @@ export function OrderStatusControls({
   // 0019 — الإلغاء نهائي، والحالات الأخيرة مالهاش انتقالات (والداتابيز بترفض أي محاولة برضه)
   if (controls.kind !== 'buttons') {
     return (
-      <Card title="الحالة">
+      <Card title="حالة الطلب">
         <p role="status" className="rounded border border-border bg-bg p-2.5 text-xs font-medium text-fg">
           {controls.message}
         </p>
@@ -68,7 +77,7 @@ export function OrderStatusControls({
   }
 
   return (
-    <Card title="الحالة">
+    <Card title="حالة الطلب">
       <div className="space-y-2.5">
         <div className="grid grid-cols-2 gap-1.5">
           {controls.targets.map((item) => (
@@ -79,15 +88,15 @@ export function OrderStatusControls({
               disabled={!mutationsOn || busy}
               onClick={() => choose(item)}
             >
-              {ORDER_STATUS_LABELS[item]}
+              {TRANSITION_ACTION_LABELS[item]}
             </Button>
           ))}
         </div>
 
         {busy && target !== null ? (
-          <p className="text-xs text-muted">بيغيّر لـ {ORDER_STATUS_LABELS[target]}…</p>
+          <p className="text-xs text-muted">{transitionBusyMessage(target)}</p>
         ) : null}
-        {state === 'saved' ? <p className="text-xs text-ok">الحالة اتغيّرت</p> : null}
+        {state === 'saved' ? <p role="status" className="text-xs text-ok">{TRANSITION_SAVED_MESSAGE}</p> : null}
 
         <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
       </div>
@@ -133,7 +142,7 @@ export function OrderNotes({
   }
 
   return (
-    <Card title="ملاحظات داخلية">
+    <Card title={INTERNAL_NOTES_TEXT.title}>
       <div className="space-y-2.5">
         <textarea
           value={draft}
@@ -141,20 +150,20 @@ export function OrderNotes({
             setDraft(event.target.value)
             markDirty()
           }}
-          placeholder="ملاحظات للفريق — ما بتظهرش للعميل"
+          placeholder={INTERNAL_NOTES_TEXT.placeholder}
           className={textareaClasses}
           disabled={!mutationsOn || busy}
         />
 
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs text-muted">
-            {state === 'dirty' ? 'فيه تغييرات مش محفوظة' : null}
-            {state === 'saving' ? 'بيحفظ…' : null}
-            {state === 'saved' ? 'اتحفظ' : null}
-            {state === 'idle' ? 'للفريق بس — ما بتظهرش للعميل' : null}
+            {state === 'dirty' ? INTERNAL_NOTES_TEXT.dirty : null}
+            {state === 'saving' ? INTERNAL_NOTES_TEXT.saving : null}
+            {state === 'saved' ? INTERNAL_NOTES_TEXT.saved : null}
+            {state === 'idle' ? INTERNAL_NOTES_TEXT.hint : null}
           </p>
           <Button size="sm" disabled={!mutationsOn || busy} onClick={save}>
-            حفظ الملاحظات
+            {INTERNAL_NOTES_TEXT.save}
           </Button>
         </div>
 
