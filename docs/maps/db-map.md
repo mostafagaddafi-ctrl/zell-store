@@ -122,7 +122,7 @@
   (أسماء مختلفة، مفيش overload). الممثل = `sub` الجلسة من `zell_inv_claims_actor()` (داخلية، بشرط `role = authenticated`)، وبتنادي الدالة
   القديمة بيه، وفحص المالك زي ما هو (`zell_inv_assert_owner`). EXECUTE لـ `authenticated` بس. الدوال القديمة وصلاحياتها زي ما هي:
   اللوحة بتنادي القديمة لحد PR-2، والقديمة بتبقى داخلية في PR-3 ومابتتمسحش. العقد: `docs/contracts/0020-S.md`.
-  ⚠ طول ما 0020-S متطبّق، `0020_inventory_purchasing_verify.sql` و`_rollback.sql` بيعدّوا `zell_inv_%` = 43 فبيفشلوا/بيرفضوا: rollback 0020 بعد rollback 0020-S بس.
+  ملفي 0020 القديمين صالحين مع 0020-S: الـ verify بيكتب `0020s=applied`، والـ rollback بيرفض بـ `ZELL_0020_ROLLBACK_0020S_FIRST` لحد rollback 0020-S الأول.
 
 | المجموعة | الدوال |
 | --- | --- |
