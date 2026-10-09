@@ -12,7 +12,7 @@ import { writeResultGuard } from '../inventory/writeResults'
  * رصيد أول المدة وصفحة الدفعات (0020-UI · PR-C) — سيرفر بس.
  *
  * نفس قواعد الشراء: المستدعي مسؤول عن الحراس (lib/inventoryActions.ts للكتابة والمعاينة، والصفحات
- * للقراءة)، و actor دايمًا identity.userId من الجلسة. أي doc جاي من الواجهة بيعدّي على
+ * للقراءة)، والممثل = sub من JWT الجلسة جوه الداتابيز (0020-S PR-2). أي doc جاي من الواجهة بيعدّي على
  * validateOpeningDoc (نفس zell_inv_normalize_opening بالحرف) قبل النداء.
  */
 
@@ -21,10 +21,10 @@ const BAD_VERSION = 'رقم نسخة المستند غير صالح. حدّث ا
 
 // ── القراءة ────────────────────────────────────────────────────────
 
-export async function previewOpening(actor: string, rawDoc: unknown): Promise<InventoryResult<OpeningPreview>> {
+export async function previewOpening(rawDoc: unknown): Promise<InventoryResult<OpeningPreview>> {
   const doc = validateOpeningDoc(rawDoc)
   if (!doc.ok) return validationFailure(doc.message)
-  return callInventory('previewOpening', { p_actor: actor, p_doc: doc.value }, isOpeningPreview)
+  return callInventory('previewOpening', { p_doc: doc.value }, isOpeningPreview)
 }
 
 // ── الكتابة ────────────────────────────────────────────────────────
@@ -38,18 +38,16 @@ function docRef(rawDocId: unknown, rawExpectedVersion: unknown): { docId: number
 }
 
 export async function createOpening(
-  actor: string,
   rawCommandId: unknown,
   rawDoc: unknown,
 ): Promise<InventoryResult<OpeningWriteResult>> {
   if (!isUuid(rawCommandId)) return validationFailure(COMMAND_ID_MESSAGE)
   const doc = validateOpeningDoc(rawDoc)
   if (!doc.ok) return validationFailure(doc.message)
-  return callInventory('createOpening', { p_actor: actor, p_command_id: rawCommandId, p_doc: doc.value }, writeResultGuard('opening', 'create'))
+  return callInventory('createOpening', { p_command_id: rawCommandId, p_doc: doc.value }, writeResultGuard('opening', 'create'))
 }
 
 export async function updateOpening(
-  actor: string,
   rawCommandId: unknown,
   rawDocId: unknown,
   rawExpectedVersion: unknown,
@@ -62,13 +60,12 @@ export async function updateOpening(
   if (!doc.ok) return validationFailure(doc.message)
   return callInventory(
     'updateOpening',
-    { p_actor: actor, p_command_id: rawCommandId, p_doc_id: ref.docId, p_expected_version: ref.expectedVersion, p_doc: doc.value },
+    { p_command_id: rawCommandId, p_doc_id: ref.docId, p_expected_version: ref.expectedVersion, p_doc: doc.value },
     writeResultGuard('opening', 'update'),
   )
 }
 
 export async function postOpening(
-  actor: string,
   rawCommandId: unknown,
   rawDocId: unknown,
   rawExpectedVersion: unknown,
@@ -78,14 +75,13 @@ export async function postOpening(
   if (typeof ref === 'string') return validationFailure(ref)
   return callInventory(
     'postOpening',
-    { p_actor: actor, p_command_id: rawCommandId, p_doc_id: ref.docId, p_expected_version: ref.expectedVersion },
+    { p_command_id: rawCommandId, p_doc_id: ref.docId, p_expected_version: ref.expectedVersion },
     writeResultGuard('opening', 'post'),
   )
 }
 
 /** الاستبعاد: السبب إجباري هنا (1–300)، أشد من الداتابيز. */
 export async function discardOpening(
-  actor: string,
   rawCommandId: unknown,
   rawDocId: unknown,
   rawExpectedVersion: unknown,
@@ -98,14 +94,13 @@ export async function discardOpening(
   if (!reason.ok) return validationFailure(reason.message)
   return callInventory(
     'discardOpening',
-    { p_actor: actor, p_command_id: rawCommandId, p_doc_id: ref.docId, p_expected_version: ref.expectedVersion, p_reason: reason.value },
+    { p_command_id: rawCommandId, p_doc_id: ref.docId, p_expected_version: ref.expectedVersion, p_reason: reason.value },
     writeResultGuard('opening', 'discard'),
   )
 }
 
 /** الإبطال: السبب 3–300 زي الداتابيز. */
 export async function voidOpening(
-  actor: string,
   rawCommandId: unknown,
   rawDocId: unknown,
   rawExpectedVersion: unknown,
@@ -118,7 +113,7 @@ export async function voidOpening(
   if (!reason.ok) return validationFailure(reason.message)
   return callInventory(
     'voidOpening',
-    { p_actor: actor, p_command_id: rawCommandId, p_doc_id: ref.docId, p_expected_version: ref.expectedVersion, p_reason: reason.value },
+    { p_command_id: rawCommandId, p_doc_id: ref.docId, p_expected_version: ref.expectedVersion, p_reason: reason.value },
     writeResultGuard('opening', 'void'),
   )
 }
