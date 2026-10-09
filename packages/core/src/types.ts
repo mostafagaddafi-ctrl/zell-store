@@ -175,15 +175,21 @@ export type CheckoutValues = {
   notes: string
 }
 
-export const ORDER_STATUSES = ['new', 'confirmed', 'shipped', 'delivered', 'cancelled'] as const
+/**
+ * 0021-A — دورة الطلب: السبع حالات (preparing و refused من A1، والانتقال ليهم ورا بوابة في الداتابيز).
+ * مصدر واحد للأسماء: المتجر واللوحة بيقروا من هنا.
+ */
+export const ORDER_STATUSES = ['new', 'confirmed', 'preparing', 'shipped', 'delivered', 'refused', 'cancelled'] as const
 
 export type OrderStatus = (typeof ORDER_STATUSES)[number]
 
 export const STATUS_LABELS: Record<OrderStatus, string> = {
   new: 'جديد',
   confirmed: 'مؤكد',
+  preparing: 'بيتجهّز',
   shipped: 'تم الشحن',
   delivered: 'تم التسليم',
+  refused: 'رفض الاستلام',
   cancelled: 'ملغي',
 }
 
