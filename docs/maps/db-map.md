@@ -121,7 +121,8 @@
 - **0020-S PR-1 (`0020s_inv_session.sql`، إضافة بس):** ٢٣ دالة `zell_inv_session_<x>` بنفس معاملات `zell_inv_<x>` ناقص `p_actor`
   (أسماء مختلفة، مفيش overload). الممثل = `sub` الجلسة من `zell_inv_claims_actor()` (داخلية، بشرط `role = authenticated`)، وبتنادي الدالة
   القديمة بيه، وفحص المالك زي ما هو (`zell_inv_assert_owner`). EXECUTE لـ `authenticated` بس. الدوال القديمة وصلاحياتها زي ما هي:
-  اللوحة بتنادي القديمة لحد PR-2، والقديمة بتبقى داخلية في PR-3 ومابتتمسحش. العقد: `docs/contracts/0020-S.md`.
+  من PR-2 اللوحة بتنادي `zell_inv_session_*` بجلسة المستخدم بس (`apps/admin/lib/inventory/rpc.ts`). القديمة لسه EXECUTE لـ `service_role`
+  لحد PR-3، وبعده بتبقى داخلية ومابتتمسحش. العقد: `docs/contracts/0020-S.md`.
   ملفي 0020 القديمين صالحين مع 0020-S: الـ verify بيكتب `0020s=applied`، والـ rollback بيرفض بـ `ZELL_0020_ROLLBACK_0020S_FIRST` لحد rollback 0020-S الأول.
 
 | المجموعة | الدوال |
