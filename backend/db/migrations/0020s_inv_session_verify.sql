@@ -7,13 +7,15 @@
 --   service_role = 42501 · المالك: list_locations بالجلسة = الطريق القديم.
 -- • النتيجة صفوف في SELECT واحد في الآخر (صف ملخص + صف لكل فحص). الـ skip المتوقع: V09 لو مفيش أدمن شغال.
 -- • old_fp في الملخص = بصمة دوال 0020 القديمة (43)، ولازم تساوي اللي قبل التطبيق (استعلام الأثر).
+-- • المرحلة بتتحسب من الـ catalog: pr1 (service_role لسه على الـ 23 القديمة) · pr3 (ولا واحدة، بعد 0020s_pr3_revoke_service_role.sql)
+--   · mixed = FAIL. V05 و V08 و V12 بيتوقعوا حسب المرحلة.
 
 begin;
 set local statement_timeout = '30s';
 set local idle_in_transaction_session_timeout = '15s';
 
 create temporary table zv_results (n serial, id text, name text, outcome text, detail text) on commit drop;
-create temporary table zv_fx (owner_id uuid, admin_id uuid, owners_active integer, admins_active integer, expected text[]) on commit drop;
+create temporary table zv_fx (owner_id uuid, admin_id uuid, owners_active integer, admins_active integer, expected text[], stage text) on commit drop;
 create temporary table zv_map (old_name text primary key, new_name text not null, old_sig text not null, new_sig text not null) on commit drop;
 
 insert into pg_temp.zv_map (old_name, new_name, old_sig, new_sig) values
@@ -88,12 +90,16 @@ declare
   v_a uuid;
   v_no integer;
   v_na integer;
+  v_svc integer;
 begin
   select count(*) filter (where u.role = 'owner' and u.is_active), count(*) filter (where u.role = 'admin' and u.is_active)
     into v_no, v_na from public.admin_users u;
   select u.user_id into v_o from public.admin_users u where u.role = 'owner' and u.is_active order by u.created_at, u.user_id limit 1;
   select u.user_id into v_a from public.admin_users u where u.role = 'admin' and u.is_active order by u.created_at, u.user_id limit 1;
-  insert into pg_temp.zv_fx values (v_o, v_a, v_no, v_na, case when v_a is null then array['V09'] else array[]::text[] end);
+  select count(*) into v_svc from pg_temp.zv_map m
+   where pg_catalog.has_function_privilege('service_role', pg_catalog.to_regprocedure(m.old_sig), 'EXECUTE');
+  insert into pg_temp.zv_fx values (v_o, v_a, v_no, v_na, case when v_a is null then array['V09'] else array[]::text[] end,
+                                    case v_svc when 23 then 'pr1' when 0 then 'pr3' else 'mixed' end);
 end
 $zv_fx$;
 
@@ -104,6 +110,7 @@ declare
   v_definer oid := pg_catalog.to_regrole('zell_inventory_definer');
   v_auth oid := pg_catalog.to_regrole('authenticated');
   v_claims oid := pg_catalog.to_regprocedure('public.zell_inv_claims_actor()');
+  v_stage text := (select f.stage from pg_temp.zv_fx f);
 begin
   perform pg_temp.zv('V01 23 zell_inv_session_* + zell_inv_claims_actor, zell_inv_% = 67, no overload',
     (select count(*) from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_session\_%') = 23
@@ -157,10 +164,13 @@ begin
     from pg_temp.zv_map m
    where not exists (select 1 from pg_catalog.pg_proc p
                       where p.oid = pg_catalog.to_regprocedure(m.old_sig) and p.proowner = v_definer and p.prosecdef)
-      or not pg_catalog.has_function_privilege('service_role', pg_catalog.to_regprocedure(m.old_sig), 'EXECUTE')
+      or pg_catalog.has_function_privilege('service_role', pg_catalog.to_regprocedure(m.old_sig), 'EXECUTE') is distinct from (v_stage = 'pr1')
       or pg_catalog.has_function_privilege('authenticated', pg_catalog.to_regprocedure(m.old_sig), 'EXECUTE')
-      or pg_catalog.has_function_privilege('anon', pg_catalog.to_regprocedure(m.old_sig), 'EXECUTE');
-  perform pg_temp.zv('V05 old 23 unchanged for PR-1: owner definer, EXECUTE service_role only', v_bad is null, v_bad);
+      or pg_catalog.has_function_privilege('anon', pg_catalog.to_regprocedure(m.old_sig), 'EXECUTE')
+      or (v_stage = 'pr3' and (select array_agg(distinct a.grantee) from pg_catalog.pg_proc p cross join lateral pg_catalog.aclexplode(p.proacl) a
+                               where p.oid = pg_catalog.to_regprocedure(m.old_sig)) is distinct from array[v_definer]);
+  perform pg_temp.zv('V05 old 23 by stage (pr1: EXECUTE service_role only · pr3: owner-only ACL, internal)',
+    v_stage in ('pr1', 'pr3') and v_bad is null, 'stage=' || coalesce(v_stage, 'null') || ' ' || coalesce(v_bad, ''));
 
   perform pg_temp.zv('V06 zell_inventory_definer has no CREATE on public',
     not pg_catalog.has_schema_privilege('zell_inventory_definer', 'public', 'CREATE'), '');
@@ -175,13 +185,15 @@ declare
   v_a uuid;
   r jsonb;
   r_old jsonb;
+  v_stage text;
 begin
-  select f.owner_id, f.admin_id into v_o, v_a from pg_temp.zv_fx f;
+  select f.owner_id, f.admin_id, f.stage into v_o, v_a, v_stage from pg_temp.zv_fx f;
   r := pg_temp.as_user('', 'select public.zell_inv_session_list_locations(true, 50, null)');
   perform pg_temp.zv('V07 no session -> 45200', r ->> '_error' = '45200', r::text);
   r := pg_temp.as_user(jsonb_build_object('sub', v_o, 'role', 'authenticated')::text, 'select public.zell_inv_session_list_locations(true, 50, null)');
-  r_old := pg_temp.as_user('', format('select public.zell_inv_list_locations(%L::uuid, true, 50, null)', v_o), 'service_role');
-  perform pg_temp.zv('V08 owner session list_locations = old path (service_role + p_actor)',
+  r_old := pg_temp.as_user('', format('select public.zell_inv_list_locations(%L::uuid, true, 50, null)', v_o),
+                           case when v_stage = 'pr3' then 'zell_inventory_definer' else 'service_role' end);
+  perform pg_temp.zv('V08 owner session list_locations = old function (pr1: service_role · pr3: its owner)',
     v_o is not null and r is not null and not (r ? '_error') and r = r_old, left(coalesce(r::text, 'null'), 200));
   if v_a is null then
     perform pg_temp.zv_skip('V09 active admin (not owner) -> 45200', 'no active admin');
@@ -193,6 +205,12 @@ begin
   perform pg_temp.zv('V10 owner sub with claim role anon -> 45200', r ->> '_error' = '45200', r::text);
   r := pg_temp.as_user('', 'select public.zell_inv_session_list_locations(true, 50, null)', 'service_role');
   perform pg_temp.zv('V11 service_role on session function -> 42501', r ->> '_error' = '42501', r::text);
+  r := pg_temp.as_user('', format('select public.zell_inv_list_locations(%L::uuid, true, 50, null)', v_o), 'service_role');
+  if v_stage = 'pr3' then
+    perform pg_temp.zv('V12 service_role on old function -> 42501 (pr3)', r ->> '_error' = '42501', r::text);
+  else
+    perform pg_temp.zv('V12 service_role on old function still works (pr1)', r is not null and not (r ? '_error'), left(coalesce(r::text, 'null'), 200));
+  end if;
 exception when others then
   perform pg_temp.zv('V00 behavior block raised an unexpected error', false, sqlstate || ' ' || sqlerrm);
 end
@@ -216,11 +234,11 @@ select 0::integer as ord,
        null::text as check_name,
        null::text as outcome,
        null::text as detail,
-       'pr1'::text as stage,
+       f.stage as stage,
        c.pass_n as pass,
        c.fail_n as fail,
        c.skip_n as skip,
-       case when c.fail_n = 0 and c.pass_n + c.skip_n = 11 and a.actual = f.expected then 'PASS' else 'FAIL' end as verdict,
+       case when c.fail_n = 0 and c.pass_n + c.skip_n = 12 and a.actual = f.expected and f.stage in ('pr1', 'pr3') then 'PASS' else 'FAIL' end as verdict,
        f.owners_active as active_owners,
        f.admins_active as active_admins,
        array_to_string(f.expected, ',') as expected_skips,
