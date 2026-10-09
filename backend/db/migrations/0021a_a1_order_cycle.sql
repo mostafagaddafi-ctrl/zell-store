@@ -104,8 +104,11 @@ grant zell_order_definer to postgres with inherit false, set true;
 do $a1role$
 begin
   if not exists (select 1 from pg_catalog.pg_auth_members m
-                  where m.roleid = 'zell_order_definer'::regrole and m.member = 'postgres'::regrole
-                    and m.admin_option and m.set_option and not m.inherit_option) then
+                  where m.roleid = 'zell_order_definer'::regrole and m.member = 'postgres'::regrole and m.admin_option)
+     or not exists (select 1 from pg_catalog.pg_auth_members m
+                     where m.roleid = 'zell_order_definer'::regrole and m.member = 'postgres'::regrole and m.set_option)
+     or exists (select 1 from pg_catalog.pg_auth_members m
+                 where m.roleid = 'zell_order_definer'::regrole and m.member = 'postgres'::regrole and m.inherit_option) then
     raise exception 'ZELL_0021A1_ROLE_MEMBERSHIP_SHAPE';
   end if;
 end
