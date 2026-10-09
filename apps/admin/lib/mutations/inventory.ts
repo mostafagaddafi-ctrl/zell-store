@@ -16,13 +16,12 @@ import {
  * المستدعي مسؤول عن الحراس:
  *   • الكتابة من lib/inventoryActions.ts (requireAdminAction → ownerGate → guardMutations).
  *   • القراءة من الصفحة بعد requireAdminPage وفحص المالك.
- * actor هنا دايمًا identity.userId من الجلسة، والدالة نفسها في الداتابيز بتتأكد إنه مالك نشط.
+ * الممثل = sub من JWT الجلسة جوه الداتابيز (zell_inv_session_* — 0020-S PR-2)، والدالة بتتأكد إنه مالك نشط.
  *
  * التحقق بيتعاد هنا كامل قبل النداء — الواجهة مش خط الدفاع.
  */
 
 export async function createSupplier(
-  actor: string,
   rawCommandId: unknown,
   rawInput: unknown,
 ): Promise<InventoryResult<SupplierWriteResult>> {
@@ -33,7 +32,6 @@ export async function createSupplier(
   return callInventory(
     'createSupplier',
     {
-      p_actor: actor,
       p_command_id: rawCommandId,
       p_name: input.value.name,
       p_phone: input.value.phone,
@@ -44,7 +42,6 @@ export async function createSupplier(
 }
 
 export async function updateSupplier(
-  actor: string,
   rawCommandId: unknown,
   rawSupplierId: unknown,
   rawExpectedVersion: unknown,
@@ -61,7 +58,6 @@ export async function updateSupplier(
   return callInventory(
     'updateSupplier',
     {
-      p_actor: actor,
       p_command_id: rawCommandId,
       p_supplier_id: supplierId,
       p_expected_version: expectedVersion,
