@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { Copy } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { EditorBlocked } from '../../../../../components/inventory/EditorBlocked'
 import { DocStatusBadge } from '../../../../../components/inventory/InvStatusBadge'
@@ -8,6 +9,7 @@ import { PurchaseView } from '../../../../../components/inventory/PurchaseView'
 import { PageHeader } from '../../../../../components/shell/PageHeader'
 import { buttonClasses } from '../../../../../components/ui/Button'
 import { pageWithAccess } from '../../../../../lib/access/instance'
+import { mutationsEnabled } from '../../../../../lib/mutations'
 import { loadPurchaseEditorData, loadViewCatalog } from '../../../../../lib/data/inventoryEditor'
 import { cairoToday } from '../../../../../lib/inventory/purchaseForm'
 import { parseIdParam } from '../../../../../lib/inventory/purchases'
@@ -54,11 +56,27 @@ export default pageWithAccess('zell.inventory0020.view', async function Purchase
   const detail = result.data
   const { header } = detail
 
+  // تكرار: مسودة جديدة متملية من الفاتورة دي (مراجعة وتعديل قبل «حفظ»). الأصل مابيتغيّرش. بيختفي لو التعديلات موقوفة.
+  const duplicateLink = mutationsEnabled() ? (
+    <Link href={'/inventory/purchases/new?from=' + String(header.docId)} className={buttonClasses('secondary', 'sm')}>
+      <Copy className="h-3.5 w-3.5" />
+      تكرار الفاتورة
+    </Link>
+  ) : null
+
   if (header.status !== 'draft' || detail.draftPayload === null) {
     const catalog = await loadViewCatalog()
     return (
       <>
-        <PageHeader title={'فاتورة شراء ' + header.docNo} actions={back} />
+        <PageHeader
+          title={'فاتورة شراء ' + header.docNo}
+          actions={
+            <>
+              {duplicateLink}
+              {back}
+            </>
+          }
+        />
         <PurchaseView detail={detail} catalog={catalog} />
       </>
     )
@@ -74,6 +92,7 @@ export default pageWithAccess('zell.inventory0020.view', async function Purchase
         actions={
           <>
             <DocStatusBadge status={header.status} />
+            {duplicateLink}
             {back}
           </>
         }
