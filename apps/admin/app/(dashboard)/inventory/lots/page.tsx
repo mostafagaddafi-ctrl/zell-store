@@ -9,14 +9,14 @@ import { Table, TD, TH, THead, TR } from '../../../../components/ui/Table'
 import { pageWithAccess } from '../../../../lib/access/instance'
 import { readInventoryProductNames } from '../../../../lib/data/reads'
 import { formatDate } from '../../../../lib/format'
-import { LOT_STATUS_LABELS } from '../../../../lib/inventory/labels'
+import { INVENTORY_LOTS_HINT, INVENTORY_LOTS_TITLE, LOT_STATUS_LABELS } from '../../../../lib/inventory/labels'
 import { locationLabel, parseLotStatusParam, productIdsOf, productLabel, type LotStatusFilter } from '../../../../lib/inventory/lots'
 import { formatMetersAndCm, formatPiastresExact } from '../../../../lib/inventory/money'
 import { parseIdParam } from '../../../../lib/inventory/purchases'
 import { listLots } from '../../../../lib/data/inventoryOpenings'
 import { loadLocationOptions } from '../../../../lib/data/inventoryPurchases'
 
-export const metadata: Metadata = { title: 'الدفعات' }
+export const metadata: Metadata = { title: INVENTORY_LOTS_TITLE }
 export const dynamic = 'force-dynamic'
 
 type PageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> }
@@ -36,7 +36,7 @@ function lotsHref(filters: Filters, beforeId: number | null): string {
 const SOURCE_LABELS = { purchase: 'شراء', opening: 'رصيد أول المدة' } as const
 
 /**
- * الدفعات (0020-UI · PR-C) — للمالك بس، وفيها التكاليف.
+ * دفعات المخزون (0020-UI · PR-C) — للمالك بس، وفيها التكاليف. مفيش «متبقي» قبل 0021-ب (مفيش صرف لسه).
  * الأسماء بتتدمج على السيرفر بعدد ثابت من الطلبات (من غير N+1 ومن غير قراءة جداول 0020 مباشرة):
  *   list_lots + أسماء المنتجات الظاهرة (طلب واحد بفلتر ids) + list_locations (صفحات بحد أمان).
  * الاسم الغايب بيظهر «منتج #id» / «مخزن #id»، ولو قايمة المخازن أكبر من الحد بيظهر تنبيه.
@@ -71,7 +71,10 @@ export default pageWithAccess('zell.inventory0020.view', async function LotsPage
 
   return (
     <>
-      <PageHeader title="الدفعات" description="كل لفّة دفعة، وكل بند قطع دفعة — من الشراء ومن رصيد أول المدة، بتكلفتها النهائية." />
+      <PageHeader
+        title={INVENTORY_LOTS_TITLE}
+        description={INVENTORY_LOTS_HINT + '. لكل واحدة: المصدر والمنتج والمخزن والكمية أو الطول الأصلي والتكلفة النهائية والحالة.'}
+      />
 
       <div className="mb-4 flex flex-wrap items-center gap-1.5">
         {(['active', 'voided'] as const).map((status) => (
@@ -90,13 +93,13 @@ export default pageWithAccess('zell.inventory0020.view', async function LotsPage
         ) : null}
 
         {locations.ok ? (
-          <form method="get" action="/inventory/lots" className="ms-auto flex items-center gap-1.5">
+          <form method="get" action="/inventory/lots" className="flex w-full items-center gap-1.5 sm:ms-auto sm:w-auto">
             {filters.status !== 'active' ? <input type="hidden" name="status" value={filters.status} /> : null}
             {filters.productId !== null ? <input type="hidden" name="product" value={String(filters.productId)} /> : null}
             <select
               name="location"
               defaultValue={filters.locationId === null ? '' : String(filters.locationId)}
-              className={inputClasses + ' w-48'}
+              className={inputClasses + ' flex-1 sm:w-48 sm:flex-none'}
               aria-label="المخزن"
             >
               <option value="">كل المخازن</option>
@@ -121,21 +124,54 @@ export default pageWithAccess('zell.inventory0020.view', async function LotsPage
 
       {!result.ok ? (
         <div role="alert" className="space-y-1 rounded-lg border-s-2 border-danger bg-danger/5 px-3 py-2.5 text-xs text-fg">
-          <p className="font-semibold">مقدرناش نقرا الدفعات.</p>
+          <p className="font-semibold">مقدرناش نقرا دفعات المخزون.</p>
           <p className="text-muted">{result.code === 'INTERNAL' ? 'حصل خطأ في القراءة. حدّث الصفحة، ولو اتكرر بلّغ.' : result.message}</p>
         </div>
       ) : result.data.items.length === 0 ? (
-        <EmptyState title="مفيش دفعات هنا" description="الدفعات بتتعمل لما فاتورة شراء أو رصيد أول مدة يترحّل." />
+        <EmptyState
+          title={filters.status === 'voided' ? 'مفيش دفعات مخزون مُبطَلة' : 'مفيش دفعات مخزون هنا'}
+          description="دفعات المخزون بتتعمل لما فاتورة شراء أو رصيد أول مدة يترحّل. المسودات مابتعملش دفعات."
+        />
       ) : (
         <div className="space-y-4">
-          <Table>
+          <ul className="space-y-2 sm:hidden">
+            {result.data.items.map((lot) => (
+              <li key={lot.lotId} className="rounded-lg border border-border bg-surface p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <bdi dir="ltr" className="font-mono text-xs font-bold text-fg">
+                    {lot.lotCode}
+                  </bdi>
+                  <LotStatusBadge status={lot.status} />
+                </div>
+                <p className="mt-1.5 text-sm font-semibold text-fg">{productLabel(productNames, lot.productId)}</p>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
+                  <span>{SOURCE_LABELS[lot.sourceKind]}</span>
+                  <span>{locationLabel(locationNames, lot.locationId)}</span>
+                  <span>{formatDate(lot.receivedOn)}</span>
+                </div>
+                <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-2 text-sm">
+                  <span className="text-fg">
+                    {lot.lotKind === 'roll'
+                      ? (lot.initialLengthCm !== null ? formatMetersAndCm(lot.initialLengthCm) : '—') +
+                        (lot.widthCm !== null ? ' · عرض ' + String(lot.widthCm) + ' سم' : '')
+                      : String(lot.initialQuantity ?? 0) + ' قطعة'}
+                  </span>
+                  <span className="font-semibold text-fg">
+                    {formatPiastresExact(lot.landedCostPiastres)}
+                    {lot.costIsEstimated ? <span className="ms-1 text-xs font-normal text-muted">(تقديري)</span> : null}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <Table className="hidden sm:block">
             <THead>
               <TR>
                 <TH>كود الدفعة</TH>
                 <TH>المصدر</TH>
                 <TH>المنتج</TH>
                 <TH>المخزن</TH>
-                <TH>الكمية</TH>
+                <TH>الكمية / الطول الأصلي</TH>
                 <TH>التكلفة النهائية</TH>
                 <TH>الاستلام</TH>
                 <TH>الحالة</TH>
