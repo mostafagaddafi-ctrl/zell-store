@@ -39,8 +39,11 @@ with fn(name, owner) as (
          exists (select 1 from pg_catalog.pg_roles r where r.rolname = 'zell_order_definer' and not r.rolcanlogin
                    and not r.rolbypassrls and not r.rolinherit and not r.rolsuper and not r.rolcreaterole)
          and exists (select 1 from pg_catalog.pg_auth_members m join pg_catalog.pg_roles r on r.oid = m.roleid
-                      where r.rolname = 'zell_order_definer' and m.member = 'postgres'::regrole
-                        and m.admin_option and m.set_option and not m.inherit_option),
+                      where r.rolname = 'zell_order_definer' and m.member = 'postgres'::regrole and m.admin_option)
+         and exists (select 1 from pg_catalog.pg_auth_members m join pg_catalog.pg_roles r on r.oid = m.roleid
+                      where r.rolname = 'zell_order_definer' and m.member = 'postgres'::regrole and m.set_option)
+         and not exists (select 1 from pg_catalog.pg_auth_members m join pg_catalog.pg_roles r on r.oid = m.roleid
+                          where r.rolname = 'zell_order_definer' and m.member = 'postgres'::regrole and m.inherit_option),
          null::text
   union all
   select 'V02', 'new tables: 5, owner postgres, RLS on, zero privileges for anon/authenticated/service_role',
