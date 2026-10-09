@@ -8,19 +8,21 @@
  *      كان هيحصل استيراد دائري: adminData ← reads ← rows ← adminData.
  */
 
-import { ORDER_STATUSES as CORE_ORDER_STATUSES, STATUS_LABELS, type OrderStatus as CoreOrderStatus } from '@zell/core'
+import { ORDER_STATUSES as CORE_ORDER_STATUSES, type OrderStatus as CoreOrderStatus } from '@zell/core'
+import { ADMIN_STATUS_LABELS, CANCELLED_FINAL_MESSAGE } from './orders/cycle'
 
 /**
- * 0021-A A2 — الحالات وأسماؤها من @zell/core (مصدر واحد للوحة والمتجر). preparing و refused بيظهروا في العرض،
+ * 0021-A A2 — قايمة الحالات من @zell/core، وأسماؤها في لوحة الإدارة من lib/orders/cycle.ts (تحسين النصوص؛ المتجر مابيعرضهاش).
+ * preparing و refused بيظهروا في العرض،
  * والانتقال ليهم ورا البوابة (lib/orders/cycle.ts + الداتابيز).
  */
 export const ORDER_STATUSES = CORE_ORDER_STATUSES
 export type OrderStatus = CoreOrderStatus
 
-export const ORDER_STATUS_LABELS: Readonly<Record<OrderStatus, string>> = STATUS_LABELS
+export const ORDER_STATUS_LABELS: Readonly<Record<OrderStatus, string>> = ADMIN_STATUS_LABELS
 
 /** 0019 — الإلغاء نهائي (trigger orders_cancelled_final · 45080). نفس الرسالة في الواجهة والسيرفر. */
-export const ORDER_CANCELLED_FINAL_MESSAGE = 'الطلب ده ملغي، والإلغاء نهائي — مينفعش يرجع لأي حالة تانية.'
+export const ORDER_CANCELLED_FINAL_MESSAGE = CANCELLED_FINAL_MESSAGE
 
 export const SECTION_KEYS = ['hero', 'products', 'how_it_works', 'faq'] as const
 export type SectionKey = (typeof SECTION_KEYS)[number]

@@ -277,7 +277,7 @@ export function runAdminCouponCases(): AdminCouponCaseFailure[] {
   // 0021-A A2: الانتقالات من جدول الداتابيز والبوابة (lib/orders/cycle.ts)، مش «أي حالة لأي حالة».
   check('cancelled: no transitions', '', allowedTargets('cancelled', true).join(','))
   check('new: table targets (gate closed)', 'confirmed,cancelled', allowedTargets('new', false).join(','))
-  check('cancelled: message', 'الطلب ده ملغي، والإلغاء نهائي — مينفعش يرجع لأي حالة تانية.', ORDER_CANCELLED_FINAL_MESSAGE)
+  check('cancelled: message', 'هذا الطلب ملغى، والإلغاء نهائي ولا يمكن إعادته لأي حالة أخرى.', ORDER_CANCELLED_FINAL_MESSAGE)
 
   return failures
 }

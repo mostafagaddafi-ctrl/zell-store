@@ -52,7 +52,7 @@ export function OrdersFilters() {
         <input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="رقم الطلب، الاسم، الموبايل، المحافظة"
+          placeholder="رقم الطلب، الاسم، رقم الهاتف، المحافظة"
           className={inputClasses + ' pr-9'}
           aria-label="بحث في الطلبات"
         />
@@ -79,7 +79,7 @@ export function OrdersFilters() {
         className={inputClasses + ' w-40'}
         aria-label="فلتر المتابعة"
       >
-        <option value="">كل المتابعات</option>
+        <option value="">كل مواعيد المتابعة</option>
         {FOLLOW_UP_FILTERS.map((value) => (
           <option key={value} value={value}>
             {FOLLOW_UP_FILTER_LABELS[value]}

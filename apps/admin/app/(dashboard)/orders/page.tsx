@@ -44,7 +44,7 @@ export default pageWithAccess('zell.orders.view', async function OrdersPage(_ctx
 
   return (
     <>
-      <PageHeader title="الطلبات" description="البحث والفلترة بيتمّوا على السيرفر" />
+      <PageHeader title="الطلبات" description="البحث والفلترة تتم على الخادم" />
 
       <div className="space-y-3">
         <OrdersFilters />
@@ -52,7 +52,7 @@ export default pageWithAccess('zell.orders.view', async function OrdersPage(_ctx
         {/* 0021-A A2 — تنبيه المتابعات (الطلبات الجديدة بس، بتوقيت القاهرة) */}
         {followUpCounts.overdue + followUpCounts.today > 0 ? (
           <div role="status" className="flex flex-wrap items-center gap-2 rounded-lg border-2 border-gold bg-gold/10 p-3 text-sm">
-            <span className="font-bold text-fg">متابعات:</span>
+            <span className="font-bold text-fg">المتابعات:</span>
             <Link href="/orders?followup=overdue" className="font-semibold text-danger">
               {FOLLOW_UP_FILTER_LABELS.overdue + ' (' + String(followUpCounts.overdue) + ')'}
             </Link>
@@ -63,11 +63,11 @@ export default pageWithAccess('zell.orders.view', async function OrdersPage(_ctx
           </div>
         ) : null}
         {followUp !== null ? (
-          <p className="text-xs text-muted">{'فلتر: ' + FOLLOW_UP_FILTER_LABELS[followUp] + ' — الطلبات الجديدة بس، بالأقرب.'}</p>
+          <p className="text-xs text-muted">{'الفلتر: ' + FOLLOW_UP_FILTER_LABELS[followUp] + ' — الطلبات الجديدة فقط، الأقرب أولًا.'}</p>
         ) : null}
 
         {result.rows.length === 0 ? (
-          <EmptyState title="مفيش طلبات مطابقة" description="جرّب تغيّر البحث أو الفلتر." />
+          <EmptyState title="لا توجد طلبات مطابقة" description="جرّب تغيير البحث أو الفلتر." />
         ) : (
           <>
             {/* الموبايل: كروت بدل جدول عرضه 42rem بيعمل سكرول جانبي */}

@@ -174,10 +174,10 @@ export default pageWithAccess('zell.orders.view', async function OrderDetailPage
         </div>
 
         <div className="order-first space-y-5 xl:order-none">
-          <Card title="العميل">
+          <Card title="بيانات العميل">
             <dl className="space-y-2 text-sm">
               <Row label="الاسم" value={order.customerName} />
-              <Row label="الموبايل" value={order.customerPhone} ltr />
+              <Row label="رقم الهاتف" value={order.customerPhone} ltr />
               <Row label="المحافظة" value={order.governorate} />
               {order.shippingArea ? <Row label="المنطقة" value={order.shippingArea} /> : null}
             </dl>
@@ -221,7 +221,6 @@ export default pageWithAccess('zell.orders.view', async function OrderDetailPage
           <OrderCallCard orderId={order.id} status={order.status} expectedUpdatedAt={order.updatedAt} />
 
           <OrderFollowUpCard
-            key={'follow-up-' + order.updatedAt}
             orderId={order.id}
             status={order.status}
             nextFollowUpAt={order.nextFollowUpAt}
@@ -229,7 +228,6 @@ export default pageWithAccess('zell.orders.view', async function OrderDetailPage
           />
 
           <OrderDeliveryCard
-            key={'delivery-' + order.updatedAt}
             orderId={order.id}
             status={order.status}
             delivery={order.deliveryConfirmed}
