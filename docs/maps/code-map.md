@@ -39,6 +39,7 @@
 | `lib/mutations` | كل الكتابة في الداتابيز، ملف لكل منطقة (منتجات · صور · أقسام · محتوى · شحن · تركيب · كوبونات · مخزون …)، ومعاهم `concurrency.ts` (التزامن التفاؤلي) و`errors.ts`. **الكتابة بس:** القراءة اتنقلت لـ `lib/data` |
 | `lib/validation` | التحقق من المدخلات لكل منطقة |
 | `lib/inventory` | منطق شاشات المخزون: النماذج والتسعير والتوزيع، و`rpc.ts` + `sessionCall.ts` (نداء `zell_inv_session_*` بجلسة المستخدم، 0020-S PR-2)، والرسايل، وحالات الاختبار (`*.cases.ts`) |
+| `lib/orders` | 0021-A A2 — دورة الطلب: `cycle.ts` (منطق خالص: الانتقالات والبوابة · نتايج المكالمة · وقت القاهرة وفلاتر المتابعة · الموعد المؤكد والفترات · تعديل البيانات · وصف السجل · تحويل الأخطاء) + `orders.cases.ts`، و`rpc.ts` (نداء `zell_order_*` بجلسة المستخدم). الـ actions في `lib/orderActions.ts`، والقراءات في `lib/data/orderCycle.ts`، والكروت في `components/orders/OrderCycle.tsx` و`OrderTimeline.tsx` |
 | `lib/coupons` | نموذج الكوبون وحالاته |
 | `lib/client` | كود المتصفح: ضغط ورفع الصور، والـ hooks (`useSaveAction` · `usePreview` · `useInventoryIntent` · `useLineCards`) |
 | `lib/uploads` | فحص حجم ونوع الصورة |
