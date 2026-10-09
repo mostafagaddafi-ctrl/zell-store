@@ -1,7 +1,7 @@
 /**
  * المصطلحات العربية الثابتة لواجهة المخزون (عقد 0020-UI v2 · B6).
  *
- * 🔒 discarded = «مستبعَد» (مسودة اتشالت قبل الترحيل) ≠ voided = «مُبطَل» (مستند مرحّل اتبطل).
+ * 🔒 discarded = «مستبعَد» (مسودة اتشالت قبل الترحيل) ≠ voided = «مُبطَل» (مستند مرحّل اتبطل). من غير «(مسودة)» في الشارة.
  * 🔒 كلمة «ملغي» ممنوعة في كل واجهة المخزون — الاختبارات بتفحص كل النصوص هنا وفي جدول الأخطاء.
  */
 
@@ -11,7 +11,7 @@ export type InventoryLotStatus = 'active' | 'voided'
 export const DOC_STATUS_LABELS: Readonly<Record<InventoryDocStatus, string>> = {
   draft: 'مسودة',
   posted: 'مرحّل',
-  discarded: 'مستبعَد (مسودة)',
+  discarded: 'مستبعَد',
   voided: 'مُبطَل',
 }
 
@@ -19,6 +19,10 @@ export const LOT_STATUS_LABELS: Readonly<Record<InventoryLotStatus, string>> = {
   active: 'فعّالة',
   voided: 'مُبطَلة',
 }
+
+/** اسم صفحة الـ lots وشرحها. مفيش «متبقي» قبل 0021-ب (مفيش صرف لسه). */
+export const INVENTORY_LOTS_TITLE = 'دفعات المخزون'
+export const INVENTORY_LOTS_HINT = 'الرولات والكميات الناتجة من الشراء أو رصيد أول المدة'
 
 export const DOC_ACTION_LABELS = {
   post: 'ترحيل',

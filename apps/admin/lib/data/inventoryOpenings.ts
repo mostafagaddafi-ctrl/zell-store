@@ -16,11 +16,11 @@ import {
 import { callInventory, callInventoryWith } from '../inventory/rpc'
 
 export async function listOpenings(
-  options: { status: InventoryDocStatus | null; beforeId: number | null },
+  options: { status: InventoryDocStatus | null; beforeId: number | null; limit?: number },
 ): Promise<InventoryResult<OpeningsPage>> {
   return callInventory(
     'listOpenings',
-    { p_status: options.status, p_limit: OPENINGS_PAGE_SIZE, p_before_id: options.beforeId },
+    { p_status: options.status, p_limit: options.limit ?? OPENINGS_PAGE_SIZE, p_before_id: options.beforeId },
     isOpeningsPage,
   )
 }
