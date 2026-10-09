@@ -27,14 +27,14 @@ export type PurchaseEditorData =
 
 const READ_FAILED = 'حصل خطأ في القراءة. حدّث الصفحة، ولو اتكرر بلّغ.'
 
-export async function loadPurchaseEditorData(actor: string): Promise<PurchaseEditorData> {
+export async function loadPurchaseEditorData(): Promise<PurchaseEditorData> {
   const [catalog, suppliers, locations] = await Promise.all([
     readInventoryCatalog().then(
       (value): InventoryCatalog | null => value,
       () => null,
     ),
-    loadSupplierOptions(actor, false),
-    loadLocationOptions(actor),
+    loadSupplierOptions(false),
+    loadLocationOptions(),
   ])
 
   const reasons: string[] = []
@@ -60,13 +60,13 @@ export type OpeningEditorData =
   | { ok: false; reasons: string[] }
 
 /** بيانات نموذج رصيد أول المدة — نفس القواعد من غير موردين: الكتالوج (exactCount) والمخازن النشطة. */
-export async function loadOpeningEditorData(actor: string): Promise<OpeningEditorData> {
+export async function loadOpeningEditorData(): Promise<OpeningEditorData> {
   const [catalog, locations] = await Promise.all([
     readInventoryCatalog().then(
       (value): InventoryCatalog | null => value,
       () => null,
     ),
-    loadLocationOptions(actor),
+    loadLocationOptions(),
   ])
 
   const reasons: string[] = []
