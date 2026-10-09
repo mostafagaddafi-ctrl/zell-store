@@ -26,8 +26,8 @@
 | `backend/db/migrations/0020_inventory_purchasing.sql` | 219 KB | 4066 | المخزون والمشتريات: الدور والجداول والـ 23 RPC والـ triggers |
 | `backend/db/migrations/0020_inventory_purchasing_ptest.sql` | 306 KB | 5440 | اختبار 0020 (الجسم منسوخ بين علامات >>> و <<<) |
 | `backend/db/migrations/0020_inventory_purchasing_verify.sql` | 26 KB | 368 | التحقق بعد تطبيق 0020 |
-| `backend/db/migrations/0021a_a1_order_cycle.sql` | 47 KB | 892 | 0021-A A1 دورة الطلب: الحالتين ورا البوابة · الانتقالات · السجل · الفترات · 11 دالة بالجلسة |
-| `backend/db/migrations/0021a_a1_order_cycle_ptest.sql` | 67 KB | 1233 | 0021-A A1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، والنتيجة صفوف) |
+| `backend/db/migrations/0021a_a1_order_cycle.sql` | 47 KB | 895 | 0021-A A1 دورة الطلب: الحالتين ورا البوابة · الانتقالات · السجل · الفترات · 11 دالة بالجلسة |
+| `backend/db/migrations/0021a_a1_order_cycle_ptest.sql` | 67 KB | 1236 | 0021-A A1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، والنتيجة صفوف) |
 | `backend/db/migrations/0021p_access_ptest.sql` | 123 KB | 2685 | 0021-P اختبار قبل التطبيق (الجسمين منسوخين بالحرف، والنتيجة صفوف) |
 | `backend/db/migrations/0021p_access_verify.sql` | 21 KB | 339 | 0021-P التحقق بعد التطبيق (15 فحص، والنتيجة صفوف) |
 | `backend/db/migrations/0021p_erp_access.sql` | 46 KB | 1049 | 0021-P المحرك `erp_*` |
@@ -495,7 +495,7 @@
 
 ## `backend/db/migrations/0021a_a1_order_cycle.sql`
 
-0021-A A1 دورة الطلب: الحالتين ورا البوابة · الانتقالات · السجل · الفترات · 11 دالة بالجلسة · 892 سطر
+0021-A A1 دورة الطلب: الحالتين ورا البوابة · الانتقالات · السجل · الفترات · 11 دالة بالجلسة · 895 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -506,26 +506,26 @@
 | 100 | -- (1) الدور: NOLOGIN + NOBYPASSRLS + NOINHERIT. عضوية postgres: ADMIN (تلقائي) + SET، و INHERIT FALSE. |
 | 101 | create role zell_order_definer nologin nobypassrls noinherit nocreaterole nocreatedb noreplication; |
 | 104 | do $a1role$ |
-| 116 | -- (2) orders: أعمدة جديدة (فاضية) + الحالتين الجداد في القيد. الصفوف القديمة ماتتغيّرش. |
-| 133 | do $a1status$ |
-| 157 | -- (3) الجداول الجديدة (مالكها postgres): RLS + policy للدور بس، وصفر صلاحيات لأي دور تاني. |
-| 158 | create table public.order_status_transitions ( |
-| 175 | create table public.order_events ( |
-| 189 | create table public.order_delivery_periods ( |
-| 202 | create table public.zell_order_gate ( |
-| 211 | create table public.zell_order_config_log ( |
-| 240 | -- (4) الثبات: السجلين append-only، والبوابة صف واحد ومفيش مسح. دوال الـ triggers مالكها postgres (invoker). |
-| 295 | -- (5) الدوال: CREATE كـ zell_order_definer (SET LOCAL ROLE). |
-| 772 | -- (6) triggers على orders. |
-| 806 | -- (7) EXECUTE: الكل مسحوب، وبعدين: العامة الـ 11 لـ authenticated (منهم البوابة، للمالك بس جوه الدالة) · ح… |
-| 843 | -- (8) postflight |
-| 844 | do $a1post$ |
-| 891 | -- <<< 0021A1 BODY |
-| 892 | commit; |
+| 119 | -- (2) orders: أعمدة جديدة (فاضية) + الحالتين الجداد في القيد. الصفوف القديمة ماتتغيّرش. |
+| 136 | do $a1status$ |
+| 160 | -- (3) الجداول الجديدة (مالكها postgres): RLS + policy للدور بس، وصفر صلاحيات لأي دور تاني. |
+| 161 | create table public.order_status_transitions ( |
+| 178 | create table public.order_events ( |
+| 192 | create table public.order_delivery_periods ( |
+| 205 | create table public.zell_order_gate ( |
+| 214 | create table public.zell_order_config_log ( |
+| 243 | -- (4) الثبات: السجلين append-only، والبوابة صف واحد ومفيش مسح. دوال الـ triggers مالكها postgres (invoker). |
+| 298 | -- (5) الدوال: CREATE كـ zell_order_definer (SET LOCAL ROLE). |
+| 775 | -- (6) triggers على orders. |
+| 809 | -- (7) EXECUTE: الكل مسحوب، وبعدين: العامة الـ 11 لـ authenticated (منهم البوابة، للمالك بس جوه الدالة) · ح… |
+| 846 | -- (8) postflight |
+| 847 | do $a1post$ |
+| 894 | -- <<< 0021A1 BODY |
+| 895 | commit; |
 
 ## `backend/db/migrations/0021a_a1_order_cycle_ptest.sql`
 
-0021-A A1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، والنتيجة صفوف) · 1233 سطر
+0021-A A1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، والنتيجة صفوف) · 1236 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -533,14 +533,14 @@
 | 17 | do $zguard$ |
 | 104 | do $zfx$ |
 | 130 | -- >>> 0021A1 BODY |
-| 527 | -- ── الدوال العامة (EXECUTE لـ authenticated بس) ── |
-| 999 | -- <<< 0021A1 BODY |
-| 1001 | -- ── P: البنية والهوية والبوابة والفترات (من غير أي صف في orders) ── |
-| 1002 | do $zP$ |
-| 1118 | -- ── O: دورة طلب تجربة (ci بس — في production مفيش أي كتابة على orders) ── |
-| 1119 | do $zO$ |
-| 1199 | with r as ( |
-| 1233 | rollback; |
+| 530 | -- ── الدوال العامة (EXECUTE لـ authenticated بس) ── |
+| 1002 | -- <<< 0021A1 BODY |
+| 1004 | -- ── P: البنية والهوية والبوابة والفترات (من غير أي صف في orders) ── |
+| 1005 | do $zP$ |
+| 1121 | -- ── O: دورة طلب تجربة (ci بس — في production مفيش أي كتابة على orders) ── |
+| 1122 | do $zO$ |
+| 1202 | with r as ( |
+| 1236 | rollback; |
 
 ## `backend/db/migrations/0021p_access_ptest.sql`
 
