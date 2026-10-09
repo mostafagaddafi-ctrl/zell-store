@@ -5,7 +5,8 @@
 # بيغطي: شكل المعاملة في الـ ptest والـ verify · md5 الجسم · verify قبل التطبيق · ptest (ci · production · production من غير أدمن)
 # · مفيش أثر بعد الـ ptest · التطبيق · رفض إعادة التطبيق · الـ ptest بيرفض بعد التطبيق · verify · نداءات زي PostgREST
 # · rollback 0020 بيرفض طول ما 0020-S متطبّق · rollback 0020-S (من غير تأكيد · بعد PR-3 · نضيف) · إعادة التطبيق
-# · rollback 0020 بيشتغل بعد rollback 0020-S.
+# · rollback 0020 بيشتغل بعد rollback 0020-S · statement_timeout (مستند 100 سطر بجلسة authenticated تحت القيمة المعتمدة 8s)
+# · ملفي 0020 بعد التعديل = النسخة القديمة بالحرف من غير 0020-S (blobs متثبتة) · 0020-S ناقص.
 # ممنوع يتشغّل على أي داتابيز غير الحاوية المؤقتة.
 set -uo pipefail
 
@@ -37,6 +38,12 @@ A='00000000-0000-0000-0000-00000000000a'
 X='00000000-0000-0000-0000-00000000000c'
 Y='00000000-0000-0000-0000-00000000000d'
 ATTEST="panel-not-calling-session-functions"
+# القيمة المعتمدة لـ statement_timeout بتاع دور authenticated (الـ ptest بيتأكد إن Production مش أقل منها).
+APPROVED_AUTH_TIMEOUT="8s"
+BASE_VERIFY="$MIG/0020_inventory_purchasing_verify.sql"
+# نسخ ملفي 0020 القديمين قبل الـ PR ده (blob على main 5b851ce): للمقارنة بالحرف لما 0020-S مش متطبّق.
+LEGACY_VERIFY_BLOB="6e137fa9b11be74f1abdc5a17c304856d4a44b40"
+LEGACY_RB_BLOB="186b4addcb2e2b139bb2e8ecfbcb9e754abe49dd"
 
 record() {
   if [ "$2" = "yes" ]; then
@@ -101,6 +108,35 @@ SQL
 residue() { q "$RESIDUE_SQL"; }
 rf() { printf '%s' "$1" | cut -d'|' -f"$2"; }
 
+# الـ sequences: last_value لكل sequence في public (NULL = 0)، والفرق بين لقطتين (غير الصفر بس).
+SEQ_SQL="select coalesce(string_agg(s.sequencename || '=' || coalesce(s.last_value, 0), ' ' order by s.sequencename), '') from pg_catalog.pg_sequences s where s.schemaname = 'public'"
+seqs() { q "$SEQ_SQL"; }
+seq_delta() {
+  printf '%s\n%s\n' "$1" "$2" | awk 'NR == 1 {for (i = 1; i <= NF; i++) {split($i, a, "="); b[a[1]] = a[2]}}
+    NR == 2 {o = ""; for (i = 1; i <= NF; i++) {split($i, a, "="); d = a[2] - b[a[1]]; if (d != 0) {o = o a[1] "=+" d " "}} print o}'
+}
+seq_of() { printf '%s' "$1" | tr ' ' '\n' | awk -F= -v n="$2" '$1 == n {print substr($2, 2)}'; }
+# سطور ERROR بس (من غير اسم الملف ورقم السطر)، للمقارنة بين نسختين.
+err_lines() { grep 'ERROR:' "$1" | sed 's/^.*ERROR:/ERROR:/'; }
+
+# مستند 100 سطر بجلسة authenticated زي PostgREST: كل نداء جملة لوحدها، تحت statement_timeout = $1.
+big_doc() {
+  psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -v to="$1" -v owner="$A" -f - 2>&1 <<'SQL'
+\timing on
+select pg_catalog.set_config('zell.big_doc', (select jsonb_build_object('locationId', l.id,
+  'docDate', to_char((now() at time zone 'Africa/Cairo')::date, 'YYYY-MM-DD'), 'supplierDiscountPiastres', 37,
+  'lines', (select jsonb_agg(jsonb_build_object('kind', 'batch', 'productId', 1, 'quantity', 1, 'lineTotalPiastres', 100))
+              from generate_series(1, 100)))::text
+  from public.inventory_locations l where l.code = 'MAIN'), false) is null;
+set role authenticated;
+select pg_catalog.set_config('request.jwt.claims', json_build_object('sub', :'owner', 'role', 'authenticated')::text, false) is null;
+set statement_timeout = :'to';
+select 'PREVIEW_OK' from (select public.zell_inv_session_preview_purchase(pg_catalog.current_setting('zell.big_doc')::jsonb) as r) x where x.r is not null;
+select pg_catalog.set_config('zell.doc_id', public.zell_inv_session_create_purchase(gen_random_uuid(), pg_catalog.current_setting('zell.big_doc')::jsonb) ->> 'docId', false) is null;
+select 'POST_' || (public.zell_inv_session_post_purchase(gen_random_uuid(), pg_catalog.current_setting('zell.doc_id')::bigint, 1) ->> 'status');
+SQL
+}
+
 init_cluster() {
   psql -X -q -v ON_ERROR_STOP=1 -U "$SUPER" -d postgres > /dev/null <<'SQL'
 do $r$
@@ -124,6 +160,8 @@ end
 $r$;
 grant anon, authenticated, service_role to authenticator;
 grant anon, authenticated, service_role to postgres;
+-- القيمة المعتمدة لدور authenticated (PostgREST بيطبّق إعداد الدور على كل request).
+alter role authenticated set statement_timeout = '8s';
 SQL
 }
 
@@ -228,24 +266,38 @@ run_rows "$VERIFY" "$TMP/verify_pre.out"
 ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 2)" = "summary" ] && [ "$(sf 11)" = "FAIL" ]; then ok=yes; fi
 record "S3 verify before apply: rows returned, verdict FAIL, exit 0" "$ok" "exit=$RC summary=$SUMMARY $(tail5 "$TMP/verify_pre.out")"
 
+# ── S3b: verify 0020 (بعد التعديل) قبل 0020-S: نفس النتيجة القديمة، من غير علامة 0020-S ──
+run_file "$BASE_VERIFY" "$TMP/base_verify_pre.out"
+ok=no; if has "$TMP/base_verify_pre.out" "ZELL_0020_VERIFY_RESULT part_a=ok" && ! has "$TMP/base_verify_pre.out" "0020s="; then ok=yes; fi
+record "S3b 0020 verify before 0020-S: part_a=ok, no 0020-S marker" "$ok" "$(err_lines "$TMP/base_verify_pre.out" | cut -c1-200)"
+
 # ── S4: ptest (ci) قبل التطبيق، ومفيش أثر بعده ──
 sed "s/^set local zell.ptest_profile = 'production';\$/set local zell.ptest_profile = 'ci';/" "$PTEST" > "$TMP/ptest_ci.sql"
 run_rows "$TMP/ptest_ci.sql" "$TMP/ptest_ci.out"
 ok=no; if grep -qx "set local zell.ptest_profile = 'ci';" "$TMP/ptest_ci.sql" && [ "$RC" -eq 0 ] && [ "$(sf 7)" = "ci" ] \
-  && [ "$(sf 11)" = "PASS" ] && [ "$(sf 9)" = "0" ] && [ "$(sf 10)" = "0" ]; then ok=yes; fi
+  && [ "$(sf 11)" = "PASS" ] && [ "$(sf 9)" = "0" ] && [ "$(sf 10)" = "0" ] && [ "$(sf 16)" = "$APPROVED_AUTH_TIMEOUT" ]; then ok=yes; fi
 record "S4a ptest profile=ci: verdict PASS, fail=0, skip=0 (pass=$(sf 8), auth_timeout=$(sf 16), big_preview_ms=$(sf 18), big_post_ms=$(sf 19))" "$ok" "exit=$RC summary=$SUMMARY $(tail5 "$TMP/ptest_ci.out")"
 R1=$(residue)
 ok=no; if [ "$R1" = "$R0" ]; then ok=yes; fi
 record "S4b no residue after ptest (functions, old fingerprint, inventory rows, idle tx)" "$ok" "before=$R0 after=$R1"
 
-# ── S5: ptest (production): بأدمن، ومن غير أدمن (R04 skip متوقع) ──
+# ── S5: ptest (production): مستندات صغيرة بس (T02 = CI بس)، بأدمن ومن غير أدمن، وعدد الـ sequences ──
+SQ0=$(seqs)
 run_rows "$PTEST" "$TMP/ptest_prod.out"
-ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 7)" = "production" ] && [ "$(sf 11)" = "PASS" ] && [ "$(sf 10)" = "0" ]; then ok=yes; fi
-record "S5a ptest profile=production (owner A + admin X): PASS, no skips (pass=$(sf 8))" "$ok" "exit=$RC summary=$SUMMARY"
+SQ1=$(seqs)
+SEQD=$(seq_delta "$SQ0" "$SQ1")
+echo "SEQ_DELTA_PRODUCTION_PROFILE $SEQD"
+ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 7)" = "production" ] && [ "$(sf 11)" = "PASS" ] && [ "$(sf 15)" = "T02" ] && [ "$(sf 16)" = "$APPROVED_AUTH_TIMEOUT" ]; then ok=yes; fi
+record "S5a ptest profile=production (owner A + admin X): PASS, skip T02 only, timeout read $(sf 16) (pass=$(sf 8))" "$ok" "exit=$RC summary=$SUMMARY"
+bl=$(seq_of "$SEQD" batch_lot_seq); rl=$(seq_of "$SEQD" roll_lot_seq)
+if [ -z "$bl" ]; then bl=0; fi
+if [ -z "$rl" ]; then rl=0; fi
+ok=no; if [ "$bl" -le 2 ] && [ "$rl" -eq 0 ]; then ok=yes; fi
+record "S5c production profile uses small documents only (batch_lot_seq +$bl <= 2, roll_lot_seq +$rl = 0) :: $SEQD" "$ok" "$SEQD"
 q "update public.admin_users set is_active = false where user_id = '$X'" > /dev/null
 run_rows "$PTEST" "$TMP/ptest_prod_b.out"
-ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 11)" = "PASS" ] && [ "$(sf 15)" = "R04" ]; then ok=yes; fi
-record "S5b ptest profile=production (owner A only): PASS, skip R04 only" "$ok" "exit=$RC summary=$SUMMARY"
+ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 11)" = "PASS" ] && [ "$(sf 15)" = "R04,T02" ]; then ok=yes; fi
+record "S5b ptest profile=production (owner A only): PASS, skips R04,T02 only" "$ok" "exit=$RC summary=$SUMMARY"
 q "update public.admin_users set is_active = true where user_id = '$X'" > /dev/null
 
 # ── S6: التطبيق ──
@@ -266,6 +318,11 @@ run_rows "$VERIFY" "$TMP/verify.out"
 ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 11)" = "PASS" ] && [ "$(sf 9)" = "0" ] && [ "$(sf 16)" = "$(rf "$R0" 4)" ]; then ok=yes; fi
 record "S8 verify after apply: PASS (pass=$(sf 8)), old_fp = before apply" "$ok" "exit=$RC summary=$SUMMARY"
 
+# ── S8b: verify 0020 (بعد التعديل) بعد 0020-S: part_a=ok + علامة 0020-S ──
+run_file "$BASE_VERIFY" "$TMP/base_verify_post.out"
+ok=no; if has "$TMP/base_verify_post.out" "ZELL_0020_VERIFY_RESULT part_a=ok" && has "$TMP/base_verify_post.out" "0020s=applied"; then ok=yes; fi
+record "S8b 0020 verify after 0020-S: part_a=ok, marker 0020s=applied" "$ok" "$(err_lines "$TMP/base_verify_post.out" | cut -c1-200)"
+
 # ── S9: نداءات زي PostgREST ──
 o_new=$(as_user "$A" "select public.zell_inv_session_list_locations(true, 50, null)" | tail -n 1)
 o_old=$(as_service "select public.zell_inv_list_locations('$A'::uuid, true, 50, null)" | tail -n 1)
@@ -281,10 +338,10 @@ out=$(as_user "$A" "select public.zell_inv_list_locations('$A'::uuid, true, 50, 
 ok=no; case "$out" in *42501*) ok=yes ;; esac
 record "S9d authenticated on old function (owner p_actor) -> 42501" "$ok" "$(printf '%s' "$out" | tail -n 3 | cut -c1-200)"
 
-# ── S10: rollback 0020 بيرفض طول ما 0020-S متطبّق ──
-ok=no; if ! run_file "$BASE_RB" "$TMP/base_rb1.out" && has "$TMP/base_rb1.out" "ZELL_0020_ROLLBACK_NOT_FULLY_APPLIED" \
+# ── S10: rollback 0020 بيرفض طول ما 0020-S متطبّق، برسالة صريحة ──
+ok=no; if ! run_file "$BASE_RB" "$TMP/base_rb1.out" && has "$TMP/base_rb1.out" "ZELL_0020_ROLLBACK_0020S_FIRST" \
   && [ "$(rf "$(residue)" 1)" = "23" ]; then ok=yes; fi
-record "S10 0020 rollback refused while 0020-S is applied" "$ok" "$(tail5 "$TMP/base_rb1.out")"
+record "S10 0020 rollback refused while 0020-S is applied (ZELL_0020_ROLLBACK_0020S_FIRST)" "$ok" "$(err_lines "$TMP/base_rb1.out" | cut -c1-200)"
 
 # ── S11: rollback 0020-S من غير تأكيد بيرفض ──
 ok=no; if ! run_file "$ROLLBACK" "$TMP/rb_noattest.out" && has "$TMP/rb_noattest.out" "ZELL_0020S_ROLLBACK_ATTEST" \
@@ -319,6 +376,69 @@ ok=no; if attested_rollback "$TMP/rb2.out" && run_file "$BASE_RB" "$TMP/base_rb2
 inv_left=$(q "select count(*) from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_%'")
 if [ "$ok" = "yes" ] && [ "$inv_left" = "0" ]; then :; else ok=no; fi
 record "S15 rollback 0020-S then rollback 0020 works (zell_inv_% = 0)" "$ok" "inv_left=$inv_left $(tail5 "$TMP/base_rb2.out")"
+
+
+# ── S16: statement_timeout: مستند 100 سطر بجلسة authenticated تحت القيمة المعتمدة، وإثبات إن الحد شغّال ──
+reset_db "$A:owner:true" "$X:admin:true"
+ok=no; if run_file "$BASE" "$TMP/base16.out" && run_file "$APPLY" "$TMP/apply16.out"; then ok=yes; fi
+TO=$(q "select substring(c from '^statement_timeout=(.*)\$') from pg_catalog.pg_roles r cross join lateral unnest(coalesce(r.rolconfig, '{}'::text[])) c where r.rolname = 'authenticated' and c like 'statement\_timeout=%'")
+out=$(big_doc "$TO")
+times=$(printf '%s\n' "$out" | grep '^Time:' | tr '\n' ' ')
+if [ "$ok" = "yes" ] && [ "$TO" = "$APPROVED_AUTH_TIMEOUT" ]; then :; else ok=no; fi
+case "$out" in *PREVIEW_OK*POST_posted*) ;; *) ok=no ;; esac
+case "$out" in *ERROR*) ok=no ;; esac
+record "S16a big document (100 lines) via session under authenticated statement_timeout=$TO: preview + create + post ok [$times]" "$ok" "$(printf '%s' "$out" | tail -n 5 | cut -c1-300)"
+out=$(big_doc "1ms")
+ok=no; case "$out" in *57014*) ok=yes ;; esac
+record "S16b same harness with statement_timeout=1ms -> 57014 (the limit is enforced per statement)" "$ok" "$(printf '%s' "$out" | grep ERROR | head -n 2 | cut -c1-200)"
+
+# ── S17: ملفي 0020 بعد التعديل = النسخة القديمة بالحرف لما 0020-S مش متطبّق ──
+git -C "$ROOT" cat-file -p "$LEGACY_VERIFY_BLOB" > "$TMP/legacy_verify.sql" 2> "$TMP/legacy_git.err"
+git -C "$ROOT" cat-file -p "$LEGACY_RB_BLOB" > "$TMP/legacy_rb.sql" 2>> "$TMP/legacy_git.err"
+ok=no; if [ -s "$TMP/legacy_verify.sql" ] && [ -s "$TMP/legacy_rb.sql" ]; then ok=yes; fi
+record "S17a legacy 0020 verify / rollback loaded from pinned blobs" "$ok" "$(cat "$TMP/legacy_git.err")"
+# (b) verify: نفس سطر النتيجة ونفس exit
+reset_db "$A:owner:true" "$X:admin:true"
+run_file "$BASE" "$TMP/base17.out"
+run_file "$TMP/legacy_verify.sql" "$TMP/lv.out"; lrc=$?
+run_file "$BASE_VERIFY" "$TMP/nv.out"; nrc=$?
+ok=no; if [ "$lrc" = "$nrc" ] && [ "$(err_lines "$TMP/lv.out")" = "$(err_lines "$TMP/nv.out")" ] && has "$TMP/nv.out" "part_a=ok"; then ok=yes; fi
+record "S17b 0020 verify without 0020-S = legacy (same result line, exit $nrc)" "$ok" "legacy=$(err_lines "$TMP/lv.out" | cut -c1-160) new=$(err_lines "$TMP/nv.out" | cut -c1-160)"
+# (c) rollback فيه بيانات: نفس الرفض، ومفيش تغيير
+q "set role service_role; select public.zell_inv_create_supplier('$A'::uuid, gen_random_uuid(), 'مورد اختبار', null, null) is not null" > /dev/null
+run_file "$TMP/legacy_rb.sql" "$TMP/lrb_data.out"; lrc=$?
+run_file "$BASE_RB" "$TMP/nrb_data.out"; nrc=$?
+ok=no; if [ "$lrc" = "$nrc" ] && [ "$nrc" != "0" ] && [ "$(err_lines "$TMP/lrb_data.out")" = "$(err_lines "$TMP/nrb_data.out")" ] \
+  && has "$TMP/nrb_data.out" "ZELL_0020_ROLLBACK_HAS_DATA"; then ok=yes; fi
+record "S17c 0020 rollback with data, without 0020-S = legacy (ZELL_0020_ROLLBACK_HAS_DATA)" "$ok" "legacy=$(err_lines "$TMP/lrb_data.out" | cut -c1-160) new=$(err_lines "$TMP/nrb_data.out" | cut -c1-160)"
+# (d) rollback نضيف: نفس الخرج ونفس الحالة بعده (داتابيز جديدة لكل نسخة)
+reset_db "$A:owner:true" "$X:admin:true"
+run_file "$BASE" "$TMP/base17d1.out"
+run_file "$TMP/legacy_rb.sql" "$TMP/lrb_clean.out"; lrc=$?
+lstate=$(q "select count(*) from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_%'")
+reset_db "$A:owner:true" "$X:admin:true"
+run_file "$BASE" "$TMP/base17d2.out"
+run_file "$BASE_RB" "$TMP/nrb_clean.out"; nrc=$?
+nstate=$(q "select count(*) from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_%'")
+ok=no; if [ "$lrc" = "0" ] && [ "$nrc" = "0" ] && [ "$lstate" = "0" ] && [ "$nstate" = "0" ] \
+  && [ "$(err_lines "$TMP/lrb_clean.out")" = "$(err_lines "$TMP/nrb_clean.out")" ]; then ok=yes; fi
+record "S17d 0020 rollback (clean), without 0020-S = legacy (both succeed, zell_inv_% = 0)" "$ok" "legacy rc=$lrc left=$lstate new rc=$nrc left=$nstate"
+# (e) rollback و 0020 مش متطبّق خالص: نفس الرفض
+run_file "$TMP/legacy_rb.sql" "$TMP/lrb_none.out"; lrc=$?
+run_file "$BASE_RB" "$TMP/nrb_none.out"; nrc=$?
+ok=no; if [ "$lrc" = "$nrc" ] && [ "$nrc" != "0" ] && [ "$(err_lines "$TMP/lrb_none.out")" = "$(err_lines "$TMP/nrb_none.out")" ]; then ok=yes; fi
+record "S17e 0020 rollback when 0020 is not applied = legacy (same refusal)" "$ok" "legacy=$(err_lines "$TMP/lrb_none.out" | cut -c1-160) new=$(err_lines "$TMP/nrb_none.out" | cut -c1-160)"
+
+# ── S18: 0020-S ناقص (دالة واحدة اتمسحت): verify 0020 بيفشل، و rollback 0020 بيطلب rollback 0020-S الأول ──
+reset_db "$A:owner:true" "$X:admin:true"
+run_file "$BASE" "$TMP/base18.out"
+run_file "$APPLY" "$TMP/apply18.out"
+q "set role zell_inventory_definer; drop function public.zell_inv_session_list_lots(text, integer, bigint, integer, bigint); reset role" > "$TMP/partial.out"
+run_file "$BASE_VERIFY" "$TMP/base_verify_partial.out"
+ok=no; if has "$TMP/base_verify_partial.out" "ZELL_0020_FUNCTION_COUNT"; then ok=yes; fi
+record "S18a 0020 verify with partial 0020-S -> ZELL_0020_FUNCTION_COUNT" "$ok" "$(cat "$TMP/partial.out") $(err_lines "$TMP/base_verify_partial.out" | cut -c1-200)"
+ok=no; if ! run_file "$BASE_RB" "$TMP/base_rb_partial.out" && has "$TMP/base_rb_partial.out" "ZELL_0020_ROLLBACK_0020S_FIRST"; then ok=yes; fi
+record "S18b 0020 rollback with partial 0020-S -> ZELL_0020_ROLLBACK_0020S_FIRST" "$ok" "$(err_lines "$TMP/base_rb_partial.out" | cut -c1-200)"
 
 echo "ZELL_0020S_SQL_CI_RESULT pass=$PASS fail=$FAIL"
 if [ "$FAIL" -gt 0 ] || [ "$PASS" -eq 0 ]; then exit 1; fi
