@@ -8,6 +8,8 @@ import { Badge } from '../../../components/ui/Badge'
 import { EmptyState } from '../../../components/ui/EmptyState'
 import { Table, TD, TH, THead, TR } from '../../../components/ui/Table'
 import { ORDER_STATUSES, adminData, type OrderStatus } from '../../../lib/adminData'
+import { FOLLOW_UP_FILTER_LABELS, readFollowUpFilter } from '../../../lib/orders/cycle'
+import { FollowUpBadge } from '../../../components/orders/FollowUpBadge'
 import { formatDateTime, formatPiastres } from '../../../lib/format'
 import { pageWithAccess } from '../../../lib/access/instance'
 
@@ -27,13 +29,18 @@ export default pageWithAccess('zell.orders.view', async function OrdersPage(_ctx
   const pageRaw = typeof params['page'] === 'string' ? Number(params['page']) : 1
   const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1
   const search = typeof params['search'] === 'string' ? params['search'] : ''
+  // 0021-A A2 — فلتر المتابعة (الطلبات الجديدة بس، بتوقيت القاهرة)
+  const followUp = readFollowUpFilter(params['followup'])
 
   const result = await adminData.listOrders({
     page,
     pageSize: PAGE_SIZE,
     status: readStatus(params['status']),
     search,
+    followUp,
   })
+  const followUpCounts = await adminData.getFollowUpCounts()
+  const now = Date.now()
 
   return (
     <>
@@ -41,6 +48,23 @@ export default pageWithAccess('zell.orders.view', async function OrdersPage(_ctx
 
       <div className="space-y-3">
         <OrdersFilters />
+
+        {/* 0021-A A2 — تنبيه المتابعات (الطلبات الجديدة بس، بتوقيت القاهرة) */}
+        {followUpCounts.overdue + followUpCounts.today > 0 ? (
+          <div role="status" className="flex flex-wrap items-center gap-2 rounded-lg border-2 border-gold bg-gold/10 p-3 text-sm">
+            <span className="font-bold text-fg">متابعات:</span>
+            <Link href="/orders?followup=overdue" className="font-semibold text-danger">
+              {FOLLOW_UP_FILTER_LABELS.overdue + ' (' + String(followUpCounts.overdue) + ')'}
+            </Link>
+            <span className="text-muted">·</span>
+            <Link href="/orders?followup=today" className="font-semibold text-accent">
+              {FOLLOW_UP_FILTER_LABELS.today + ' (' + String(followUpCounts.today) + ')'}
+            </Link>
+          </div>
+        ) : null}
+        {followUp !== null ? (
+          <p className="text-xs text-muted">{'فلتر: ' + FOLLOW_UP_FILTER_LABELS[followUp] + ' — الطلبات الجديدة بس، بالأقرب.'}</p>
+        ) : null}
 
         {result.rows.length === 0 ? (
           <EmptyState title="مفيش طلبات مطابقة" description="جرّب تغيّر البحث أو الفلتر." />
@@ -68,6 +92,7 @@ export default pageWithAccess('zell.orders.view', async function OrdersPage(_ctx
                               : '🔧 فني (بالتواصل)'}
                           </span>
                         ) : null}
+                        <FollowUpBadge at={order.nextFollowUpAt} status={order.status} now={now} className="mt-1 flex w-fit" />
                         {order.couponCode ? (
                           <span className="mt-1 block w-fit">
                             <Badge tone="info">{'كوبون ' + order.couponCode}</Badge>
@@ -131,6 +156,7 @@ export default pageWithAccess('zell.orders.view', async function OrdersPage(_ctx
                     <TD className="font-semibold">{formatPiastres(order.totalPiastres)}</TD>
                     <TD>
                       <StatusBadge status={order.status} />
+                      <FollowUpBadge at={order.nextFollowUpAt} status={order.status} now={now} className="ms-1.5 align-middle" />
                       {order.needsInstaller ? (
                         <span className="ms-1.5 inline-block rounded bg-accent/10 px-1.5 py-0.5 align-middle text-[11px] font-bold text-accent">
                           {order.installationRequested
