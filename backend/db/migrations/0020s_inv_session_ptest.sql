@@ -5,9 +5,13 @@
 -- • النتيجة صفوف في SELECT واحد في الآخر (صف الملخص الأول، وبعده صف لكل اختبار)، مش exception طويل (درس 0021-P).
 -- • جسم الـ migration منسوخ بالحرف بين علامات >>> و <<< (الـ CI بيقارن الـ md5 في كل تشغيل).
 -- • النداءات زي PostgREST بالظبط: دور authenticated + request.jwt.claims (جلسة مُحاكاة). الطريق القديم: service_role + p_actor.
--- • ملفين تشغيل: production (الافتراضي) و ci. الـ skip المتوقع: R04 لو مفيش أدمن شغال (production بس). أي skip تاني = FAIL.
--- • الأثر على Production: كل الكتابة جوه المعاملة وبترجع، بس الـ sequences بتتقدم (فجوات عادية في أرقام PUR- / OPN- / الـ lots،
---   منها ~100 lot من اختبار المستند الكبير T02). ⚠ تشغيله على Production محتاج موافقة منفصلة.
+-- • ملفين تشغيل: production (الافتراضي) و ci. الـ skip المتوقع في production: T02 دايمًا (CI بس)، و R04 لو مفيش أدمن شغال.
+--   ci: ولا واحد. أي skip تاني = FAIL.
+-- • الأثر على Production: كل الكتابة جوه المعاملة وبترجع، بس الـ sequences بتتقدم (rollback مابيرجّعهاش). profile production
+--   بيستخدم مستندات صغيرة (سطر واحد) بس، والعدد بالظبط في وصف الـ PR (الـ CI بيقيسه في S5c). مستند الـ 100 سطر (T02) في ci بس.
+-- • statement_timeout: القيمة المعتمدة لدور authenticated = 8s. T01 بيقرا القيمة من catalog بس ويتأكد إنها مش أقل
+--   (مش متحطوطة = من غير حد). اختبار الأداء تحت الحد ده في CI (T02 و S16).
+-- ⚠ تشغيله على Production محتاج موافقة منفصلة.
 
 begin;
 set local idle_in_transaction_session_timeout = '30s';
@@ -107,7 +111,7 @@ begin
     raise exception 'ZELL_0020S_PTEST_FIXTURE';
   end if;
   insert into pg_temp.zt_fx values (v_o, v_a, v_p, v_m, to_char((now() at time zone 'Africa/Cairo')::date, 'YYYY-MM-DD'));
-  insert into pg_temp.zt_expect values (case when v_a is null and not v_ci then array['R04'] else array[]::text[] end, v_no, v_na);
+  insert into pg_temp.zt_expect values (case when v_ci then array[]::text[] when v_a is null then array['R04', 'T02'] else array['T02'] end, v_no, v_na);
 end
 $zfx$;
 
@@ -1056,8 +1060,16 @@ begin
   exception when others then
     v_lim := null;
   end;
-  perform pg_temp.zt('T01 statement_timeout read from catalog (authenticated / service_role)', true,
-    'authenticated=' || coalesce(v_auth, 'unset') || ' service_role=' || coalesce(v_srv, 'unset'));
+  -- القيمة المعتمدة لدور authenticated = 8s (8000ms). مش متحطوطة = من غير حد.
+  perform pg_temp.zt('T01 authenticated statement_timeout not below approved 8s (read from catalog)',
+    v_auth is null or (v_lim is not null and (v_lim = 0 or v_lim >= 8000)),
+    'authenticated=' || coalesce(v_auth, 'unset') || ' service_role=' || coalesce(v_srv, 'unset') || ' approved_min=8s');
+  update pg_temp.zt_timing set auth_timeout = v_auth, service_timeout = v_srv;
+  -- مستند الـ 100 سطر في ci بس (Production: مستندات صغيرة بس، علشان الـ sequences).
+  if pg_catalog.current_setting('zell.ptest_profile', true) <> 'ci' then
+    perform pg_temp.zt_skip('T02 big purchase (100 lines) via session: preview + post within half of authenticated timeout', 'CI only');
+    return;
+  end if;
 
   select f.piece_id, f.main_id, f.today into v_piece, v_main, v_today from pg_temp.zt_fx f;
   v_doc := jsonb_build_object('locationId', v_main, 'docDate', v_today, 'supplierDiscountPiastres', 37,
