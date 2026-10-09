@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { LinkCheckbox } from '../../../../components/inventory/LinkCheckbox'
 import { SuppliersList } from '../../../../components/inventory/SuppliersList'
 import { PageHeader } from '../../../../components/shell/PageHeader'
 import { buttonClasses } from '../../../../components/ui/Button'
@@ -39,9 +40,12 @@ export default pageWithAccess('zell.inventory0020.view', async function Supplier
         title="الموردين"
         description="الموردين اللي بتشتري منهم. الموقوف مابيظهرش في الفواتير الجديدة، ومفيش حذف."
         actions={
-          <Link href={suppliersHref(!includeInactive, null)} className={buttonClasses('secondary', 'sm')}>
-            {includeInactive ? 'إخفاء الموقوفين' : 'إظهار الموقوفين'}
-          </Link>
+          <LinkCheckbox
+            label="عرض الموردين الموقوفين"
+            checked={includeInactive}
+            onHref={suppliersHref(true, null)}
+            offHref={suppliersHref(false, null)}
+          />
         }
       />
 
