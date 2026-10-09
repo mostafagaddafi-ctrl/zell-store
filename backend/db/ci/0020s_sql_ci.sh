@@ -7,6 +7,7 @@
 # · rollback 0020 بيرفض طول ما 0020-S متطبّق · rollback 0020-S (من غير تأكيد · بعد PR-3 · نضيف) · إعادة التطبيق
 # · rollback 0020 بيشتغل بعد rollback 0020-S · statement_timeout (مستند 100 سطر بجلسة authenticated تحت القيمة المعتمدة 8s)
 # · ملفي 0020 بعد التعديل = النسخة القديمة بالحرف من غير 0020-S (blobs متثبتة) · 0020-S ناقص.
+# · PR-3 (S19): ptest (ci · production) · جزئي = رفض · التطبيق · رفض الإعادة · verify (pr3) · rollback بالترتيب.
 # ممنوع يتشغّل على أي داتابيز غير الحاوية المؤقتة.
 set -uo pipefail
 
@@ -44,6 +45,14 @@ BASE_VERIFY="$MIG/0020_inventory_purchasing_verify.sql"
 # نسخ ملفي 0020 القديمين قبل الـ PR ده (blob على main 5b851ce): للمقارنة بالحرف لما 0020-S مش متطبّق.
 LEGACY_VERIFY_BLOB="6e137fa9b11be74f1abdc5a17c304856d4a44b40"
 LEGACY_RB_BLOB="186b4addcb2e2b139bb2e8ecfbcb9e754abe49dd"
+PR3_APPLY="$MIG/0020s_pr3_revoke_service_role.sql"
+PR3_PTEST="$MIG/0020s_pr3_ptest.sql"
+PR3_RB="$MIG/0020s_pr3_rollback.sql"
+SVC_OLD_SQL="select count(*) from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_%' and p.proname not like 'zell\_inv\_session\_%' and pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE')"
+svc_old() { q "$SVC_OLD_SQL"; }
+attested_pr3_rollback() {
+  sed "0,/^begin;\$/s//begin;\nset local zell.rollback_attest = 'restore-service-role-execute';/" "$PR3_RB" | run_stdin "$1"
+}
 
 record() {
   if [ "$2" = "yes" ]; then
@@ -249,6 +258,13 @@ m1=$(body_md5 "$APPLY" "0020S BODY"); m2=$(body_md5 "$PTEST" "0020S BODY")
 ok=no; if [ "$m1" = "$m2" ] && [ "$m1" != "$EMPTY_MD5" ]; then ok=yes; fi
 record "S1 ptest body md5 = migration ($m1)" "$ok" "migration=$m1 ptest=$m2"
 
+ok=no; if python3 "$SHAPE" "$PR3_PTEST" > "$TMP/shape_pr3.out" 2>&1; then ok=yes; fi
+cat "$TMP/shape_pr3.out"
+record "S0c PR-3 ptest transaction shape" "$ok" "$(tail5 "$TMP/shape_pr3.out")"
+p1=$(body_md5 "$PR3_APPLY" "0020S3 BODY"); p2=$(body_md5 "$PR3_PTEST" "0020S3 BODY")
+ok=no; if [ "$p1" = "$p2" ] && [ "$p1" != "$EMPTY_MD5" ]; then ok=yes; fi
+record "S1b PR-3 ptest body md5 = migration ($p1)" "$ok" "migration=$p1 ptest=$p2"
+
 # ── S2: 0020 الحقيقي بيتطبّق على الـ shim ──
 reset_db "$A:owner:true" "$X:admin:true" "$Y:admin:false"
 ok=no; if run_file "$BASE" "$TMP/base.out"; then ok=yes; fi
@@ -370,6 +386,61 @@ ok=no; if run_file "$APPLY" "$TMP/apply3.out"; then ok=yes; fi
 run_rows "$VERIFY" "$TMP/verify3.out"
 if [ "$ok" = "yes" ] && [ "$(sf 11)" = "PASS" ]; then :; else ok=no; fi
 record "S14 re-apply after rollback + verify PASS" "$ok" "summary=$SUMMARY $(tail5 "$TMP/apply3.out")"
+
+# ── S19: 0020-S PR-3 (سحب EXECUTE من service_role على الـ 23 القديمة). الحالة هنا: PR-1 متطبّق (S14) ──
+sed "s/^set local zell.ptest_profile = 'production';\$/set local zell.ptest_profile = 'ci';/" "$PR3_PTEST" > "$TMP/pr3_ptest_ci.sql"
+run_rows "$TMP/pr3_ptest_ci.sql" "$TMP/pr3_ptest_ci.out"
+ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 7)" = "ci" ] && [ "$(sf 11)" = "PASS" ] && [ "$(sf 9)" = "0" ] && [ "$(sf 10)" = "0" ]; then ok=yes; fi
+record "S19a PR-3 ptest profile=ci: PASS, fail=0, skip=0 (pass=$(sf 8))" "$ok" "exit=$RC summary=$SUMMARY $(tail5 "$TMP/pr3_ptest_ci.out")"
+ok=no; if [ "$(svc_old)" = "23" ]; then ok=yes; fi
+record "S19b no residue after PR-3 ptest (service_role still on the old 23)" "$ok" "svc_old=$(svc_old)"
+run_rows "$PR3_PTEST" "$TMP/pr3_ptest_prod.out"
+ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 7)" = "production" ] && [ "$(sf 11)" = "PASS" ] && [ "$(sf 15)" = "P06" ]; then ok=yes; fi
+record "S19c PR-3 ptest profile=production: PASS, skip P06 only (pass=$(sf 8))" "$ok" "exit=$RC summary=$SUMMARY"
+
+# partial: سحب يدوي من دالة واحدة ← التطبيق بيرفض، والـ verify (0020-S و 0020) بيفشلوا. وبعدين رجوع.
+q "set role zell_inventory_definer; revoke execute on function public.zell_inv_list_lots(uuid, text, integer, bigint, integer, bigint) from service_role; reset role" > /dev/null
+ok=no; if ! run_file "$PR3_APPLY" "$TMP/pr3_partial.out" && has "$TMP/pr3_partial.out" "ZELL_0020S3_PARTIAL"; then ok=yes; fi
+run_rows "$VERIFY" "$TMP/verify_partial3.out"
+if [ "$(sf 11)" != "FAIL" ]; then ok=no; fi
+run_file "$BASE_VERIFY" "$TMP/base_verify_partial3.out"
+if ! has "$TMP/base_verify_partial3.out" "ZELL_0020_FUNCTION_ACL"; then ok=no; fi
+record "S19d partial revoke: PR-3 apply refused (PARTIAL), 0020-S verify FAIL, 0020 verify FUNCTION_ACL" "$ok" "$(err_lines "$TMP/pr3_partial.out" | cut -c1-120) | verify=$(sf 11) stage=$(sf 7) | $(err_lines "$TMP/base_verify_partial3.out" | cut -c1-120)"
+q "set role zell_inventory_definer; grant execute on function public.zell_inv_list_lots(uuid, text, integer, bigint, integer, bigint) to service_role; reset role" > /dev/null
+
+ok=no; if run_file "$PR3_APPLY" "$TMP/pr3_apply.out" && [ "$(svc_old)" = "0" ]; then ok=yes; fi
+record "S19e PR-3 apply: service_role EXECUTE on old zell_inv_* = 0" "$ok" "svc_old=$(svc_old) $(tail5 "$TMP/pr3_apply.out")"
+ok=no; if ! run_file "$PR3_APPLY" "$TMP/pr3_apply2.out" && has "$TMP/pr3_apply2.out" "ZELL_0020S3_ALREADY_APPLIED"; then ok=yes; fi
+record "S19f PR-3 re-apply refused (ALREADY_APPLIED)" "$ok" "$(err_lines "$TMP/pr3_apply2.out" | cut -c1-200)"
+ok=no; if ! run_file "$PR3_PTEST" "$TMP/pr3_ptest_after.out" && has "$TMP/pr3_ptest_after.out" "ZELL_0020S3_PTEST_PRE_APPLY_ONLY"; then ok=yes; fi
+record "S19g PR-3 ptest after apply refused (PRE_APPLY_ONLY)" "$ok" "$(err_lines "$TMP/pr3_ptest_after.out" | cut -c1-200)"
+run_rows "$VERIFY" "$TMP/verify_pr3.out"
+ok=no; if [ "$RC" -eq 0 ] && [ "$(sf 7)" = "pr3" ] && [ "$(sf 11)" = "PASS" ] && [ "$(sf 9)" = "0" ]; then ok=yes; fi
+record "S19h 0020-S verify after PR-3: stage pr3, PASS (pass=$(sf 8))" "$ok" "exit=$RC summary=$SUMMARY"
+run_file "$BASE_VERIFY" "$TMP/base_verify_pr3.out"
+ok=no; if has "$TMP/base_verify_pr3.out" "ZELL_0020_VERIFY_RESULT part_a=ok" && has "$TMP/base_verify_pr3.out" "0020s=applied pr3=applied"; then ok=yes; fi
+record "S19i 0020 verify after PR-3: part_a=ok, marker 0020s=applied pr3=applied" "$ok" "$(err_lines "$TMP/base_verify_pr3.out" | cut -c1-200)"
+o_new=$(as_user "$A" "select public.zell_inv_session_list_locations(true, 50, null)" | tail -n 1)
+out_old=$(as_service "select public.zell_inv_list_locations('$A'::uuid, true, 50, null)")
+out_ses=$(as_service "select public.zell_inv_session_list_locations(true, 50, null)")
+ok=no; case "$o_new" in "{"*) ok=yes ;; esac
+case "$out_old" in *42501*) ;; *) ok=no ;; esac
+case "$out_ses" in *42501*) ;; *) ok=no ;; esac
+record "S19j PostgREST-like: owner via session ok; service_role on old -> 42501; service_role on session -> 42501" "$ok" "new=$(printf '%s' "$o_new" | cut -c1-80)"
+ok=no; if ! attested_rollback "$TMP/pr1_rb_pr3.out" && has "$TMP/pr1_rb_pr3.out" "ZELL_0020S_ROLLBACK_PR3_ACTIVE"; then ok=yes; fi
+record "S19k PR-1 rollback refused while PR-3 applied (grants first)" "$ok" "$(err_lines "$TMP/pr1_rb_pr3.out" | cut -c1-200)"
+ok=no; if ! run_file "$PR3_RB" "$TMP/pr3_rb_noattest.out" && has "$TMP/pr3_rb_noattest.out" "ZELL_0020S3_ROLLBACK_ATTEST" && [ "$(svc_old)" = "0" ]; then ok=yes; fi
+record "S19l PR-3 rollback without attest refused, nothing changed" "$ok" "$(err_lines "$TMP/pr3_rb_noattest.out" | cut -c1-200)"
+ok=no; if attested_pr3_rollback "$TMP/pr3_rb.out" && [ "$(svc_old)" = "23" ]; then ok=yes; fi
+run_rows "$VERIFY" "$TMP/verify_pr3_rb.out"
+if [ "$(sf 7)" != "pr1" ] || [ "$(sf 11)" != "PASS" ]; then ok=no; fi
+run_file "$BASE_VERIFY" "$TMP/base_verify_pr3_rb.out"
+if ! has "$TMP/base_verify_pr3_rb.out" "part_a=ok" || has "$TMP/base_verify_pr3_rb.out" "pr3=applied"; then ok=no; fi
+record "S19m PR-3 rollback (attested): service_role back on 23, 0020-S verify stage pr1 PASS, 0020 verify ok without pr3 marker" "$ok" "svc_old=$(svc_old) verify=$SUMMARY $(tail5 "$TMP/pr3_rb.out")"
+ok=no; if attested_pr3_rollback "$TMP/pr3_rb_again.out"; then :; elif has "$TMP/pr3_rb_again.out" "ZELL_0020S3_ROLLBACK_NOT_APPLIED"; then ok=yes; fi
+record "S19n PR-3 rollback when not applied refused (NOT_APPLIED)" "$ok" "$(err_lines "$TMP/pr3_rb_again.out" | cut -c1-200)"
+ok=no; if run_file "$PR3_APPLY" "$TMP/pr3_apply3.out" && [ "$(svc_old)" = "0" ] && attested_pr3_rollback "$TMP/pr3_rb3.out" && [ "$(svc_old)" = "23" ]; then ok=yes; fi
+record "S19o PR-3 re-apply after rollback, then rollback again (cycle)" "$ok" "svc_old=$(svc_old)"
 
 # ── S15: الترتيب: rollback 0020-S ثم rollback 0020 بيشتغل ──
 ok=no; if attested_rollback "$TMP/rb2.out" && run_file "$BASE_RB" "$TMP/base_rb2.out"; then ok=yes; fi
