@@ -21,14 +21,14 @@ import { isSuppliersPage, type InventorySupplier, type SuppliersPage } from '../
 export type OptionList<T> = { items: T[]; complete: boolean }
 
 export async function listPurchases(
-  options: { status: InventoryDocStatus | null; supplierId: number | null; beforeId: number | null },
+  options: { status: InventoryDocStatus | null; supplierId: number | null; beforeId: number | null; limit?: number },
 ): Promise<InventoryResult<PurchasesPage>> {
   return callInventory(
     'listPurchases',
     {
       p_status: options.status,
       p_supplier_id: options.supplierId,
-      p_limit: PURCHASES_PAGE_SIZE,
+      p_limit: options.limit ?? PURCHASES_PAGE_SIZE,
       p_before_id: options.beforeId,
     },
     isPurchasesPage,
