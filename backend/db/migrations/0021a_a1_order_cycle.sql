@@ -755,16 +755,13 @@ begin
 end
 $fn$;
 
--- حدث «created» لكل طلب جديد. مابيوقفش إنشاء الطلب أبدًا: أي خطأ = WARNING بس (الـ verify بيعدّ الناقص).
+-- حدث «created» لكل طلب جديد، ذرّي مع الطلب (fail-closed): لو تسجيله فشل لأي سبب، الخطأ بيطلع وإنشاء الطلب كله
+-- بيترجع. مفيش طلب من غير سجله.
 create function public.zell_order_trg_created_event()
 returns trigger language plpgsql security definer set search_path = '' as $fn$
 begin
-  begin
-    insert into public.order_events (order_id, kind, actor, payload)
-    values (new.id, 'created', null, pg_catalog.jsonb_build_object('status', new.status));
-  exception when others then
-    raise warning 'ZELL_ORD_CREATED_EVENT_SKIPPED %', new.id;
-  end;
+  insert into public.order_events (order_id, kind, actor, payload)
+  values (new.id, 'created', null, pg_catalog.jsonb_build_object('status', new.status));
   return new;
 end
 $fn$;
