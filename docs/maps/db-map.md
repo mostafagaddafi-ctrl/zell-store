@@ -14,14 +14,15 @@
 
 | الدور | اتعرّف في | بيعمل إيه |
 | --- | --- | --- |
-| `anon` · `authenticated` | Supabase | مالهمش أي وصول للجداول (RLS + سحب الصلاحيات في 0002). `authenticated` عنده EXECUTE على ١٢ دالة `zell_erp_*` (0021-P) و٢٣ دالة `zell_inv_session_*` (0020-S PR-1) بس |
-| `service_role` | Supabase | بيتخطى RLS. اللوحة والمتجر بيقروا بيه من السيرفر بس (حل انتقالي)، وعنده EXECUTE على دوال اللوحة القديمة بس: صفر على أي `zell_inv_*` (من 0020-S PR-3) وعلى جداول 0020. صفر على `erp_*` و`zell_erp_*` |
+| `anon` · `authenticated` | Supabase | مالهمش أي وصول للجداول (RLS + سحب الصلاحيات في 0002). `authenticated` عنده EXECUTE على ١٢ دالة `zell_erp_*` (0021-P) و٢٣ دالة `zell_inv_session_*` (0020-S PR-1) و١١ دالة `zell_order_*` (0021-A A1) بس |
+| `service_role` | Supabase | بيتخطى RLS. اللوحة والمتجر بيقروا بيه من السيرفر بس (حل انتقالي)، وعنده EXECUTE على دوال اللوحة القديمة بس: صفر على أي `zell_inv_*` (من 0020-S PR-3) وعلى جداول 0020. صفر على `erp_*` و`zell_erp_*`. من `zell_order_*`: `zell_order_gate_is_open` بس (trigger الحالة وقت PATCH اللوحة) |
 | `postgres` | Supabase | مالك الجداول، واللي بيطبّق الـ migrations (الـ preflight بيتأكد) |
 | `zell_definer` | `0005c` (مسودة) | دور مسودة `create_order` القديمة |
 | `zell_order_writer` | `0006b` | مالك دوال مسار الطلب (`zell_create_order` · `zell_get_order_receipt`)، ومن غير صلاحيات جداول مباشرة |
 | `zell_inventory_definer` | `0020` | مالك دوال المخزون `zell_inv_*`، ومنها `zell_inv_session_*` و`zell_inv_claims_actor` من 0020-S (NOLOGIN · NOBYPASSRLS) |
 | `erp_definer` | `0021p_erp_access` | مالك دوال المحرك `erp_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS) |
 | `zell_erp_definer` | `0021p_zell_erp_access` | مالك دوال المحوّل والواجهة `erp_actor_status_v1`. مالوش أي صلاحية على `admin_users` |
+| `zell_order_definer` | `0021a_a1_order_cycle` | مالك دوال دورة الطلب `zell_order_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS). على `orders`: SELECT + UPDATE لأعمدة الدورة بس |
 
 ---
 
@@ -32,7 +33,7 @@
 | الجدول | اتعرّف في | بيعمل إيه | اتغيّر في |
 | --- | --- | --- | --- |
 | `products` | `schema.sql` | المنتجات: سعر المتر والعرض والطول، والقطعة | 0013 `lock_width` · 0014 `compare_at_piastres` · 0016 `sale_unit` `is_listed` `max_quantity` · 0020 trigger بيحمي `sale_unit` |
-| `orders` | `schema.sql` | راس الطلب: الزبون والعنوان والإجماليات والحالة | 0005b/0006a idempotency والجلسة والإيصال · 0018 المنطقة والتركيب · 0019 الكوبون والخصم + trigger `orders_cancelled_final` |
+| `orders` | `schema.sql` | راس الطلب: الزبون والعنوان والإجماليات والحالة | 0005b/0006a idempotency والجلسة والإيصال · 0018 المنطقة والتركيب · 0019 الكوبون والخصم + trigger `orders_cancelled_final` · 0021-A A1: `preparing` و`refused` في قيد الحالة (القديم في تعليق القيد) + `next_follow_up_at` و`delivery_confirmed_date/period/note` + triggers `orders_status_guard` و`orders_created_event` |
 | `order_items` | `schema.sql` | سطور الطلب | 0016 `sale_unit` `quantity` |
 | `settings` | `schema.sql` | إعدادات ومحتوى بمفتاح (hero · sections · faqs · shipping_rates …) | 0007 شال أسرار تليجرام · 0008 مفتاح `announcement` · 0019 مفتاح `coupons_enabled` |
 | `product_images` | `0003` | صور معرض المنتج (`bucket` + `object_path`)، والترتيب والرئيسية | |
@@ -44,6 +45,18 @@
 | `product_addons` | `0016` | الإضافات (منتجات القطعة) لكل فيلم | |
 | `coupons` | `0019` | أكواد الخصم | |
 | `admin_users` | **(برّه الملفات)** · `docs/ADMIN-AUTH.md` | مين يدخل اللوحة: `user_id` (← `auth.users`، on delete cascade) · `role` owner/admin · `is_active`. RLS من غير policies | 0021-P: ٤ triggers (§٥) |
+
+### دورة الطلب (0021-A A1)
+
+كلها مالكها `postgres`، RLS وpolicy لـ `zell_order_definer` بس، وصفر صلاحيات لـ `anon` و`authenticated` و`service_role`.
+
+| الجدول | اتعرّف في | بيعمل إيه |
+| --- | --- | --- |
+| `order_status_transitions` | `0021a_a1_order_cycle` | الانتقالات المسموحة (9) وعمود `gate`: `any` · `open` بعد فتح البوابة · `closed` قبلها (`confirmed → shipped`) |
+| `order_events` | `0021a_a1_order_cycle` | سجل الطلب append-only (45413). DELETE بس كـ cascade لمسح الطلب. `created` من trigger |
+| `order_delivery_periods` | `0021a_a1_order_cycle` | الفترات التلاتة (`morning` · `noon` · `evening`) بتوقيت القاهرة، والمالك بيعدّل الأوقات |
+| `zell_order_gate` | `0021a_a1_order_cycle` | البوابة: صف واحد، مقفول افتراضيًا، بيتغيّر بـ `zell_order_set_gate` بس (45414) |
+| `zell_order_config_log` | `0021a_a1_order_cycle` | سجل append-only لتغييرات البوابة والفترات (مين · إمتى · من/لـ · الموافقة) |
 
 ### المخزون والمشتريات (0020)
 
@@ -175,7 +188,20 @@
 
 ---
 
-## ٧) ملفات من غير جداول أو دوال جديدة
+## ٧) دوال دورة الطلب (0021-A A1، مالكها `zell_order_definer`)
+
+التفاصيل: `docs/contracts/0021-A.md` §١٤. الهوية من الجلسة + `admin_users`، من غير `p_actor`. الأكواد 45400..45414.
+
+| المجموعة | الدوال |
+| --- | --- |
+| عامة (EXECUTE لـ `authenticated` بس) | `zell_order_transition` · `zell_order_record_call` · `zell_order_set_follow_up` · `zell_order_set_confirmed_delivery` · `zell_order_edit_details` · `zell_order_set_internal_note` · `zell_order_events` · `zell_order_delivery_periods` · `zell_order_save_delivery_periods` (المالك) · `zell_order_gate_state` · `zell_order_set_gate` (المالك + موافقة) |
+| مساعدة داخلية | `zell_order_claims_actor` · `zell_order_actor` · `zell_order_lock` (قفل + فحص `updated_at`) · `zell_order_text` · `zell_order_apply_transition` · `zell_order_result` · `zell_order_gate_is_open` (EXECUTE لـ `postgres` و`service_role` علشان الـ trigger) |
+| مالكها `postgres` | `zell_order_admin_role` (دور الممثل من `admin_users`) · `zell_order_trg_status_guard` · `zell_order_trg_append_only` · `zell_order_trg_events_immutable` · `zell_order_trg_gate_guard` |
+| trigger | `zell_order_trg_created_event` |
+
+- **Triggers:** على `orders`: `orders_status_guard` (البوابة مقفولة: الحالتين الجداد 45406 · مفتوحة: أي تغيير مباشر للحالة 45407) · `orders_created_event`. على السجلات والبوابة: `order_events_immutable` · `order_events_no_truncate` · `zell_order_config_log_immutable` · `zell_order_config_log_no_truncate` · `zell_order_gate_guard` · `zell_order_gate_no_truncate`.
+
+## ٨) ملفات من غير جداول أو دوال جديدة
 
 | الملف | بيعمل إيه |
 | --- | --- |
