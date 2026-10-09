@@ -13,6 +13,8 @@ import {
 import { useInventoryIntent } from '../../lib/client/useInventoryIntent'
 import { usePreview } from '../../lib/client/usePreview'
 import type { CatalogProduct } from '../../lib/inventory/catalog'
+import { normalizeForSearch } from '../../lib/inventory/docList'
+import { duplicateFormBlockers, duplicateToForm, type DuplicateSeed } from '../../lib/inventory/purchaseDuplicate'
 import { DOC_ACTION_LABELS } from '../../lib/inventory/labels'
 import { formatPiastresExact } from '../../lib/inventory/money'
 import { groupLotsByLine } from '../../lib/inventory/pricing'
@@ -69,12 +71,15 @@ export function PurchaseEditor({
   suppliers,
   locations,
   today,
+  duplicate,
 }: {
   draft: Draft | null
   catalog: CatalogProduct[]
   suppliers: InventorySupplier[]
   locations: InventoryLocationOption[]
   today: string
+  /** تكرار فاتورة: نموذج جديد متملي من الأصل (lib/inventory/purchaseDuplicate.ts) — بيتحفظ بنفس «حفظ» العادي. */
+  duplicate?: DuplicateSeed
 }) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
@@ -89,9 +94,12 @@ export function PurchaseEditor({
   const [form, setForm] = useState<PurchaseFormState>(() =>
     draft
       ? payloadToForm(draft.payload, newKey)
-      : emptyPurchaseForm({ locationId: defaultLocation ? defaultLocation.locationId : null, today }),
+      : duplicate
+        ? duplicateToForm(duplicate, newKey)
+        : emptyPurchaseForm({ locationId: defaultLocation ? defaultLocation.locationId : null, today }),
   )
-  const [dirty, setDirty] = useState(false)
+  const [dirty, setDirty] = useState(duplicate !== undefined)
+  const [supplierQuery, setSupplierQuery] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [showIssues, setShowIssues] = useState(false)
@@ -178,6 +186,20 @@ export function PurchaseEditor({
   const guardActive = dirty || intents.some((intent) => intent.risky)
 
   const built = useMemo(() => buildPurchasePayload(form, catalogMap, today), [form, catalogMap, today])
+  const activeSupplierIds = useMemo(() => new Set(suppliers.map((supplier) => supplier.supplierId)), [suppliers])
+  const activeLocationIds = useMemo(() => new Set(locations.map((location) => location.locationId)), [locations])
+  const blockers = useMemo(
+    () =>
+      duplicate
+        ? duplicateFormBlockers(form, {
+            catalog: catalogMap,
+            activeSupplierIds,
+            activeLocationIds,
+            supplierRequired: duplicate.supplierCleared,
+          })
+        : [],
+    [duplicate, form, catalogMap, activeSupplierIds, activeLocationIds],
+  )
   const liveTotals = built.ok ? draftTotals(built.value) : null
   const savedIssues = draft ? postReadinessIssues(draft.payload) : []
   const preview = usePreview(previewPurchaseAction, built.ok ? payloadFingerprint(built.value) : null)
@@ -202,6 +224,7 @@ export function PurchaseEditor({
 
   function submitSave() {
     if (!editable) return
+    if (blockers.length > 0) return revealProblems(blockers[0] ?? '')
     if (!built.ok) return revealProblems(built.message)
     save.begin(built.value)
   }
@@ -216,6 +239,13 @@ export function PurchaseEditor({
   if (draft && draft.header.supplierId !== null && !suppliers.some((s) => s.supplierId === draft.header.supplierId)) {
     supplierOptions.push({ id: draft.header.supplierId, label: (draft.header.supplierName ?? 'مورد') + ' (موقوف)' })
   }
+  const supplierNeedle = normalizeForSearch(supplierQuery)
+  const visibleSupplierOptions =
+    supplierNeedle === ''
+      ? supplierOptions
+      : supplierOptions.filter(
+          (option) => normalizeForSearch(option.label).includes(supplierNeedle) || String(option.id) === form.supplierId,
+        )
   const locationOptions = locations.map((l) => ({ id: l.locationId, label: l.name }))
   if (draft && !locations.some((l) => l.locationId === draft.header.locationId)) {
     locationOptions.push({ id: draft.header.locationId, label: draft.header.locationName + ' (موقوف)' })
@@ -255,9 +285,45 @@ export function PurchaseEditor({
     <div className="space-y-4 max-sm:pb-48">
       <UnsavedChangesGuard active={guardActive} />
 
-      <Card title={draft ? 'مسودة ' + draft.header.docNo : 'فاتورة شراء جديدة'}>
+      {duplicate ? (
+        <div role="note" className="space-y-1.5 rounded-lg border-s-2 border-brand bg-brand/5 px-3 py-2.5 text-xs leading-relaxed text-fg">
+          <p className="font-semibold">
+            نسخة من فاتورة <bdi dir="ltr">{duplicate.sourceDocNo}</bdi>، ولسه مااتحفظتش.
+          </p>
+          <p className="text-muted">
+            راجع البيانات وعدّلها، والمسودة الجديدة مش هتتعمل غير لما تدوس «حفظ». التاريخ النهارده، ورقم فاتورة المورد فاضي.
+            الفاتورة الأصلية مابتتغيّرش.
+          </p>
+          {duplicate.notes.length > 0 ? (
+            <ul className="list-disc space-y-0.5 ps-4 font-medium text-fg marker:text-gold">
+              {duplicate.notes.map((note, index) => (
+                <li key={String(index)}>{note}</li>
+              ))}
+            </ul>
+          ) : null}
+          {blockers.length > 0 ? (
+            <ul role="alert" className="list-disc space-y-0.5 ps-4 text-danger">
+              {blockers.map((blocker, index) => (
+                <li key={String(index)}>{blocker}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
+      <Card title={draft ? 'مسودة ' + draft.header.docNo : duplicate ? 'نسخة من ' + duplicate.sourceDocNo : 'فاتورة شراء جديدة'}>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field htmlFor="purchase-supplier" label="المورد" hint="اختياري في المسودة">
+          <Field htmlFor="purchase-supplier" label="المورد" hint="اختياري في المسودة · الموقوف مابيظهرش هنا">
+            {editable && supplierOptions.length > 5 ? (
+              <input
+                type="search"
+                value={supplierQuery}
+                onChange={(event) => setSupplierQuery(event.target.value)}
+                placeholder="ابحث باسم المورد"
+                aria-label="بحث عن مورد"
+                className={inputClasses + ' mb-1.5'}
+              />
+            ) : null}
             <select
               id="purchase-supplier"
               value={form.supplierId}
@@ -266,7 +332,7 @@ export function PurchaseEditor({
               className={inputClasses}
             >
               <option value="">من غير مورد</option>
-              {supplierOptions.map((option) => (
+              {visibleSupplierOptions.map((option) => (
                 <option key={option.id} value={String(option.id)}>
                   {option.label}
                 </option>
@@ -283,22 +349,32 @@ export function PurchaseEditor({
               className={inputClasses}
             />
           </Field>
-          <Field htmlFor="purchase-location" label="المخزن">
-            <select
-              id="purchase-location"
-              value={form.locationId}
-              disabled={!editable}
-              onChange={(event) => update({ locationId: event.target.value })}
-              className={inputClasses}
-            >
-              <option value="">اختار المخزن</option>
-              {locationOptions.map((option) => (
-                <option key={option.id} value={String(option.id)}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {locationOptions.length === 1 && locationOptions[0] !== undefined && form.locationId === String(locationOptions[0].id) ? (
+            <Field htmlFor="purchase-location" label="المخزن" hint="فيه مخزن نشط واحد، فاتحدد تلقائي">
+              <p id="purchase-location" className="rounded-md border border-border bg-bg/60 px-3 py-2 text-sm text-fg">
+                {locationOptions[0].label}
+              </p>
+            </Field>
+          ) : (
+            <Field htmlFor="purchase-location" label="المخزن" hint="مطلوب">
+              <select
+                id="purchase-location"
+                value={form.locationId}
+                disabled={!editable}
+                required
+                aria-required="true"
+                onChange={(event) => update({ locationId: event.target.value })}
+                className={inputClasses}
+              >
+                <option value="">اختار المخزن</option>
+                {locationOptions.map((option) => (
+                  <option key={option.id} value={String(option.id)}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field htmlFor="purchase-date" label="تاريخ الفاتورة" hint="مش في المستقبل (بتوقيت القاهرة)">
             <input
               id="purchase-date"
@@ -453,7 +529,7 @@ export function PurchaseEditor({
             open={discardOpen}
             kind="discard"
             title={DOC_ACTION_LABELS.discard}
-            message="المسودة هتفضل ظاهرة في القايمة بحالة «مستبعَد (مسودة)»، ومش هتتعدل ولا تترحّل بعد كده."
+            message="المسودة هتتنقل لتبويب «مستبعَد» في القايمة (ومش هتظهر في «النشط»)، ومش هتتعدل ولا تترحّل بعد كده."
             confirmLabel={DOC_ACTION_LABELS.discard}
             busy={locked}
             onCancel={() => setDiscardOpen(false)}

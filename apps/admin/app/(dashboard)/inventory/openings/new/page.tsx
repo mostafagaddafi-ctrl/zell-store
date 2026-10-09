@@ -10,10 +10,9 @@ export const metadata: Metadata = { title: 'رصيد أول مدة جديد' }
 export const dynamic = 'force-dynamic'
 
 /** رصيد أول مدة جديد (مسودة) — للمالك بس. */
-export default pageWithAccess('zell.inventory0020.view', async function NewOpeningPage(ctx) {
-  const identity = ctx.identity
+export default pageWithAccess('zell.inventory0020.view', async function NewOpeningPage(_ctx) {
 
-  const data = await loadOpeningEditorData(identity.userId)
+  const data = await loadOpeningEditorData()
 
   return (
     <>

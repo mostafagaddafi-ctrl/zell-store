@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { LinkCheckbox } from '../../../../components/inventory/LinkCheckbox'
 import { SuppliersList } from '../../../../components/inventory/SuppliersList'
 import { PageHeader } from '../../../../components/shell/PageHeader'
 import { buttonClasses } from '../../../../components/ui/Button'
@@ -23,16 +24,15 @@ function suppliersHref(includeInactive: boolean, after: string | null): string {
 /**
  * الموردين (0020-UI · PR-A) — للمالك بس.
  * ⚠️ إخفاء الرابط مش الحماية: الصفحة بتتحقق من الدور هنا، وكل action في lib/inventoryActions،
- *    ودوال 0020 نفسها بتتأكد إن p_actor مالك نشط.
+ *    ودوال 0020 نفسها بتتأكد إن ممثل الجلسة مالك نشط.
  * التقسيم keyset بالاسم (25 في الصفحة) من غير عدّ كلي: «أول صفحة» و«التالي».
  */
-export default pageWithAccess('zell.inventory0020.view', async function SuppliersPage(ctx, { searchParams }: PageProps) {
-  const identity = ctx.identity
+export default pageWithAccess('zell.inventory0020.view', async function SuppliersPage(_ctx, { searchParams }: PageProps) {
 
   const params = await searchParams
   const includeInactive = params['inactive'] === '1'
   const after = parseSupplierCursor(params['after'])
-  const result = await listSuppliers(identity.userId, { includeInactive, after })
+  const result = await listSuppliers({ includeInactive, after })
 
   return (
     <>
@@ -40,9 +40,12 @@ export default pageWithAccess('zell.inventory0020.view', async function Supplier
         title="الموردين"
         description="الموردين اللي بتشتري منهم. الموقوف مابيظهرش في الفواتير الجديدة، ومفيش حذف."
         actions={
-          <Link href={suppliersHref(!includeInactive, null)} className={buttonClasses('secondary', 'sm')}>
-            {includeInactive ? 'إخفاء الموقوفين' : 'إظهار الموقوفين'}
-          </Link>
+          <LinkCheckbox
+            label="عرض الموردين الموقوفين"
+            checked={includeInactive}
+            onHref={suppliersHref(true, null)}
+            offHref={suppliersHref(false, null)}
+          />
         }
       />
 

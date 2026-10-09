@@ -8,11 +8,11 @@
  *   ٢. الصلاحية 'zell.inventory0020.edit' (فئة owner) -> FORBIDDEN برسالة INVENTORY_OWNER_ONLY_MESSAGE
  *      للـadmin (حتى لو نادى الـaction مباشرة من غير الواجهة)
  *   ٣. علم التعديلات (mutates: true) -> DISABLED
- *   ٤. التحقق ثم النداء (lib/mutations/inventory) بـ p_actor = ctx.identity.userId
+ *   ٤. التحقق ثم النداء (lib/mutations/inventory) بجلسة المستخدم: الممثل = sub من JWT الجلسة (0020-S PR-2)
  *   والفشل بيتحوّل لشكل InventoryFailure بـ rejectedFailure (mapFailure) زي النهارده.
  * المعاينة 'zell.inventory0020.view' و mutates: false: مابتكتبش، ولازم تشتغل والتعديلات موقوفة.
  *
- * 🔒 p_actor عمره ما بييجي من الفورم.
+ * 🔒 مفيش أي معامل ممثل: لا من الفورم ولا من الكود.
  * 🔒 p_command_id بييجي من «نية الكتابة» في الواجهة (lib/inventory/intent.ts) والسيرفر بيتأكد إنه UUID.
  * أي فشل قبل النداء resolution = rejected (العملية أكيد ماتنفذتش).
  */
@@ -51,24 +51,24 @@ export const createSupplierAction = actionWithAccess(
   'zell.inventory0020.edit',
   { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
   async (
-    ctx: AccessContext,
+    _ctx: AccessContext,
     commandId: string,
     input: SupplierInput,
   ): Promise<InventoryResult<SupplierWriteResult>> =>
-    createSupplier(ctx.identity.userId, commandId, input),
+    createSupplier(commandId, input),
 )
 
 export const updateSupplierAction = actionWithAccess(
   'zell.inventory0020.edit',
   { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
   async (
-    ctx: AccessContext,
+    _ctx: AccessContext,
     commandId: string,
     supplierId: number,
     expectedVersion: number,
     input: SupplierUpdateInput,
   ): Promise<InventoryResult<SupplierWriteResult>> =>
-    updateSupplier(ctx.identity.userId, commandId, supplierId, expectedVersion, input),
+    updateSupplier(commandId, supplierId, expectedVersion, input),
 )
 
 // ── فواتير الشراء (PR-B) ────────────────────────────────────────
@@ -76,70 +76,70 @@ export const updateSupplierAction = actionWithAccess(
 export const previewPurchaseAction = actionWithAccess(
   'zell.inventory0020.view',
   { mutates: false, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
-  async (ctx: AccessContext, doc: PurchaseDocPayload): Promise<InventoryResult<PurchasePreview>> =>
-    previewPurchase(ctx.identity.userId, doc),
+  async (_ctx: AccessContext, doc: PurchaseDocPayload): Promise<InventoryResult<PurchasePreview>> =>
+    previewPurchase(doc),
 )
 
 export const createPurchaseAction = actionWithAccess(
   'zell.inventory0020.edit',
   { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
   async (
-    ctx: AccessContext,
+    _ctx: AccessContext,
     commandId: string,
     doc: PurchaseDocPayload,
   ): Promise<InventoryResult<PurchaseWriteResult>> =>
-    createPurchase(ctx.identity.userId, commandId, doc),
+    createPurchase(commandId, doc),
 )
 
 export const updatePurchaseAction = actionWithAccess(
   'zell.inventory0020.edit',
   { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
   async (
-    ctx: AccessContext,
+    _ctx: AccessContext,
     commandId: string,
     docId: number,
     expectedVersion: number,
     doc: PurchaseDocPayload,
   ): Promise<InventoryResult<PurchaseWriteResult>> =>
-    updatePurchase(ctx.identity.userId, commandId, docId, expectedVersion, doc),
+    updatePurchase(commandId, docId, expectedVersion, doc),
 )
 
 export const postPurchaseAction = actionWithAccess(
   'zell.inventory0020.edit',
   { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
   async (
-    ctx: AccessContext,
+    _ctx: AccessContext,
     commandId: string,
     docId: number,
     expectedVersion: number,
   ): Promise<InventoryResult<PurchaseWriteResult>> =>
-    postPurchase(ctx.identity.userId, commandId, docId, expectedVersion),
+    postPurchase(commandId, docId, expectedVersion),
 )
 
 export const discardPurchaseAction = actionWithAccess(
   'zell.inventory0020.edit',
   { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
   async (
-    ctx: AccessContext,
+    _ctx: AccessContext,
     commandId: string,
     docId: number,
     expectedVersion: number,
     reason: string,
   ): Promise<InventoryResult<PurchaseWriteResult>> =>
-    discardPurchase(ctx.identity.userId, commandId, docId, expectedVersion, reason),
+    discardPurchase(commandId, docId, expectedVersion, reason),
 )
 
 export const voidPurchaseAction = actionWithAccess(
   'zell.inventory0020.edit',
   { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
   async (
-    ctx: AccessContext,
+    _ctx: AccessContext,
     commandId: string,
     docId: number,
     expectedVersion: number,
     reason: string,
   ): Promise<InventoryResult<PurchaseWriteResult>> =>
-    voidPurchase(ctx.identity.userId, commandId, docId, expectedVersion, reason),
+    voidPurchase(commandId, docId, expectedVersion, reason),
 )
 
 // ── رصيد أول المدة (PR-C) ───────────────────────────────────────
@@ -147,68 +147,68 @@ export const voidPurchaseAction = actionWithAccess(
 export const previewOpeningAction = actionWithAccess(
   'zell.inventory0020.view',
   { mutates: false, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
-  async (ctx: AccessContext, doc: OpeningDocPayload): Promise<InventoryResult<OpeningPreview>> =>
-    previewOpening(ctx.identity.userId, doc),
+  async (_ctx: AccessContext, doc: OpeningDocPayload): Promise<InventoryResult<OpeningPreview>> =>
+    previewOpening(doc),
 )
 
 export const createOpeningAction = actionWithAccess(
   'zell.inventory0020.edit',
   { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
   async (
-    ctx: AccessContext,
+    _ctx: AccessContext,
     commandId: string,
     doc: OpeningDocPayload,
   ): Promise<InventoryResult<OpeningWriteResult>> =>
-    createOpening(ctx.identity.userId, commandId, doc),
+    createOpening(commandId, doc),
 )
 
 export const updateOpeningAction = actionWithAccess(
   'zell.inventory0020.edit',
   { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
   async (
-    ctx: AccessContext,
+    _ctx: AccessContext,
     commandId: string,
     docId: number,
     expectedVersion: number,
     doc: OpeningDocPayload,
   ): Promise<InventoryResult<OpeningWriteResult>> =>
-    updateOpening(ctx.identity.userId, commandId, docId, expectedVersion, doc),
+    updateOpening(commandId, docId, expectedVersion, doc),
 )
 
 export const postOpeningAction = actionWithAccess(
   'zell.inventory0020.edit',
   { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
   async (
-    ctx: AccessContext,
+    _ctx: AccessContext,
     commandId: string,
     docId: number,
     expectedVersion: number,
   ): Promise<InventoryResult<OpeningWriteResult>> =>
-    postOpening(ctx.identity.userId, commandId, docId, expectedVersion),
+    postOpening(commandId, docId, expectedVersion),
 )
 
 export const discardOpeningAction = actionWithAccess(
   'zell.inventory0020.edit',
   { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
   async (
-    ctx: AccessContext,
+    _ctx: AccessContext,
     commandId: string,
     docId: number,
     expectedVersion: number,
     reason: string,
   ): Promise<InventoryResult<OpeningWriteResult>> =>
-    discardOpening(ctx.identity.userId, commandId, docId, expectedVersion, reason),
+    discardOpening(commandId, docId, expectedVersion, reason),
 )
 
 export const voidOpeningAction = actionWithAccess(
   'zell.inventory0020.edit',
   { mutates: true, forbiddenMessage: INVENTORY_OWNER_ONLY_MESSAGE, mapFailure: rejectedFailure },
   async (
-    ctx: AccessContext,
+    _ctx: AccessContext,
     commandId: string,
     docId: number,
     expectedVersion: number,
     reason: string,
   ): Promise<InventoryResult<OpeningWriteResult>> =>
-    voidOpening(ctx.identity.userId, commandId, docId, expectedVersion, reason),
+    voidOpening(commandId, docId, expectedVersion, reason),
 )

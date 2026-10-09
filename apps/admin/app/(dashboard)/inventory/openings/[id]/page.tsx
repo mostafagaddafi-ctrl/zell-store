@@ -23,14 +23,13 @@ type PageProps = { params: Promise<{ id: string }> }
  *   • مسودة: النموذج (مفتاحه docId:version، فأي نسخة جديدة من السيرفر بتبنيه من البيانات الطازة).
  *   • مرحّل / مُبطَل / مستبعَد: عرض بس (والإبطال للمرحّل).
  */
-export default pageWithAccess('zell.inventory0020.view', async function OpeningPage(ctx, { params }: PageProps) {
-  const identity = ctx.identity
+export default pageWithAccess('zell.inventory0020.view', async function OpeningPage(_ctx, { params }: PageProps) {
 
   const { id } = await params
   const docId = parseIdParam(id)
   if (docId === null) notFound()
 
-  const result = await getOpening(identity.userId, docId)
+  const result = await getOpening(docId)
   if (!result.ok && result.code === 'NOT_FOUND') notFound()
 
   const back = (
@@ -64,7 +63,7 @@ export default pageWithAccess('zell.inventory0020.view', async function OpeningP
     )
   }
 
-  const data = await loadOpeningEditorData(identity.userId)
+  const data = await loadOpeningEditorData()
 
   return (
     <>

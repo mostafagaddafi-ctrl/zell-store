@@ -16,28 +16,25 @@ import {
 import { callInventory, callInventoryWith } from '../inventory/rpc'
 
 export async function listOpenings(
-  actor: string,
-  options: { status: InventoryDocStatus | null; beforeId: number | null },
+  options: { status: InventoryDocStatus | null; beforeId: number | null; limit?: number },
 ): Promise<InventoryResult<OpeningsPage>> {
   return callInventory(
     'listOpenings',
-    { p_actor: actor, p_status: options.status, p_limit: OPENINGS_PAGE_SIZE, p_before_id: options.beforeId },
+    { p_status: options.status, p_limit: options.limit ?? OPENINGS_PAGE_SIZE, p_before_id: options.beforeId },
     isOpeningsPage,
   )
 }
 
-export async function getOpening(actor: string, docId: number): Promise<InventoryResult<OpeningDetail>> {
-  return callInventoryWith('getOpening', { p_actor: actor, p_doc_id: docId }, parseOpeningDetail)
+export async function getOpening(docId: number): Promise<InventoryResult<OpeningDetail>> {
+  return callInventoryWith('getOpening', { p_doc_id: docId }, parseOpeningDetail)
 }
 
 export async function listLots(
-  actor: string,
   options: { status: LotStatusFilter; productId: number | null; locationId: number | null; beforeId: number | null },
 ): Promise<InventoryResult<LotsPage>> {
   return callInventory(
     'listLots',
     {
-      p_actor: actor,
       p_status: options.status,
       p_product_id: options.productId,
       p_location_id: options.locationId,

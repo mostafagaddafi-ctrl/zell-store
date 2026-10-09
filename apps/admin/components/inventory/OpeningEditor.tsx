@@ -280,22 +280,32 @@ export function OpeningEditor({
 
       <Card title={draft ? 'مسودة ' + draft.header.docNo : 'رصيد أول مدة جديد'}>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field htmlFor="opening-location" label="المخزن">
-            <select
-              id="opening-location"
-              value={form.locationId}
-              disabled={!editable}
-              onChange={(event) => update({ locationId: event.target.value })}
-              className={inputClasses}
-            >
-              <option value="">اختار المخزن</option>
-              {locationOptions.map((option) => (
-                <option key={option.id} value={String(option.id)}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {locationOptions.length === 1 && locationOptions[0] !== undefined && form.locationId === String(locationOptions[0].id) ? (
+            <Field htmlFor="opening-location" label="المخزن" hint="فيه مخزن نشط واحد، فاتحدد تلقائي">
+              <p id="opening-location" className="rounded-md border border-border bg-bg/60 px-3 py-2 text-sm text-fg">
+                {locationOptions[0].label}
+              </p>
+            </Field>
+          ) : (
+            <Field htmlFor="opening-location" label="المخزن" hint="مطلوب">
+              <select
+                id="opening-location"
+                value={form.locationId}
+                disabled={!editable}
+                required
+                aria-required="true"
+                onChange={(event) => update({ locationId: event.target.value })}
+                className={inputClasses}
+              >
+                <option value="">اختار المخزن</option>
+                {locationOptions.map((option) => (
+                  <option key={option.id} value={String(option.id)}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field htmlFor="opening-date" label="تاريخ الرصيد" hint="مش في المستقبل (بتوقيت القاهرة)">
             <input
               id="opening-date"
@@ -432,7 +442,7 @@ export function OpeningEditor({
             open={discardOpen}
             kind="discard"
             title={DOC_ACTION_LABELS.discard}
-            message="المسودة هتفضل ظاهرة في القايمة بحالة «مستبعَد (مسودة)»، ومش هتتعدل ولا تترحّل بعد كده."
+            message="المسودة هتتنقل لتبويب «مستبعَد» في القايمة (ومش هتظهر في «النشط»)، ومش هتتعدل ولا تترحّل بعد كده."
             confirmLabel={DOC_ACTION_LABELS.discard}
             busy={locked}
             onCancel={() => setDiscardOpen(false)}

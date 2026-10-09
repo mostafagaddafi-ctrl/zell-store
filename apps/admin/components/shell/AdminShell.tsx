@@ -89,7 +89,7 @@ export function AdminShell({
             items: [
               { href: '/inventory/purchases', label: 'المشتريات', icon: Receipt },
               { href: '/inventory/openings', label: 'رصيد أول المدة', icon: ClipboardList },
-              { href: '/inventory/lots', label: 'الدفعات', icon: Boxes },
+              { href: '/inventory/lots', label: 'دفعات المخزون', icon: Boxes },
               { href: '/inventory/suppliers', label: 'الموردين', icon: Factory },
             ],
           },

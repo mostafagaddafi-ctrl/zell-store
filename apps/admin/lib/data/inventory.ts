@@ -8,13 +8,11 @@ import { callInventory } from '../inventory/rpc'
 import { SUPPLIERS_PAGE_SIZE, isSuppliersPage, type SuppliersPage } from '../inventory/suppliers'
 
 export async function listSuppliers(
-  actor: string,
   options: { includeInactive: boolean; after: string | null },
 ): Promise<InventoryResult<SuppliersPage>> {
   return callInventory(
     'listSuppliers',
     {
-      p_actor: actor,
       p_include_inactive: options.includeInactive,
       p_limit: SUPPLIERS_PAGE_SIZE,
       p_after_name_key: options.after,

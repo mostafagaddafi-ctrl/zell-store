@@ -8,12 +8,12 @@ const DOC_TONES: Readonly<Record<InventoryDocStatus, BadgeTone>> = {
   voided: 'danger',
 }
 
-/** حالة المستند بالمصطلحات الثابتة: مسودة / مرحّل / مستبعَد (مسودة) / مُبطَل. */
+/** حالة المستند بالمصطلحات الثابتة: مسودة / مرحّل / مستبعَد / مُبطَل. */
 export function DocStatusBadge({ status }: { status: InventoryDocStatus }) {
   return <Badge tone={DOC_TONES[status]}>{DOC_STATUS_LABELS[status]}</Badge>
 }
 
-/** حالة الدفعة: فعّالة / مُبطَلة. */
+/** حالة دفعة المخزون: فعّالة / مُبطَلة. */
 export function LotStatusBadge({ status }: { status: InventoryLotStatus }) {
   return <Badge tone={status === 'active' ? 'ok' : 'danger'}>{LOT_STATUS_LABELS[status]}</Badge>
 }

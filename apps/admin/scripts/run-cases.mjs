@@ -30,6 +30,9 @@ const SUITES = [
   { name: 'ui', dir: 'lib/inventory', entry: 'ui.cases.ts', run: 'runUiCases' },
   { name: 'access', dir: 'lib/access', entry: 'access.cases.ts', run: 'runAccessCases' },
   { name: 'manifest', dir: 'lib/access', entry: 'manifest.cases.ts', run: 'runManifestCases' },
+  { name: 'session', dir: 'lib/inventory', entry: 'session.cases.ts', run: 'runSessionCases' },
+  { name: 'doclist', dir: 'lib/inventory', entry: 'docList.cases.ts', run: 'runDocListCases' },
+  { name: 'duplicate', dir: 'lib/inventory', entry: 'purchaseDuplicate.cases.ts', run: 'runDuplicateCases' },
 ]
 
 const COMPILER_OPTIONS = {
