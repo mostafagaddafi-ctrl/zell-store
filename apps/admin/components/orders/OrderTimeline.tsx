@@ -1,23 +1,24 @@
-import { STATUS_LABELS } from '@zell/core'
-import { BEFORE_LOG_MESSAGE, actorLabel, describeEvent, formatCairoDateTime, type OrderEvent } from '../../lib/orders/cycle'
+import { ADMIN_STATUS_LABELS, TIMELINE_TEXT, actorLabel, describeEvent, formatCairoDateTime, type OrderEvent } from '../../lib/orders/cycle'
 import { Card } from '../ui/Field'
 
 /**
- * 0021-A A2 — سجل الطلب (order_events) من الأحدث للأقدم. الأوردرات القديمة من غير backfill: «قبل السجل».
- * الأسماء من @zell/core، ووقت الحدث بتوقيت القاهرة.
+ * 0021-A A2 — سجل الطلب (order_events) من الأحدث للأقدم، بتوقيت القاهرة. الأوردرات القديمة من غير backfill.
+ * مفيش أي كود داخلي ولا JSON خام بيظهر: النصوص من describeEvent بس.
  */
-const labels = STATUS_LABELS as Readonly<Record<string, string>>
+const labels = ADMIN_STATUS_LABELS as Readonly<Record<string, string>>
 
-function statusLabel(status: string): string {
-  return labels[status] ?? status
+function statusLabel(status: string): string | null {
+  return labels[status] ?? null
 }
 
 export function OrderTimeline({ events }: { events: OrderEvent[] | null }) {
   const beforeLog = events !== null && !events.some((event) => event.kind === 'created')
   return (
-    <Card title="سجل الطلب">
+    <Card title={TIMELINE_TEXT.title}>
       {events === null ? (
-        <p className="text-xs text-danger">السجل مش متاح دلوقتي. اعمل تحديث للصفحة.</p>
+        <p className="text-xs text-danger">{TIMELINE_TEXT.unavailable}</p>
+      ) : events.length === 0 ? (
+        <p className="text-xs text-muted">{TIMELINE_TEXT.empty}</p>
       ) : (
         <ol className="space-y-2.5">
           {events.map((event) => {
@@ -34,7 +35,7 @@ export function OrderTimeline({ events }: { events: OrderEvent[] | null }) {
           })}
         </ol>
       )}
-      {beforeLog ? <p className="mt-2 text-xs text-muted">{BEFORE_LOG_MESSAGE}</p> : null}
+      {beforeLog ? <p className="mt-2 border-s-2 border-border ps-3 text-xs text-muted">{TIMELINE_TEXT.beforeLog}</p> : null}
     </Card>
   )
 }
