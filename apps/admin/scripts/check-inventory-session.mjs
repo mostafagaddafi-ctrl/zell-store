@@ -30,7 +30,7 @@ const RPC_FILE = 'lib/inventory/rpc.ts'
 const CODE_EXT = /\.(ts|tsx|mjs|js|cjs)$/
 const TEXT_EXT = /\.(ts|tsx|mjs|js|cjs|json|md|css)$/
 
-/** الكود من غير التعليقات (النصوص بتفضل). lexer بسيط: نصوص '' "" والقوالب، وتعليقات // و /* */. */
+/** الكود من غير التعليقات (النصوص بتفضل). lexer بسيط: النصوص بالـ quotes التلاتة، وتعليقات السطر والبلوك. */
 export function stripComments(source) {
   let out = ''
   let i = 0
