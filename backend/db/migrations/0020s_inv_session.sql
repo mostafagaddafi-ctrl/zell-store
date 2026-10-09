@@ -10,9 +10,9 @@
 --   • المالك zell_inventory_definer: CREATE تحت SET LOCAL ROLE (زي 0020، بروتوكول 04-DB-SAFETY).
 --   • أكواد الـ preflight والـ postflight: ZELL_0020S_* (رسايل قصيرة).
 --
--- ⚠ طول ما الملف ده متطبّق: 0020_inventory_purchasing_verify.sql بيطلّع ZELL_0020_FUNCTION_COUNT، و
---   0020_inventory_purchasing_rollback.sql بيرفض (ZELL_0020_ROLLBACK_NOT_FULLY_APPLIED)، لأنهم بيعدّوا zell\_inv\_% = 43.
---   يعني rollback 0020 مايتعملش غير بعد rollback الملف ده (الـ CI بيثبت الترتيب ده). التحقق بعد التطبيق: 0020s_inv_session_verify.sql.
+-- • ملفي 0020 القديمين اتعدّلوا في نفس الـ PR: 0020_inventory_purchasing_verify.sql صالح قبل وبعد الملف ده (وبيكتب 0020s=applied)،
+--   و 0020_inventory_purchasing_rollback.sql بيرفض بـ ZELL_0020_ROLLBACK_0020S_FIRST طول ما الملف ده متطبّق.
+--   من غيره سلوكهم زي القديم بالحرف (CI S17). التحقق بعد التطبيق: 0020s_inv_session_verify.sql.
 -- الرجوع: 0020s_inv_session_rollback.sql · الاختبار قبل التطبيق: 0020s_inv_session_ptest.sql · CI: backend/db/ci/0020s_sql_ci.sh
 -- ⚠ بيتطبّق على Production بموافقة صريحة بس، بعد backup، وقت نشاط قليل. لو مالقاش قفل في 5 ثواني بيفشل كله بأمان.
 
