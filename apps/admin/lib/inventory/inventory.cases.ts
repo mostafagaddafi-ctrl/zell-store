@@ -369,7 +369,7 @@ export function runInventoryCases(): InventoryCasesReport {
   }
 
   // ── G. المصطلحات والكلمات الممنوعة ───────────────────────────
-  check('G1 discarded label', DOC_STATUS_LABELS.discarded, 'مستبعَد (مسودة)')
+  check('G1 discarded label', DOC_STATUS_LABELS.discarded, 'مستبعَد')
   check('G2 voided label', DOC_STATUS_LABELS.voided, 'مُبطَل')
   check('G3 discarded ≠ voided', DOC_STATUS_LABELS.discarded !== DOC_STATUS_LABELS.voided, true)
   check('G4 lot voided label', LOT_STATUS_LABELS.voided, 'مُبطَلة')
