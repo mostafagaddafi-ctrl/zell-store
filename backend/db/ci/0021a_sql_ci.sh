@@ -314,6 +314,23 @@ record "S31 gate closed: new statuses refused on any path (45406 / insert 45405)
 S1=$(mk 'زبون المتجر' '01011111111' null); E=$?
 ok=no; if [ "$E" -eq 0 ] && [ "$(q "select count(*) from public.order_events where order_id = $S1 and kind = 'created' and actor is null")" = "1" ]; then ok=yes; fi
 record "S32 store order (definer zell_order_writer) works + created event" "$ok" "id=$S1"
+# حدث created ذرّي مع الطلب (fail-closed): لو تسجيله فشل، الطلب نفسه مايتعملش من أي طريق، ومفيش صف ناقص السجل.
+NB=$(q "select count(*) from public.orders")
+NE=$(q "select count(*) from public.order_events")
+q "alter table public.order_events add constraint ci_block_created check (kind <> 'created') not valid" > /dev/null
+OUT=$(psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -c "select public.ci_create_order('زبون فشل السجل', '01014141414', null)" 2>&1); E=$?
+C=$(printf '%s\n' "$OUT" | code_in)
+T=$(svc "insert into public.orders (order_number, customer_name, customer_phone, address) values ('FLM-NOEVT1', 'زبون مباشر', '01000000000', 'عنوان طويل كفاية')")
+T2=$(pgx "insert into public.orders (order_number, customer_name, customer_phone, address) values ('FLM-NOEVT2', 'زبون مباشر', '01000000000', 'عنوان طويل كفاية')")
+NB2=$(q "select count(*) from public.orders")
+NE2=$(q "select count(*) from public.order_events")
+GONE=$(q "select count(*) from public.orders where order_number in ('FLM-NOEVT1', 'FLM-NOEVT2') or customer_name = 'زبون فشل السجل'")
+q "alter table public.order_events drop constraint ci_block_created" > /dev/null
+S1B=$(mk 'زبون بعد الرجوع' '01015151515' null)
+MISS=$(q "select count(*) from public.orders o where o.id >= $S1 and not exists (select 1 from public.order_events e where e.order_id = o.id and e.kind = 'created')")
+ok=no; if [ "$E" -ne 0 ] && [ "$C" = "23514" ] && [ "$T" = "23514" ] && [ "$T2" = "23514" ] && [ "$NB2" = "$NB" ] && [ "$NE2" = "$NE" ] && [ "$GONE" = "0" ] \
+   && [ "$(q "select count(*) from public.order_events where order_id = $S1B and kind = 'created'")" = "1" ] && [ "$MISS" = "0" ]; then ok=yes; fi
+record "S33 created event is atomic: event insert fails -> order creation fails on every path (store / service_role / postgres), no order without its event; next order logs exactly one" "$ok" "E=$E C=$C T=$T T2=$T2 orders=$NB->$NB2 events=$NE->$NE2 gone=$GONE miss=$MISS"
 
 # ── S4: الهوية ──
 C1=$(ucode '' "select public.zell_order_gate_state()")
