@@ -3,8 +3,9 @@
 -- العقد: docs/contracts/0021-A.md (§٣ · §٥ · §٦، وقرارات المراجع ر٢ و ر٤). التفاصيل التنفيذية في §١٧ منه.
 --   • orders: paid_piastres (= الدفعات − الردود، 0..الإجمالي، بتكتبه دوال الدفعات بس) + confirmation_fee_piastres (لقطة وقت
 --     الإنشاء، 0..الإجمالي، مابتتعدّلش). الإجمالي وكل الحسابات زي ما هي.
---   • order_payments (append-only، idempotency بـ command_id) · zell_payment_methods (الأربعة الافتراضية) · zell_payment_settings
---     (صف واحد: الرسوم مقفولة ومن غير أرقام، والآجل مقفول، والأرقام والسياسة وقالب واتساب نصوص) · zell_payment_config_log.
+--   • order_payments (append-only) · zell_payment_methods (الأربعة الافتراضية) · zell_payment_settings
+--     (صف واحد: الرسوم مقفولة ومن غير أرقام، والآجل مقفول، والأرقام والسياسة وقالب واتساب نصوص) · zell_payment_config_log ·
+--     zell_payment_commands (مراجعة #122: أمر لكل record / refund / deliver_order بلقطة نتيجته الأصلية — الـ idempotency منه).
 --   • 24 دالة zell_payment_* (مش zell_order_* علشان verify A1): 10 عامة لـ authenticated بهوية الجلسة (من غير معامل للممثل).
 --   • دالة الانتقال (A1): المقدم قبل التأكيد والتجهيز (45419)، والباقي قبل التسليم إلا بتحصيل في نفس العملية أو آجل صريح (45420).
 --   • zell_create_order: من التعريف الحي بعد D (البصمة في الـ preflight)، والفرق الوحيد عمود الرسوم.
@@ -50,6 +51,7 @@ begin
      or pg_catalog.to_regclass('public.zell_payment_methods') is not null
      or pg_catalog.to_regclass('public.zell_payment_settings') is not null
      or pg_catalog.to_regclass('public.zell_payment_config_log') is not null
+     or pg_catalog.to_regclass('public.zell_payment_commands') is not null
      or exists (select 1 from pg_catalog.pg_attribute a
                  where a.attrelid = 'public.orders'::regclass and not a.attisdropped
                    and a.attname in ('paid_piastres', 'confirmation_fee_piastres')) then
@@ -170,20 +172,37 @@ create table public.zell_payment_config_log (
     check (pg_catalog.pg_column_size(old_value) <= 16000 and pg_catalog.pg_column_size(new_value) <= 16000)
 );
 
+-- أوامر الدفع (مراجعة #122): كل record / refund / deliver_order ناجح بيسجّل أمر واحد بلقطة نتيجته الأصلية، في نفس معاملة
+-- الكتابة (الدفعة والحدث وتحديث الطلب). الإعادة بنفس command_id بترجّع اللقطة دي (مش ملخص حي) حتى لو الطلب اتغيّر بعدها.
+-- التسليم بيسجّل أمر حتى لو مااتعملش دفعة (المدفوع كامل، أو آجل صريح). append-only، والطلب اللي عليه أمر مايتمسحش.
+create table public.zell_payment_commands (
+  command_id   uuid not null constraint zell_payment_commands_pkey primary key,
+  operation    text not null constraint zell_payment_commands_operation_check check (operation in ('payment', 'refund', 'deliver')),
+  order_id     integer not null constraint zell_payment_commands_order_fkey references public.orders (id) on delete restrict,
+  actor        uuid not null,
+  request_hash text not null constraint zell_payment_commands_hash_check check (request_hash ~ '^[0-9a-f]{32}$'),
+  result       jsonb not null constraint zell_payment_commands_result_check
+               check (pg_catalog.jsonb_typeof(result) = 'object' and pg_catalog.pg_column_size(result) <= 8000),
+  created_at   timestamptz not null default pg_catalog.now()
+);
+create index zell_payment_commands_order_idx on public.zell_payment_commands (order_id);
+
 revoke all on table public.zell_payment_methods, public.order_payments, public.zell_payment_settings,
-  public.zell_payment_config_log from public, anon, authenticated, service_role;
+  public.zell_payment_config_log, public.zell_payment_commands from public, anon, authenticated, service_role;
 grant select, insert, update, delete on table public.zell_payment_methods to zell_order_definer;
-grant select, insert on table public.order_payments, public.zell_payment_config_log to zell_order_definer;
+grant select, insert on table public.order_payments, public.zell_payment_config_log, public.zell_payment_commands to zell_order_definer;
 grant select, update on table public.zell_payment_settings to zell_order_definer;
 
 alter table public.zell_payment_methods enable row level security;
 alter table public.order_payments enable row level security;
 alter table public.zell_payment_settings enable row level security;
 alter table public.zell_payment_config_log enable row level security;
+alter table public.zell_payment_commands enable row level security;
 create policy zell_order_definer_all on public.zell_payment_methods for all to zell_order_definer using (true) with check (true);
 create policy zell_order_definer_all on public.order_payments for all to zell_order_definer using (true) with check (true);
 create policy zell_order_definer_all on public.zell_payment_settings for all to zell_order_definer using (true) with check (true);
 create policy zell_order_definer_all on public.zell_payment_config_log for all to zell_order_definer using (true) with check (true);
+create policy zell_order_definer_all on public.zell_payment_commands for all to zell_order_definer using (true) with check (true);
 
 -- (3) الحراس (دوال trigger مالكها postgres).
 create function public.zell_payment_trg_append_only()
@@ -230,6 +249,10 @@ create trigger order_payments_no_truncate before truncate on public.order_paymen
 create trigger zell_payment_config_log_immutable before update or delete on public.zell_payment_config_log
   for each row execute function public.zell_payment_trg_append_only();
 create trigger zell_payment_config_log_no_truncate before truncate on public.zell_payment_config_log
+  for each statement execute function public.zell_payment_trg_append_only();
+create trigger zell_payment_commands_immutable before update or delete on public.zell_payment_commands
+  for each row execute function public.zell_payment_trg_append_only();
+create trigger zell_payment_commands_no_truncate before truncate on public.zell_payment_commands
   for each statement execute function public.zell_payment_trg_append_only();
 create trigger zell_payment_settings_guard before insert or delete on public.zell_payment_settings
   for each row execute function public.zell_payment_trg_settings_guard();
@@ -522,7 +545,9 @@ begin
 end
 $fn$;
 
--- دفعة أو رد بـ idempotency: نفس command_id بنفس المعنى = نفس النتيجة (replay)، وبمعنى مختلف = 45425. داخلية.
+-- دفعة أو رد بـ idempotency: نفس command_id بنفس العملية والطلب والممثل والبصمة = لقطة النتيجة الأصلية (replay)،
+-- وأي اختلاف = 45425. البصمة بتتحسب بعد التطبيع (zell_payment_text زي zell_payment_apply)، فنفس المعنى بمسافات = replay.
+-- الإعادة بتتفحص بعد قفل الطلب وقبل فحص النسخة والحالة. الأمر بيتسجّل آخر حاجة، فأي فشل مابيسيبش أمر. داخلية.
 create function public.zell_payment_entry(p_kind text, p_owner_only boolean, p_command_id uuid, p_order_id integer,
                                           p_expected_updated_at timestamptz, p_amount integer, p_purpose text,
                                           p_method_id integer, p_method_other text, p_reference text, p_note text)
@@ -531,20 +556,25 @@ declare
   v_actor uuid := public.zell_order_actor(p_owner_only);
   v_hash text;
   v_order public.orders;
-  v_prev public.order_payments;
+  v_cmd public.zell_payment_commands;
   v_id bigint;
+  v_result jsonb;
 begin
   if p_command_id is null then
     raise exception 'ZELL_PAY_INVALID_INPUT' using errcode = '45416', detail = 'command_id';
   end if;
   v_hash := pg_catalog.md5(pg_catalog.jsonb_build_object(
               'op', p_kind, 'order_id', p_order_id, 'amount_piastres', p_amount, 'purpose', p_purpose,
-              'method_id', p_method_id, 'method_other', p_method_other, 'reference', p_reference, 'note', p_note)::text);
+              'method_id', p_method_id, 'method_other', public.zell_payment_text(p_method_other, 60, 'method_other'),
+              'reference', public.zell_payment_text(p_reference, 100, 'reference'),
+              'note', public.zell_payment_text(p_note, 300, 'note'))::text);
   v_order := public.zell_payment_lock(p_order_id);
-  select p.* into v_prev from public.order_payments p where p.command_id = p_command_id;
+  -- نفس command_id على طلبين في نفس اللحظة: التاني بيستنى هنا وبعدين بياخد 45425 (مش خطأ تكرار مفتاح).
+  perform pg_catalog.pg_advisory_xact_lock(45425, pg_catalog.hashtext(p_command_id::text));
+  select c.* into v_cmd from public.zell_payment_commands c where c.command_id = p_command_id;
   if found then
-    if v_prev.request_hash = v_hash and v_prev.order_id = p_order_id and v_prev.actor = v_actor then
-      return public.zell_payment_summary(p_order_id, false) || pg_catalog.jsonb_build_object('replay', true, 'payment_id', v_prev.id);
+    if v_cmd.operation = p_kind and v_cmd.order_id = p_order_id and v_cmd.actor = v_actor and v_cmd.request_hash = v_hash then
+      return v_cmd.result || pg_catalog.jsonb_build_object('replay', true);
     end if;
     raise exception 'ZELL_PAY_COMMAND_REUSED' using errcode = '45425';
   end if;
@@ -554,7 +584,10 @@ begin
   end if;
   v_id := public.zell_payment_apply(p_kind, v_order, v_actor, p_command_id, v_hash, p_amount, p_purpose,
                                     p_method_id, p_method_other, p_reference, p_note);
-  return public.zell_payment_summary(p_order_id, false) || pg_catalog.jsonb_build_object('replay', false, 'payment_id', v_id);
+  v_result := public.zell_payment_summary(p_order_id, false) || pg_catalog.jsonb_build_object('replay', false, 'payment_id', v_id);
+  insert into public.zell_payment_commands (command_id, operation, order_id, actor, request_hash, result)
+  values (p_command_id, p_kind, p_order_id, v_actor, v_hash, v_result);
+  return v_result;
 end
 $fn$;
 
@@ -610,22 +643,27 @@ declare
   v_actor uuid := public.zell_order_actor(false);
   v_hash text;
   v_order public.orders;
-  v_prev public.order_payments;
+  v_cmd public.zell_payment_commands;
   v_id bigint;
   v_credit boolean;
   v_on_credit boolean := false;
+  v_result jsonb;
 begin
   if p_command_id is null or p_on_credit is null then
     raise exception 'ZELL_PAY_INVALID_INPUT' using errcode = '45416', detail = 'command_id';
   end if;
   v_hash := pg_catalog.md5(pg_catalog.jsonb_build_object(
               'op', 'deliver', 'order_id', p_order_id, 'amount_piastres', p_amount_piastres, 'method_id', p_method_id,
-              'method_other', p_method_other, 'reference', p_reference, 'note', p_note, 'on_credit', p_on_credit)::text);
+              'method_other', public.zell_payment_text(p_method_other, 60, 'method_other'),
+              'reference', public.zell_payment_text(p_reference, 100, 'reference'),
+              'note', public.zell_payment_text(p_note, 300, 'note'), 'on_credit', p_on_credit)::text);
   v_order := public.zell_payment_lock(p_order_id);
-  select p.* into v_prev from public.order_payments p where p.command_id = p_command_id;
+  -- الإعادة زي zell_payment_entry: بعد القفل وقبل النسخة والحالة، واللقطة الأصلية حتى لو الطلب اتغيّر بعد التسليم.
+  perform pg_catalog.pg_advisory_xact_lock(45425, pg_catalog.hashtext(p_command_id::text));
+  select c.* into v_cmd from public.zell_payment_commands c where c.command_id = p_command_id;
   if found then
-    if v_prev.request_hash = v_hash and v_prev.order_id = p_order_id and v_prev.actor = v_actor and v_order.status = 'delivered' then
-      return public.zell_payment_summary(p_order_id, false) || pg_catalog.jsonb_build_object('replay', true, 'payment_id', v_prev.id);
+    if v_cmd.operation = 'deliver' and v_cmd.order_id = p_order_id and v_cmd.actor = v_actor and v_cmd.request_hash = v_hash then
+      return v_cmd.result || pg_catalog.jsonb_build_object('replay', true);
     end if;
     raise exception 'ZELL_PAY_COMMAND_REUSED' using errcode = '45425';
   end if;
@@ -653,8 +691,11 @@ begin
   end if;
   perform public.zell_order_apply_transition(v_order, 'delivered', v_actor, case when v_on_credit then 'تسليم آجل' end);
   perform pg_catalog.set_config('zell.payment_credit_order', '', true);
-  return public.zell_payment_summary(p_order_id, false)
-         || pg_catalog.jsonb_build_object('replay', false, 'payment_id', v_id, 'on_credit', v_on_credit);
+  v_result := public.zell_payment_summary(p_order_id, false)
+              || pg_catalog.jsonb_build_object('replay', false, 'payment_id', v_id, 'on_credit', v_on_credit);
+  insert into public.zell_payment_commands (command_id, operation, order_id, actor, request_hash, result)
+  values (p_command_id, 'deliver', p_order_id, v_actor, v_hash, v_result);
+  return v_result;
 end
 $fn$;
 
@@ -1682,6 +1723,16 @@ begin
   end if;
   if exists (select 1 from public.orders o where o.paid_piastres <> 0 or o.confirmation_fee_piastres <> 0) then
     raise exception 'ZELL_0021A_P1_POST_ORDERS';
+  end if;
+  if pg_catalog.to_regclass('public.zell_payment_commands') is null then
+    raise exception 'ZELL_0021A_P1_POST_COMMANDS';
+  end if;
+  if not (select c.relrowsecurity from pg_catalog.pg_class c where c.oid = pg_catalog.to_regclass('public.zell_payment_commands'))
+     or pg_catalog.has_table_privilege('anon', 'public.zell_payment_commands', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')
+     or pg_catalog.has_table_privilege('authenticated', 'public.zell_payment_commands', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')
+     or pg_catalog.has_table_privilege('service_role', 'public.zell_payment_commands', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')
+     or exists (select 1 from public.zell_payment_commands) then
+    raise exception 'ZELL_0021A_P1_POST_COMMANDS';
   end if;
 end
 $p1post$;

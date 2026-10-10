@@ -3,7 +3,7 @@
 -- • معاملة read only: أول جملة begin وآخر جملة rollback، والنتيجة صفوف في SELECT واحد (ord = 0 ملخص، والباقي فحص فحص).
 -- • صالح في أي وقت بعد التطبيق (والإعدادات متفعّلة أو لأ، وفيه دفعات أو لأ). قبل التطبيق: بيقع بخطأ (الجداول مش موجودة).
 -- • أعمدة psql -tA: 1 ord · 2 kind · 3 check_id · 4 check_name · 5 ok · 6 detail · 7 verdict · 8 orders_total · 9 payments
---   · 10 fee_enabled · 11 credit_enabled · 12 methods · 13 create_order_owner
+--   · 10 fee_enabled · 11 credit_enabled · 12 methods · 13 create_order_owner · 14 commands
 
 begin;
 set transaction read only;
@@ -20,7 +20,7 @@ with procs as (
 ), trg(name) as (
   values ('zell_payment_trg_append_only'), ('zell_payment_trg_settings_guard'), ('zell_payment_trg_orders_money')
 ), tbl(name) as (
-  values ('order_payments'), ('zell_payment_methods'), ('zell_payment_settings'), ('zell_payment_config_log')
+  values ('order_payments'), ('zell_payment_methods'), ('zell_payment_settings'), ('zell_payment_config_log'), ('zell_payment_commands')
 ), co as (
   select p.oid, pg_catalog.pg_get_userbyid(p.proowner) as owner, p.prosrc
     from pg_catalog.pg_proc p
@@ -32,15 +32,15 @@ with procs as (
          (select p.paid_after_piastres from public.order_payments p where p.order_id = o.id order by p.id desc limit 1) as last_after
     from public.orders o
 ), checks(id, name, ok, detail) as (
-  select 'V01', 'tables: 4, owner postgres, RLS on, zero privileges for anon/authenticated/service_role',
+  select 'V01', 'tables: 5, owner postgres, RLS on, zero privileges for anon/authenticated/service_role',
          (select count(*) from pg_catalog.pg_class c join tbl on tbl.name = c.relname
            where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and c.relrowsecurity
              and pg_catalog.pg_get_userbyid(c.relowner) = 'postgres'
              and not pg_catalog.has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')
              and not pg_catalog.has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')
-             and not pg_catalog.has_table_privilege('service_role', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')) = 4
+             and not pg_catalog.has_table_privilege('service_role', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')) = 5
          and (select count(*) from pg_catalog.pg_policies p where p.schemaname = 'public' and p.tablename in (select tbl.name from tbl)
-                and p.roles = array['zell_order_definer']::name[]) = 4,
+                and p.roles = array['zell_order_definer']::name[]) = 5,
          null::text
   union all
   select 'V02', 'orders: paid_piastres + confirmation_fee_piastres (not null) with range checks, definer may update paid only',
@@ -68,12 +68,13 @@ with procs as (
                                                  or pg_catalog.has_function_privilege('service_role', procs.oid, 'EXECUTE')),
          null
   union all
-  select 'V05', 'triggers: orders_money_guard + append-only (payments, config log) + settings guard, enabled',
+  select 'V05', 'triggers: orders_money_guard + append-only (payments, config log, commands) + settings guard, enabled',
          (select count(*) from pg_catalog.pg_trigger g join pg_catalog.pg_class c on c.oid = g.tgrelid
            where c.relnamespace = 'public'::regnamespace and not g.tgisinternal and g.tgenabled = 'O'
              and g.tgname in ('orders_money_guard', 'order_payments_immutable', 'order_payments_no_truncate',
                               'zell_payment_config_log_immutable', 'zell_payment_config_log_no_truncate',
-                              'zell_payment_settings_guard', 'zell_payment_settings_no_truncate')) = 7,
+                              'zell_payment_settings_guard', 'zell_payment_settings_no_truncate',
+                              'zell_payment_commands_immutable', 'zell_payment_commands_no_truncate')) = 9,
          null
   union all
   select 'V06', 'zell_create_order: one (14 args), P1 body (md5), security definer, service_role only, owner can compute the fee',
@@ -128,6 +129,16 @@ with procs as (
          and public.zell_payment_fee_calc('{"enabled": true, "scope": "all", "method": "fixed", "fixed_piastres": 900000}', 80000, 0, false, false) = 80000
          and public.zell_payment_fee_calc('{"enabled": false}', 80000, 5000, true, true) = 0,
          null
+  union all
+  select 'V13', 'commands: every payment / refund row has its command (same order, operation payment / refund); results are objects',
+         not exists (select 1 from public.order_payments p
+                      where not exists (select 1 from public.zell_payment_commands c
+                                         where c.command_id = p.command_id and c.order_id = p.order_id
+                                           and (c.operation = p.kind or (p.kind = 'payment' and c.operation = 'deliver'))))
+         and not exists (select 1 from public.zell_payment_commands c
+                          where pg_catalog.jsonb_typeof(c.result) <> 'object' or (c.result ->> 'replay')::boolean is distinct from false),
+         (select pg_catalog.string_agg(p.command_id::text, ',') from public.order_payments p
+           where not exists (select 1 from public.zell_payment_commands c where c.command_id = p.command_id))
 )
 select 0::integer as ord,
        'summary'::text as kind,
@@ -135,16 +146,17 @@ select 0::integer as ord,
        null::text as check_name,
        null::boolean as ok,
        null::text as detail,
-       case when (select bool_and(coalesce(c.ok, false)) from checks c) and (select count(*) from checks) = 12 then 'PASS' else 'FAIL' end as verdict,
+       case when (select bool_and(coalesce(c.ok, false)) from checks c) and (select count(*) from checks) = 13 then 'PASS' else 'FAIL' end as verdict,
        (select count(*) from public.orders) as orders_total,
        (select count(*) from public.order_payments) as payments,
        (select (s.confirmation_fee ->> 'enabled')::boolean from public.zell_payment_settings s) as fee_enabled,
        (select s.customer_credit_enabled from public.zell_payment_settings s) as credit_enabled,
        (select count(*) from public.zell_payment_methods m where not m.is_archived) as methods,
-       (select co.owner from co) as create_order_owner
+       (select co.owner from co) as create_order_owner,
+       (select count(*) from public.zell_payment_commands) as commands
 union all
 select (row_number() over (order by c.id))::integer, 'check', c.id, c.name, coalesce(c.ok, false), c.detail,
-       null, null, null, null, null, null, null
+       null, null, null, null, null, null, null, null
   from checks c
 order by 1;
 

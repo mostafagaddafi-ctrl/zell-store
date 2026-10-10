@@ -231,7 +231,7 @@ IMPACT_SQL=$(cat <<'SQL'
 select
  (select count(*) from pg_catalog.pg_attribute a where a.attrelid = 'public.orders'::regclass and not a.attisdropped and a.attname in ('paid_piastres','confirmation_fee_piastres')) as money_columns,
  (select count(*) from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_payment\_%') as payment_fns,
- (select count(*) from pg_catalog.pg_class c where c.relnamespace = 'public'::regnamespace and c.relname in ('order_payments','zell_payment_methods','zell_payment_settings','zell_payment_config_log')) as payment_tables,
+ (select count(*) from pg_catalog.pg_class c where c.relnamespace = 'public'::regnamespace and c.relname in ('order_payments','zell_payment_methods','zell_payment_settings','zell_payment_config_log','zell_payment_commands')) as payment_tables,
  (select coalesce(string_agg(pg_catalog.md5(p.prosrc), ','), '') from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'zell_create_order') as create_order_md5,
  (select coalesce(string_agg(pg_catalog.pg_get_userbyid(p.proowner), ','), '') from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'zell_create_order') as create_order_owner,
  coalesce((select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure('public.zell_order_apply_transition(public.orders, text, uuid, text)')), '') as transition_md5,
@@ -378,9 +378,9 @@ ok=no; if [ "$E" -ne 0 ] && has "$TMP/noapproval.out" 'ZELL_0021A_P1_APPROVAL_MI
 record "S20 apply without the approval line -> refused, nothing changed" "$ok" "E=$E"
 apply_p1; E=$?
 AFTER=$(impact)
-EXP="2|24|4|$P1_MD5|zell_order_writer|$P1T_MD5|24|31|23|$(( $(rf "$PRE" 10) + 1 ))|$(rf "$PRE" 11)|$(rf "$PRE" 12)|$(rf "$PRE" 13)|0|0"
+EXP="2|24|5|$P1_MD5|zell_order_writer|$P1T_MD5|24|31|23|$(( $(rf "$PRE" 10) + 1 ))|$(rf "$PRE" 11)|$(rf "$PRE" 12)|$(rf "$PRE" 13)|0|0"
 ok=no; if [ "$E" -eq 0 ] && [ "$AFTER" = "$EXP" ]; then ok=yes; fi
-record "S21 apply -> impact (columns, 24 functions, 4 tables, new create_order body + owner kept, transition, catalog 31/23, +1 grant, orders untouched)" "$ok" "E=$E pre=$PRE after=$AFTER exp=$EXP $(grep -m3 -E 'ERROR|ZELL' "$TMP/apply.out" | tr '\n' ' ' | cut -c1-600)"
+record "S21 apply -> impact (columns, 24 functions, 5 tables, new create_order body + owner kept, transition, catalog 31/23, +1 grant, orders untouched)" "$ok" "E=$E pre=$PRE after=$AFTER exp=$EXP $(grep -m3 -E 'ERROR|ZELL' "$TMP/apply.out" | tr '\n' ' ' | cut -c1-600)"
 apply_p1; E=$?
 ok=no; if [ "$E" -ne 0 ] && has "$TMP/apply.out" 'ZELL_0021A_P1_ALREADY_APPLIED' && [ "$(impact)" = "$AFTER" ]; then ok=yes; fi
 record "S22 re-apply refused (ALREADY_APPLIED)" "$ok" "E=$E"
@@ -418,11 +418,11 @@ record "S40 fee calc: DB (zell_payment_fee_calc) = core (confirmationFeePiastres
 
 # ── S5: سيناريوهات الدفع ──
 run_file "$FLOWS" "$TMP/flows.out"; E=$?; S=$(summary_of "$TMP/flows.out")
-ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$S" 9)" = "PASS" ] && [ "$(rf "$S" 7)" = "32" ]; then ok=yes; fi
-record "S50 payment flows: record / refund / idempotency / deposit rule / delivery collection / credit / cancelled / guards / methods / create_order snapshot" "$ok" "E=$E S=$S fails=$(fails_of "$TMP/flows.out") tail=$(tail -n 3 "$TMP/flows.out" | tr '\n' ' ' | cut -c1-600)"
+ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$S" 9)" = "PASS" ] && [ "$(rf "$S" 7)" = "42" ]; then ok=yes; fi
+record "S50 payment flows: record / refund / idempotency (+ fingerprint after normalization, command log + original snapshot) / deposit rule / delivery collection / credit / cancelled / guards / methods / create_order snapshot" "$ok" "E=$E S=$S fails=$(fails_of "$TMP/flows.out") tail=$(tail -n 3 "$TMP/flows.out" | tr '\n' ' ' | cut -c1-600)"
 V=$(verify_p1)
-ok=no; if [ "$(rf "$V" 7)" = "PASS" ] && [ "$(rf "$V" 9)" = "0" ]; then ok=yes; fi
-record "S51 flows left nothing behind (verify PASS, 0 payments)" "$ok" "V=$V"
+ok=no; if [ "$(rf "$V" 7)" = "PASS" ] && [ "$(rf "$V" 9)" = "0" ] && [ "$(rf "$V" 14)" = "0" ]; then ok=yes; fi
+record "S51 flows left nothing behind (verify PASS, 0 payments, 0 commands)" "$ok" "V=$V"
 
 # ── S6: rollback بفلوس مسجّلة = رفض ──
 cat > "$TMP/pay1.sql" <<'SQL'
@@ -446,6 +446,47 @@ MID=$(impact)
 rollback_p1; E=$?
 ok=no; if [ "$E1" -eq 0 ] && [ "$E" -ne 0 ] && has "$TMP/rb.out" 'ZELL_0021A_P1_RB_HAS_MONEY_DATA' && [ "$(impact)" = "$MID" ]; then ok=yes; fi
 record "S60 rollback with a recorded payment -> refused (HAS_MONEY_DATA), nothing changed" "$ok" "E1=$E1 E=$E $(tail -n 3 "$TMP/pay1.out" | tr '\n' ' ')"
+
+# ── S6ب: rollback بأمر تسليم آجل من غير أي دفعة = رفض (مراجعة #122) ──
+if ! reset_db; then record "S61 reset" "no" "see output"; fi
+load_old_copy
+apply_p1 > /dev/null
+cat > "$TMP/pay2.sql" <<'SQL'
+do $x$
+declare
+  v_id integer;
+  v_ver timestamptz;
+begin
+  update public.zell_payment_settings set customer_credit_enabled = true where id;
+  insert into public.orders (order_number, customer_name, customer_phone, governorate, address, subtotal_piastres, total_piastres)
+  values ('FLM-RB0002', 'زبون الآجل', '01099990001', 'القاهرة', 'عنوان طويل كفاية', 10000, 10000)
+  returning id, updated_at into v_id, v_ver;
+  perform pg_catalog.set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+  execute 'set local role authenticated';
+  perform public.zell_order_transition(v_id, v_ver, 'confirmed');
+  execute 'reset role';
+  select o.updated_at into v_ver from public.orders o where o.id = v_id;
+  execute 'set local role authenticated';
+  perform public.zell_order_transition(v_id, v_ver, 'shipped');
+  execute 'reset role';
+  select o.updated_at into v_ver from public.orders o where o.id = v_id;
+  execute 'set local role authenticated';
+  perform public.zell_payment_deliver_order(p_command_id => '00000000-0000-4000-8000-000000009002'::uuid, p_order_id => v_id,
+                                            p_expected_updated_at => v_ver, p_on_credit => true);
+  execute 'reset role';
+  if exists (select 1 from public.order_payments) or (select count(*) from public.zell_payment_commands) <> 1
+     or (select o.status from public.orders o where o.id = v_id) <> 'delivered' then
+    raise exception 'ZELL_CI_S61_SETUP';
+  end if;
+end
+$x$;
+SQL
+run_file "$TMP/pay2.sql" "$TMP/pay2.out"; E1=$?
+MID=$(impact)
+rollback_p1; E=$?
+CNT=$(q "select (select count(*) from public.order_payments) || '|' || (select count(*) from public.zell_payment_commands)")
+ok=no; if [ "$E1" -eq 0 ] && [ "$E" -ne 0 ] && has "$TMP/rb.out" 'ZELL_0021A_P1_RB_HAS_MONEY_DATA' && [ "$(impact)" = "$MID" ] && [ "$CNT" = "0|1" ]; then ok=yes; fi
+record "S61 rollback with a command but no payment (explicit on-credit delivery) -> refused (HAS_MONEY_DATA), nothing changed" "$ok" "E1=$E1 E=$E CNT=$CNT $(tail -n 3 "$TMP/pay2.out" | tr '\n' ' ')"
 
 # ── S7: rollback نضيف ثم إعادة التطبيق ──
 if ! reset_db; then record "S70 reset" "no" "see output"; fi
