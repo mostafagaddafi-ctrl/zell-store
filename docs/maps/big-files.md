@@ -14,8 +14,8 @@
 | `backend/db/ci/0021a_sql_ci.sh` | 39 KB | 537 | اختبارات SQL لـ 0021-A A1 في CI (S0–S13: ptest · تطبيق · البوابة قبل/بعد · rollback · اتصالين) |
 | `backend/db/ci/0021d_sql_ci.sh` | 28 KB | 391 | اختبارات SQL لـ 0021-D في CI (ptest · تطبيق · مقارنة قديم/جديد 480 حالة · الإيصال · rollback · الانحراف) |
 | `backend/db/ci/0021p_sql_ci.sh` | 30 KB | 445 | اختبارات SQL لـ 0021-P في CI (S0–S8 و C1–C4) |
-| `backend/db/ci/0021p1_flows.sql` | 27 KB | 402 | 0021-A P1 سيناريوهات الدفع بعد التطبيق في CI (F01–F35، معاملة بترجع) |
-| `backend/db/ci/0021p1_sql_ci.sh` | 37 KB | 513 | اختبارات SQL لـ 0021-A P1 و P2 في CI (S0–S9 و S95–S99: ptest · تطبيق · verify · مقارنة 520 حالة · الرسوم DB = core · السيناريوهات · rollback · الانحراف) |
+| `backend/db/ci/0021p1_flows.sql` | 37 KB | 538 | 0021-A P1 سيناريوهات الدفع بعد التطبيق في CI (F01–F42، معاملة بترجع) |
+| `backend/db/ci/0021p1_sql_ci.sh` | 40 KB | 554 | اختبارات SQL لـ 0021-A P1 و P2 في CI (S0–S9 و S95–S99: ptest · تطبيق · verify · مقارنة 520 حالة · الرسوم DB = core · السيناريوهات · rollback · الانحراف) |
 | `backend/db/migrations/0006b_order_functions.sql` | 38 KB | 765 | دور `zell_order_writer` وأول نسخة من `zell_create_order` و`zell_get_order_receipt` |
 | `backend/db/migrations/0006c_order_receipt_expiry.sql` | 23 KB | 504 | `zell_create_order` بترجّع `receipt_expires_at` |
 | `backend/db/migrations/0015_product_widths.sql` | 21 KB | 463 | عروض الرول (`product_widths`) + `zell_create_order` |
@@ -35,10 +35,10 @@
 | `backend/db/migrations/0020s_pr3_ptest.sql` | 22 KB | 392 | 0020-S PR-3 اختبار سحب `service_role` من `zell_inv_*` |
 | `backend/db/migrations/0021a_a1_order_cycle_ptest.sql` | 67 KB | 1233 | 0021-A A1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، والنتيجة صفوف) |
 | `backend/db/migrations/0021a_a1_order_cycle.sql` | 47 KB | 892 | 0021-A A1 دورة الطلب: الحالتين ورا البوابة · الانتقالات · السجل · الفترات · 11 دالة بالجلسة |
-| `backend/db/migrations/0021a_p1_payments_ptest.sql` | 160 KB | 2929 | 0021-A P1 اختبار قبل التطبيق (الجسم + zell_create_order الحالية بالحرف، والنتيجة صفوف) |
-| `backend/db/migrations/0021a_p1_payments_rollback.sql` | 43 KB | 870 | 0021-A P1 الرجوع (zell_create_order من D ودالة الانتقال من A1 بالحرف) |
-| `backend/db/migrations/0021a_p1_payments_verify.sql` | 12 KB | 151 | 0021-A P1 التحقق بعد التطبيق (النتيجة صفوف) — أقل من 20 KB |
-| `backend/db/migrations/0021a_p1_payments.sql` | 92 KB | 1694 | 0021-A P1 الدفعات ورسوم التأكيد: الأعمدة · الجداول الأربعة · الحراس · الكتالوج · دوال zell_payment_* · دالة الانتقال · zell_create_order |
+| `backend/db/migrations/0021a_p1_payments_ptest.sql` | 164 KB | 2975 | 0021-A P1 اختبار قبل التطبيق (الجسم + zell_create_order الحالية بالحرف، والنتيجة صفوف) |
+| `backend/db/migrations/0021a_p1_payments_rollback.sql` | 44 KB | 875 | 0021-A P1 الرجوع (zell_create_order من D ودالة الانتقال من A1 بالحرف) |
+| `backend/db/migrations/0021a_p1_payments_verify.sql` | 13 KB | 163 | 0021-A P1 التحقق بعد التطبيق (النتيجة صفوف) — أقل من 20 KB |
+| `backend/db/migrations/0021a_p1_payments.sql` | 96 KB | 1740 | 0021-A P1 الدفعات ورسوم التأكيد: الأعمدة · الجداول الخمسة (ومنها أوامر الدفع) · الحراس · الكتالوج · دوال zell_payment_* · دالة الانتقال · zell_create_order |
 | `backend/db/migrations/0021a_p2_checkout_fee_ptest.sql` | 6 KB | 129 | 0021-A P2 اختبار قبل التطبيق (4 حالات، والنتيجة صفوف) — أقل من 20 KB |
 | `backend/db/migrations/0021a_p2_checkout_fee_rollback.sql` | 1 KB | 32 | 0021-A P2 الرجوع (بيشيل الدالة بس، قبل أي رجوع لـ P1) — أقل من 20 KB |
 | `backend/db/migrations/0021a_p2_checkout_fee_verify.sql` | 2 KB | 37 | 0021-A P2 التحقق بعد التطبيق — أقل من 20 KB |
@@ -50,10 +50,10 @@
 | `backend/db/migrations/0021p_access_verify.sql` | 22 KB | 343 | 0021-P التحقق بعد التطبيق (15 فحص، والنتيجة صفوف) |
 | `backend/db/migrations/0021p_erp_access.sql` | 46 KB | 1048 | 0021-P المحرك `erp_*` |
 | `backend/db/migrations/0021p_zell_erp_access.sql` | 42 KB | 983 | 0021-P محوّل ZELL `zell_erp_*` |
-| `docs/contracts/0021-A.md` | 90 KB | 436 | عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر |
+| `docs/contracts/0021-A.md` | 92 KB | 436 | عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر |
 | `docs/contracts/0021-P-code.md` | 29 KB | 249 | عقد كود 0021-P: أ ← ب1 ← ب2 · الأوضاع · الفاحص · التعديلات بعد الاعتماد |
 | `docs/contracts/0021-P.md` | 22 KB | 252 | عقد 0021-P (الداتابيز): المحرك والمحوّل والهوية من الجلسة |
-| `docs/maps/db-map.md` | 29 KB | 251 | خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف |
+| `docs/maps/db-map.md` | 30 KB | 253 | خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف |
 | `docs/plans/ORDER-FLOW-PLAN.md` | 119 KB | 1584 | خطة مسار الطلب |
 | `README.md` | 25 KB | 325 | حالة النظام الحي: الميزات · اللوحة · الهيكل · الأمان · التوثيق |
 
@@ -187,44 +187,49 @@
 
 ## `backend/db/ci/0021p1_flows.sql`
 
-0021-A P1 سيناريوهات الدفع بعد التطبيق في CI (F01–F35، معاملة بترجع) · 402 سطر
+0021-A P1 سيناريوهات الدفع بعد التطبيق في CI (F01–F42، معاملة بترجع) · 538 سطر
 
 | السطر | القسم |
 | ---: | --- |
-| 8 | begin; |
-| 11 | do $zguard$ |
-| 23 | create function pg_temp.zt(p_name text, p_ok boolean, p_detail text) |
-| 29 | create function pg_temp.zt_block_fail(p_block text, p_state text, p_message text) |
-| 36 | create function pg_temp.as_user(p_claims text, p_sql text, p_db_role text default 'authenticated') |
-| 56 | create function pg_temp.try_exec(p_sql text, p_db_role text default 'postgres') |
-| 70 | create function pg_temp.owner_c() returns text language sql as $f$ |
-| 73 | create function pg_temp.admin_c() returns text language sql as $f$ |
-| 76 | create function pg_temp.ver(p_order integer) returns text language sql as $f$ |
-| 79 | create function pg_temp.sver() returns text language sql as $f$ |
-| 82 | create function pg_temp.mid(p_name text) returns integer language sql as $f$ |
-| 85 | create function pg_temp.mver(p_id integer) returns text language sql as $f$ |
-| 88 | create function pg_temp.cmd(p_n integer) returns text language sql as $f$ |
-| 92 | create function pg_temp.mk(p_total integer, p_fee integer) returns integer language plpgsql as $f$ |
-| 106 | create function pg_temp.pay(p_who text, p_fn text, p_cmd integer, p_order integer, p_amount integer,… |
-| 113 | create function pg_temp.tr(p_who text, p_order integer, p_to text) returns jsonb language sql as $f$ |
-| 117 | create function pg_temp.deliver(p_cmd integer, p_order integer, p_amount integer, p_method text, p_c… |
-| 125 | create function pg_temp.paid(p_order integer) returns integer language sql as $f$ |
-| 128 | create function pg_temp.st(p_order integer) returns text language sql as $f$ |
-| 132 | -- ── F1: تسجيل الدفعات والرد و idempotency ── |
-| 133 | do $zF1$ |
-| 192 | -- ── F2: المقدم قبل التأكيد (قرار ٢) والتسليم بالباقي (قرار ٤) — البوابة مقفولة ── |
-| 193 | do $zF2$ |
-| 242 | -- ── F3: الآجل الصريح، والطلب الملغي، والحراس ── |
-| 243 | do $zF3$ |
-| 286 | -- ── F4: طرق الدفع والملخص و zell_create_order والتجهيز (البوابة مفتوحة) ── |
-| 287 | do $zF4$ |
-| 353 | -- ── F5: البصمة بعد التطبيع (مراجعة 7abbbd4، Blocking 1): نفس المعنى بمسافات أو بنص فاضي = replay (… |
-| 354 | do $zF5$ |
-| 402 | rollback; |
+| 10 | begin; |
+| 13 | do $zguard$ |
+| 25 | create function pg_temp.zt(p_name text, p_ok boolean, p_detail text) |
+| 31 | create function pg_temp.zt_block_fail(p_block text, p_state text, p_message text) |
+| 38 | create function pg_temp.as_user(p_claims text, p_sql text, p_db_role text default 'authenticated') |
+| 58 | create function pg_temp.try_exec(p_sql text, p_db_role text default 'postgres') |
+| 72 | create function pg_temp.owner_c() returns text language sql as $f$ |
+| 75 | create function pg_temp.admin_c() returns text language sql as $f$ |
+| 78 | create function pg_temp.ver(p_order integer) returns text language sql as $f$ |
+| 81 | create function pg_temp.sver() returns text language sql as $f$ |
+| 84 | create function pg_temp.mid(p_name text) returns integer language sql as $f$ |
+| 87 | create function pg_temp.mver(p_id integer) returns text language sql as $f$ |
+| 90 | create function pg_temp.cmd(p_n integer) returns text language sql as $f$ |
+| 93 | create function pg_temp.cid(p_n integer) returns uuid language sql as $f$ |
+| 97 | create function pg_temp.redeliver(p_who text, p_cmd integer, p_order integer, p_amount integer, p_me… |
+| 106 | create function pg_temp.repay(p_cmd integer, p_order integer, p_amount integer, p_purpose text, p_me… |
+| 113 | create function pg_temp.mk(p_total integer, p_fee integer) returns integer language plpgsql as $f$ |
+| 127 | create function pg_temp.pay(p_who text, p_fn text, p_cmd integer, p_order integer, p_amount integer,… |
+| 134 | create function pg_temp.tr(p_who text, p_order integer, p_to text) returns jsonb language sql as $f$ |
+| 138 | create function pg_temp.deliver(p_cmd integer, p_order integer, p_amount integer, p_method text, p_c… |
+| 146 | create function pg_temp.paid(p_order integer) returns integer language sql as $f$ |
+| 149 | create function pg_temp.st(p_order integer) returns text language sql as $f$ |
+| 153 | -- ── F1: تسجيل الدفعات والرد و idempotency ── |
+| 154 | do $zF1$ |
+| 213 | -- ── F2: المقدم قبل التأكيد (قرار ٢) والتسليم بالباقي (قرار ٤) — البوابة مقفولة ── |
+| 214 | do $zF2$ |
+| 263 | -- ── F3: الآجل الصريح، والطلب الملغي، والحراس ── |
+| 264 | do $zF3$ |
+| 307 | -- ── F6: أوامر الدفع ولقطة النتيجة (مراجعة #122، Blocking 2). البوابة لسه مقفولة، والآجل متفعّل ── |
+| 308 | do $zF6$ |
+| 412 | -- ── F4: طرق الدفع والملخص و zell_create_order والتجهيز (البوابة مفتوحة) ── |
+| 413 | do $zF4$ |
+| 479 | -- ── F5: البصمة بعد التطبيع (مراجعة 7abbbd4، Blocking 1): نفس المعنى بمسافات أو بنص فاضي = replay (… |
+| 480 | do $zF5$ |
+| 538 | rollback; |
 
 ## `backend/db/ci/0021p1_sql_ci.sh`
 
-اختبارات SQL لـ 0021-A P1 و P2 في CI (S0–S9 و S95–S99: ptest · تطبيق · verify · مقارنة 520 حالة · الرسوم DB = core · السيناريوهات · rollback · الانحراف) · 513 سطر
+اختبارات SQL لـ 0021-A P1 و P2 في CI (S0–S9 و S95–S99: ptest · تطبيق · verify · مقارنة 520 حالة · الرسوم DB = core · السيناريوهات · rollback · الانحراف) · 554 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -241,10 +246,11 @@
 | 408 | # ── S4: حساب الرسوم DB = core ── |
 | 419 | # ── S5: سيناريوهات الدفع ── |
 | 427 | # ── S6: rollback بفلوس مسجّلة = رفض ── |
-| 450 | # ── S7: rollback نضيف ثم إعادة التطبيق ── |
-| 468 | # ── S95–S99: P2 (0021a_p2_checkout_fee.sql) فوق P1 — ptest · تطبيق · verify · النداء · rollback ── |
-| 494 | # ── S8: rollback 0021-P بعد P1 (سطور المنح مصدرها migration، فمش «استخدام حقيقي»)، وبعده P1 rollbac… |
-| 503 | # ── S9: حارس الانحراف ── |
+| 450 | # ── S6ب: rollback بأمر تسليم آجل من غير أي دفعة = رفض (مراجعة #122) ── |
+| 491 | # ── S7: rollback نضيف ثم إعادة التطبيق ── |
+| 509 | # ── S95–S99: P2 (0021a_p2_checkout_fee.sql) فوق P1 — ptest · تطبيق · verify · النداء · rollback ── |
+| 535 | # ── S8: rollback 0021-P بعد P1 (سطور المنح مصدرها migration، فمش «استخدام حقيقي»)، وبعده P1 rollbac… |
+| 544 | # ── S9: حارس الانحراف ── |
 
 ## `backend/db/migrations/0006b_order_functions.sql`
 
@@ -760,7 +766,7 @@
 
 ## `backend/db/migrations/0021a_p1_payments_ptest.sql`
 
-0021-A P1 اختبار قبل التطبيق (الجسم + zell_create_order الحالية بالحرف، والنتيجة صفوف) · 2929 سطر
+0021-A P1 اختبار قبل التطبيق (الجسم + zell_create_order الحالية بالحرف، والنتيجة صفوف) · 2975 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -778,106 +784,107 @@
 | 144 | create function pg_temp.order_text(p_number text) |
 | 154 | CREATE FUNCTION pg_temp.zell_create_order_old(p_items jsonb, p_customer_name text, p_customer_phone … |
 | 862 | -- >>> 0021A_P1 BODY |
-| 2533 | -- <<< 0021A_P1 BODY |
-| 2535 | -- ── S: البنية (كل الـ profiles) ── |
-| 2536 | do $zS$ |
-| 2611 | -- ── C: حساب الرسوم (كل الـ profiles) ── |
-| 2612 | do $zC$ |
-| 2660 | -- ── V: الإعدادات (كل الـ profiles؛ جدول P1 بس) ── |
-| 2661 | do $zV$ |
-| 2733 | -- ── M: طرق الدفع (كل الـ profiles؛ جدول P1 بس) ── |
-| 2734 | do $zM$ |
-| 2777 | -- ── G: الحراس (كل الـ profiles؛ مفيش كتابة بتنجح على جدول قديم) ── |
-| 2778 | do $zG$ |
-| 2808 | -- ── P: رفض zell_create_order قبل أي إدخال، والرسوم متفعّلة (كل الـ profiles) — قديم = جديد بالحرف … |
-| 2809 | do $zP$ |
-| 2848 | -- ── O: طلبات صالحة قديم/جديد (ci بس) — الفرق الوحيد عمود الرسوم، وقيمته = الحساب ── |
-| 2849 | do $zO$ |
-| 2929 | rollback; |
+| 2578 | -- <<< 0021A_P1 BODY |
+| 2580 | -- ── S: البنية (كل الـ profiles) ── |
+| 2581 | do $zS$ |
+| 2657 | -- ── C: حساب الرسوم (كل الـ profiles) ── |
+| 2658 | do $zC$ |
+| 2706 | -- ── V: الإعدادات (كل الـ profiles؛ جدول P1 بس) ── |
+| 2707 | do $zV$ |
+| 2779 | -- ── M: طرق الدفع (كل الـ profiles؛ جدول P1 بس) ── |
+| 2780 | do $zM$ |
+| 2823 | -- ── G: الحراس (كل الـ profiles؛ مفيش كتابة بتنجح على جدول قديم) ── |
+| 2824 | do $zG$ |
+| 2854 | -- ── P: رفض zell_create_order قبل أي إدخال، والرسوم متفعّلة (كل الـ profiles) — قديم = جديد بالحرف … |
+| 2855 | do $zP$ |
+| 2894 | -- ── O: طلبات صالحة قديم/جديد (ci بس) — الفرق الوحيد عمود الرسوم، وقيمته = الحساب ── |
+| 2895 | do $zO$ |
+| 2975 | rollback; |
 
 ## `backend/db/migrations/0021a_p1_payments_rollback.sql`
 
-0021-A P1 الرجوع (zell_create_order من D ودالة الانتقال من A1 بالحرف) · 870 سطر
+0021-A P1 الرجوع (zell_create_order من D ودالة الانتقال من A1 بالحرف) · 875 سطر
 
 | السطر | القسم |
 | ---: | --- |
-| 10 | begin; |
-| 14 | do $p1rb$ |
-| 46 | -- (1) zell_create_order ← تعريف D بالحرف (CREATE OR REPLACE = نفس المالك والصلاحيات). |
-| 47 | CREATE OR REPLACE FUNCTION public.zell_create_order(p_items jsonb, p_customer_name text, p_customer_… |
-| 755 | -- (2) دالة الانتقال ← تعريف A1 بالحرف، وشيل دوال الدور (مالكها zell_order_definer، فـ SET LOCAL ROL… |
-| 759 | create or replace function public.zell_order_apply_transition(p_order public.orders, p_to text, p_ac… |
-| 802 | -- (3) الحراس والجداول والعمودين. |
-| 815 | -- (4) كتالوج 0021-P: سحب المنح (سطر سجل لكل مستخدم مصدره migration) ← القالب ← الصلاحيتين. |
-| 816 | do $p1rbcat$ |
-| 841 | -- (5) postflight |
-| 842 | do $p1rbpost$ |
-| 870 | commit; |
+| 11 | begin; |
+| 15 | do $p1rb$ |
+| 49 | -- (1) zell_create_order ← تعريف D بالحرف (CREATE OR REPLACE = نفس المالك والصلاحيات). |
+| 50 | CREATE OR REPLACE FUNCTION public.zell_create_order(p_items jsonb, p_customer_name text, p_customer_… |
+| 758 | -- (2) دالة الانتقال ← تعريف A1 بالحرف، وشيل دوال الدور (مالكها zell_order_definer، فـ SET LOCAL ROL… |
+| 762 | create or replace function public.zell_order_apply_transition(p_order public.orders, p_to text, p_ac… |
+| 805 | -- (3) الحراس والجداول والعمودين. |
+| 819 | -- (4) كتالوج 0021-P: سحب المنح (سطر سجل لكل مستخدم مصدره migration) ← القالب ← الصلاحيتين. |
+| 820 | do $p1rbcat$ |
+| 845 | -- (5) postflight |
+| 846 | do $p1rbpost$ |
+| 875 | commit; |
 
 ## `backend/db/migrations/0021a_p1_payments_verify.sql`
 
-0021-A P1 التحقق بعد التطبيق (النتيجة صفوف) — أقل من 20 KB · 151 سطر
+0021-A P1 التحقق بعد التطبيق (النتيجة صفوف) — أقل من 20 KB · 163 سطر
 
 | السطر | القسم |
 | ---: | --- |
 | 8 | begin; |
-| 151 | rollback; |
+| 163 | rollback; |
 
 ## `backend/db/migrations/0021a_p1_payments.sql`
 
-0021-A P1 الدفعات ورسوم التأكيد: الأعمدة · الجداول الأربعة · الحراس · الكتالوج · دوال zell_payment_* · دالة الانتقال · zell_create_order · 1694 سطر
+0021-A P1 الدفعات ورسوم التأكيد: الأعمدة · الجداول الخمسة (ومنها أوامر الدفع) · الحراس · الكتالوج · دوال zell_payment_* · دالة الانتقال · zell_create_order · 1740 سطر
 
 | السطر | القسم |
 | ---: | --- |
-| 21 | begin; |
-| 22 | -- >>> 0021A_P1 BODY |
-| 26 | -- (0) preflight: A1 + D + 0021-P متطبّقين، و P1 لأ، والدالتين اللي بنعدّلهم زي التعريف المحفوظ بالح… |
-| 27 | do $p1pre$ |
-| 93 | -- (1) orders: المدفوع الصافي ولقطة رسوم التأكيد. الصفوف القديمة = 0 و 0 (مفيش دفعات قبل كده). الإجم… |
-| 103 | -- (2) الجداول الجديدة (مالكها postgres): RLS + policy للدور بس، وصفر صلاحيات لأي دور تاني. |
-| 104 | create table public.zell_payment_methods ( |
-| 120 | create table public.order_payments ( |
-| 142 | create table public.zell_payment_settings ( |
-| 161 | create table public.zell_payment_config_log ( |
-| 188 | -- (3) الحراس (دوال trigger مالكها postgres). |
-| 189 | create function public.zell_payment_trg_append_only() |
-| 196 | create function public.zell_payment_trg_settings_guard() |
-| 204 | create function public.zell_payment_trg_orders_money() |
-| 241 | -- (4) كتالوج 0021-P (ر٢): صلاحيتين جداد. تسجيل الدفعات فئة sales (في قالب «أدمن زي النهارده» وبتتمن… |
-| 249 | do $p1grant$ |
-| 273 | -- (5) الدوال: CREATE كـ zell_order_definer (SET LOCAL ROLE)، زي A1. الأسماء zell_payment_* (مش zell… |
-| 278 | create function public.zell_payment_text(p_value text, p_max integer, p_field text) |
-| 291 | create function public.zell_payment_cfg_int(p_config jsonb, p_key text, p_max bigint) |
-| 302 | create function public.zell_payment_fee_calc(p_config jsonb, p_total integer, p_shipping integer, |
-| 338 | create function public.zell_payment_validate_fee(p_config jsonb) |
-| 407 | create function public.zell_payment_order_fee(p_total integer, p_shipping integer, p_made_to_measure… |
-| 414 | create function public.zell_payment_lock(p_order_id integer) |
-| 431 | create function public.zell_payment_summary(p_order_id integer, p_with_rows boolean) |
-| 460 | create function public.zell_payment_apply(p_kind text, p_order public.orders, p_actor uuid, p_comman… |
-| 527 | create function public.zell_payment_entry(p_kind text, p_owner_only boolean, p_command_id uuid, p_or… |
-| 564 | create function public.zell_payment_settings_json() |
-| 573 | create function public.zell_payment_methods_json() |
-| 582 | -- (5-ب) الدوال العامة (EXECUTE لـ authenticated بس): الهوية من الجلسة (zell_order_actor من A1)، ومف… |
-| 585 | create function public.zell_payment_record(p_command_id uuid, p_order_id integer, p_expected_updated… |
-| 596 | create function public.zell_payment_refund(p_command_id uuid, p_order_id integer, p_expected_updated… |
-| 607 | create function public.zell_payment_deliver_order(p_command_id uuid, p_order_id integer, p_expected_… |
-| 666 | create function public.zell_payment_order_summary(p_order_id integer) |
-| 684 | create function public.zell_payment_list_methods() |
-| 693 | create function public.zell_payment_add_method(p_name text, p_sort_order integer default null) |
-| 723 | create function public.zell_payment_update_method(p_id integer, p_expected_updated_at timestamptz, p… |
-| 759 | create function public.zell_payment_delete_method(p_id integer, p_expected_updated_at timestamptz) |
-| 789 | create function public.zell_payment_get_settings() |
-| 798 | create function public.zell_payment_save_settings(p_expected_updated_at timestamptz, p_confirmation_… |
-| 831 | -- (6) دالة الانتقال (A1، داخلية): نفس النص + قاعدتين (قرارات ٢ و٤). CREATE OR REPLACE = نفس المالك … |
-| 832 | create or replace function public.zell_order_apply_transition(p_order public.orders, p_to text, p_ac… |
-| 870 | -- (7) EXECUTE: الكل مسحوب، وبعدين: العامة الـ 10 لـ authenticated، والرسوم لمالك zell_create_order … |
-| 899 | do $p1exec$ |
-| 914 | -- (8) zell_create_order (§٦-١): من التعريف الحي بعد D (البصمة في الـ preflight)، والفرق الوحيد عمود… |
-| 916 | CREATE OR REPLACE FUNCTION public.zell_create_order(p_items jsonb, p_customer_name text, p_customer_… |
-| 1630 | -- (9) postflight |
-| 1631 | do $p1post$ |
-| 1693 | -- <<< 0021A_P1 BODY |
-| 1694 | commit; |
+| 22 | begin; |
+| 23 | -- >>> 0021A_P1 BODY |
+| 27 | -- (0) preflight: A1 + D + 0021-P متطبّقين، و P1 لأ، والدالتين اللي بنعدّلهم زي التعريف المحفوظ بالح… |
+| 28 | do $p1pre$ |
+| 95 | -- (1) orders: المدفوع الصافي ولقطة رسوم التأكيد. الصفوف القديمة = 0 و 0 (مفيش دفعات قبل كده). الإجم… |
+| 105 | -- (2) الجداول الجديدة (مالكها postgres): RLS + policy للدور بس، وصفر صلاحيات لأي دور تاني. |
+| 106 | create table public.zell_payment_methods ( |
+| 122 | create table public.order_payments ( |
+| 144 | create table public.zell_payment_settings ( |
+| 163 | create table public.zell_payment_config_log ( |
+| 178 | create table public.zell_payment_commands ( |
+| 207 | -- (3) الحراس (دوال trigger مالكها postgres). |
+| 208 | create function public.zell_payment_trg_append_only() |
+| 215 | create function public.zell_payment_trg_settings_guard() |
+| 223 | create function public.zell_payment_trg_orders_money() |
+| 264 | -- (4) كتالوج 0021-P (ر٢): صلاحيتين جداد. تسجيل الدفعات فئة sales (في قالب «أدمن زي النهارده» وبتتمن… |
+| 272 | do $p1grant$ |
+| 296 | -- (5) الدوال: CREATE كـ zell_order_definer (SET LOCAL ROLE)، زي A1. الأسماء zell_payment_* (مش zell… |
+| 301 | create function public.zell_payment_text(p_value text, p_max integer, p_field text) |
+| 314 | create function public.zell_payment_cfg_int(p_config jsonb, p_key text, p_max bigint) |
+| 325 | create function public.zell_payment_fee_calc(p_config jsonb, p_total integer, p_shipping integer, |
+| 361 | create function public.zell_payment_validate_fee(p_config jsonb) |
+| 430 | create function public.zell_payment_order_fee(p_total integer, p_shipping integer, p_made_to_measure… |
+| 437 | create function public.zell_payment_lock(p_order_id integer) |
+| 454 | create function public.zell_payment_summary(p_order_id integer, p_with_rows boolean) |
+| 483 | create function public.zell_payment_apply(p_kind text, p_order public.orders, p_actor uuid, p_comman… |
+| 551 | create function public.zell_payment_entry(p_kind text, p_owner_only boolean, p_command_id uuid, p_or… |
+| 594 | create function public.zell_payment_settings_json() |
+| 603 | create function public.zell_payment_methods_json() |
+| 612 | -- (5-ب) الدوال العامة (EXECUTE لـ authenticated بس): الهوية من الجلسة (zell_order_actor من A1)، ومف… |
+| 615 | create function public.zell_payment_record(p_command_id uuid, p_order_id integer, p_expected_updated… |
+| 626 | create function public.zell_payment_refund(p_command_id uuid, p_order_id integer, p_expected_updated… |
+| 637 | create function public.zell_payment_deliver_order(p_command_id uuid, p_order_id integer, p_expected_… |
+| 702 | create function public.zell_payment_order_summary(p_order_id integer) |
+| 720 | create function public.zell_payment_list_methods() |
+| 729 | create function public.zell_payment_add_method(p_name text, p_sort_order integer default null) |
+| 759 | create function public.zell_payment_update_method(p_id integer, p_expected_updated_at timestamptz, p… |
+| 795 | create function public.zell_payment_delete_method(p_id integer, p_expected_updated_at timestamptz) |
+| 825 | create function public.zell_payment_get_settings() |
+| 834 | create function public.zell_payment_save_settings(p_expected_updated_at timestamptz, p_confirmation_… |
+| 867 | -- (6) دالة الانتقال (A1، داخلية): نفس النص + قاعدتين (قرارات ٢ و٤). CREATE OR REPLACE = نفس المالك … |
+| 868 | create or replace function public.zell_order_apply_transition(p_order public.orders, p_to text, p_ac… |
+| 906 | -- (7) EXECUTE: الكل مسحوب، وبعدين: العامة الـ 10 لـ authenticated، والرسوم لمالك zell_create_order … |
+| 935 | do $p1exec$ |
+| 950 | -- (8) zell_create_order (§٦-١): من التعريف الحي بعد D (البصمة في الـ preflight)، والفرق الوحيد عمود… |
+| 952 | CREATE OR REPLACE FUNCTION public.zell_create_order(p_items jsonb, p_customer_name text, p_customer_… |
+| 1666 | -- (9) postflight |
+| 1667 | do $p1post$ |
+| 1739 | -- <<< 0021A_P1 BODY |
+| 1740 | commit; |
 
 ## `backend/db/migrations/0021a_p2_checkout_fee_ptest.sql`
 
@@ -1243,7 +1250,7 @@
 
 ## `docs/maps/db-map.md`
 
-خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف · 251 سطر
+خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف · 253 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -1251,19 +1258,19 @@
 | 13 | ## ١) الأدوار |
 | 29 | ## ٢) الجداول |
 | 31 | ### المتجر والطلبات |
-| 53 | ### دورة الطلب (0021-A A1) |
-| 65 | ### المخزون والمشتريات (0020) |
-| 82 | ### الصلاحيات (0021-P) |
-| 98 | ## ٣) دوال المتجر والطلب |
-| 112 | ## ٤) دوال اللوحة (الكتابة الذرّية) |
-| 134 | ## ٥) دوال المخزون (0020، مالكها `zell_inventory_definer`) |
-| 162 | ## ٦) دوال الصلاحيات (0021-P) |
-| 166 | ### المحرك (`0021p_erp_access.sql`، مالكها `erp_definer`، كلها داخلية) |
-| 178 | ### المحوّل (`0021p_zell_erp_access.sql`) |
-| 187 | ### Triggers 0021-P |
-| 198 | ## ٧) دوال دورة الطلب (0021-A A1، مالكها `zell_order_definer`) |
-| 211 | ## ٧-ب) دوال الدفعات ورسوم التأكيد (0021-A P1 و P2) |
-| 240 | ## ٨) ملفات من غير جداول أو دوال جديدة |
+| 54 | ### دورة الطلب (0021-A A1) |
+| 66 | ### المخزون والمشتريات (0020) |
+| 83 | ### الصلاحيات (0021-P) |
+| 99 | ## ٣) دوال المتجر والطلب |
+| 113 | ## ٤) دوال اللوحة (الكتابة الذرّية) |
+| 135 | ## ٥) دوال المخزون (0020، مالكها `zell_inventory_definer`) |
+| 163 | ## ٦) دوال الصلاحيات (0021-P) |
+| 167 | ### المحرك (`0021p_erp_access.sql`، مالكها `erp_definer`، كلها داخلية) |
+| 179 | ### المحوّل (`0021p_zell_erp_access.sql`) |
+| 188 | ### Triggers 0021-P |
+| 199 | ## ٧) دوال دورة الطلب (0021-A A1، مالكها `zell_order_definer`) |
+| 212 | ## ٧-ب) دوال الدفعات ورسوم التأكيد (0021-A P1 و P2) |
+| 242 | ## ٨) ملفات من غير جداول أو دوال جديدة |
 
 ## `docs/plans/ORDER-FLOW-PLAN.md`
 
