@@ -38,6 +38,7 @@
 | `zell_payment_methods` | `0021a_p1` | طرق الدفع (كاش · فودافون كاش · إنستاباي · تحويل بنكي، قابلة للإدارة) | الحذف بس لو مااتستخدمتش |
 | `zell_payment_settings` | `0021a_p1` | صف واحد: إعداد رسوم التأكيد (مقفول) · الآجل (مقفول) · أرقام الدفع · السياسة · قالب واتساب | الحفظ للمالك بدالة |
 | `zell_payment_config_log` | `0021a_p1` | سجل تغييرات الإعدادات وطرق الدفع (append-only) | |
+| `zell_payment_commands` | `0021a_p1` | أوامر الدفع (مراجعة #122): أمر لكل `record` / `refund` / `deliver_order` ناجح، ومعاه لقطة النتيجة الأصلية اللي الإعادة بترجّعها (append-only، `command_id` primary key، FK restrict على الطلب) | RLS لـ `zell_order_definer` بس |
 | `order_items` | `schema.sql` | سطور الطلب | 0016 `sale_unit` `quantity` |
 | `settings` | `schema.sql` | إعدادات ومحتوى بمفتاح (hero · sections · faqs · shipping_rates …) | 0007 شال أسرار تليجرام · 0008 مفتاح `announcement` · 0019 مفتاح `coupons_enabled` |
 | `product_images` | `0003` | صور معرض المنتج (`bucket` + `object_path`)، والترتيب والرئيسية | |
@@ -218,10 +219,11 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | المجموعة | الدوال | المالك · EXECUTE |
 | --- | --- | --- |
 | عامة (10) | `zell_payment_record` (الأدمن والمالك) · `zell_payment_refund` (المالك) · `zell_payment_deliver_order` (تسليم مع التحصيل في نفس المعاملة، أو آجل صريح لو متفعّل) · `zell_payment_order_summary` · `zell_payment_list_methods` · `zell_payment_add_method` / `zell_payment_update_method` / `zell_payment_delete_method` (المالك) · `zell_payment_get_settings` · `zell_payment_save_settings` (المالك) | `zell_order_definer` · `authenticated` بس (`service_role` و`anon` صفر) |
-| داخلية (11) | `zell_payment_text` (التطبيع: trim والنص الفاضي NULL والطول) · `zell_payment_cfg_int` · `zell_payment_fee_calc` (= `packages/core/src/confirmationFee.ts` بالحرف) · `zell_payment_validate_fee` · `zell_payment_order_fee` (لـ `zell_create_order`) · `zell_payment_lock` (`FOR UPDATE` على الطلب) · `zell_payment_summary` · `zell_payment_apply` (الكتابة + `paid_piastres` + الحدث) · `zell_payment_entry` (idempotency: البصمة بعد التطبيع، وبعدين فحص النسخة) · `zell_payment_settings_json` · `zell_payment_methods_json` | `zell_order_definer` · مفيش EXECUTE لحد، ماعدا `fee_calc` و`validate_fee` و`cfg_int` و`order_fee` لـ `postgres`، و`order_fee` لمالك `zell_create_order` (`zell_order_writer`) |
+| داخلية (11) | `zell_payment_text` (التطبيع: trim والنص الفاضي NULL والطول) · `zell_payment_cfg_int` · `zell_payment_fee_calc` (= `packages/core/src/confirmationFee.ts` بالحرف) · `zell_payment_validate_fee` · `zell_payment_order_fee` (لـ `zell_create_order`) · `zell_payment_lock` (`FOR UPDATE` على الطلب) · `zell_payment_summary` · `zell_payment_apply` (الكتابة + `paid_piastres` + الحدث) · `zell_payment_entry` (idempotency من `zell_payment_commands`: بعد القفل وقبل النسخة، واللقطة الأصلية، والبصمة بعد التطبيع) · `zell_payment_settings_json` · `zell_payment_methods_json` | `zell_order_definer` · مفيش EXECUTE لحد، ماعدا `fee_calc` و`validate_fee` و`cfg_int` و`order_fee` لـ `postgres`، و`order_fee` لمالك `zell_create_order` (`zell_order_writer`) |
 | triggers (3) | `zell_payment_trg_append_only` · `zell_payment_trg_settings_guard` · `zell_payment_trg_orders_money` | `postgres` (invoker) |
 
-- **Triggers:** على `orders`: `orders_money_guard` (أي كتابة مباشرة على `paid_piastres` أو `confirmation_fee_piastres` = 45418). على `order_payments`: `order_payments_immutable` · `order_payments_no_truncate` (45427). على `zell_payment_config_log`: `zell_payment_config_log_immutable` · `zell_payment_config_log_no_truncate`. على `zell_payment_settings`: `zell_payment_settings_guard` (صف واحد، مفيش insert/delete) · `zell_payment_settings_no_truncate`.
+- **Triggers:** على `orders`: `orders_money_guard` (أي كتابة مباشرة على `paid_piastres` أو `confirmation_fee_piastres` = 45418). على `order_payments`: `order_payments_immutable` · `order_payments_no_truncate` (45427). على `zell_payment_config_log`: `zell_payment_config_log_immutable` · `zell_payment_config_log_no_truncate`. على `zell_payment_commands`: `zell_payment_commands_immutable` · `zell_payment_commands_no_truncate` (45427). على `zell_payment_settings`: `zell_payment_settings_guard` (صف واحد، مفيش insert/delete) · `zell_payment_settings_no_truncate`.
+- **الأوامر (مراجعة #122):** `record` و`refund` و`deliver_order` بيسجّلوا أمر في `zell_payment_commands` آخر خطوة في نفس المعاملة (حتى التسليم من غير دفعة). نفس `command_id` بنفس العملية والطلب والممثل والبصمة = اللقطة الأصلية، وأي اختلاف = 45425. الـ rollback بيرفض لو فيه أي أمر.
 - **دوال A1 اللي P1 بيعيد كتابتها:** `zell_order_apply_transition(orders, text, uuid, text)` — CREATE OR REPLACE بنفس التوقيع (فالمالك `zell_order_definer` والصلاحيات زي ما هم، والعدد 24 `zell_order_*` زي ما هو). الفرق قاعدتين بس: `confirmed` و`preparing` مرفوضين لو المدفوع أقل من الرسوم (45419)، و`delivered` مرفوض لو فيه باقي (45420) إلا من `zell_payment_deliver_order` بالآجل الصريح. البصمة قبل `aa7cc01c2320cb97d76845d63413886c` وبعد `4d7c514ebe1d12281a81b63991df2324`.
 - **`zell_create_order`:** CREATE OR REPLACE بنفس التوقيع (14) من تعريف D (`c131cb51cd86830e9445b139296b0281`)، والفرق عمود `confirmation_fee_piastres` بس (`811d4d573d750db9c7e5164799536aa6`).
 - **الكتالوج (0021-P):** `zell.orders.payments_record` (في قالب `zell.admin_today`، وبتتمنح لكل أدمن شغال بسطر سجل مصدره migration) و`zell.orders.payments_admin` (owner): 29/22 ← 31/23.
@@ -234,7 +236,7 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | `migrations/0021a_p1_payments_verify.sql` · `_rollback.sql` | التحقق بعد التطبيق · الرجوع (بيرجّع الدالتين بالحرف، وبيرفض لو فيه فلوس اتسجّلت) |
 | `migrations/0021a_p2_checkout_fee.sql` + `_ptest` · `_verify` · `_rollback` | P2 (الرجوع بيشيل الدالة بس، وقبل أي رجوع لـ P1) |
 | `ci/0021p1_sql_ci.sh` | CI على Postgres 17 مؤقت: S0–S9 لـ P1 و S95–S99 لـ P2 |
-| `ci/0021p1_flows.sql` | سيناريوهات الدفع بعد التطبيق (F01–F35، CI بس) |
+| `ci/0021p1_flows.sql` | سيناريوهات الدفع بعد التطبيق (F01–F42، CI بس) |
 | `ci/0021p1_fee_parity.mjs` | حالات رسوم التأكيد من `@zell/core` للمقارنة بالداتابيز (S40) |
 
 ## ٨) ملفات من غير جداول أو دوال جديدة
