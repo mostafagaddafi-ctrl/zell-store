@@ -1363,6 +1363,7 @@ end
 $fn$;
 
 -- دفعة أو رد بـ idempotency: نفس command_id بنفس المعنى = نفس النتيجة (replay)، وبمعنى مختلف = 45425. داخلية.
+-- البصمة بتتحسب بعد التطبيع (zell_payment_text زي zell_payment_apply)، فنفس المعنى بمسافات أو بنص فاضي = replay.
 create function public.zell_payment_entry(p_kind text, p_owner_only boolean, p_command_id uuid, p_order_id integer,
                                           p_expected_updated_at timestamptz, p_amount integer, p_purpose text,
                                           p_method_id integer, p_method_other text, p_reference text, p_note text)
@@ -1379,7 +1380,9 @@ begin
   end if;
   v_hash := pg_catalog.md5(pg_catalog.jsonb_build_object(
               'op', p_kind, 'order_id', p_order_id, 'amount_piastres', p_amount, 'purpose', p_purpose,
-              'method_id', p_method_id, 'method_other', p_method_other, 'reference', p_reference, 'note', p_note)::text);
+              'method_id', p_method_id, 'method_other', public.zell_payment_text(p_method_other, 60, 'method_other'),
+              'reference', public.zell_payment_text(p_reference, 100, 'reference'),
+              'note', public.zell_payment_text(p_note, 300, 'note'))::text);
   v_order := public.zell_payment_lock(p_order_id);
   select p.* into v_prev from public.order_payments p where p.command_id = p_command_id;
   if found then
@@ -1460,7 +1463,9 @@ begin
   end if;
   v_hash := pg_catalog.md5(pg_catalog.jsonb_build_object(
               'op', 'deliver', 'order_id', p_order_id, 'amount_piastres', p_amount_piastres, 'method_id', p_method_id,
-              'method_other', p_method_other, 'reference', p_reference, 'note', p_note, 'on_credit', p_on_credit)::text);
+              'method_other', public.zell_payment_text(p_method_other, 60, 'method_other'),
+              'reference', public.zell_payment_text(p_reference, 100, 'reference'),
+              'note', public.zell_payment_text(p_note, 300, 'note'), 'on_credit', p_on_credit)::text);
   v_order := public.zell_payment_lock(p_order_id);
   select p.* into v_prev from public.order_payments p where p.command_id = p_command_id;
   if found then
