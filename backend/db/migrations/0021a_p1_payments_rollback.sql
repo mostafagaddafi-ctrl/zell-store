@@ -1,8 +1,9 @@
 -- 0021-A P1 — الرجوع لـ 0021a_p1_payments.sql
 --
 -- • بيرجّع zell_create_order لتعريف D بالحرف، ودالة الانتقال لتعريف A1 بالحرف، وبيشيل دوال zell_payment_* والجداول
---   الأربعة والعمودين والـ triggers، ومن كتالوج 0021-P الصلاحيتين والقالب والمنح (بسطر سجل «revoke» مصدره migration).
--- • بيرفض لو فيه أي فلوس اتسجّلت (صف في order_payments أو طلب مدفوعه أو رسومه ≠ 0) — ZELL_0021A_P1_RB_HAS_MONEY_DATA.
+--   الخمسة والعمودين والـ triggers، ومن كتالوج 0021-P الصلاحيتين والقالب والمنح (بسطر سجل «revoke» مصدره migration).
+-- • بيرفض لو فيه أي فلوس اتسجّلت (صف في order_payments، أو أي أمر في zell_payment_commands حتى لو من غير دفعة زي التسليم
+--   الآجل، أو طلب مدفوعه أو رسومه ≠ 0) — ZELL_0021A_P1_RB_HAS_MONEY_DATA.
 --   وقتها المسموح forward-fix بس (مفيش مسح لسجل فلوس). الإعدادات وطرق الدفع وسجلهم بيتشالوا مع الجداول.
 -- • محتاج سطر الموافقة بعد begin; زي التطبيق:  set local zell.approved_by = '<الموافقة>';
 -- • الترتيب: الكود الأول (P2 revert لو اتنشر)، وبعدين الداتابيز. ⚠ بيتشغّل على Production بموافقة صريحة بس.
@@ -22,6 +23,7 @@ begin
     raise exception 'ZELL_0021A_P1_RB_APPROVAL_MISSING';
   end if;
   if pg_catalog.to_regclass('public.order_payments') is null or pg_catalog.to_regclass('public.zell_payment_settings') is null
+     or pg_catalog.to_regclass('public.zell_payment_commands') is null
      or not exists (select 1 from pg_catalog.pg_attribute a
                      where a.attrelid = 'public.orders'::regclass and not a.attisdropped and a.attname = 'paid_piastres') then
     raise exception 'ZELL_0021A_P1_RB_NOT_APPLIED';
@@ -37,6 +39,7 @@ begin
     raise exception 'ZELL_0021A_P1_RB_TRANSITION_DRIFT';
   end if;
   if exists (select 1 from public.order_payments)
+     or exists (select 1 from public.zell_payment_commands)
      or exists (select 1 from public.orders o where o.paid_piastres <> 0 or o.confirmation_fee_piastres <> 0) then
     raise exception 'ZELL_0021A_P1_RB_HAS_MONEY_DATA';
   end if;
@@ -801,6 +804,7 @@ revoke create on schema public from zell_order_definer;
 
 -- (3) الحراس والجداول والعمودين.
 drop trigger orders_money_guard on public.orders;
+drop table public.zell_payment_commands;
 drop table public.order_payments;
 drop table public.zell_payment_config_log;
 drop table public.zell_payment_settings;
@@ -844,6 +848,7 @@ begin
   if exists (select 1 from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_payment\_%')
      or pg_catalog.to_regclass('public.order_payments') is not null or pg_catalog.to_regclass('public.zell_payment_methods') is not null
      or pg_catalog.to_regclass('public.zell_payment_settings') is not null or pg_catalog.to_regclass('public.zell_payment_config_log') is not null
+     or pg_catalog.to_regclass('public.zell_payment_commands') is not null
      or exists (select 1 from pg_catalog.pg_attribute a where a.attrelid = 'public.orders'::regclass and not a.attisdropped
                   and a.attname in ('paid_piastres', 'confirmation_fee_piastres'))
      or exists (select 1 from pg_catalog.pg_trigger g where g.tgrelid = 'public.orders'::regclass and g.tgname = 'orders_money_guard') then
