@@ -133,6 +133,10 @@ const ORDER_COLUMNS = [
   'delivery_confirmed_date',
   'delivery_confirmed_period',
   'delivery_confirmed_note',
+  // 0021-D — موعد العميل المفضّل (لقطة من Checkout)
+  'preferred_delivery_date',
+  'preferred_delivery_period',
+  'preferred_delivery_note',
   'notified_at',
   'notify_error',
   'created_at',
@@ -274,6 +278,14 @@ export const supabaseAdminData: AdminDataSource = {
               date: row.delivery_confirmed_date,
               period: isDeliveryPeriod(row.delivery_confirmed_period) ? row.delivery_confirmed_period : null,
               note: typeof row.delivery_confirmed_note === 'string' ? row.delivery_confirmed_note : null,
+            }
+          : null,
+      preferredDelivery:
+        typeof row.preferred_delivery_date === 'string'
+          ? {
+              date: row.preferred_delivery_date,
+              period: isDeliveryPeriod(row.preferred_delivery_period) ? row.preferred_delivery_period : null,
+              note: typeof row.preferred_delivery_note === 'string' ? row.preferred_delivery_note : null,
             }
           : null,
     }
