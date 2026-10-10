@@ -10,7 +10,7 @@
  *    النية — فأول إرسال نجح وضاع رده يتحوّل لطلب تاني بدل replay.
  */
 
-import { normalizeCouponCode, normalizePhone } from '@zell/core'
+import { normalizeCouponCode, normalizePhone, type PreferredDelivery } from '@zell/core'
 import type { OrderRequest } from './contracts'
 
 /**
@@ -36,6 +36,8 @@ export type NormalizedOrder = {
   installation: boolean
   /** 0019 — الكود بعد normalizeCouponCode؛ null = مفيش كوبون. */
   couponCode: string | null
+  /** 0021-D — الموعد المفضّل (null = مفيش). */
+  preferredDelivery: PreferredDelivery | null
   items: Array<{ productId: number; lengthCm?: number; widthCm?: number; quantity?: number }>
 }
 
@@ -73,6 +75,14 @@ export function normalizeOrder(input: OrderRequest): NormalizedOrder {
     installation: input.installation === true,
     // 0019 — فاضي = null. الراوت بيرفض غير الصالح (COUPON_INVALID) قبل ما يوصل هنا
     couponCode: normalizeCouponCode(input.couponCode),
+    preferredDelivery:
+      input.preferredDelivery === undefined || input.preferredDelivery === null
+        ? null
+        : {
+            date: input.preferredDelivery.date,
+            period: input.preferredDelivery.period,
+            note: input.preferredDelivery.note === null ? null : normalizeText(input.preferredDelivery.note) || null,
+          },
     items,
   }
 }
@@ -104,5 +114,9 @@ export function canonicalOrderJson(order: NormalizedOrder): string {
   // 0019 — كوبون: عنصر بعلامة 'c1' بعد 'v2' (لو موجود). من غير كوبون الصيغة اللي فوق بالحرف،
   // وتغيير الكود أو شيله = canonical جديد = مفتاح جديد (مش IDEMPOTENCY_MISMATCH).
   if (order.couponCode !== null) shape.push(['c1', order.couponCode])
+  // 0021-D — بس لو موجود: من غير موعد = الشكل القديم بالحرف، وبموعد = هاش جديد (مفتاح idempotency جديد)
+  if (order.preferredDelivery !== null) {
+    shape.push(['d1', order.preferredDelivery.date, order.preferredDelivery.period ?? '', order.preferredDelivery.note ?? ''])
+  }
   return JSON.stringify(shape)
 }
