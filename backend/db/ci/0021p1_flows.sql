@@ -4,6 +4,8 @@
 --   وبتتفتح بدالة المالك قبل سيناريو التجهيز.
 -- • النتيجة صفوف في SELECT واحد: 1 ord · 2 kind · 3 test_id · 4 test_name · 5 outcome · 6 detail · 7 pass · 8 fail · 9 verdict.
 -- • F5 (مراجعة 7abbbd4): البصمة بعد التطبيع لـ zell_payment_record و zell_payment_deliver_order.
+-- • F6 (مراجعة #122): جدول الأوامر — التسليمات التلاتة · الإعادة باللقطة الأصلية حتى لو الطلب اتغيّر · أي اختلاف 45425 ·
+--   الفشل مابيسيبش أمر · مفيش وصول مباشر. F42 في الآخر: كل دفعة ليها أمرها.
 
 begin;
 set local idle_in_transaction_session_timeout = '60s';
@@ -87,6 +89,25 @@ create function pg_temp.mver(p_id integer) returns text language sql as $f$
 $f$;
 create function pg_temp.cmd(p_n integer) returns text language sql as $f$
   select quote_literal('00000000-0000-4000-8000-' || lpad(p_n::text, 12, '0')) || '::uuid';
+$f$;
+create function pg_temp.cid(p_n integer) returns uuid language sql as $f$
+  select ('00000000-0000-4000-8000-' || lpad(p_n::text, 12, '0'))::uuid;
+$f$;
+-- إعادة تسليم بنسخة قديمة (الإعادة لازم تتفحص قبل النسخة).
+create function pg_temp.redeliver(p_who text, p_cmd integer, p_order integer, p_amount integer, p_method text, p_credit boolean)
+returns jsonb language sql as $f$
+  select pg_temp.as_user(case p_who when 'owner' then pg_temp.owner_c() else pg_temp.admin_c() end,
+    format('select public.zell_payment_deliver_order(p_command_id => %s, p_order_id => %s, p_expected_updated_at => %L::timestamptz, '
+           || 'p_amount_piastres => %s, p_method_id => %s, p_on_credit => %L::boolean)',
+           pg_temp.cmd(p_cmd), p_order, '2000-01-01', coalesce(p_amount::text, 'null'),
+           coalesce(pg_temp.mid(p_method)::text, 'null'), p_credit));
+$f$;
+-- إعادة دفعة بنسخة قديمة.
+create function pg_temp.repay(p_cmd integer, p_order integer, p_amount integer, p_purpose text, p_method text)
+returns jsonb language sql as $f$
+  select pg_temp.as_user(pg_temp.admin_c(),
+    format('select public.zell_payment_record(%s, %s, %L::timestamptz, %s, %L, %s)',
+           pg_temp.cmd(p_cmd), p_order, '2000-01-01', p_amount, p_purpose, pg_temp.mid(p_method)));
 $f$;
 -- طلب تجربة مباشر (postgres) بإجمالي ورسوم معينين.
 create function pg_temp.mk(p_total integer, p_fee integer) returns integer language plpgsql as $f$
@@ -283,6 +304,111 @@ exception when others then
 end
 $zF3$;
 
+-- ── F6: أوامر الدفع ولقطة النتيجة (مراجعة #122، Blocking 2). البوابة لسه مقفولة، والآجل متفعّل ──
+do $zF6$
+declare
+  p integer := pg_temp.mk(20000, 0);   -- تسليم مع تحصيل
+  q integer := pg_temp.mk(15000, 0);   -- مدفوع كامل قبل التسليم: تسليم من غير دفعة
+  s integer := pg_temp.mk(18000, 0);   -- تسليم آجل صريح من غير دفعة
+  t integer := pg_temp.mk(10000, 0);   -- دفعة وبعدها إلغاء
+  u integer := pg_temp.mk(9000, 0);    -- محاولات فاشلة ماتسيبش أمر
+  r1 jsonb; r2 jsonb; r3 jsonb; r4 jsonb;
+  x1 jsonb; x2 jsonb; x3 jsonb; x4 jsonb; x5 jsonb;
+  v_cmds integer;
+  v_pays integer;
+begin
+  update public.zell_payment_settings set customer_credit_enabled = true where id;
+  perform pg_temp.tr('admin', p, 'confirmed');
+  perform pg_temp.tr('admin', p, 'shipped');
+  perform pg_temp.pay('admin', 'zell_payment_record', 601, q, 15000, 'balance', 'كاش');
+  perform pg_temp.tr('admin', q, 'confirmed');
+  perform pg_temp.tr('admin', q, 'shipped');
+  perform pg_temp.tr('admin', s, 'confirmed');
+  perform pg_temp.tr('admin', s, 'shipped');
+  r1 := pg_temp.deliver(604, p, 20000, 'كاش', false);
+  r2 := pg_temp.deliver(602, q, null, null, false);
+  r3 := pg_temp.deliver(603, s, null, null, true);
+  perform pg_temp.zt('F36 three deliveries (collection / already paid / explicit credit): delivered, one deliver command each, a payment row only with collection',
+    r1 ->> 'status' = 'delivered' and (r1 ->> 'remaining_piastres')::integer = 0 and r1 ->> 'payment_id' is not null
+    and r2 ->> 'status' = 'delivered' and r2 ->> 'payment_id' is null and not (r2 ->> 'on_credit')::boolean
+    and r3 ->> 'status' = 'delivered' and (r3 ->> 'on_credit')::boolean and (r3 ->> 'remaining_piastres')::integer = 18000
+    and r3 ->> 'payment_id' is null
+    and (select count(*) from public.zell_payment_commands c
+          where c.operation = 'deliver' and c.actor = '00000000-0000-0000-0000-00000000000b'
+            and (c.command_id, c.order_id) in ((pg_temp.cid(604), p), (pg_temp.cid(602), q), (pg_temp.cid(603), s))) = 3
+    and (select count(*) from public.zell_payment_commands c where c.command_id = pg_temp.cid(601) and c.operation = 'payment' and c.order_id = q) = 1
+    and (select count(*) from public.order_payments x where x.order_id = q) = 1
+    and (select count(*) from public.order_payments x where x.order_id = s) = 0
+    and (select count(*) from public.order_payments x where x.order_id = p and x.command_id = pg_temp.cid(604)) = 1,
+    r1::text || r2::text || r3::text);
+
+  select count(*) into v_cmds from public.zell_payment_commands;
+  select count(*) into v_pays from public.order_payments;
+  x1 := pg_temp.redeliver('admin', 604, p, 20000, 'كاش', false);
+  x2 := pg_temp.redeliver('admin', 602, q, null, null, false);
+  x3 := pg_temp.redeliver('admin', 603, s, null, null, true);
+  perform pg_temp.zt('F37 replay of each delivery (stale version) -> replay, the original result exactly, nothing new',
+    (x1 ->> 'replay')::boolean and (x2 ->> 'replay')::boolean and (x3 ->> 'replay')::boolean
+    and (x1 - 'replay') = (r1 - 'replay') and (x2 - 'replay') = (r2 - 'replay') and (x3 - 'replay') = (r3 - 'replay')
+    and (select count(*) from public.zell_payment_commands) = v_cmds and (select count(*) from public.order_payments) = v_pays,
+    x1::text || x2::text || x3::text);
+
+  -- الطلب بيتغيّر بعد النجاح: دفعة متأخرة على الآجل · الحالة اتحرّكت (تعديل مباشر، البوابة مقفولة) · دفعة وبعدها إلغاء.
+  perform pg_temp.pay('admin', 'zell_payment_record', 605, s, 18000, 'balance', 'كاش');
+  x3 := pg_temp.redeliver('admin', 603, s, null, null, true);
+  x4 := to_jsonb(pg_temp.try_exec(format('update public.orders set status = %L, updated_at = now() where id = %s', 'shipped', p)));
+  x1 := pg_temp.redeliver('admin', 604, p, 20000, 'كاش', false);
+  r4 := pg_temp.pay('admin', 'zell_payment_record', 606, t, 5000, 'confirmation_fee', 'كاش');
+  perform pg_temp.tr('admin', t, 'cancelled');
+  x5 := pg_temp.repay(606, t, 5000, 'confirmation_fee', 'كاش');
+  perform pg_temp.zt('F38 order changed after success (later payment / status moved / cancelled) -> replay still returns the original snapshot',
+    (x3 ->> 'replay')::boolean and (x3 - 'replay') = (r3 - 'replay') and (x3 ->> 'remaining_piastres')::integer = 18000
+    and pg_temp.paid(s) = 18000
+    and x4 #>> '{}' = 'ok' and pg_temp.st(p) = 'shipped'
+    and (x1 ->> 'replay')::boolean and x1 ->> 'status' = 'delivered' and (x1 - 'replay') = (r1 - 'replay')
+    and pg_temp.st(t) = 'cancelled' and (x5 ->> 'replay')::boolean and x5 ->> 'status' = 'new'
+    and (x5 - 'replay') = (r4 - 'replay'),
+    x3::text || x4::text || x1::text || x5::text);
+
+  select count(*) into v_cmds from public.zell_payment_commands;
+  select count(*) into v_pays from public.order_payments;
+  x1 := pg_temp.redeliver('owner', 604, p, 20000, 'كاش', false);
+  x2 := pg_temp.redeliver('admin', 604, q, 20000, 'كاش', false);
+  x3 := pg_temp.pay('admin', 'zell_payment_record', 604, p, 20000, 'balance', 'كاش');
+  x4 := pg_temp.redeliver('admin', 601, q, 15000, 'كاش', false);
+  x5 := pg_temp.redeliver('admin', 603, s, null, null, false);
+  perform pg_temp.zt('F39 same command with another actor / order / operation / meaning -> 45425, nothing new',
+    x1 ->> '_error' = '45425' and x2 ->> '_error' = '45425' and x3 ->> '_error' = '45425'
+    and x4 ->> '_error' = '45425' and x5 ->> '_error' = '45425'
+    and (select count(*) from public.zell_payment_commands) = v_cmds and (select count(*) from public.order_payments) = v_pays,
+    x1::text || x2::text || x3::text || x4::text || x5::text);
+
+  perform pg_temp.tr('admin', u, 'confirmed');
+  perform pg_temp.tr('admin', u, 'shipped');
+  x1 := pg_temp.deliver(607, u, null, null, false);
+  x2 := pg_temp.deliver(608, u, 1000, 'كاش', false);
+  x3 := pg_temp.pay('admin', 'zell_payment_record', 609, u, 9001, 'balance', 'كاش');
+  x4 := pg_temp.deliver(607, u, 9000, 'كاش', false);
+  perform pg_temp.zt('F40 failures leave no command (45420 / 45420 with a payment / 45423); the failed command id then works as new',
+    x1 ->> '_error' = '45420' and x2 ->> '_error' = '45420' and x3 ->> '_error' = '45423'
+    and not exists (select 1 from public.zell_payment_commands c where c.command_id in (pg_temp.cid(608), pg_temp.cid(609)))
+    and not exists (select 1 from public.order_payments x where x.command_id in (pg_temp.cid(608), pg_temp.cid(609)))
+    and x4 ->> 'status' = 'delivered' and not (x4 ->> 'replay')::boolean
+    and (select count(*) from public.zell_payment_commands c where c.command_id = pg_temp.cid(607) and c.order_id = u) = 1,
+    x1::text || x2::text || x3::text || x4::text);
+
+  perform pg_temp.zt('F41 commands table: no direct access (anon / authenticated / service_role 42501); UPDATE / DELETE / TRUNCATE -> 45427 (even postgres)',
+    pg_temp.try_exec('select 1 from public.zell_payment_commands', 'anon') = '42501'
+    and pg_temp.try_exec('select 1 from public.zell_payment_commands', 'authenticated') = '42501'
+    and pg_temp.try_exec('select 1 from public.zell_payment_commands', 'service_role') = '42501'
+    and pg_temp.try_exec('update public.zell_payment_commands set actor = actor') = '45427'
+    and pg_temp.try_exec('delete from public.zell_payment_commands') = '45427'
+    and pg_temp.try_exec('truncate public.zell_payment_commands') = '45427', null);
+exception when others then
+  perform pg_temp.zt_block_fail('F6', sqlstate, sqlerrm);
+end
+$zF6$;
+
 -- ── F4: طرق الدفع والملخص و zell_create_order والتجهيز (البوابة مفتوحة) ──
 do $zF4$
 declare
@@ -384,6 +510,16 @@ begin
   perform pg_temp.zt('F35 deliver: same command, same meaning with spaces / blank «other» -> replay, nothing new',
     r ->> 'status' = 'delivered' and (r2 ->> 'replay')::boolean and r2 ->> 'payment_id' = r ->> 'payment_id'
     and pg_temp.paid(h) = 12000 and (select count(*) from public.order_payments p where p.order_id = h) = 1, r::text || r2::text);
+  perform pg_temp.zt('F42 every payment row has its command (same order); payment / refund commands own exactly one row; stored results are replay=false',
+    not exists (select 1 from public.order_payments x
+                 where not exists (select 1 from public.zell_payment_commands c
+                                    where c.command_id = x.command_id and c.order_id = x.order_id
+                                      and (c.operation = x.kind or (x.kind = 'payment' and c.operation = 'deliver'))))
+    and not exists (select 1 from public.zell_payment_commands c
+                     where c.operation in ('payment', 'refund')
+                       and (select count(*) from public.order_payments x where x.command_id = c.command_id) <> 1)
+    and not exists (select 1 from public.zell_payment_commands c where (c.result ->> 'replay')::boolean is distinct from false),
+    null);
 exception when others then
   perform pg_temp.zt_block_fail('F5', sqlstate, sqlerrm);
 end
@@ -393,7 +529,7 @@ select 0::integer as ord, 'summary'::text as kind, null::text as test_id, null::
        (select count(*) from pg_temp.zt_results where outcome = 'pass') as pass,
        (select count(*) from pg_temp.zt_results where outcome = 'fail') as fail,
        case when (select count(*) from pg_temp.zt_results where outcome = 'fail') = 0
-             and (select count(*) from pg_temp.zt_results where outcome = 'pass') = 35 then 'PASS' else 'FAIL' end as verdict
+             and (select count(*) from pg_temp.zt_results where outcome = 'pass') = 42 then 'PASS' else 'FAIL' end as verdict
 union all
 select r.n, 'test', r.id, r.name, r.outcome, r.detail, null, null, null
   from pg_temp.zt_results r
