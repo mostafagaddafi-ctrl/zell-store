@@ -231,6 +231,7 @@ export default pageWithAccess('zell.orders.view', async function OrderDetailPage
             orderId={order.id}
             status={order.status}
             delivery={order.deliveryConfirmed}
+            preferred={order.preferredDelivery}
             periods={cycle.periods}
             expectedUpdatedAt={order.updatedAt}
           />

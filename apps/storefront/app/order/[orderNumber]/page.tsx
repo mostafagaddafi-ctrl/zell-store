@@ -1,7 +1,14 @@
 import Link from 'next/link'
 import { cookies } from 'next/headers'
 import { CheckCircle2 } from 'lucide-react'
-import { formatLength, formatPiastres, isValidOrderNumber } from '@zell/core'
+import {
+  PREFERRED_DELIVERY_PENDING,
+  formatLength,
+  formatPiastres,
+  isValidOrderNumber,
+  parsePreferredDeliverySnapshot,
+  preferredDeliveryLine,
+} from '@zell/core'
 import { restRpc, type RpcResult } from '../../../lib/data/rpc'
 import type { Receipt } from '../../../lib/orders/contracts'
 import { DISCOUNT_SIGN, discountLine } from '../../../lib/orders/coupon'
@@ -150,6 +157,8 @@ export default async function OrderReceiptPage({
   const receipt = result.data
   // 0019 — سطر الخصم من اللقطة؛ null للأوردر القديم أو من غير كوبون (العرض زي ما هو بالظبط)
   const discount = discountLine(receipt.coupon_code, receipt.discount_piastres)
+  // 0021-D — الموعد المفضّل (لو موجود وشكله سليم، وإلا مابيظهرش)
+  const preferred = parsePreferredDeliverySnapshot(receipt.preferred_delivery)
 
   return (
     <Container className="py-10 sm:py-14">
@@ -188,6 +197,16 @@ export default async function OrderReceiptPage({
             </dd>
           </div>
         </dl>
+
+        {preferred !== null ? (
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-xs text-muted">{PREFERRED_DELIVERY_PENDING}</p>
+            <p className="mt-1 text-sm font-semibold text-fg">
+              <Num>{preferredDeliveryLine(preferred)}</Num>
+            </p>
+            {preferred.note !== null ? <p className="mt-1 text-xs text-muted">{preferred.note}</p> : null}
+          </div>
+        ) : null}
 
         <ul className="divide-y divide-border rounded-lg border border-border bg-card px-4">
           {receipt.items.map((item, index) => (

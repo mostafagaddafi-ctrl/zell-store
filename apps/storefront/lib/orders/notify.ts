@@ -16,6 +16,7 @@ import 'server-only'
 import { INSTALLATION_NOTE_MARKER, hasInstallerRequest } from '@zell/core'
 import { restPatch, restSelect } from '../data/rpc'
 import { DISCOUNT_SIGN, discountLabel, discountLine } from './coupon'
+import { PREFERRED_DELIVERY_PENDING, isDeliveryPeriod, preferredDeliveryLine } from '@zell/core'
 
 const TELEGRAM_TIMEOUT_MS = 5000
 const MAX_NOTIFY_ERROR = 200
@@ -52,6 +53,10 @@ type NotifyOrder = {
   /** 0019 */
   coupon_code?: string | null
   discount_piastres?: number
+  /** 0021-D — الموعد المفضّل (لسه مش مؤكد) */
+  preferred_delivery_date?: string | null
+  preferred_delivery_period?: string | null
+  preferred_delivery_note?: string | null
   created_at: string
   order_items: NotifyItem[]
 }
@@ -62,6 +67,7 @@ const ORDER_SELECT =
   'shipping_area,installation_requested,installation_rate_piastres,installation_length_cm,' +
   'installation_piastres,installation_travel_piastres,' +
   'discount_piastres,coupon_code,' +
+  'preferred_delivery_date,preferred_delivery_period,preferred_delivery_note,' +
   'order_items(product_name_ar,length_cm,width_cm,line_total_piastres,sale_unit,quantity)'
 
 /** تهريب HTML لكل قيمة — parse_mode: 'HTML' (§7.3). */
@@ -138,6 +144,14 @@ function buildMessage(order: NotifyOrder): string {
     lines.push('<b>' + escapeHtml(discountLabel(discount.code)) + ':</b> ' + escapeHtml(DISCOUNT_SIGN + money(discount.piastres)))
   }
   lines.push('<b>الإجمالي:</b> ' + escapeHtml(money(order.total_piastres)))
+
+  // 0021-D — موعد التسليم المفضّل من العميل (لسه مش مؤكد)
+  if (typeof order.preferred_delivery_date === 'string' && order.preferred_delivery_date !== '') {
+    const period = isDeliveryPeriod(order.preferred_delivery_period) ? order.preferred_delivery_period : null
+    lines.push('<b>' + escapeHtml(PREFERRED_DELIVERY_PENDING) + ':</b> ' + escapeHtml(preferredDeliveryLine({ date: order.preferred_delivery_date, period, note: null })))
+    const prefNote = (order.preferred_delivery_note ?? '').trim()
+    if (prefNote !== '') lines.push('<b>ملاحظة الموعد:</b> ' + escapeHtml(prefNote))
+  }
 
   // العلامة القديمة في الملاحظات للأوردرات القديمة بس (بالتواصل) — بتتشال من الملاحظات
   const legacyInstaller = !priced && hasInstallerRequest(order.notes)

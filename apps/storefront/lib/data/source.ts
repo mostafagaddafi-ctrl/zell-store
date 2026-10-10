@@ -1,6 +1,7 @@
-import type { StoreCollection, StoreProduct, StoreSettings } from '@zell/core'
+import { parsePeriodTimes, type DeliveryPeriodTime, type StoreCollection, type StoreProduct, type StoreSettings } from '@zell/core'
 import { getFallbackCollections, getFallbackProducts, getFallbackSettings } from '../catalog'
 import { fetchStorefrontFromSupabase } from './queries'
+import { restRpc } from './rpc'
 
 /**
  * مصدر بيانات المتجر — نقطة الدخول الوحيدة للصفحات.
@@ -74,4 +75,18 @@ export async function getStorefrontProductById(id: number): Promise<StoreProduct
   if (!Number.isFinite(id)) return undefined
   const products = await getStorefrontProducts()
   return products.find((product) => product.id === id)
+}
+
+/**
+ * 0021-D — أوقات فترات التسليم للـ Checkout من الداتابيز (zell_checkout_delivery_periods، service_role).
+ * fallback (CI والتطوير) أو أي فشل = null: الفورم بيعرض أسماء الفترات من غير أوقات، والطلب مايقعش.
+ */
+export async function getCheckoutPeriods(): Promise<DeliveryPeriodTime[] | null> {
+  if (resolveDataSource() === 'fallback') return null
+  try {
+    const result = await restRpc<unknown>('zell_checkout_delivery_periods', {})
+    return result.ok ? parsePeriodTimes(result.data) : null
+  } catch {
+    return null
+  }
 }

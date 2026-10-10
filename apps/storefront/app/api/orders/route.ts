@@ -1,5 +1,5 @@
 import { NextResponse, after, type NextRequest } from 'next/server'
-import { isValidEgyptianPhone } from '@zell/core'
+import { isValidEgyptianPhone, parsePreferredDeliveryField } from '@zell/core'
 import { restRpc, type RpcResult } from '../../../lib/data/rpc'
 import type { OrderErrorCode, OrderItemInput, OrderRequest } from '../../../lib/orders/contracts'
 import { codeFromSqlError, orderFailure, statusFor } from '../../../lib/orders/errors'
@@ -126,10 +126,15 @@ function parseRequest(payload: unknown): { ok: true; value: OrderRequest } | { o
   const coupon = parseCouponCodeField(payload['couponCode'])
   if (!coupon.ok) return { ok: false, code: 'COUPON_INVALID' }
 
+  // 0021-D — الموعد المفضّل (اختياري). غايب = النداء القديم بالحرف. شكل غلط = PREFERRED_DELIVERY_INVALID قبل أي نداء.
+  const preferred = parsePreferredDeliveryField(payload['preferredDelivery'])
+  if (!preferred.ok) return { ok: false, code: 'PREFERRED_DELIVERY_INVALID' }
+
   const value: OrderRequest = { customerName: name, customerPhone: phone, governorate, address, notes, items }
   if (area !== undefined) value.area = area
   if (installation) value.installation = true
   if (coupon.code !== null) value.couponCode = coupon.code
+  if (preferred.value !== null) value.preferredDelivery = preferred.value
   return { ok: true, value }
 }
 
@@ -203,6 +208,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ...(normalized.installation ? { p_installation: true } : {}),
       // 0019 — الكود المطبّع بس ولو موجود بس، فالطلب من غير كوبون نفس النداء القديم بالحرف
       ...(normalized.couponCode !== null ? { p_coupon_code: normalized.couponCode } : {}),
+      // 0021-D — الموعد المطبّع بس ولو موجود بس، فالطلب من غير موعد نفس النداء القديم بالحرف
+      ...(normalized.preferredDelivery !== null ? { p_preferred_delivery: normalized.preferredDelivery } : {}),
     })
   } catch (error) {
     // اسم الاستثناء بس — مفيش مفتاح ولا رابط ولا بيانات عميل في اللوج

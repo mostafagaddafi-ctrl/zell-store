@@ -145,6 +145,10 @@ export type OrderRow = {
   delivery_confirmed_date?: string | null
   delivery_confirmed_period?: string | null
   delivery_confirmed_note?: string | null
+  // 0021-D
+  preferred_delivery_date?: string | null
+  preferred_delivery_period?: string | null
+  preferred_delivery_note?: string | null
   notified_at: string | null
   notify_error: string | null
   created_at: string
