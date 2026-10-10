@@ -14,15 +14,15 @@
 
 | الدور | اتعرّف في | بيعمل إيه |
 | --- | --- | --- |
-| `anon` · `authenticated` | Supabase | مالهمش أي وصول للجداول (RLS + سحب الصلاحيات في 0002). `authenticated` عنده EXECUTE على ١٢ دالة `zell_erp_*` (0021-P) و٢٣ دالة `zell_inv_session_*` (0020-S PR-1) و١١ دالة `zell_order_*` (0021-A A1) بس |
-| `service_role` | Supabase | بيتخطى RLS. اللوحة والمتجر بيقروا بيه من السيرفر بس (حل انتقالي)، وعنده EXECUTE على دوال اللوحة القديمة بس: صفر على أي `zell_inv_*` (من 0020-S PR-3) وعلى جداول 0020. صفر على `erp_*` و`zell_erp_*`. من `zell_order_*`: `zell_order_gate_is_open` بس (trigger الحالة وقت PATCH اللوحة) |
+| `anon` · `authenticated` | Supabase | مالهمش أي وصول للجداول (RLS + سحب الصلاحيات في 0002). `authenticated` عنده EXECUTE على ١٢ دالة `zell_erp_*` (0021-P) و٢٣ دالة `zell_inv_session_*` (0020-S PR-1) و١١ دالة `zell_order_*` (0021-A A1) بس. بعد تطبيق 0021-A P1: + ١٠ دوال `zell_payment_*` (§٧-ب) |
+| `service_role` | Supabase | بيتخطى RLS. اللوحة والمتجر بيقروا بيه من السيرفر بس (حل انتقالي)، وعنده EXECUTE على دوال اللوحة القديمة بس: صفر على أي `zell_inv_*` (من 0020-S PR-3) وعلى جداول 0020. صفر على `erp_*` و`zell_erp_*`. من `zell_order_*`: `zell_order_gate_is_open` بس (trigger الحالة وقت PATCH اللوحة). من `zell_checkout_*`: `zell_checkout_delivery_periods` (0021-D)، و`zell_checkout_confirmation_fee` بعد تطبيق P2. صفر على `zell_payment_*` |
 | `postgres` | Supabase | مالك الجداول، واللي بيطبّق الـ migrations (الـ preflight بيتأكد) |
 | `zell_definer` | `0005c` (مسودة) | دور مسودة `create_order` القديمة |
 | `zell_order_writer` | `0006b` | مالك دوال مسار الطلب (`zell_create_order` · `zell_get_order_receipt`)، ومن غير صلاحيات جداول مباشرة |
 | `zell_inventory_definer` | `0020` | مالك دوال المخزون `zell_inv_*`، ومنها `zell_inv_session_*` و`zell_inv_claims_actor` من 0020-S (NOLOGIN · NOBYPASSRLS) |
 | `erp_definer` | `0021p_erp_access` | مالك دوال المحرك `erp_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS) |
 | `zell_erp_definer` | `0021p_zell_erp_access` | مالك دوال المحوّل والواجهة `erp_actor_status_v1`. مالوش أي صلاحية على `admin_users` |
-| `zell_order_definer` | `0021a_a1_order_cycle` | مالك دوال دورة الطلب `zell_order_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS). على `orders`: SELECT + UPDATE لأعمدة الدورة بس |
+| `zell_order_definer` | `0021a_a1_order_cycle` | مالك دوال دورة الطلب `zell_order_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS). على `orders`: SELECT + UPDATE لأعمدة الدورة بس. ومالك `zell_checkout_delivery_periods` (0021-D)، وبعد P1/P2: `zell_payment_*` (ماعدا الـ triggers) و`zell_checkout_confirmation_fee` (§٧-ب) |
 
 ---
 
@@ -105,8 +105,8 @@
 | `zell_get_order_receipt(…)` | `0006b` | الإيصال بالتوكن. اتعدّلت في 0016 · 0018 · 0019 |
 | `zell_preview_coupon(…)` | `0019` | معاينة الكوبون قبل الطلب (`/api/coupons/preview`) |
 | `zell_checkout_delivery_periods()` | `0021d` | أوقات فترات التسليم للـ Checkout من `order_delivery_periods` (مالكها `zell_order_definer`، `service_role` بس) |
-| `zell_payment_*` (10 عامة) | `0021a_p1` | الدفعات بهوية الجلسة (`authenticated` بس): `record` · `refund` (المالك) · `deliver_order` (تحصيل أو آجل صريح) · `order_summary` · `list_methods` · `add_method` / `update_method` / `delete_method` (المالك) · `get_settings` · `save_settings` (المالك). داخليًا: `zell_payment_fee_calc` (= core) و`zell_payment_order_fee` (لـ `zell_create_order`) |
-| `zell_checkout_confirmation_fee()` | `0021a_p2` | إعداد رسوم التأكيد والسياسة للـ Checkout (مالكها `zell_order_definer`، `service_role` بس) |
+| `zell_payment_*` (24: 10 عامة · 11 داخلية · 3 triggers) | `0021a_p1` | الدفعات ورسوم التأكيد بهوية الجلسة. الجرد الكامل في §٧-ب تحت |
+| `zell_checkout_confirmation_fee()` | `0021a_p2` | إعداد رسوم التأكيد والسياسة للـ Checkout (مالكها `zell_order_definer`، `service_role` بس) — §٧-ب |
 | `zell_orders_cancelled_final()` | `0019` | دالة الـ trigger `orders_cancelled_final` (BEFORE UPDATE OF status): الإلغاء نهائي، والطلب الملغي مايرجعش (45080)، علشان استخدام الكوبون مايتعدّاش |
 
 ## ٤) دوال اللوحة (الكتابة الذرّية)
@@ -202,11 +202,40 @@
 | المجموعة | الدوال |
 | --- | --- |
 | عامة (EXECUTE لـ `authenticated` بس) | `zell_order_transition` · `zell_order_record_call` · `zell_order_set_follow_up` · `zell_order_set_confirmed_delivery` · `zell_order_edit_details` · `zell_order_set_internal_note` · `zell_order_events` · `zell_order_delivery_periods` · `zell_order_save_delivery_periods` (المالك) · `zell_order_gate_state` · `zell_order_set_gate` (المالك + موافقة) |
-| مساعدة داخلية | `zell_order_claims_actor` · `zell_order_actor` · `zell_order_lock` (قفل + فحص `updated_at`) · `zell_order_text` · `zell_order_apply_transition` · `zell_order_result` · `zell_order_gate_is_open` (EXECUTE لـ `postgres` و`service_role` علشان الـ trigger) |
+| مساعدة داخلية | `zell_order_claims_actor` · `zell_order_actor` · `zell_order_lock` (قفل + فحص `updated_at`) · `zell_order_text` · `zell_order_apply_transition` (اتعادت كتابتها في 0021-A P1 — §٧-ب) · `zell_order_result` · `zell_order_gate_is_open` (EXECUTE لـ `postgres` و`service_role` علشان الـ trigger) |
 | مالكها `postgres` | `zell_order_admin_role` (دور الممثل من `admin_users`) · `zell_order_trg_status_guard` · `zell_order_trg_append_only` · `zell_order_trg_events_immutable` · `zell_order_trg_gate_guard` |
 | trigger | `zell_order_trg_created_event` |
 
 - **Triggers:** على `orders`: `orders_status_guard` (البوابة مقفولة: الحالتين الجداد 45406 · مفتوحة: أي تغيير مباشر للحالة 45407) · `orders_created_event`. على السجلات والبوابة: `order_events_immutable` · `order_events_no_truncate` · `zell_order_config_log_immutable` · `zell_order_config_log_no_truncate` · `zell_order_gate_guard` · `zell_order_gate_no_truncate`.
+
+## ٧-ب) دوال الدفعات ورسوم التأكيد (0021-A P1 و P2)
+
+> ⚠ **مش متطبّقين على Production لحد دلوقتي** (المرجع `08-HANDOFF-NOW.md`). الملفات على main، والكود المنشور بيتعامل مع غيابهم.
+
+التفاصيل: `docs/contracts/0021-A.md` §١٧ و§١٨. الهوية من الجلسة (`zell_order_actor` من A1) من غير `p_actor`. الأكواد 45416..45429.
+verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دالة جديدة للمتجر اسمها `zell_checkout_*`.
+
+| المجموعة | الدوال | المالك · EXECUTE |
+| --- | --- | --- |
+| عامة (10) | `zell_payment_record` (الأدمن والمالك) · `zell_payment_refund` (المالك) · `zell_payment_deliver_order` (تسليم مع التحصيل في نفس المعاملة، أو آجل صريح لو متفعّل) · `zell_payment_order_summary` · `zell_payment_list_methods` · `zell_payment_add_method` / `zell_payment_update_method` / `zell_payment_delete_method` (المالك) · `zell_payment_get_settings` · `zell_payment_save_settings` (المالك) | `zell_order_definer` · `authenticated` بس (`service_role` و`anon` صفر) |
+| داخلية (11) | `zell_payment_text` (التطبيع: trim والنص الفاضي NULL والطول) · `zell_payment_cfg_int` · `zell_payment_fee_calc` (= `packages/core/src/confirmationFee.ts` بالحرف) · `zell_payment_validate_fee` · `zell_payment_order_fee` (لـ `zell_create_order`) · `zell_payment_lock` (`FOR UPDATE` على الطلب) · `zell_payment_summary` · `zell_payment_apply` (الكتابة + `paid_piastres` + الحدث) · `zell_payment_entry` (idempotency: البصمة بعد التطبيع، وبعدين فحص النسخة) · `zell_payment_settings_json` · `zell_payment_methods_json` | `zell_order_definer` · مفيش EXECUTE لحد، ماعدا `fee_calc` و`validate_fee` و`cfg_int` و`order_fee` لـ `postgres`، و`order_fee` لمالك `zell_create_order` (`zell_order_writer`) |
+| triggers (3) | `zell_payment_trg_append_only` · `zell_payment_trg_settings_guard` · `zell_payment_trg_orders_money` | `postgres` (invoker) |
+
+- **Triggers:** على `orders`: `orders_money_guard` (أي كتابة مباشرة على `paid_piastres` أو `confirmation_fee_piastres` = 45418). على `order_payments`: `order_payments_immutable` · `order_payments_no_truncate` (45427). على `zell_payment_config_log`: `zell_payment_config_log_immutable` · `zell_payment_config_log_no_truncate`. على `zell_payment_settings`: `zell_payment_settings_guard` (صف واحد، مفيش insert/delete) · `zell_payment_settings_no_truncate`.
+- **دوال A1 اللي P1 بيعيد كتابتها:** `zell_order_apply_transition(orders, text, uuid, text)` — CREATE OR REPLACE بنفس التوقيع (فالمالك `zell_order_definer` والصلاحيات زي ما هم، والعدد 24 `zell_order_*` زي ما هو). الفرق قاعدتين بس: `confirmed` و`preparing` مرفوضين لو المدفوع أقل من الرسوم (45419)، و`delivered` مرفوض لو فيه باقي (45420) إلا من `zell_payment_deliver_order` بالآجل الصريح. البصمة قبل `aa7cc01c2320cb97d76845d63413886c` وبعد `4d7c514ebe1d12281a81b63991df2324`.
+- **`zell_create_order`:** CREATE OR REPLACE بنفس التوقيع (14) من تعريف D (`c131cb51cd86830e9445b139296b0281`)، والفرق عمود `confirmation_fee_piastres` بس (`811d4d573d750db9c7e5164799536aa6`).
+- **الكتالوج (0021-P):** `zell.orders.payments_record` (في قالب `zell.admin_today`، وبتتمنح لكل أدمن شغال بسطر سجل مصدره migration) و`zell.orders.payments_admin` (owner): 29/22 ← 31/23.
+- **P2:** `zell_checkout_confirmation_fee()` — قراية بس، `security definer`، مالكها `zell_order_definer`، EXECUTE لـ `service_role` بس. بترجّع `{confirmation_fee, fee_policy}` من نفس صف `zell_payment_settings` اللي `zell_create_order` بتاخد منه اللقطة.
+
+| الملف | بيعمل إيه |
+| --- | --- |
+| `migrations/0021a_p1_payments.sql` | P1 كله (الجسم بين `-- >>> 0021A_P1 BODY` و`-- <<<`) |
+| `migrations/0021a_p1_payments_ptest.sql` | اختبار قبل التطبيق: الجسم منسوخ بالحرف (CI بيقارن md5) + `zell_create_order` الحالية، والنتيجة صفوف |
+| `migrations/0021a_p1_payments_verify.sql` · `_rollback.sql` | التحقق بعد التطبيق · الرجوع (بيرجّع الدالتين بالحرف، وبيرفض لو فيه فلوس اتسجّلت) |
+| `migrations/0021a_p2_checkout_fee.sql` + `_ptest` · `_verify` · `_rollback` | P2 (الرجوع بيشيل الدالة بس، وقبل أي رجوع لـ P1) |
+| `ci/0021p1_sql_ci.sh` | CI على Postgres 17 مؤقت: S0–S9 لـ P1 و S95–S99 لـ P2 |
+| `ci/0021p1_flows.sql` | سيناريوهات الدفع بعد التطبيق (F01–F35، CI بس) |
+| `ci/0021p1_fee_parity.mjs` | حالات رسوم التأكيد من `@zell/core` للمقارنة بالداتابيز (S40) |
 
 ## ٨) ملفات من غير جداول أو دوال جديدة
 
