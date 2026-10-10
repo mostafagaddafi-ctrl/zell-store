@@ -215,6 +215,12 @@ jobs:
       - name: SQL suite (create_order parity, fee DB = core, payment flows, rollback)
         run: bash backend/db/ci/0021p1_sql_ci.sh
 
+      # مراجعة #122 B1: نفس الحزمة ومالك zell_create_order = postgres (شكل Production حسب 08-HANDOFF-NOW).
+      - name: SQL suite — zell_create_order owned by postgres (Production shape)
+        env:
+          ZELL_P1_CO_OWNER: postgres
+        run: bash backend/db/ci/0021p1_sql_ci.sh
+
   sql-0021a-changes:
     name: "sql 0021-A A1: detect changes"
     runs-on: ubuntu-latest
