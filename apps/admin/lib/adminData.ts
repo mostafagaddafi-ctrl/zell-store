@@ -72,6 +72,8 @@ export type AdminOrderDetail = AdminOrder & {
   hasCoupon: boolean
   /** 0021-A — معاد التسليم المؤكد أو null. */
   deliveryConfirmed: { date: string; period: DeliveryPeriod | null; note: string | null } | null
+  /** 0021-D — موعد العميل المفضّل من Checkout (لقطة منفصلة) أو null. */
+  preferredDelivery: { date: string; period: DeliveryPeriod | null; note: string | null } | null
 }
 
 export type OrdersQuery = {
