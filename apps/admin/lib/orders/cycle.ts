@@ -348,6 +348,18 @@ export const DELIVERY_TEXT = {
   locked: 'لا يمكن تعديل موعد التسليم بعد التسليم أو رفض الاستلام أو الإلغاء.',
 } as const
 
+/** 0021-D — موعد العميل المفضّل من Checkout: لقطة منفصلة عن الموعد المتفق عليه. */
+export const PREFERRED_TEXT = { pending: 'موعد مفضل — بانتظار التأكيد', fromCustomer: 'موعد مفضل من العميل' } as const
+export type PreferredShown = { date: string; period: DeliveryPeriod | null; note: string | null }
+
+export function preferredTitle(hasAgreed: boolean): string {
+  return hasAgreed ? PREFERRED_TEXT.fromCustomer : PREFERRED_TEXT.pending
+}
+
+export function preferredLine(value: PreferredShown): string {
+  return value.date + ' · ' + (value.period !== null ? DELIVERY_PERIOD_LABELS[value.period] : DELIVERY_TEXT.noPeriod)
+}
+
 export function isDeliveryPeriod(value: unknown): value is DeliveryPeriod {
   return typeof value === 'string' && (DELIVERY_PERIODS as readonly string[]).includes(value)
 }
