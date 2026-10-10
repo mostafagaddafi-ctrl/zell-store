@@ -33,7 +33,11 @@
 | الجدول | اتعرّف في | بيعمل إيه | اتغيّر في |
 | --- | --- | --- | --- |
 | `products` | `schema.sql` | المنتجات: سعر المتر والعرض والطول، والقطعة | 0013 `lock_width` · 0014 `compare_at_piastres` · 0016 `sale_unit` `is_listed` `max_quantity` · 0020 trigger بيحمي `sale_unit` |
-| `orders` | `schema.sql` | راس الطلب: الزبون والعنوان والإجماليات والحالة | 0005b/0006a idempotency والجلسة والإيصال · 0018 المنطقة والتركيب · 0019 الكوبون والخصم + trigger `orders_cancelled_final` · 0021-A A1: `preparing` و`refused` في قيد الحالة (القديم في تعليق القيد) + `next_follow_up_at` و`delivery_confirmed_date/period/note` + triggers `orders_status_guard` و`orders_created_event` · 0021-D: `preferred_delivery_date/period/note` (لقطة موعد العميل المفضّل) |
+| `orders` | `schema.sql` | راس الطلب: الزبون والعنوان والإجماليات والحالة | 0005b/0006a idempotency والجلسة والإيصال · 0018 المنطقة والتركيب · 0019 الكوبون والخصم + trigger `orders_cancelled_final` · 0021-A A1: `preparing` و`refused` في قيد الحالة (القديم في تعليق القيد) + `next_follow_up_at` و`delivery_confirmed_date/period/note` + triggers `orders_status_guard` و`orders_created_event` · 0021-D: `preferred_delivery_date/period/note` (لقطة موعد العميل المفضّل) · 0021-A P1: `paid_piastres` (الدفعات − الردود، بتكتبه دوال الدفعات بس) و`confirmation_fee_piastres` (لقطة) + trigger `orders_money_guard` |
+| `order_payments` | `0021a_p1` | الدفعات والردود (append-only، `command_id` فريد، لقطة اسم الطريقة، FK restrict على الطلب) | RLS لـ `zell_order_definer` بس |
+| `zell_payment_methods` | `0021a_p1` | طرق الدفع (كاش · فودافون كاش · إنستاباي · تحويل بنكي، قابلة للإدارة) | الحذف بس لو مااتستخدمتش |
+| `zell_payment_settings` | `0021a_p1` | صف واحد: إعداد رسوم التأكيد (مقفول) · الآجل (مقفول) · أرقام الدفع · السياسة · قالب واتساب | الحفظ للمالك بدالة |
+| `zell_payment_config_log` | `0021a_p1` | سجل تغييرات الإعدادات وطرق الدفع (append-only) | |
 | `order_items` | `schema.sql` | سطور الطلب | 0016 `sale_unit` `quantity` |
 | `settings` | `schema.sql` | إعدادات ومحتوى بمفتاح (hero · sections · faqs · shipping_rates …) | 0007 شال أسرار تليجرام · 0008 مفتاح `announcement` · 0019 مفتاح `coupons_enabled` |
 | `product_images` | `0003` | صور معرض المنتج (`bucket` + `object_path`)، والترتيب والرئيسية | |
@@ -97,10 +101,11 @@
 | --- | --- | --- |
 | `generate_order_number()` | `0005a` (مسودة) | رقم الطلب في المسودة القديمة |
 | `create_order(…)` | `0005c` (مسودة) | إنشاء الطلب في المسودة القديمة (اتستبدلت بـ `zell_create_order`) |
-| `zell_create_order(…)` | `0006b` | إنشاء الطلب ذرّيًا: التسعير، والـ idempotency، والإيصال. **اتعادت كتابتها في** 0006c (`receipt_expires_at`) · 0015 (العروض) · 0016 (القطعة) · 0018 (التركيب والمنطقة، ١٢ معامل) · 0019 (الكوبون) · 0021-D (الموعد المفضّل، ١٤ معامل: `p_preferred_delivery`). بيناديها المتجر (`/api/orders`) |
+| `zell_create_order(…)` | `0006b` | إنشاء الطلب ذرّيًا: التسعير، والـ idempotency، والإيصال. **اتعادت كتابتها في** 0006c (`receipt_expires_at`) · 0015 (العروض) · 0016 (القطعة) · 0018 (التركيب والمنطقة، ١٢ معامل) · 0019 (الكوبون) · 0021-D (الموعد المفضّل، ١٤ معامل: `p_preferred_delivery`) · 0021-A P1 (لقطة `confirmation_fee_piastres`، نفس التوقيع). بيناديها المتجر (`/api/orders`) |
 | `zell_get_order_receipt(…)` | `0006b` | الإيصال بالتوكن. اتعدّلت في 0016 · 0018 · 0019 |
 | `zell_preview_coupon(…)` | `0019` | معاينة الكوبون قبل الطلب (`/api/coupons/preview`) |
 | `zell_checkout_delivery_periods()` | `0021d` | أوقات فترات التسليم للـ Checkout من `order_delivery_periods` (مالكها `zell_order_definer`، `service_role` بس) |
+| `zell_payment_*` (10 عامة) | `0021a_p1` | الدفعات بهوية الجلسة (`authenticated` بس): `record` · `refund` (المالك) · `deliver_order` (تحصيل أو آجل صريح) · `order_summary` · `list_methods` · `add_method` / `update_method` / `delete_method` (المالك) · `get_settings` · `save_settings` (المالك). داخليًا: `zell_payment_fee_calc` (= core) و`zell_payment_order_fee` (لـ `zell_create_order`) |
 | `zell_orders_cancelled_final()` | `0019` | دالة الـ trigger `orders_cancelled_final` (BEFORE UPDATE OF status): الإلغاء نهائي، والطلب الملغي مايرجعش (45080)، علشان استخدام الكوبون مايتعدّاش |
 
 ## ٤) دوال اللوحة (الكتابة الذرّية)
