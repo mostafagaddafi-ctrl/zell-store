@@ -889,7 +889,7 @@ grant execute on function
   public.zell_payment_save_settings(timestamptz, jsonb, boolean, text, text, text)
   to authenticated;
 grant execute on function public.zell_payment_fee_calc(jsonb, integer, integer, boolean, boolean),
-  public.zell_payment_validate_fee(jsonb),
+  public.zell_payment_validate_fee(jsonb), public.zell_payment_cfg_int(jsonb, text, bigint),
   public.zell_payment_order_fee(integer, integer, boolean, boolean) to postgres;
 do $p1exec$
 declare
