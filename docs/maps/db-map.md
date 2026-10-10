@@ -251,3 +251,4 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | `0013` · `0014` · `0017` | أعمدة: `lock_width` · `compare_at_piastres` · `catalog_layout` |
 
 - ملفات `*_ptest.sql` و`*_verify.sql` و`*_rollback.sql` مابتعملش كائنات دايمة. الـ ptest والـ verify بيرجعوا، والـ rollback بيشيل.
+- `backend/db/ops/clean_prelaunch*.sql` (تنضيف التجارب قبل الإطلاق — `docs/contracts/CLEAN-prelaunch.md`): تشغيل مرة واحدة، مش migration، ومابيعملش كائنات. بيمسح `orders` و`order_items` و`order_events` بس.
