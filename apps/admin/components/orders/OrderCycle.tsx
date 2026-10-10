@@ -28,6 +28,9 @@ import {
   formatCairoDateTime,
   isoToCairoInput,
   periodLine,
+  preferredLine,
+  preferredTitle,
+  type PreferredShown,
   type CallOutcome,
   type DeliveryPeriod,
   type DetailsCurrent,
@@ -257,12 +260,15 @@ export function OrderDeliveryCard({
   status,
   delivery,
   periods,
+  preferred = null,
   expectedUpdatedAt,
 }: {
   orderId: number
   status: OrderStatus
   delivery: DeliveryShown
   periods: PeriodsView | null
+  /** 0021-D — موعد العميل المفضّل من Checkout. */
+  preferred?: PreferredShown | null
   expectedUpdatedAt: string
 }) {
   const router = useRouter()
@@ -301,6 +307,13 @@ export function OrderDeliveryCard({
   return (
     <Card title={DELIVERY_TEXT.title}>
       <div className="space-y-2.5">
+        {preferred !== null ? (
+          <div className="rounded border border-gold bg-gold/10 p-2 text-xs text-fg">
+            <p className="font-semibold">{preferredTitle(delivery !== null)}</p>
+            <p className="mt-0.5">{preferredLine(preferred)}</p>
+            {preferred.note !== null ? <p className="mt-0.5 text-muted">{preferred.note}</p> : null}
+          </div>
+        ) : null}
         <p className="text-sm text-fg">
           {delivery === null
             ? DELIVERY_TEXT.none
