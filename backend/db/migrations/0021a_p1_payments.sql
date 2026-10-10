@@ -330,7 +330,7 @@ begin
                                    + 999999) / 1000000) * 100
              else 0
            end;
-  return pg_catalog.least(pg_catalog.greatest(coalesce(v_fee, 0), 0), p_total::bigint)::integer;
+  return least(greatest(coalesce(v_fee, 0), 0), p_total::bigint)::integer;
 end
 $fn$;
 
@@ -439,7 +439,7 @@ returns jsonb language sql stable set search_path = '' as $fn$
            'paid_piastres', o.paid_piastres,
            'remaining_piastres', o.total_piastres - o.paid_piastres,
            'confirmation_fee_piastres', o.confirmation_fee_piastres,
-           'fee_due_piastres', pg_catalog.greatest(o.confirmation_fee_piastres - o.paid_piastres, 0),
+           'fee_due_piastres', greatest(o.confirmation_fee_piastres - o.paid_piastres, 0),
            'payment_status', case when o.paid_piastres >= o.total_piastres then 'paid'
                                   when o.paid_piastres = 0 then 'unpaid' else 'partial' end,
            'has_refund', exists (select 1 from public.order_payments p where p.order_id = o.id and p.kind = 'refund'),
