@@ -106,6 +106,7 @@
 | `zell_preview_coupon(…)` | `0019` | معاينة الكوبون قبل الطلب (`/api/coupons/preview`) |
 | `zell_checkout_delivery_periods()` | `0021d` | أوقات فترات التسليم للـ Checkout من `order_delivery_periods` (مالكها `zell_order_definer`، `service_role` بس) |
 | `zell_payment_*` (10 عامة) | `0021a_p1` | الدفعات بهوية الجلسة (`authenticated` بس): `record` · `refund` (المالك) · `deliver_order` (تحصيل أو آجل صريح) · `order_summary` · `list_methods` · `add_method` / `update_method` / `delete_method` (المالك) · `get_settings` · `save_settings` (المالك). داخليًا: `zell_payment_fee_calc` (= core) و`zell_payment_order_fee` (لـ `zell_create_order`) |
+| `zell_checkout_confirmation_fee()` | `0021a_p2` | إعداد رسوم التأكيد والسياسة للـ Checkout (مالكها `zell_order_definer`، `service_role` بس) |
 | `zell_orders_cancelled_final()` | `0019` | دالة الـ trigger `orders_cancelled_final` (BEFORE UPDATE OF status): الإلغاء نهائي، والطلب الملغي مايرجعش (45080)، علشان استخدام الكوبون مايتعدّاش |
 
 ## ٤) دوال اللوحة (الكتابة الذرّية)
