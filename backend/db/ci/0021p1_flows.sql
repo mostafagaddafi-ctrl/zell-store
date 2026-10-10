@@ -117,7 +117,7 @@ create function pg_temp.deliver(p_cmd integer, p_order integer, p_amount integer
 returns jsonb language sql as $f$
   select pg_temp.as_user(pg_temp.admin_c(),
     format('select public.zell_payment_deliver_order(p_command_id => %s, p_order_id => %s, p_expected_updated_at => %s, '
-           || 'p_amount_piastres => %s, p_method_id => %s, p_on_credit => %s)',
+           || 'p_amount_piastres => %s, p_method_id => %s, p_on_credit => %L::boolean)',
            pg_temp.cmd(p_cmd), p_order, pg_temp.ver(p_order), coalesce(p_amount::text, 'null'),
            coalesce(pg_temp.mid(p_method)::text, 'null'), p_credit));
 $f$;
