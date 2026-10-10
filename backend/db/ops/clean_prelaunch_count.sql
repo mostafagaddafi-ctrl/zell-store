@@ -18,7 +18,7 @@ begin
                  join pg_catalog.pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum) || '|'
            || (select pg_catalog.string_agg(a.attname, ',' order by k.ord) from pg_catalog.unnest(c.confkey) with ordinality as k(attnum, ord)
                  join pg_catalog.pg_attribute a on a.attrelid = c.confrelid and a.attnum = k.attnum) || '|'
-           || c.confdeltype || '|' || c.confupdtype || '|' || c.condeferrable::text || '|' || c.convalidated::text,
+           || c.confdeltype::text || '|' || c.confupdtype::text || '|' || c.condeferrable::text || '|' || c.convalidated::text,
            ';' order by c.conname collate "C"), '')
     into v
     from pg_catalog.pg_constraint c
