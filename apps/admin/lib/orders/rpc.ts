@@ -18,6 +18,17 @@ export const ORDER_FUNCTIONS = {
   events: 'zell_order_events',
   deliveryPeriods: 'zell_order_delivery_periods',
   gateState: 'zell_order_gate_state',
+  // 0021-A P2 — الدفعات ورسوم التأكيد (zell_payment_*، P1): نفس النداء بجلسة المستخدم.
+  paymentSummary: 'zell_payment_order_summary',
+  recordPayment: 'zell_payment_record',
+  refundPayment: 'zell_payment_refund',
+  deliverOrder: 'zell_payment_deliver_order',
+  paymentMethods: 'zell_payment_list_methods',
+  addPaymentMethod: 'zell_payment_add_method',
+  updatePaymentMethod: 'zell_payment_update_method',
+  deletePaymentMethod: 'zell_payment_delete_method',
+  paymentSettings: 'zell_payment_get_settings',
+  savePaymentSettings: 'zell_payment_save_settings',
 } as const
 
 export type OrderFunction = keyof typeof ORDER_FUNCTIONS
