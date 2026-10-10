@@ -465,6 +465,32 @@ apply_p1; E=$?; V=$(verify_p1)
 ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$V" 7)" = "PASS" ]; then ok=yes; fi
 record "S72 re-apply after rollback -> verify PASS" "$ok" "E=$E V=$V fails=$(fails_of "$TMP/verify.out")"
 
+# ── S95–S99: P2 (0021a_p2_checkout_fee.sql) فوق P1 — ptest · تطبيق · verify · النداء · rollback ──
+P2APPLY="$MIG/0021a_p2_checkout_fee.sql"
+P2PTEST="$MIG/0021a_p2_checkout_fee_ptest.sql"
+P2VERIFY="$MIG/0021a_p2_checkout_fee_verify.sql"
+P2ROLLBACK="$MIG/0021a_p2_checkout_fee_rollback.sql"
+if python3 "$SHAPE" "$P2PTEST" "$P2VERIFY" > "$TMP/p2shape.out" 2>&1; then ok=yes; else ok=no; fi
+M1=$(body_md5 "$P2APPLY" '0021A_P2 BODY'); M2=$(body_md5 "$P2PTEST" '0021A_P2 BODY')
+if [ "$M1" != "$M2" ] || [ "$M1" = "$EMPTY_MD5" ]; then ok=no; fi
+record "S95 P2 shape: ptest + verify, body copied verbatim (md5)" "$ok" "apply=$M1 ptest=$M2 $(tail -n 3 "$TMP/p2shape.out" | tr '\n' ' ')"
+run_file "$P2PTEST" "$TMP/p2ptest.out"; E=$?; S=$(summary_of "$TMP/p2ptest.out")
+ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$S" 9)" = "PASS" ] && [ "$(q "select count(*) from pg_proc where proname = 'zell_checkout_confirmation_fee'")" = "0" ]; then ok=yes; fi
+record "S96 P2 ptest (after P1) -> PASS, nothing left" "$ok" "E=$E S=$S fails=$(fails_of "$TMP/p2ptest.out")"
+run_file "$P2APPLY" "$TMP/p2apply.out"; E=$?
+run_file "$P2VERIFY" "$TMP/p2verify.out"; V=$(summary_of "$TMP/p2verify.out")
+SR=$(q "set role service_role; select public.zell_checkout_confirmation_fee() -> 'confirmation_fee' ->> 'enabled'")
+AN=$(psql -X -q -tA -v VERBOSITY=verbose -U postgres -d "$DB" -c "set role anon; select public.zell_checkout_confirmation_fee()" 2>&1 | grep -o 'ERROR:  [0-9A-Z]\{5\}' | head -n 1 | awk '{print $2}')
+ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$V" 7)" = "PASS" ] && [ "$SR" = "false" ] && [ "$AN" = "42501" ]; then ok=yes; fi
+record "S97 P2 apply -> verify PASS, service_role reads the config, anon 42501" "$ok" "E=$E V=$V SR=$SR AN=$AN $(grep -m3 -E 'ERROR|ZELL' "$TMP/p2apply.out" | tr '\n' ' ' | cut -c1-400)"
+run_file "$P2APPLY" "$TMP/p2apply.out"; E=$?
+V1=$(verify_p1)
+ok=no; if [ "$E" -ne 0 ] && has "$TMP/p2apply.out" 'ZELL_0021A_P2_ALREADY_APPLIED' && [ "$(rf "$V1" 7)" = "PASS" ]; then ok=yes; fi
+record "S98 P2 re-apply refused; P1 verify still PASS with P2" "$ok" "E=$E V1=$V1"
+run_file "$P2ROLLBACK" "$TMP/p2rb.out"; E=$?
+ok=no; if [ "$E" -eq 0 ] && [ "$(q "select count(*) from pg_proc where proname = 'zell_checkout_confirmation_fee'")" = "0" ] && [ "$(rf "$(verify_p1)" 7)" = "PASS" ]; then ok=yes; fi
+record "S99 P2 rollback -> function gone, P1 verify PASS" "$ok" "E=$E $(tail -n 3 "$TMP/p2rb.out" | tr '\n' ' ')"
+
 # ── S8: rollback 0021-P بعد P1 (سطور المنح مصدرها migration، فمش «استخدام حقيقي»)، وبعده P1 rollback ──
 sed "s/^-- select pg_catalog.set_config('zell.rollback_attest'/select pg_catalog.set_config('zell.rollback_attest'/" "$PROLLBACK" > "$TMP/prb.sql"
 run_file "$TMP/prb.sql" "$TMP/prb.out"; E=$?
