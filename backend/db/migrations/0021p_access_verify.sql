@@ -214,9 +214,12 @@ begin
              (select count(*) from public.erp_preset_items i where i.preset_key = 'zell.admin_today'),
              (select count(*) from public.erp_preset_items i where i.preset_key = 'zell.warehouse'))
       into v_list;
-    v_ok := v_list = 'capabilities=29 grantable=22 admin_today=22 warehouse=0';
+    -- بعد 0021-أ P1 (0021a_p1_payments.sql): الكتالوج 31 (23 تتمنح) والقالب 23.
+    v_ok := v_list = case when exists (select 1 from public.erp_capabilities c where c.key = 'zell.orders.payments_record')
+                          then 'capabilities=31 grantable=23 admin_today=23 warehouse=0'
+                          else 'capabilities=29 grantable=22 admin_today=22 warehouse=0' end;
     v_rows := v_rows || pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object('id', 'V11',
-      'name', 'V11 catalog 29 (22 grantable), preset admin_today 22, warehouse empty', 'ok', v_ok, 'detail', v_list));
+      'name', 'V11 catalog 29 (22 grantable) or 31 (23) after 0021-A P1, preset admin_today = grantable, warehouse empty', 'ok', v_ok, 'detail', v_list));
   exception when others then
     v_rows := v_rows || pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object('id', 'ABORT_V11',
       'name', 'ABORT_V11 raised an unexpected error', 'ok', false, 'detail', sqlstate || ' ' || sqlerrm));
@@ -255,9 +258,11 @@ begin
 
   -- V13: جلسة المالك: تجاوز المالك و ٢٩ صلاحية
   begin
-    v_ok := coalesce((v_r ->> 'owner')::boolean, false) and coalesce(pg_catalog.jsonb_array_length(v_r -> 'capabilities'), 0) = 29;
+    v_ok := coalesce((v_r ->> 'owner')::boolean, false)
+            and coalesce(pg_catalog.jsonb_array_length(v_r -> 'capabilities'), 0) = (select count(*) from public.erp_capabilities)
+            and (select count(*) from public.erp_capabilities) in (29, 31);
     v_rows := v_rows || pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object('id', 'V13',
-      'name', 'V13 owner session: owner bypass, all 29 capabilities', 'ok', v_ok,
+      'name', 'V13 owner session: owner bypass, all capabilities (29, or 31 after 0021-A P1)', 'ok', v_ok,
       'detail', case when v_ok then null else coalesce(v_r::text, 'null') end));
   exception when others then
     v_rows := v_rows || pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object('id', 'ABORT_V13b',
