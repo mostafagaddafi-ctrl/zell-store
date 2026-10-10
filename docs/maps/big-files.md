@@ -12,6 +12,8 @@
 | `README.md` | 24 KB | 323 | حالة النظام الحي: الميزات · اللوحة · الهيكل · الأمان · التوثيق |
 | `backend/db/ci/0021a_sql_ci.sh` | 39 KB | 537 | اختبارات SQL لـ 0021-A A1 في CI (S0–S13: ptest · تطبيق · البوابة قبل/بعد · rollback · اتصالين) |
 | `backend/db/ci/0021d_sql_ci.sh` | 28 KB | 391 | اختبارات SQL لـ 0021-D في CI (ptest · تطبيق · مقارنة قديم/جديد 480 حالة · الإيصال · rollback · الانحراف) |
+| `backend/db/ci/0021p1_flows.sql` | 24 KB | 362 | 0021-A P1 سيناريوهات الدفع بعد التطبيق في CI (F01–F32، معاملة بترجع) |
+| `backend/db/ci/0021p1_sql_ci.sh` | 35 KB | 487 | اختبارات SQL لـ 0021-A P1 في CI (S0–S9: ptest · تطبيق · verify الأربعة · مقارنة 520 حالة · الرسوم DB = core · السيناريوهات · rollback · الانحراف) |
 | `backend/db/ci/0021p_sql_ci.sh` | 30 KB | 446 | اختبارات SQL لـ 0021-P في CI (S0–S8 و C1–C4) |
 | `backend/db/migrations/0006b_order_functions.sql` | 38 KB | 766 | دور `zell_order_writer` وأول نسخة من `zell_create_order` و`zell_get_order_receipt` |
 | `backend/db/migrations/0006c_order_receipt_expiry.sql` | 23 KB | 505 | `zell_create_order` بترجّع `receipt_expires_at` |
@@ -29,6 +31,9 @@
 | `backend/db/migrations/0020_inventory_purchasing_verify.sql` | 26 KB | 368 | التحقق بعد تطبيق 0020 |
 | `backend/db/migrations/0021a_a1_order_cycle.sql` | 47 KB | 892 | 0021-A A1 دورة الطلب: الحالتين ورا البوابة · الانتقالات · السجل · الفترات · 11 دالة بالجلسة |
 | `backend/db/migrations/0021a_a1_order_cycle_ptest.sql` | 67 KB | 1233 | 0021-A A1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، والنتيجة صفوف) |
+| `backend/db/migrations/0021a_p1_payments.sql` | 92 KB | 1689 | 0021-A P1 الدفعات ورسوم التأكيد: الأعمدة · الجداول الأربعة · الحراس · الكتالوج · دوال zell_payment_* · دالة الانتقال · zell_create_order |
+| `backend/db/migrations/0021a_p1_payments_ptest.sql` | 160 KB | 2922 | 0021-A P1 اختبار قبل التطبيق (الجسم + zell_create_order الحالية بالحرف، والنتيجة صفوف) |
+| `backend/db/migrations/0021a_p1_payments_rollback.sql` | 43 KB | 867 | 0021-A P1 الرجوع (zell_create_order من D ودالة الانتقال من A1 بالحرف) |
 | `backend/db/migrations/0021d_preferred_delivery.sql` | 50 KB | 1012 | 0021-D الموعد المفضّل: الأعمدة · zell_create_order بـ 14 معامل · الإيصال · فترات Checkout |
 | `backend/db/migrations/0021d_preferred_delivery_ptest.sql` | 98 KB | 1938 | 0021-D اختبار قبل التطبيق (الجسم + القديمة بالحرف، والنتيجة صفوف) |
 | `backend/db/migrations/0021d_preferred_delivery_rollback.sql` | 39 KB | 852 | 0021-D الرجوع (الدالتين القديمتين بالحرف من 0019) |

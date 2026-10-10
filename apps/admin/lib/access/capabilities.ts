@@ -1,6 +1,7 @@
 /**
- * 0021-P — قايمة الصلاحيات (٢٩) وفئة كل واحدة، بالحرف زي catalog الداتابيز:
- *   backend/db/migrations/0021p_erp_access.sql (erp.access.*) + 0021p_zell_erp_access.sql (zell.*).
+ * 0021-P — قايمة الصلاحيات (٣١) وفئة كل واحدة، بالحرف زي catalog الداتابيز:
+ *   backend/db/migrations/0021p_erp_access.sql (erp.access.*) + 0021p_zell_erp_access.sql (zell.*)
+ *   + 0021a_p1_payments.sql (صلاحيتين الدفعات — 0021-أ P1، ر٢).
  * CI بيقارن القايمة دي بالـ SQL (scripts/check-capabilities.mjs) وأي اختلاف = فشل.
  *
  * منطق صافي من غير I/O — بيتشغّل في حالات اللوحة (lib/access/access.cases.ts).
@@ -12,6 +13,8 @@ export const ZELL_CAPABILITIES = [
   'zell.orders.view',
   'zell.orders.status_edit',
   'zell.orders.note_edit',
+  'zell.orders.payments_record',
+  'zell.orders.payments_admin',
   'zell.products.view',
   'zell.products.edit',
   'zell.products.images_edit',
@@ -48,6 +51,8 @@ export const CAPABILITY_CATEGORY: Readonly<Record<Capability, CapabilityCategory
   'zell.orders.view': 'sales',
   'zell.orders.status_edit': 'sales',
   'zell.orders.note_edit': 'sales',
+  'zell.orders.payments_record': 'sales',
+  'zell.orders.payments_admin': 'owner',
   'zell.products.view': 'sales',
   'zell.products.edit': 'sales',
   'zell.products.images_edit': 'operational',

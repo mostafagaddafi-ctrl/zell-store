@@ -142,6 +142,79 @@ jobs:
       - name: SQL suite (old/new create_order parity matrix included)
         run: bash backend/db/ci/0021d_sql_ci.sh
 
+  # 0021-A P1 — الدفعات ورسوم التأكيد: بيشتغل لما ملفات P1 أو اللي بيعتمد عليها تتغيّر (غير كده skipped).
+  sql-0021p1-changes:
+    name: "sql 0021-A P1: detect changes"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect 0021-A P1 SQL changes
+        id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$EVENT" = "pull_request" ]; then range="$BASE_SHA...HEAD"; else range="$BEFORE_SHA..HEAD"; fi
+          if ! changed=$(git diff --name-only "$range" 2>/dev/null); then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if printf '%s\n' "$changed" | grep -Eq '^(backend/db/migrations/0021a_|backend/db/migrations/0021d_|backend/db/migrations/0021p_|backend/db/migrations/0019_coupons\.sql$|backend/db/ci/0021p1_|backend/db/ci/0021d_sql_ci\.sh$|backend/db/ci/0021p_txn_shape\.py$|packages/core/src/confirmationFee\.ts$|\.github/workflows/ci\.yml$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Postgres 17 مؤقت. مفيش أي اتصال بـ Supabase. كلمة السر دي لحاوية مؤقتة بتتمسح مع نهاية الـ job.
+  sql-0021p1:
+    name: "sql 0021-A P1: ptest + apply + verify + parity (orders + fee DB = core) + flows + rollback (postgres 17)"
+    needs: sql-0021p1-changes
+    if: needs.sql-0021p1-changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: public.ecr.aws/docker/library/postgres:17
+        env:
+          POSTGRES_USER: supabase_admin
+          POSTGRES_PASSWORD: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U supabase_admin"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGPASSWORD: ci
+      CI_SUPERUSER: supabase_admin
+      ZELL_CI_DISPOSABLE_DB: 'yes'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # node 22 علشان --experimental-strip-types (حساب الرسوم من packages/core بالحرف، من غير build).
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: psql client
+        run: psql --version
+
+      - name: SQL suite (create_order parity, fee DB = core, payment flows, rollback)
+        run: bash backend/db/ci/0021p1_sql_ci.sh
+
   sql-0021a-changes:
     name: "sql 0021-A A1: detect changes"
     runs-on: ubuntu-latest

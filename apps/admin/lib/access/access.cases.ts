@@ -124,9 +124,9 @@ export async function runAccessCases(): Promise<AccessCasesReport> {
 
   // ── A. الصلاحيات ───────────────────────────────────────
   {
-    check('A1 29 capabilities, unique', [ZELL_CAPABILITIES.length, new Set(ZELL_CAPABILITIES).size], [29, 29])
+    check('A1 31 capabilities, unique', [ZELL_CAPABILITIES.length, new Set(ZELL_CAPABILITIES).size], [31, 31])
     const categories = ZELL_CAPABILITIES.map((c) => CAPABILITY_CATEGORY[c])
-    check('A2 22 grantable (operational/sales), 7 owner', [categories.filter((c) => c !== 'owner').length, categories.filter((c) => c === 'owner').length], [22, 7])
+    check('A2 23 grantable (operational/sales), 8 owner', [categories.filter((c) => c !== 'owner').length, categories.filter((c) => c === 'owner').length], [23, 8])
     check('A3 isCapability', [isCapability('zell.orders.view'), isCapability('zell.nope'), isCapability('')], [true, false, false])
     check('A4 legacy admin: owner-class denied, others allowed', [legacyAdminAllows('zell.coupons.view'), legacyAdminAllows('zell.inventory0020.edit'), legacyAdminAllows('zell.unimplemented'), legacyAdminAllows('zell.orders.view'), legacyAdminAllows('zell.content.edit')], [false, false, false, true, true])
     check('A5 unimplemented capability is owner-class', CAPABILITY_CATEGORY[UNIMPLEMENTED_CAPABILITY], 'owner')

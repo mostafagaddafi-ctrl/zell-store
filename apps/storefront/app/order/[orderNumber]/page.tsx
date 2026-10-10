@@ -13,6 +13,8 @@ import { restRpc, type RpcResult } from '../../../lib/data/rpc'
 import type { Receipt } from '../../../lib/orders/contracts'
 import { DISCOUNT_SIGN, discountLine } from '../../../lib/orders/coupon'
 import { receiptCookieName, receiptTokenHash } from '../../../lib/orders/receiptToken'
+import { CHECKOUT_FEE_TEXT } from '../../../lib/orders/confirmationFee'
+import { fetchOrderMoney } from '../../../lib/orders/receiptMoney'
 import { Container } from '../../../components/ui/Container'
 import { buttonClasses } from '../../../components/ui/Button'
 import { Num } from '../../../components/store/Num'
@@ -159,6 +161,8 @@ export default async function OrderReceiptPage({
   const discount = discountLine(receipt.coupon_code, receipt.discount_piastres)
   // 0021-D — الموعد المفضّل (لو موجود وشكله سليم، وإلا مابيظهرش)
   const preferred = parsePreferredDeliverySnapshot(receipt.preferred_delivery)
+  // 0021-A P2 — المطلوب مقدمًا والمدفوع والباقي من الطلب نفسه (بعد ما الإيصال اتحقق بالتوكن). أي فشل = مايظهرش.
+  const money = await fetchOrderMoney(receipt.order_number)
 
   return (
     <Container className="py-10 sm:py-14">
@@ -277,6 +281,27 @@ export default async function OrderReceiptPage({
             <span><Num>{formatPiastres(receipt.total_piastres)}</Num></span>
           </div>
         </div>
+
+        {money !== null && (money.fee > 0 || money.paid > 0) ? (
+          <div className="space-y-2 rounded-lg border border-border bg-card p-4 text-sm">
+            <h2 className="text-sm font-bold text-fg">{CHECKOUT_FEE_TEXT.receiptTitle}</h2>
+            {money.fee > 0 ? (
+              <div className="flex justify-between gap-3 text-muted">
+                <span>{CHECKOUT_FEE_TEXT.receiptFee}</span>
+                <span><Num>{formatPiastres(money.fee)}</Num></span>
+              </div>
+            ) : null}
+            <div className="flex justify-between gap-3 text-muted">
+              <span>{CHECKOUT_FEE_TEXT.receiptPaid}</span>
+              <span><Num>{formatPiastres(money.paid)}</Num></span>
+            </div>
+            <div className="flex justify-between gap-3 border-t border-border pt-2 font-bold text-fg">
+              <span>{CHECKOUT_FEE_TEXT.receiptRemaining}</span>
+              <span><Num>{formatPiastres(money.total - money.paid)}</Num></span>
+            </div>
+            {money.fee > 0 && money.paid < money.fee ? <p className="text-xs text-muted">{CHECKOUT_FEE_TEXT.receiptAwaiting}</p> : null}
+          </div>
+        ) : null}
 
         <p className="text-center text-xs text-muted">
           احفظ الصفحة دي. الرابط شغّال من المتصفح ده لمدة أسبوع.

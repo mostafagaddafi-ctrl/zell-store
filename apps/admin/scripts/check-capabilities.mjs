@@ -3,7 +3,7 @@
  * 0021-P (ب1) — قايمة الصلاحيات في الكود = catalog الداتابيز بالظبط (المفتاح والفئة).
  *
  *   الكود : apps/admin/lib/access/capabilities.ts (ZELL_CAPABILITIES + CAPABILITY_CATEGORY)
- *   الـ SQL: backend/db/migrations/0021p_erp_access.sql + 0021p_zell_erp_access.sql
+ *   الـ SQL: backend/db/migrations/0021p_erp_access.sql + 0021p_zell_erp_access.sql + 0021a_p1_payments.sql (0021-أ P1)
  *            (insert into public.erp_capabilities (key, category, description) values ...)
  *
  * سطر النتيجة:  ZELL_ACCESS_CATALOG ok count=<n>   أو   ZELL_ACCESS_CATALOG mismatch ...  (exit 1)
@@ -30,7 +30,7 @@ function fromTs() {
 
 function fromSql() {
   const out = new Map()
-  for (const file of ['0021p_erp_access.sql', '0021p_zell_erp_access.sql']) {
+  for (const file of ['0021p_erp_access.sql', '0021p_zell_erp_access.sql', '0021a_p1_payments.sql']) {
     const text = readFileSync(join(repoRoot, 'backend/db/migrations', file), 'utf8')
     const marker = 'insert into public.erp_capabilities (key, category, description) values'
     let at = text.indexOf(marker)

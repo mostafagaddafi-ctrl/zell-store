@@ -3,6 +3,7 @@ import { Gift } from 'lucide-react'
 import { formatPiastres } from '@zell/core'
 import { DISCOUNT_SIGN } from '../../lib/orders/coupon'
 import { estimatedTotalPiastres } from '../../lib/orders/couponCheckout'
+import { CHECKOUT_FEE_TEXT, checkoutFeeSplit, type CheckoutFee } from '../../lib/orders/confirmationFee'
 import { Num } from './Num'
 
 /** ملخص الحساب — نفس الصندوق في السلة وفي بيانات التوصيل. */
@@ -16,6 +17,7 @@ export function OrderSummary({
   installationPiastres,
   installationTravelPiastres,
   discount,
+  confirmationFee,
 }: {
   subtotalPiastres: number
   /** null = المحافظة لسه مش متحددة */
@@ -34,6 +36,8 @@ export function OrderSummary({
   installationTravelPiastres?: number | null
   /** 0019 — تقدير الخصم من شروط المعاينة (المعتمد من الداتابيز وقت الطلب). ناقص/null = مفيش سطر. */
   discount?: { code: string; piastres: number } | null
+  /** 0021-A P2 — رسوم التأكيد (Checkout بس): الإعداد + نوع الطلب. المعتمد لقطة الداتابيز وقت الطلب. */
+  confirmationFee?: { fee: CheckoutFee; madeToMeasure: boolean; installation: boolean } | null
 }) {
   const line = trustLine ?? 'الدفع عند الاستلام · توصيل لكل محافظات مصر'
   const installationShown = typeof installationPiastres === 'number' && typeof installationTravelPiastres === 'number'
@@ -45,6 +49,17 @@ export function OrderSummary({
     installationPiastres: installationShown ? (installationPiastres ?? null) : null,
     travelPiastres: installationShown ? (installationTravelPiastres ?? null) : null,
   })
+
+  // 0021-A P2 — «مطلوب X مقدمًا لتأكيد الطلب، والباقي Y عند الاستلام» بعد ما الشحن يتحدد
+  const feeSplit =
+    confirmationFee && shippingPiastres !== null
+      ? checkoutFeeSplit(confirmationFee.fee, {
+          totalPiastres: total,
+          shippingPiastres,
+          madeToMeasure: confirmationFee.madeToMeasure,
+          installation: confirmationFee.installation,
+        })
+      : null
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
@@ -103,6 +118,25 @@ export function OrderSummary({
           </dd>
         </div>
       </dl>
+
+      {feeSplit !== null ? (
+        <div className="mt-3 rounded border border-border bg-bg p-3 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-fg">{CHECKOUT_FEE_TEXT.required}</span>
+            <span className="font-bold text-brand">
+              <Num>{formatPiastres(feeSplit.fee)}</Num>
+            </span>
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-3 text-muted">
+            <span>{CHECKOUT_FEE_TEXT.rest}</span>
+            <span>
+              <Num>{formatPiastres(feeSplit.rest)}</Num>
+            </span>
+          </div>
+          <p className="mt-2 text-xs text-muted">{CHECKOUT_FEE_TEXT.note}</p>
+          {confirmationFee?.fee.policy ? <p className="mt-1 text-xs text-muted">{confirmationFee.fee.policy}</p> : null}
+        </div>
+      ) : null}
 
       {line ? <p className="mt-3 text-xs text-muted">{line}</p> : null}
 

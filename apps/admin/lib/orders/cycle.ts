@@ -614,6 +614,10 @@ const VALIDATION_BY_CODE: Record<string, string> = {
   '45410': 'هذا الإجراء غير متاح على حالة الطلب الحالية. حدّث الصفحة.',
   '45411': PHONE_LOCKED_MESSAGE,
   '45412': 'الفترات غير صالحة.',
+  // 0021-A P1 — قواعد الدفع في دالة الانتقال (نفس نصوص lib/orders/payments.ts)
+  '45419': 'الطلب محتاج رسوم التأكيد قبل التأكيد أو التجهيز. سجّل الدفعة الأول.',
+  '45420': 'فيه باقي على الطلب. استخدم «تسليم الطلب مع التحصيل».',
+  '45421': 'البيع الآجل مقفول من إعدادات الدفع.',
 }
 
 const SENTINEL_CODES: Record<string, string> = {
@@ -630,6 +634,9 @@ const SENTINEL_CODES: Record<string, string> = {
   ZELL_ORD_NOT_ALLOWED_IN_STATUS: '45410',
   ZELL_ORD_PHONE_HAS_COUPON: '45411',
   ZELL_ORD_PERIODS_INVALID: '45412',
+  ZELL_PAY_DEPOSIT_REQUIRED: '45419',
+  ZELL_PAY_BALANCE_DUE: '45420',
+  ZELL_PAY_CREDIT_DISABLED: '45421',
   ZELL_ORDER_CANCELLED_FINAL: '45080',
 }
 
