@@ -21,6 +21,13 @@ import {
   primaryImage,
   resolveCartLine,
   validateCheckout,
+  // 0021-D
+  EMPTY_PREFERRED_DELIVERY,
+  cairoDateIso,
+  preferredDeliveryIssue,
+  preferredPayloadField,
+  type DeliveryPeriodTime,
+  type PreferredDeliveryDraft,
   type CheckoutValues,
   type StoreProduct,
   type StoreSettings,
@@ -38,6 +45,7 @@ import { InstallChoice } from './InstallChoice'
 import { LineSpecs } from './LineSpecs'
 import { Num } from './Num'
 import { OrderSummary } from './OrderSummary'
+import { PreferredDeliveryField } from './PreferredDeliveryField'
 
 /**
  * مفتاح النية — ORDER-FLOW-PLAN.md §4.1.
@@ -140,7 +148,18 @@ const EMPTY: CheckoutValues = {
   notes: '',
 }
 
-export function CheckoutForm({ products, settings }: { products: StoreProduct[]; settings: StoreSettings }) {
+export function CheckoutForm({
+  products,
+  settings,
+  periods = null,
+}: {
+  products: StoreProduct[]
+  settings: StoreSettings
+  /** 0021-D — أوقات الفترات من الداتابيز (null = الأسماء بس). */
+  periods?: DeliveryPeriodTime[] | null
+}) {
+  // 0021-D — موعد التسليم المفضّل (اختياري)
+  const [preferred, setPreferred] = useState<PreferredDeliveryDraft>(EMPTY_PREFERRED_DELIVERY)
   const cart = useCart()
   const [values, setValues] = useState<CheckoutValues>(EMPTY)
   // 0018 — فني التركيب بالسعر: أجر لكل متر من أفلام المقاس + انتقال حسب المنطقة،
@@ -352,6 +371,13 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
     setFailure(null)
     if (invalid || submitting || items.length === 0 || submitBlocked) return
 
+    // 0021-D — الموعد المفضّل: تحقق مبدئي بنفس حدود الداتابيز (والداتابيز هي الحكم)
+    const preferredIssue = preferredDeliveryIssue(preferred, cairoDateIso(Date.now()))
+    if (preferredIssue !== null) {
+      setFailure(preferredIssue)
+      return
+    }
+
     coupon.submitStart()
     // 0019 — الكود المطبّق بس (بعد معاينة ناجحة)
     const couponCode = couponsEnabled ? (coupon.state.applied?.code ?? null) : null
@@ -369,6 +395,8 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
       ...(installationReady ? { installation: true as const } : {}),
       // 0019 — الكود بس، من غير أي مبلغ. من غير كوبون الـbody القديم بالحرف
       ...couponPayloadField(couponCode),
+      // 0021-D — بس لو فيه تاريخ، فالطلب من غير موعد نفس الـbody القديم بالحرف
+      ...preferredPayloadField(preferred),
     }
     const body = JSON.stringify(payload)
 
@@ -635,6 +663,8 @@ export function CheckoutForm({ products, settings }: { products: StoreProduct[];
               + ضيف ملاحظة للطلب
             </button>
           )}
+
+          <PreferredDeliveryField value={preferred} onChange={setPreferred} periods={periods} today={cairoDateIso(Date.now())} />
         </div>
       </div>
 
