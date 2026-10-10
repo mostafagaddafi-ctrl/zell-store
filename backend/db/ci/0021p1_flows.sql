@@ -3,6 +3,7 @@
 -- • بعد 0021a_p1_payments.sql على shim الـ CI: مالك ...0a وأدمن ...0b شغالين. البوابة مقفولة في الأول (A1 الافتراضي)،
 --   وبتتفتح بدالة المالك قبل سيناريو التجهيز.
 -- • النتيجة صفوف في SELECT واحد: 1 ord · 2 kind · 3 test_id · 4 test_name · 5 outcome · 6 detail · 7 pass · 8 fail · 9 verdict.
+-- • F5 (مراجعة 7abbbd4): البصمة بعد التطبيع لـ zell_payment_record و zell_payment_deliver_order.
 
 begin;
 set local idle_in_transaction_session_timeout = '60s';
@@ -349,11 +350,50 @@ exception when others then
 end
 $zF4$;
 
+-- ── F5: البصمة بعد التطبيع (مراجعة 7abbbd4، Blocking 1): نفس المعنى بمسافات أو بنص فاضي = replay (البوابة مفتوحة من F4) ──
+do $zF5$
+declare
+  g integer := pg_temp.mk(15000, 0);
+  h integer := pg_temp.mk(12000, 0);
+  r jsonb;
+  r2 jsonb;
+  r3 jsonb;
+begin
+  r := pg_temp.as_user(pg_temp.admin_c(), format('select public.zell_payment_record(%s, %s, %s, 5000, %L, %s, null, %L, %L)',
+         pg_temp.cmd(501), g, pg_temp.ver(g), 'balance', pg_temp.mid('كاش'), 'TX-501', 'دفعة أولى'));
+  r2 := pg_temp.as_user(pg_temp.admin_c(), format('select public.zell_payment_record(%s, %s, %L::timestamptz, 5000, %L, %s, %L, %L, %L)',
+          pg_temp.cmd(501), g, '2000-01-01', 'balance', pg_temp.mid('كاش'), '   ', '  TX-501 ', ' دفعة أولى  '));
+  perform pg_temp.zt('F33 record: same command, same meaning with spaces / blank «other» -> replay, nothing new',
+    not (r ->> 'replay')::boolean and (r2 ->> 'replay')::boolean and r2 ->> 'payment_id' = r ->> 'payment_id'
+    and pg_temp.paid(g) = 5000 and (select count(*) from public.order_payments p where p.order_id = g) = 1, r::text || r2::text);
+  r3 := pg_temp.as_user(pg_temp.admin_c(), format('select public.zell_payment_record(%s, %s, %L::timestamptz, 5000, %L, %s, null, %L, %L)',
+          pg_temp.cmd(501), g, '2000-01-01', 'balance', pg_temp.mid('كاش'), ' TX-502 ', 'دفعة أولى'));
+  perform pg_temp.zt('F34 same command, different meaning after normalization -> 45425, nothing new',
+    r3 ->> '_error' = '45425' and (select count(*) from public.order_payments p where p.order_id = g) = 1, r3::text);
+  perform pg_temp.tr('admin', h, 'confirmed');
+  perform pg_temp.tr('admin', h, 'preparing');
+  perform pg_temp.tr('admin', h, 'shipped');
+  r := pg_temp.as_user(pg_temp.admin_c(),
+         format('select public.zell_payment_deliver_order(p_command_id => %s, p_order_id => %s, p_expected_updated_at => %s, '
+                || 'p_amount_piastres => 12000, p_method_id => %s, p_reference => %L, p_note => %L, p_on_credit => false)',
+                pg_temp.cmd(502), h, pg_temp.ver(h), pg_temp.mid('كاش'), 'D-502', 'تحصيل عند التسليم'));
+  r2 := pg_temp.as_user(pg_temp.admin_c(),
+          format('select public.zell_payment_deliver_order(p_command_id => %s, p_order_id => %s, p_expected_updated_at => %L::timestamptz, '
+                 || 'p_amount_piastres => 12000, p_method_id => %s, p_method_other => %L, p_reference => %L, p_note => %L, p_on_credit => false)',
+                 pg_temp.cmd(502), h, '2000-01-01', pg_temp.mid('كاش'), '', ' D-502  ', '  تحصيل عند التسليم '));
+  perform pg_temp.zt('F35 deliver: same command, same meaning with spaces / blank «other» -> replay, nothing new',
+    r ->> 'status' = 'delivered' and (r2 ->> 'replay')::boolean and r2 ->> 'payment_id' = r ->> 'payment_id'
+    and pg_temp.paid(h) = 12000 and (select count(*) from public.order_payments p where p.order_id = h) = 1, r::text || r2::text);
+exception when others then
+  perform pg_temp.zt_block_fail('F5', sqlstate, sqlerrm);
+end
+$zF5$;
+
 select 0::integer as ord, 'summary'::text as kind, null::text as test_id, null::text as test_name, null::text as outcome, null::text as detail,
        (select count(*) from pg_temp.zt_results where outcome = 'pass') as pass,
        (select count(*) from pg_temp.zt_results where outcome = 'fail') as fail,
        case when (select count(*) from pg_temp.zt_results where outcome = 'fail') = 0
-             and (select count(*) from pg_temp.zt_results where outcome = 'pass') = 32 then 'PASS' else 'FAIL' end as verdict
+             and (select count(*) from pg_temp.zt_results where outcome = 'pass') = 35 then 'PASS' else 'FAIL' end as verdict
 union all
 select r.n, 'test', r.id, r.name, r.outcome, r.detail, null, null, null
   from pg_temp.zt_results r
