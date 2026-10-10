@@ -4,7 +4,7 @@
 
 | | |
 | --- | --- |
-| الحالة | مسودة للمراجعة، على main `9527e47` (بعد #122) |
+| الحالة | معتمد (#123). التنفيذ: سكربتات `backend/db/ops/clean_prelaunch*.sql` وCI (PR التنفيذ، على main `0d6465b` بعد #124) |
 | الأساس | أفكار وصف #111 (المقفول من غير دمج، والفرع `docs/prelaunch-cleanup-contract` مصدر) · `10-DECISIONS.md` («المتجر لسه ما اتطلقش: كل الطلبات تجارب») · قرارات المراجع 2026-10-10 (التنضيف قبل P1 · تبسيط العقد: كل الطلبات بتتمسح) |
 | الترتيب | **قبل تطبيق 0021-A P1**، وبعده P1 ← P2 ← … ← A3 (منع DELETE على `orders` و`order_items`) |
 | المستوى | كامل (مسح بيانات على Production) |
@@ -41,7 +41,7 @@ select c.conname || '|' || cn.nspname || '.' || cl.relname || '|'
              join pg_catalog.pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum) || '|'
        || (select string_agg(a.attname, ',' order by k.ord) from unnest(c.confkey) with ordinality as k(attnum, ord)
              join pg_catalog.pg_attribute a on a.attrelid = c.confrelid and a.attnum = k.attnum) || '|'
-       || c.confdeltype || '|' || c.confupdtype || '|' || c.condeferrable::text || '|' || c.convalidated::text as fk
+       || c.confdeltype::text || '|' || c.confupdtype::text || '|' || c.condeferrable::text || '|' || c.convalidated::text as fk
   from pg_catalog.pg_constraint c
   join pg_catalog.pg_class cl on cl.oid = c.conrelid
   join pg_catalog.pg_namespace cn on cn.oid = cl.relnamespace
@@ -58,14 +58,15 @@ select c.conname || '|' || cn.nspname || '.' || cl.relname || '|'
 
 ## ٤) موافقة المالك على اللي هيتمسح
 - **الحصر (قراية بس)** بيطلّع: عدد `orders` · عدد كل حالة · أرقام الطلبات كلها مرتبة (من غير أي بيانات زباين) · عدد `order_items` · عدد `order_events` · الكوبونات المستخدمة · استعلام الـ FKs (§٣) · وجود جداول P1 · `idle_tx`.
-- **المالك بيوافق على الأرقام دي بالظبط.** الموافقة اسمها `owner-approval-YYYY-MM-DD-prelaunch-clean`، والقيم المعتمدة بتتبعت في نص التشغيل بـ `set local` بعد `begin` (برّه الجسم): `zell.clean_orders` (أرقام الطلبات مرتبة بفاصلة) · `zell.clean_statuses` (زي `cancelled=1,delivered=1,new=3`) · `zell.clean_counts` (orders|items|events).
+- **المالك بيوافق على الأرقام دي بالظبط.** الموافقة اسمها `owner-approval-YYYY-MM-DD-prelaunch-clean`، والقيم المعتمدة بتتبعت في نص التشغيل بـ `set local` بعد `begin` (برّه الجسم): `zell.clean_orders` (أرقام الطلبات مرتبة بفاصلة) · `zell.clean_statuses` (`حالة=عدد` مفصولة بفاصلة؛ **القيم الحقيقية بتتنسخ بالحرف من صف `approve` في نتيجة الحصر وقت التنفيذ**، مش من مثال) · `zell.clean_counts` (orders|items|events).
 - **الـ preflight بيرفض لو أي حاجة اتغيّرت عن آخر موافقة** (طلب جديد · طلب اتمسح · حالة اتغيّرت · عدد سطور أو أحداث مختلف): `ZELL_CLEAN_APPROVAL_STALE`. وقتها حصر جديد وموافقة جديدة.
 
 ## ٥) بصمة الجداول برّه النطاق (قبل/بعد — أي اختلاف = rollback)
 - **الجداول:** كل جدول عادي في `public` ماعدا `orders` و`order_items` و`order_events`، ومعاهم `auth.users` (العدد + الـ ids بس) و`storage.objects` (العدد + `bucket_id`/`name` بس).
 - **البصمة لكل جدول:** العدد + md5 لصفوفه كاملة (`to_jsonb(t)::text`) مرتبة بالنص نفسه — من غير ما نحتاج نعرف المفتاح. والقايمة نفسها (أسماء الجداول) جزء من البصمة.
 - **في التنفيذ:** البصمة بتتحسب في الـ preflight وتتحفظ (`set_config(…, true)`)، وبتتحسب تاني بعد المسح جوه نفس المعاملة. أي اختلاف = exception قبل الـ commit (`ZELL_CLEAN_OUTSIDE_CHANGED`)، يعني المعاملة كلها بترجع.
-- الاستعلام بيتكتب بالحرف في PR التنفيذ، ونفسه في الـ dry-run والتنفيذ والفحص.
+- الاستعلام مكتوب بالحرف في `clean_prelaunch.sql` (بلوك `$clfp$`)، ونفسه في الـ dry-run والحصر والفحص.
+- **`set transaction isolation level repeatable read` أول المعاملة** (التنفيذ والـ dry-run): البصمتين من نفس الـ snapshot، فأي كتابة من جلسة تانية وقت التنفيذ مابتظهرش، والبصمة بتقيس أثر المسح بس. CI: C09 (read committed + كتابة متزامنة = الفحص بيشوفها) وC10 (repeatable read + نفس الكتابة = التنفيذ بيعدّي).
 
 ## ٦) الخطوات (كل خطوة على Production بأمر منفصل من المالك)
 1. **الحصر** (§٤).
@@ -91,22 +92,25 @@ select c.conname || '|' || cn.nspname || '.' || cl.relname || '|'
 - **الرجوع بالـ backup الكامل بيضيّع أي حاجة حصلت بعد المسح (طلبات جديدة · تعديلات إعدادات). فالرجوع لازم يحصل قبل أي طلب حقيقي، والمالك قابل ده.**
 
 ## ٩) تجربة الـ backup على مشروع مجاني (شروط المراجع)
-لو الـ backup اتجرّب على مشروع Supabase مجاني (قبل التنضيف أو في أي وقت)، الشروط دي إلزامية:
+**تجربة استرجاع الـ backup على مشروع مجاني شرط قبل الإطلاق (مش قبل التنضيف)، بالشروط المكتوبة** — مربوطة بمهمة «تجربة الرجوع من الـ backup على مشروع Supabase مجاني» في `09-ROADMAP.md`. الشروط دي إلزامية في أي تجربة:
 - المشروع **ملك المالك بس**.
 - **مفيش مفاتيح Production** (ولا مفاتيح المشروع المجاني) في الشات أو الريبو.
 - المشروع **يتمسح بعد التجربة**.
 - أي **resource مؤقت في Retool** للمشروع ده **يتشال** بعد التجربة.
 
-## ١٠) التنفيذ (PR الجاي — مش في الـ PR ده)
-- `backend/db/ops/clean_prelaunch_count.sql` (الحصر) · `clean_prelaunch.sql` (التنفيذ، والـ dry-run بنفس الجسم) · `clean_prelaunch_verify.sql`.
+## ١٠) التنفيذ
+- `backend/db/ops/clean_prelaunch_count.sql` (الحصر، read only) · `clean_prelaunch.sql` (التنفيذ) · `clean_prelaunch_dryrun.sql` (نفس الجسم بالحرف بين `begin` و`rollback`) · `clean_prelaunch_verify.sql` (الفحص بعد، read only).
+- **CI:** القسم C في `backend/db/ci/0021p1_sql_ci.sh` (C00–C12)، وبيتشغّل في التشغيلتين (مالك `zell_create_order` = `zell_order_writer` و`postgres`)، وعلى ملفات P1 بعد تصليحات #124: بعد تطبيق P1 التنضيف بيترفض (`P1_APPLIED`)، وحتى لو الفحص ده اتشال، الـ FKs الجديدة على `orders` بترفضه (`FK_SHAPE`).
 - **CI على Postgres 17 مؤقت** (قاعدة المالك: الحالات الكبيرة هنا، وProduction smoke بس): رفض بعد P1 · رفض FK بشكل مختلف (كل خانة) أو FK جديد · رفض لو العدد أو الأرقام أو الحالات أو السطور أو الأحداث اتغيّرت عن الموافقة · مسح الكل والأحداث بالـ cascade · صفر في التلات جداول · بصمات برّه النطاق ثابتة، ولو اتغيّرت جوه المعاملة (حالة مصطنعة) = rollback · الحمايات · فحص شكل المعاملة · md5 الجسم في الـ dry-run = التنفيذ.
 - **على Production:** الحصر ← (backup) ← dry-run ← التنفيذ ← الفحص. كل واحدة بأمر.
 
 ## ١١) معايير القبول
 - CI ناجح بكل الحالات في §١٠ على الـ head المقبول.
+- **تجربة استرجاع الـ backup على مشروع مجاني شرط قبل الإطلاق (مش قبل التنضيف)، بالشروط المكتوبة في §٩** (`09-ROADMAP.md`).
 - على Production: الحصر = الموافقة وشكل الـ FKs = §٣ · dry-run = نفس الأعداد والبصمات · التنفيذ نجح في معاملة واحدة · الفحص PASS · `idle_tx` = 0.
 
 ## ١٢) سجل التعديلات
+- **2026-10-11 · PR التنفيذ (ملاحظات المراجع التاني على #123):** §٩ و§١١ تجربة الـ backup شرط قبل الإطلاق مش قبل التنضيف · `repeatable read` أول المعاملة (§٥) · مثال §٤ بقى من الحصر الحقيقي · §١٠ أسماء الملفات والـ CI · تصحيح استعلام §٣: `confdeltype` و`confupdtype` نوعهم `"char"`، فلازم `::text` قبل `||` (من غيره PG17 بيرفض بـ 42725 — اتكشف في CI). مفيش تغيير في النطاق ولا الحمايات.
 - **2026-10-10:** المسودة الأولى، من أفكار #111 وقرار المراجع (التنضيف قبل P1، ومفيش مسار يمسح طلبات عليها أوامر فلوس).
 - **2026-10-10 · مراجعة #123 على `25ba29e` (3 Blocking):** شكل الـ FKs بالحرف · بصمة الطلبات اللي بتفضل · استرجاع صفوف محددة من الـ backup (على `c46d91c`).
 - **2026-10-10 · تبسيط بقرار المراجع الرئيسي:** كل الطلبات بتتمسح (مفيش طلب بيفضل)، فاتشال استرجاع الطلبات المنفردة وبصمة «الطلبات اللي بتفضل». الحمايات: backup كامل · حصر وموافقة المالك على العدد والحالات والأرقام · رفض لو اتغيّرت · فحص الـ FKs (§٣) · معاملة واحدة · بصمة كل الجداول برّه النطاق قبل/بعد · صفر في التلات جداول. الرجوع = الـ backup الكامل. المخزون التجريبي برّه التنضيف ده. شروط تجربة الـ backup على مشروع مجاني (§٩).

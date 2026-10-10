@@ -166,7 +166,7 @@ jobs:
           if [ "$EVENT" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           if [ "$EVENT" = "pull_request" ]; then range="$BASE_SHA...HEAD"; else range="$BEFORE_SHA..HEAD"; fi
           if ! changed=$(git diff --name-only "$range" 2>/dev/null); then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if printf '%s\n' "$changed" | grep -Eq '^(backend/db/migrations/0021a_|backend/db/migrations/0021d_|backend/db/migrations/0021p_|backend/db/migrations/0019_coupons\.sql$|backend/db/ci/0021p1_|backend/db/ci/0021d_sql_ci\.sh$|backend/db/ci/0021p_txn_shape\.py$|packages/core/src/confirmationFee\.ts$|\.github/workflows/ci\.yml$)'; then
+          if printf '%s\n' "$changed" | grep -Eq '^(backend/db/migrations/0021a_|backend/db/migrations/0021d_|backend/db/migrations/0021p_|backend/db/migrations/0019_coupons\.sql$|backend/db/ci/0021p1_|backend/db/ops/clean_prelaunch|backend/db/ci/0021d_sql_ci\.sh$|backend/db/ci/0021p_txn_shape\.py$|packages/core/src/confirmationFee\.ts$|\.github/workflows/ci\.yml$)'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"

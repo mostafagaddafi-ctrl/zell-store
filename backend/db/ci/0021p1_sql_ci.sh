@@ -5,7 +5,8 @@
 # بيغطي: شكل المعاملة · md5 الجسم · ptest (ci + production) · التطبيق · رفض الإعادة · الـ verify (P1 · A1 · D · 0021-P
 # بالكتالوج الجديد والمطابقة strict) · مقارنة zell_create_order قديم (D) / جديد على مصفوفة 520 حالة بإعدادات رسوم متغيّرة ·
 # مقارنة حساب الرسوم DB = core (packages/core/src/confirmationFee.ts) على آلاف الحالات · سيناريوهات الدفع والرد والمقدم
-# والتسليم والآجل · rollback (رفض بالفلوس، ونضيف) وإعادة التطبيق · rollback 0021-P بعد P1 · حارس الانحراف والموافقة.
+# والتسليم والآجل · rollback (رفض بالفلوس، ونضيف) وإعادة التطبيق · rollback 0021-P بعد P1 · حارس الانحراف والموافقة ·
+# تنضيف التجارب قبل الإطلاق (backend/db/ops/clean_prelaunch*.sql — C00–C12، ومنها الرفض بعد P1).
 # ممنوع يتشغّل على أي داتابيز غير الحاوية المؤقتة.
 set -uo pipefail
 
@@ -602,6 +603,138 @@ PRE=$(impact)
 apply_p1; E=$?
 ok=no; if [ "$E" -ne 0 ] && has "$TMP/apply.out" 'ZELL_0021A_P1_CREATE_ORDER_DRIFT' && [ "$(impact)" = "$PRE" ]; then ok=yes; fi
 record "S90 drifted zell_create_order -> apply refused (CREATE_ORDER_DRIFT), nothing changed" "$ok" "E=$E"
+
+# ── C: تنضيف التجارب قبل الإطلاق (docs/contracts/CLEAN-prelaunch.md) — قبل P1 بس، وبعد P1 بيترفض ──
+OPS="$ROOT/backend/db/ops"
+CCOUNT="$OPS/clean_prelaunch_count.sql"
+CEXEC="$OPS/clean_prelaunch.sql"
+CDRY="$OPS/clean_prelaunch_dryrun.sql"
+CVERIFY="$OPS/clean_prelaunch_verify.sql"
+c_orders() { q "select coalesce((select string_agg(order_number, ',' order by order_number collate \"C\") from public.orders), '')"; }
+c_statuses() { q "select coalesce((select string_agg(s.status || '=' || s.n, ',' order by s.status collate \"C\") from (select status, count(*) as n from public.orders group by status) s), '')"; }
+c_counts() { q "select (select count(*) from public.orders) || '|' || (select count(*) from public.order_items) || '|' || (select count(*) from public.order_events)"; }
+c_now() { O=$(c_orders); ST=$(c_statuses); N=$(c_counts); }
+# سطور الموافقة والقيم المعتمدة بعد أول begin; (برّه الجسم) — زي التشغيل على Production.
+c_text() { sed "0,/^begin;\$/s//begin;\nset local zell.approved_by = 'ci-clean-prelaunch';\nset local zell.clean_orders = '$2';\nset local zell.clean_statuses = '$3';\nset local zell.clean_counts = '$4';/" "$1"; }
+c_run() { c_text "$1" "$2" "$3" "$4" | psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f - > "$5" 2>&1; }
+c_verify() { sed "0,/^begin;\$/s//begin;\nset local zell.clean_fp_expected = '$1';/" "$CVERIFY" | psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f - > "$2" 2>&1; }
+ck() { awk -F'|' -v k="$1" '$2 == k { sub(/^[^|]*[|][^|]*[|]/, ""); print }' "$TMP/ccount.out"; }
+# 3 طلبات من zell_create_order (بدور service_role) وواحد منهم ملغي.
+c_seed() {
+  for i in 1 2 3; do
+    q "set role service_role; select public.zell_create_order(p_items => '[{\"productId\":1,\"lengthCm\":350}]', p_customer_name => 'عميل تنضيف', p_customer_phone => '0107777100$i', p_governorate => 'القاهرة', p_address => 'عنوان طويل كفاية', p_notes => null, p_idempotency_key => 'ci-clean-key-000$i', p_request_hash => repeat('d', 64), p_checkout_session_hash => repeat('e', 64), p_receipt_token_hash => repeat('f', 64))" > /dev/null
+  done
+  q "update public.orders set status = 'cancelled' where id = (select min(id) from public.orders)" > /dev/null
+}
+# كتابة من جلسة تانية وقت ما التنفيذ نايم بين البصمتين (C09 / C10).
+c_concurrent() {
+  for _ in $(seq 1 60); do
+    if [ "$(q "select count(*) from pg_stat_activity where pid <> pg_backend_pid() and state = 'active' and query like '%pg_sleep(4)%'")" = "1" ]; then break; fi
+    sleep 0.25
+  done
+  q "insert into public.settings (key, value) values ('$1', 'true')" > /dev/null
+}
+SLEEP_SED="s/^-- (1) delete/do \$zs\$ begin perform pg_catalog.pg_sleep(4); end \$zs\$;\n-- (1) delete/"
+same_outside() { [ "$(printf '%s' "$1" | cut -d'|' -f1-10,14-15)" = "$(printf '%s' "$2" | cut -d'|' -f1-10,14-15)" ]; }
+
+if ! reset_db; then record "C00 reset" "no" "see output"; fi
+c_seed
+ok=no; if python3 "$SHAPE" "$CCOUNT" "$CDRY" "$CVERIFY" > "$TMP/cshape.out" 2>&1; then ok=yes; fi
+M1=$(body_md5 "$CEXEC" 'CLEAN_PRELAUNCH BODY'); M2=$(body_md5 "$CDRY" 'CLEAN_PRELAUNCH BODY')
+if [ "$M1" != "$M2" ] || [ "$M1" = "$EMPTY_MD5" ]; then ok=no; fi
+if [ "$(grep -c '^begin;$' "$CEXEC")" != "1" ] || [ "$(grep -c '^commit;$' "$CEXEC")" != "1" ] \
+   || [ "$(grep -c '^set transaction isolation level repeatable read;$' "$CEXEC")" != "1" ]; then ok=no; fi
+record "C00 shape: count / dry-run / verify (txn shape) · dry-run body = execution body (md5) · one begin / commit · repeatable read" "$ok" "exec=$M1 dry=$M2 $(tail -n 3 "$TMP/cshape.out" | tr '\n' ' ')"
+
+run_file "$CCOUNT" "$TMP/ccount.out"; E=$?
+ok=no; if [ "$E" -eq 0 ] && [ "$(ck orders)" = "3" ] && [ "$(ck statuses)" = "cancelled=1,new=2" ] && [ "$(ck order_items)" = "3" ] \
+   && [ "$(ck order_events)" = "3" ] && [ "$(ck p1_tables)" = "absent" ] && [ "$(ck fk_expected)" = "ok" ] && [ "$(ck idle_tx)" = "0" ] \
+   && [ "$(ck protections)" = "5/5" ] && [ "$(ck create_order | cut -d: -f2)" = "$D_MD5" ]; then ok=yes; fi
+record "C01 count (read only): orders / statuses / numbers / items / events / P1 absent / FK shape ok / idle 0 / protections 5/5" "$ok" "E=$E $(tr '\n' ' ' < "$TMP/ccount.out" | cut -c1-600)"
+
+c_now; PRE=$(impact)
+c_run "$CDRY" "$O" "$ST" "$N" "$TMP/cdry.out"; E=$?
+DS=$(grep '^0|summary|' "$TMP/cdry.out"); FP=$(rf "$DS" 5)
+ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$DS" 8)" = "PASS" ] && [ "$(rf "$DS" 3)" = "3/3/3" ] && [ "$(rf "$DS" 4)" = "0/0/0" ] && [ -n "$FP" ] \
+   && [ "$(impact)" = "$PRE" ] && [ "$(c_counts)" = "$N" ]; then ok=yes; fi
+record "C02 dry-run: PASS, would delete 3/3/3 to 0/0/0, nothing changed after rollback" "$ok" "E=$E DS=$DS $(grep -m2 -E 'ERROR|ZELL' "$TMP/cdry.out" | tr '\n' ' ' | cut -c1-300)"
+
+q "insert into public.orders (order_number, customer_name, customer_phone, governorate, address, subtotal_piastres, total_piastres) values ('FLM-CL0009', 'زبون جديد', '01099997777', 'القاهرة', 'عنوان طويل كفاية', 10000, 10000)" > /dev/null
+PRE=$(impact)
+c_run "$CEXEC" "$O" "$ST" "$N" "$TMP/cexec.out"; E=$?
+ok=no; if [ "$E" -ne 0 ] && has "$TMP/cexec.out" 'ZELL_CLEAN_APPROVAL_STALE' && [ "$(impact)" = "$PRE" ]; then ok=yes; fi
+record "C03 a new order after the approval -> refused (APPROVAL_STALE), nothing changed" "$ok" "E=$E"
+
+c_now; PRE=$(impact)
+q "alter table public.order_items drop constraint order_items_order_id_fkey, add constraint order_items_order_id_fkey foreign key (order_id) references public.orders (id) on delete restrict" > /dev/null
+c_run "$CEXEC" "$O" "$ST" "$N" "$TMP/cexec.out"; E=$?
+ok=no; if [ "$E" -ne 0 ] && has "$TMP/cexec.out" 'ZELL_CLEAN_FK_SHAPE' && [ "$(c_counts)" = "$N" ]; then ok=yes; fi
+q "alter table public.order_items drop constraint order_items_order_id_fkey, add constraint order_items_order_id_fkey foreign key (order_id) references public.orders (id) on delete cascade" > /dev/null
+q "create table public.ci_order_ref (order_id integer references public.orders (id))" > /dev/null
+c_run "$CEXEC" "$O" "$ST" "$N" "$TMP/cexec.out"; E=$?
+if [ "$E" -eq 0 ] || ! has "$TMP/cexec.out" 'ZELL_CLEAN_FK_SHAPE' || [ "$(c_counts)" != "$N" ]; then ok=no; fi
+q "drop table public.ci_order_ref" > /dev/null
+record "C04 FK on orders changed (order_items ON DELETE RESTRICT) or a new FK on orders -> refused (FK_SHAPE), nothing deleted" "$ok" "E=$E"
+
+sed "s/^delete from public.orders;$/delete from public.orders;\ninsert into public.settings (key, value) values ('ci_clean_inside', 'true');/" "$CEXEC" > "$TMP/c_inside.sql"
+c_run "$TMP/c_inside.sql" "$O" "$ST" "$N" "$TMP/cexec.out"; E=$?
+ok=no; if [ "$E" -ne 0 ] && has "$TMP/cexec.out" 'ZELL_CLEAN_OUTSIDE_CHANGED' && [ "$(c_counts)" = "$N" ] \
+   && [ "$(q "select count(*) from public.settings where key = 'ci_clean_inside'")" = "0" ]; then ok=yes; fi
+record "C05 an outside table changed inside the transaction (artificial) -> OUTSIDE_CHANGED, everything rolled back" "$ok" "E=$E"
+
+c_now
+c_run "$CDRY" "$O" "$ST" "$N" "$TMP/cdry.out"; DS=$(grep '^0|summary|' "$TMP/cdry.out"); FP=$(rf "$DS" 5)
+PRE=$(impact)
+c_run "$CEXEC" "$O" "$ST" "$N" "$TMP/cexec.out"; E=$?
+POST=$(impact)
+ok=no; if [ "$E" -eq 0 ] && [ "$(c_counts)" = "0|0|0" ] && same_outside "$PRE" "$POST" \
+   && [ "$(printf '%s' "$POST" | cut -d'|' -f11-13)" = "0||0" ]; then ok=yes; fi
+record "C06 execution: dry-run then execute -> orders / items / events = 0, everything else in the impact query unchanged" "$ok" "E=$E pre=$PRE post=$POST $(grep -m2 -E 'ERROR|ZELL' "$TMP/cexec.out" | tr '\n' ' ' | cut -c1-300)"
+
+c_verify "$FP" "$TMP/cverify.out"; E=$?; VS=$(grep '^0|summary|' "$TMP/cverify.out")
+c_verify "0000" "$TMP/cverify2.out"; VS2=$(grep '^0|summary|' "$TMP/cverify2.out")
+ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$VS" 7)" = "PASS" ] && [ "$(rf "$VS2" 7)" = "FAIL" ]; then ok=yes; fi
+record "C07 verify after: PASS with the dry-run fingerprint (and FAIL with a wrong one)" "$ok" "VS=$VS VS2=$VS2 fails=$(fails_of "$TMP/cverify.out")"
+
+q "insert into public.orders (order_number, customer_name, customer_phone, governorate, address, subtotal_piastres, total_piastres) values ('FLM-CL0010', 'زبون بعد التنضيف', '01099996666', 'القاهرة', 'عنوان طويل كفاية', 10000, 10000)" > /dev/null
+EV=$(psql -X -q -tA -v VERBOSITY=verbose -U postgres -d "$DB" -c "delete from public.order_events" 2>&1 | grep -o 'ERROR:  [0-9A-Z]\{5\}' | head -n 1 | awk '{print $2}')
+ok=no; if [ "$EV" = "45413" ] && [ "$(q "select count(*) from public.order_events")" = "1" ]; then ok=yes; fi
+record "C08 protections after the cleanup: a new order still gets its event, and DELETE on order_events is still refused (45413)" "$ok" "EV=$EV"
+
+if ! reset_db; then record "C09 reset" "no" "see output"; fi
+c_seed
+c_now
+sed -e 's/^set transaction isolation level repeatable read;$/set transaction isolation level read committed;/' -e "$SLEEP_SED" "$CEXEC" > "$TMP/c_rc.sql"
+c_concurrent ci_clean_rc & BG=$!
+c_run "$TMP/c_rc.sql" "$O" "$ST" "$N" "$TMP/cexec.out"; E=$?
+wait "$BG"
+ok=no; if [ "$E" -ne 0 ] && has "$TMP/cexec.out" 'ZELL_CLEAN_OUTSIDE_CHANGED' && [ "$(c_counts)" = "$N" ] \
+   && [ "$(q "select count(*) from public.settings where key = 'ci_clean_rc'")" = "1" ]; then ok=yes; fi
+record "C09 control: read committed + a concurrent write elsewhere -> the fingerprint sees it (OUTSIDE_CHANGED), nothing deleted" "$ok" "E=$E"
+
+c_now
+sed -e "$SLEEP_SED" "$CEXEC" > "$TMP/c_rr.sql"
+c_concurrent ci_clean_rr & BG=$!
+c_run "$TMP/c_rr.sql" "$O" "$ST" "$N" "$TMP/cexec.out"; E=$?
+wait "$BG"
+ok=no; if [ "$E" -eq 0 ] && [ "$(c_counts)" = "0|0|0" ] && [ "$(q "select count(*) from public.settings where key = 'ci_clean_rr'")" = "1" ]; then ok=yes; fi
+record "C10 repeatable read + the same concurrent write -> the fingerprint measures the delete only, execution commits" "$ok" "E=$E $(grep -m2 -E 'ERROR|ZELL' "$TMP/cexec.out" | tr '\n' ' ' | cut -c1-300)"
+
+if ! reset_db; then record "C11 reset" "no" "see output"; fi
+c_seed
+apply_p1 > /dev/null
+run_file "$CCOUNT" "$TMP/ccount.out"
+FKS=$(ck fk_shape)
+c_now; PRE=$(impact)
+c_run "$CEXEC" "$O" "$ST" "$N" "$TMP/cexec.out"; E=$?
+ok=no; if [ "$E" -ne 0 ] && has "$TMP/cexec.out" 'ZELL_CLEAN_P1_APPLIED' && [ "$(impact)" = "$PRE" ] && [ "$(ck p1_tables)" = "present" ] \
+   && [ "$(ck fk_expected)" = "DIFFERENT" ] && printf '%s' "$FKS" | grep -q 'order_payments_order_fkey|public.order_payments|order_id|id|r|' \
+   && printf '%s' "$FKS" | grep -q 'zell_payment_commands_order_fkey|public.zell_payment_commands|order_id|id|r|'; then ok=yes; fi
+record "C11 after P1 -> refused (P1_APPLIED), nothing changed; the count shows the 2 new restrict FKs on orders" "$ok" "E=$E fks=$FKS"
+sed "s/raise exception 'ZELL_CLEAN_P1_APPLIED';/null;/" "$CEXEC" > "$TMP/c_nop1.sql"
+c_run "$TMP/c_nop1.sql" "$O" "$ST" "$N" "$TMP/cexec.out"; E=$?
+ok=no; if [ "$E" -ne 0 ] && has "$TMP/cexec.out" 'ZELL_CLEAN_FK_SHAPE' && [ "$(impact)" = "$PRE" ]; then ok=yes; fi
+record "C12 after P1 with the P1 check removed (defence in depth) -> still refused by the FK shape (FK_SHAPE), nothing changed" "$ok" "E=$E"
 
 # ── S14: ptest production من غير أدمن شغال ولا أي طلب (B2): الـ skips محسوبة من البيانات والحكم بالعدد بالحرف ──
 if ! reset_db; then record "S14 reset" "no" "see output"; fi
