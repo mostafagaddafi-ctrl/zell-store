@@ -753,6 +753,8 @@ end;
 $function$;
 
 -- (2) دالة الانتقال ← تعريف A1 بالحرف، وشيل دوال الدور (مالكها zell_order_definer، فـ SET LOCAL ROLE).
+--     CREATE OR REPLACE محتاج CREATE على الـ schema، فبيتمنح للدور جوه المعاملة بس ويتسحب بعدها.
+grant create on schema public to zell_order_definer;
 set local role zell_order_definer;
 create or replace function public.zell_order_apply_transition(p_order public.orders, p_to text, p_actor uuid, p_reason text)
 returns timestamptz language plpgsql set search_path = '' as $fn$
@@ -795,6 +797,7 @@ drop function
   public.zell_payment_fee_calc(jsonb, integer, integer, boolean, boolean), public.zell_payment_cfg_int(jsonb, text, bigint),
   public.zell_payment_text(text, integer, text), public.zell_payment_settings_json(), public.zell_payment_methods_json();
 reset role;
+revoke create on schema public from zell_order_definer;
 
 -- (3) الحراس والجداول والعمودين.
 drop trigger orders_money_guard on public.orders;
