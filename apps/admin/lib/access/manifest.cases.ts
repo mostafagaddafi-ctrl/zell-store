@@ -194,8 +194,8 @@ export async function runManifestCases(): Promise<ManifestCasesReport> {
   const count = (kind: ManifestEntry['kind']) => all.filter((e) => e.kind === kind).length
 
   // ── M. الجدول نفسه ──────────────────────────────────────
-  check('M1 83 symbols: 55 action · 24 page · 1 layout · 3 route (79 من ب2 + 4 من 0021-A A2)', [all.length, count('action'), count('page'), count('layout'), count('route')], [83, 55, 24, 1, 3])
-  check('M2 file + symbol unique', new Set(all.map((e) => e.file + '#' + e.symbol)).size, 83)
+  check('M1 92 symbols: 63 action · 25 page · 1 layout · 3 route (79 من ب2 + 4 من 0021-A A2 + 9 من 0021-A P2)', [all.length, count('action'), count('page'), count('layout'), count('route')], [92, 63, 25, 1, 3])
+  check('M2 file + symbol unique', new Set(all.map((e) => e.file + '#' + e.symbol)).size, 92)
   check(
     'M3 capability is one of the 29 (layout = null only)',
     all.filter((e) => (e.kind === 'layout' ? e.capability !== null : e.capability === null || !isCapability(e.capability))).map((e) => e.symbol + '@' + e.file),
