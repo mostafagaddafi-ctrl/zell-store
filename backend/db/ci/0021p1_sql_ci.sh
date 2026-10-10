@@ -418,8 +418,8 @@ record "S40 fee calc: DB (zell_payment_fee_calc) = core (confirmationFeePiastres
 
 # ── S5: سيناريوهات الدفع ──
 run_file "$FLOWS" "$TMP/flows.out"; E=$?; S=$(summary_of "$TMP/flows.out")
-ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$S" 9)" = "PASS" ] && [ "$(rf "$S" 7)" = "32" ]; then ok=yes; fi
-record "S50 payment flows: record / refund / idempotency / deposit rule / delivery collection / credit / cancelled / guards / methods / create_order snapshot" "$ok" "E=$E S=$S fails=$(fails_of "$TMP/flows.out") tail=$(tail -n 3 "$TMP/flows.out" | tr '\n' ' ' | cut -c1-600)"
+ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$S" 9)" = "PASS" ] && [ "$(rf "$S" 7)" = "35" ]; then ok=yes; fi
+record "S50 payment flows: record / refund / idempotency (+ fingerprint after normalization) / deposit rule / delivery collection / credit / cancelled / guards / methods / create_order snapshot" "$ok" "E=$E S=$S fails=$(fails_of "$TMP/flows.out") tail=$(tail -n 3 "$TMP/flows.out" | tr '\n' ' ' | cut -c1-600)"
 V=$(verify_p1)
 ok=no; if [ "$(rf "$V" 7)" = "PASS" ] && [ "$(rf "$V" 9)" = "0" ]; then ok=yes; fi
 record "S51 flows left nothing behind (verify PASS, 0 payments)" "$ok" "V=$V"
