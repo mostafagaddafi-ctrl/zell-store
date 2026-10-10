@@ -5,7 +5,7 @@
  *    السر الخام بيتسلّم في Set-Cookie بس، في نفس استجابة POST /api/orders.
  */
 
-import type { CouponTerms } from '@zell/core'
+import type { CouponTerms, PreferredDelivery } from '@zell/core'
 
 /** صنف متر (lengthCm ± widthCm) أو صنف قطعة (quantity) — واحد بس منهم. */
 export type OrderItemInput = {
@@ -30,6 +30,8 @@ export type OrderRequest = {
   installation?: true
   /** 0019 — كود الخصم بس، من غير أي مبلغ. الراوت بيطبّعه تاني بـnormalizeCouponCode؛ فاضي = مفيش. */
   couponCode?: string
+  /** 0021-D — موعد التسليم المفضّل (اختياري). */
+  preferredDelivery?: PreferredDelivery
 }
 
 export type OrderSuccess = {
@@ -110,6 +112,8 @@ export type Receipt = {
   /** 0019 — null و 0 لو مفيش كوبون. */
   coupon_code?: string | null
   discount_piastres?: number
+  /** 0021-D — «موعد مفضل — بانتظار التأكيد» (null من غير موعد). */
+  preferred_delivery?: { date: string; period: string | null; note: string | null } | null
   items: ReceiptItem[]
 }
 
@@ -126,6 +130,7 @@ export type OrderErrorCode =
   | 'CART_EMPTY'
   | 'CART_TOO_LARGE'
   | 'CART_INVALID'
+  | 'PREFERRED_DELIVERY_INVALID'
   | 'INVALID_NAME'
   | 'INVALID_PHONE'
   | 'INVALID_ADDRESS'
