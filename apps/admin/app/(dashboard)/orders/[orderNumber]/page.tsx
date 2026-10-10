@@ -16,17 +16,21 @@ import { pageWithAccess } from '../../../../lib/access/instance'
 import { OrderCallCard, OrderCustomerEditor, OrderDeliveryCard, OrderFollowUpCard } from '../../../../components/orders/OrderCycle'
 import { OrderTimeline } from '../../../../components/orders/OrderTimeline'
 import { getOrderCycleView } from '../../../../lib/data/orderCycle'
+import { OrderPaymentsCard } from '../../../../components/orders/OrderPayments'
+import { getOrderPaymentsView } from '../../../../lib/data/orderPayments'
 
 type PageProps = { params: Promise<{ orderNumber: string }> }
 
 export const metadata: Metadata = { title: 'تفاصيل الطلب' }
 
-export default pageWithAccess('zell.orders.view', async function OrderDetailPage(_ctx, { params }: PageProps) {
+export default pageWithAccess('zell.orders.view', async function OrderDetailPage(ctx, { params }: PageProps) {
   const { orderNumber } = await params
   const order = await adminData.getOrder(orderNumber)
   if (!order) notFound()
   // 0021-A A2 — السجل والبوابة والفترات بجلسة المستخدم (أي فشل = «مش متاح دلوقتي» من غير ما الصفحة تقع)
   const cycle = await getOrderCycleView(order.id)
+  // 0021-A P2 — الدفع بجلسة المستخدم (أي فشل = «مش متاح دلوقتي» من غير ما الصفحة تقع)
+  const payments = await getOrderPaymentsView(order.id)
 
   const waHref = 'https://wa.me/2' + order.customerPhone
 
@@ -209,6 +213,14 @@ export default pageWithAccess('zell.orders.view', async function OrderDetailPage
               hasCoupon: order.hasCoupon,
             }}
             expectedUpdatedAt={order.updatedAt}
+          />
+
+          <OrderPaymentsCard
+            view={payments}
+            isOwner={ctx.identity.role === 'owner'}
+            customerName={order.customerName}
+            customerPhone={order.customerPhone}
+            orderNumber={order.orderNumber}
           />
 
           <OrderStatusControls
