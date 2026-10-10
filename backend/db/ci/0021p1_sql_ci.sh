@@ -48,6 +48,14 @@ D_MD5='c131cb51cd86830e9445b139296b0281'
 P1_MD5='811d4d573d750db9c7e5164799536aa6'
 A1T_MD5='aa7cc01c2320cb97d76845d63413886c'
 P1T_MD5='4d7c514ebe1d12281a81b63991df2324'
+# B1 (مراجعة #122): مالك zell_create_order في الـ shim. الافتراضي zell_order_writer، وتشغيلة تانية بـ postgres = شكل Production
+# (08-HANDOFF-NOW). الاتنين لازم PASS.
+CO_OWNER="$(printenv ZELL_P1_CO_OWNER || echo zell_order_writer)"
+case "$CO_OWNER" in
+  zell_order_writer|postgres) ;;
+  *) echo "refusing: ZELL_P1_CO_OWNER must be zell_order_writer or postgres" >&2; exit 2 ;;
+esac
+echo "CO_OWNER=$CO_OWNER"
 
 record() {
   if [ "$2" = "yes" ]; then
@@ -205,7 +213,7 @@ SQL
     extract_fn 'CREATE FUNCTION public.zell_create_order('
     extract_fn 'CREATE OR REPLACE FUNCTION public.zell_get_order_receipt('
     cat <<SQL
-alter function public.zell_create_order($OLD_SIG) owner to zell_order_writer;
+alter function public.zell_create_order($OLD_SIG) owner to $CO_OWNER;
 revoke all on function public.zell_create_order($OLD_SIG) from public, anon, authenticated;
 grant execute on function public.zell_create_order($OLD_SIG) to service_role, zell_order_writer;
 alter function public.zell_get_order_receipt(text, text) owner to zell_order_writer;
@@ -247,6 +255,8 @@ select
 SQL
 )
 impact() { q "$IMPACT_SQL"; }
+# صلاحيات EXECUTE على zell_create_order (للمقارنة قبل/بعد التطبيق — B1).
+acl_co() { q "select string_agg(x, ',' order by x) from (select distinct pg_get_userbyid(a.grantee) || ':' || a.privilege_type as x from pg_proc p, aclexplode(p.proacl) a where p.oid = 'public.zell_create_order($NEW_SIG)'::regprocedure) s"; }
 
 # مصفوفة المقارنة: قديم (D في ci_old) / جديد (P1) بإعداد رسوم بيتغيّر كل حالة — كل نداء في subtransaction بيترجع.
 PARITY_SQL=$(cat <<'SQL'
@@ -357,6 +367,8 @@ record "S03 apply / rollback: exactly one begin / commit" "$ok" "-"
 
 # ── S1: ptest قبل التطبيق ──
 if ! reset_db; then record "S09 shim + 0019 functions + 0021-P + A1 + D" "no" "see output"; fi
+# طلب واحد علشان G01 في الـ ptest يتجرّب فعلًا (B2)، وبيتمسح بعد S13.
+q "insert into public.orders (order_number, customer_name, customer_phone, governorate, address, subtotal_piastres, total_piastres) values ('FLM-PT0001', 'زبون الاختبار', '01099998888', 'القاهرة', 'عنوان اختبار طويل كفاية', 20000, 20000)" > /dev/null
 BEFORE=$(impact)
 ok=no; if [ "$(rf "$BEFORE" 1)|$(rf "$BEFORE" 2)|$(rf "$BEFORE" 4)|$(rf "$BEFORE" 6)|$(rf "$BEFORE" 8)|$(rf "$BEFORE" 9)" = "0|0|$D_MD5|$A1T_MD5|29|22" ]; then ok=yes; fi
 record "S10 baseline = Production shape before P1 (D body, A1 transition, catalog 29 / 22)" "$ok" "$BEFORE"
@@ -368,6 +380,7 @@ ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$S" 11)" = "PASS" ] && [ "$(rf "$S" 8)" = "
 record "S12 ptest production profile -> PASS (32 pass), expected skip O00" "$ok" "E=$E S=$S fails=$(fails_of "$TMP/ptest.out")"
 ok=no; if [ "$(impact)" = "$BEFORE" ]; then ok=yes; fi
 record "S13 ptest leaves nothing behind" "$ok" "before=$BEFORE after=$(impact)"
+q "delete from public.orders where order_number = 'FLM-PT0001'" > /dev/null
 
 # ── S2: التطبيق ──
 load_old_copy
@@ -376,16 +389,17 @@ PRE=$(impact)
 psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$APPLY" > "$TMP/noapproval.out" 2>&1; E=$?
 ok=no; if [ "$E" -ne 0 ] && has "$TMP/noapproval.out" 'ZELL_0021A_P1_APPROVAL_MISSING' && [ "$(impact)" = "$PRE" ]; then ok=yes; fi
 record "S20 apply without the approval line -> refused, nothing changed" "$ok" "E=$E"
+ACL_PRE=$(acl_co)
 apply_p1; E=$?
 AFTER=$(impact)
-EXP="2|24|5|$P1_MD5|zell_order_writer|$P1T_MD5|24|31|23|$(( $(rf "$PRE" 10) + 1 ))|$(rf "$PRE" 11)|$(rf "$PRE" 12)|$(rf "$PRE" 13)|0|0"
+EXP="2|24|5|$P1_MD5|$CO_OWNER|$P1T_MD5|24|31|23|$(( $(rf "$PRE" 10) + 1 ))|$(rf "$PRE" 11)|$(rf "$PRE" 12)|$(rf "$PRE" 13)|0|0"
 ok=no; if [ "$E" -eq 0 ] && [ "$AFTER" = "$EXP" ]; then ok=yes; fi
 record "S21 apply -> impact (columns, 24 functions, 5 tables, new create_order body + owner kept, transition, catalog 31/23, +1 grant, orders untouched)" "$ok" "E=$E pre=$PRE after=$AFTER exp=$EXP $(grep -m3 -E 'ERROR|ZELL' "$TMP/apply.out" | tr '\n' ' ' | cut -c1-600)"
 apply_p1; E=$?
 ok=no; if [ "$E" -ne 0 ] && has "$TMP/apply.out" 'ZELL_0021A_P1_ALREADY_APPLIED' && [ "$(impact)" = "$AFTER" ]; then ok=yes; fi
 record "S22 re-apply refused (ALREADY_APPLIED)" "$ok" "E=$E"
 V=$(verify_p1)
-ok=no; if [ "$(rf "$V" 7)" = "PASS" ] && [ "$(rf "$V" 9)" = "0" ] && [ "$(rf "$V" 10)" = "f" ] && [ "$(rf "$V" 11)" = "f" ] && [ "$(rf "$V" 12)" = "4" ] && [ "$(rf "$V" 13)" = "zell_order_writer" ]; then ok=yes; fi
+ok=no; if [ "$(rf "$V" 7)" = "PASS" ] && [ "$(rf "$V" 9)" = "0" ] && [ "$(rf "$V" 10)" = "f" ] && [ "$(rf "$V" 11)" = "f" ] && [ "$(rf "$V" 12)" = "4" ] && [ "$(rf "$V" 13)" = "$CO_OWNER" ]; then ok=yes; fi
 record "S23 P1 verify -> PASS (no payments, fee off, credit off, 4 methods, owner kept)" "$ok" "V=$V fails=$(fails_of "$TMP/verify.out")"
 run_ptest ci; E=$?
 ok=no; if [ "$E" -ne 0 ] && has "$TMP/ptest.out" 'ZELL_0021A_P1_PTEST_PRE_APPLY_ONLY'; then ok=yes; fi
@@ -393,9 +407,13 @@ record "S24 ptest after apply -> PRE_APPLY_ONLY" "$ok" "E=$E"
 A1V=$(verify_a1); DV=$(verify_d); PV=$(verify_p)
 ok=no; if [ "$(rf "$A1V" 7)" = "PASS" ] && [ "$(rf "$DV" 7)" = "PASS" ] && [ "$(rf "$PV" 11)" = "PASS" ]; then ok=yes; fi
 record "S25 A1 + D + 0021-P verify still PASS after P1 (0021-P: catalog 31, parity strict clean)" "$ok" "A1=$A1V D=$DV P=$PV $(fails_of "$TMP/pv.out")"
-ACL_NEW=$(q "select string_agg(x, ',' order by x) from (select distinct pg_get_userbyid(a.grantee) || ':' || a.privilege_type as x from pg_proc p, aclexplode(p.proacl) a where p.oid = 'public.zell_create_order($NEW_SIG)'::regprocedure) s")
-ok=no; if [ "$ACL_NEW" = "service_role:EXECUTE,zell_order_writer:EXECUTE" ]; then ok=yes; fi
-record "S26 zell_create_order EXECUTE grants kept exactly" "$ok" "acl=$ACL_NEW"
+ACL_NEW=$(acl_co)
+ok=no; if [ -n "$ACL_PRE" ] && [ "$ACL_NEW" = "$ACL_PRE" ] && printf '%s' "$ACL_NEW" | grep -q 'service_role:EXECUTE' \
+   && ! printf '%s' "$ACL_NEW" | grep -Eq '(^|,)(anon|authenticated|unknown)'; then ok=yes; fi
+record "S26 zell_create_order EXECUTE grants kept exactly (owner $CO_OWNER)" "$ok" "pre=$ACL_PRE new=$ACL_NEW"
+CO=$(q "select pg_get_userbyid(p.proowner) || '|' || p.prosecdef::int || '|' || has_function_privilege(p.proowner, 'public.zell_payment_order_fee(integer, integer, boolean, boolean)', 'EXECUTE')::int || '|' || has_function_privilege('service_role', p.oid, 'EXECUTE')::int || '|' || has_function_privilege('anon', p.oid, 'EXECUTE')::int || '|' || has_function_privilege('authenticated', p.oid, 'EXECUTE')::int || '|' || has_function_privilege('authenticated', 'public.zell_payment_order_fee(integer, integer, boolean, boolean)', 'EXECUTE')::int || '|' || has_function_privilege('service_role', 'public.zell_payment_order_fee(integer, integer, boolean, boolean)', 'EXECUTE')::int from pg_proc p where p.oid = 'public.zell_create_order($NEW_SIG)'::regprocedure")
+ok=no; if [ "$CO" = "$CO_OWNER|1|1|1|0|0|0|0" ]; then ok=yes; fi
+record "S28 zell_create_order owner $CO_OWNER: security definer, owner can compute the fee, service_role only; fee fn closed to anon/authenticated/service_role" "$ok" "co=$CO"
 OLDROW=$(q "select paid_piastres || '|' || confirmation_fee_piastres || '|' || total_piastres || '|' || status from public.orders where order_number = 'FLM-OLD001'")
 ok=no; if [ "$OLDROW" = "0|0|35000|new" ]; then ok=yes; fi
 record "S27 existing order: paid 0, fee 0, total and status untouched" "$ok" "$OLDROW"
@@ -488,6 +506,34 @@ CNT=$(q "select (select count(*) from public.order_payments) || '|' || (select c
 ok=no; if [ "$E1" -eq 0 ] && [ "$E" -ne 0 ] && has "$TMP/rb.out" 'ZELL_0021A_P1_RB_HAS_MONEY_DATA' && [ "$(impact)" = "$MID" ] && [ "$CNT" = "0|1" ]; then ok=yes; fi
 record "S61 rollback with a command but no payment (explicit on-credit delivery) -> refused (HAS_MONEY_DATA), nothing changed" "$ok" "E1=$E1 E=$E CNT=$CNT $(tail -n 3 "$TMP/pay2.out" | tr '\n' ' ')"
 
+# ── S6ج: rollback بسطر في سجل الإعدادات بس (من غير فلوس ولا أوامر) = رفض (مراجعة #122 B3) ──
+if ! reset_db; then record "S62 reset" "no" "see output"; fi
+load_old_copy
+apply_p1 > /dev/null
+cat > "$TMP/cfg1.sql" <<'SQL'
+do $x$
+declare
+  v_ver timestamptz;
+begin
+  select s.updated_at into v_ver from public.zell_payment_settings s where s.id;
+  perform pg_catalog.set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+  execute 'set local role authenticated';
+  perform public.zell_payment_save_settings(v_ver, '{"enabled": false}'::jsonb, false, 'فودافون كاش 01000000000');
+  execute 'reset role';
+  if (select count(*) from public.zell_payment_config_log) <> 1 or exists (select 1 from public.order_payments)
+     or exists (select 1 from public.zell_payment_commands) then
+    raise exception 'ZELL_CI_S62_SETUP';
+  end if;
+end
+$x$;
+SQL
+run_file "$TMP/cfg1.sql" "$TMP/cfg1.out"; E1=$?
+MID=$(impact)
+rollback_p1; E=$?
+CNT=$(q "select (select count(*) from public.zell_payment_config_log) || '|' || (select count(*) from public.order_payments) || '|' || (select count(*) from public.zell_payment_commands)")
+ok=no; if [ "$E1" -eq 0 ] && [ "$E" -ne 0 ] && has "$TMP/rb.out" 'ZELL_0021A_P1_RB_HAS_CONFIG_DATA' && [ "$(impact)" = "$MID" ] && [ "$CNT" = "1|0|0" ]; then ok=yes; fi
+record "S62 rollback with a settings log row only (no money, no commands) -> refused (HAS_CONFIG_DATA), nothing changed" "$ok" "E1=$E1 E=$E CNT=$CNT $(tail -n 3 "$TMP/cfg1.out" | tr '\n' ' ')"
+
 # ── S7: rollback نضيف ثم إعادة التطبيق ──
 if ! reset_db; then record "S70 reset" "no" "see output"; fi
 load_old_copy
@@ -519,15 +565,23 @@ run_file "$P2PTEST" "$TMP/p2ptest.out"; E=$?; S=$(summary_of "$TMP/p2ptest.out")
 ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$S" 9)" = "PASS" ] && [ "$(q "select count(*) from pg_proc where proname = 'zell_checkout_confirmation_fee'")" = "0" ]; then ok=yes; fi
 record "S96 P2 ptest (after P1) -> PASS, nothing left" "$ok" "E=$E S=$S fails=$(fails_of "$TMP/p2ptest.out")"
 run_file "$P2APPLY" "$TMP/p2apply.out"; E=$?
+ok=no; if [ "$E" -ne 0 ] && has "$TMP/p2apply.out" 'ZELL_0021A_P2_APPROVAL_MISSING' && [ "$(q "select count(*) from pg_proc where proname = 'zell_checkout_confirmation_fee'")" = "0" ]; then ok=yes; fi
+record "S96a P2 apply without the approval line -> refused, nothing changed" "$ok" "E=$E"
+run_approved "$P2APPLY" 'ci-0021a-p2' "$TMP/p2apply.out"; E=$?
 run_file "$P2VERIFY" "$TMP/p2verify.out"; V=$(summary_of "$TMP/p2verify.out")
 SR=$(q "set role service_role; select public.zell_checkout_confirmation_fee() -> 'confirmation_fee' ->> 'enabled'")
 AN=$(psql -X -q -tA -v VERBOSITY=verbose -U postgres -d "$DB" -c "set role anon; select public.zell_checkout_confirmation_fee()" 2>&1 | grep -o 'ERROR:  [0-9A-Z]\{5\}' | head -n 1 | awk '{print $2}')
 ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$V" 7)" = "PASS" ] && [ "$SR" = "false" ] && [ "$AN" = "42501" ]; then ok=yes; fi
 record "S97 P2 apply -> verify PASS, service_role reads the config, anon 42501" "$ok" "E=$E V=$V SR=$SR AN=$AN $(grep -m3 -E 'ERROR|ZELL' "$TMP/p2apply.out" | tr '\n' ' ' | cut -c1-400)"
-run_file "$P2APPLY" "$TMP/p2apply.out"; E=$?
+run_approved "$P2APPLY" 'ci-0021a-p2' "$TMP/p2apply.out"; E=$?
 V1=$(verify_p1)
 ok=no; if [ "$E" -ne 0 ] && has "$TMP/p2apply.out" 'ZELL_0021A_P2_ALREADY_APPLIED' && [ "$(rf "$V1" 7)" = "PASS" ]; then ok=yes; fi
 record "S98 P2 re-apply refused; P1 verify still PASS with P2" "$ok" "E=$E V1=$V1"
+PRE2=$(impact)
+rollback_p1; E=$?
+ok=no; if [ "$E" -ne 0 ] && has "$TMP/rb.out" 'ZELL_0021A_P1_RB_P2_FIRST' && [ "$(impact)" = "$PRE2" ] \
+   && [ "$(q "select count(*) from pg_proc where proname = 'zell_checkout_confirmation_fee'")" = "1" ]; then ok=yes; fi
+record "S98a P1 rollback while P2 is applied -> refused (P2_FIRST), nothing changed; P2 rollback first (S99), then P1 rollback (S81)" "$ok" "E=$E $(grep -m2 -E 'ERROR|ZELL' "$TMP/rb.out" | tr '\n' ' ' | cut -c1-300)"
 run_file "$P2ROLLBACK" "$TMP/p2rb.out"; E=$?
 ok=no; if [ "$E" -eq 0 ] && [ "$(q "select count(*) from pg_proc where proname = 'zell_checkout_confirmation_fee'")" = "0" ] && [ "$(rf "$(verify_p1)" 7)" = "PASS" ]; then ok=yes; fi
 record "S99 P2 rollback -> function gone, P1 verify PASS" "$ok" "E=$E $(tail -n 3 "$TMP/p2rb.out" | tr '\n' ' ')"
@@ -549,6 +603,13 @@ apply_p1; E=$?
 ok=no; if [ "$E" -ne 0 ] && has "$TMP/apply.out" 'ZELL_0021A_P1_CREATE_ORDER_DRIFT' && [ "$(impact)" = "$PRE" ]; then ok=yes; fi
 record "S90 drifted zell_create_order -> apply refused (CREATE_ORDER_DRIFT), nothing changed" "$ok" "E=$E"
 
-echo "SUMMARY pass=$PASS fail=$FAIL"
+# ── S14: ptest production من غير أدمن شغال ولا أي طلب (B2): الـ skips محسوبة من البيانات والحكم بالعدد بالحرف ──
+if ! reset_db; then record "S14 reset" "no" "see output"; fi
+q "update public.admin_users set is_active = false where role = 'admin'" > /dev/null
+run_ptest production; E=$?; S=$(summary_of "$TMP/ptest.out")
+ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$S" 11)" = "PASS" ] && [ "$(rf "$S" 8)" = "29" ] && [ "$(rf "$S" 12)" = "G01,M08,O00,V10" ] && [ "$(rf "$S" 13)" = "G01,M08,O00,V10" ]; then ok=yes; fi
+record "S14 ptest production without an active admin or any order -> PASS (29 pass), skips G01,M08,O00,V10 from the data" "$ok" "E=$E S=$S fails=$(fails_of "$TMP/ptest.out")"
+
+echo "SUMMARY co_owner=$CO_OWNER pass=$PASS fail=$FAIL"
 rm -rf "$TMP"
 [ "$FAIL" -eq 0 ]

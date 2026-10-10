@@ -7,6 +7,7 @@
 --   • الاسم zell_checkout_* (مش zell_payment_*) علشان verify P1 (24 دالة zell_payment_*، ومفيش service_role عليها) يفضل PASS.
 --   • بعد P1 بس (الـ preflight بيرفض من غيره). الرجوع: 0021a_p2_checkout_fee_rollback.sql — قبل أي رجوع لـ P1.
 -- التحقق: 0021a_p2_checkout_fee_verify.sql · الاختبار قبل التطبيق: 0021a_p2_checkout_fee_ptest.sql · CI: backend/db/ci/0021p1_sql_ci.sh (S95–S99)
+-- التشغيل: سطر الموافقة بعد begin; (برّه الجسم):  set local zell.approved_by = '<الموافقة>';  (من غيره ZELL_0021A_P2_APPROVAL_MISSING)
 -- ⚠ بيتطبّق على Production بموافقة صريحة بس، بعد P1 وقبل نشر كود P2.
 
 begin;
@@ -16,9 +17,14 @@ set local statement_timeout = '30s';
 
 -- (0) preflight: P1 متطبّق، و P2 لأ.
 do $p2pre$
+declare
+  v_by text := pg_catalog.btrim(coalesce(pg_catalog.current_setting('zell.approved_by', true), ''));
 begin
   if current_user <> 'postgres' then
     raise exception 'ZELL_0021A_P2_WRONG_CALLER';
+  end if;
+  if v_by = '' or pg_catalog.char_length(v_by) > 120 then
+    raise exception 'ZELL_0021A_P2_APPROVAL_MISSING';
   end if;
   if pg_catalog.to_regclass('public.zell_payment_settings') is null
      or pg_catalog.to_regrole('zell_order_definer') is null

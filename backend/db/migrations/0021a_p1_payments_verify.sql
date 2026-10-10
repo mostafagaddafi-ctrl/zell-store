@@ -111,7 +111,8 @@ with procs as (
            = (select count(*) from public.order_events e where e.kind in ('payment_recorded', 'payment_refunded')),
          null
   union all
-  select 'V11', 'catalog 0021-P: 31 capabilities, the 2 new ones (sales / owner), admin_today 23, every active admin holds payments_record',
+  -- V11 فحص بعد التطبيق مباشرة بس: أي تغيير لاحق في الأدمنز أو المنح (من واجهة الصلاحيات) ممكن يغيّره من غير ما يبقى عطل.
+  select 'V11', 'catalog 0021-P right after apply only: 31 capabilities, the 2 new ones (sales / owner), admin_today 23, every active admin holds payments_record',
          (select count(*) from public.erp_capabilities) = 31
          and exists (select 1 from public.erp_capabilities c where c.key = 'zell.orders.payments_record' and c.category = 'sales')
          and exists (select 1 from public.erp_capabilities c where c.key = 'zell.orders.payments_admin' and c.category = 'owner')

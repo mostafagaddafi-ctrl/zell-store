@@ -16,8 +16,8 @@
 -- التشغيل: سطر الموافقة بعد begin; (برّه الجسم):  set local zell.approved_by = '<الموافقة>';
 -- التحقق بعد التطبيق: 0021a_p1_payments_verify.sql · الرجوع: 0021a_p1_payments_rollback.sql
 -- الاختبار قبل التطبيق: 0021a_p1_payments_ptest.sql · CI: backend/db/ci/0021p1_sql_ci.sh
--- ⚠ بيتطبّق على Production بموافقة صريحة بس، بعد backup، وقت طلبات قليلة (ALTER TABLE orders بياخد قفل لحظي).
---   لو مالقاش قفل في 5 ثواني بيفشل كله بأمان.
+-- ⚠ بيتطبّق على Production بموافقة صريحة بس، بعد backup، وقت طلبات قليلة: ALTER TABLE orders بياخد قفل ACCESS EXCLUSIVE على
+--   orders بيفضل لحد آخر المعاملة (commit)، فأي طلب جديد بيستنى طول مدة التطبيق. لو مالقاش القفل في 5 ثواني بيفشل كله بأمان.
 
 begin;
 -- >>> 0021A_P1 BODY

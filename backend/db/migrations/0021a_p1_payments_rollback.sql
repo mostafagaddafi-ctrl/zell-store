@@ -4,7 +4,9 @@
 --   الخمسة والعمودين والـ triggers، ومن كتالوج 0021-P الصلاحيتين والقالب والمنح (بسطر سجل «revoke» مصدره migration).
 -- • بيرفض لو فيه أي فلوس اتسجّلت (صف في order_payments، أو أي أمر في zell_payment_commands حتى لو من غير دفعة زي التسليم
 --   الآجل، أو طلب مدفوعه أو رسومه ≠ 0) — ZELL_0021A_P1_RB_HAS_MONEY_DATA.
---   وقتها المسموح forward-fix بس (مفيش مسح لسجل فلوس). الإعدادات وطرق الدفع وسجلهم بيتشالوا مع الجداول.
+-- • بيرفض لو zell_payment_config_log فيه أي سطر (المالك غيّر إعدادات الدفع أو طرق الدفع) — ZELL_0021A_P1_RB_HAS_CONFIG_DATA.
+-- • بيرفض لو P2 متطبّق (zell_checkout_confirmation_fee موجودة) — ZELL_0021A_P1_RB_P2_FIRST: rollback لـ P2 الأول.
+--   وقتها المسموح forward-fix بس (مفيش مسح لسجل فلوس ولا لسجل الإعدادات). من غير أي سطر، الإعدادات وطرق الدفع بيتشالوا مع الجداول.
 -- • محتاج سطر الموافقة بعد begin; زي التطبيق:  set local zell.approved_by = '<الموافقة>';
 -- • الترتيب: الكود الأول (P2 revert لو اتنشر)، وبعدين الداتابيز. ⚠ بيتشغّل على Production بموافقة صريحة بس.
 
@@ -28,6 +30,10 @@ begin
                      where a.attrelid = 'public.orders'::regclass and not a.attisdropped and a.attname = 'paid_piastres') then
     raise exception 'ZELL_0021A_P1_RB_NOT_APPLIED';
   end if;
+  -- P2 فوق P1: الرجوع لـ P2 الأول (0021a_p2_checkout_fee_rollback.sql).
+  if pg_catalog.to_regprocedure('public.zell_checkout_confirmation_fee()') is not null then
+    raise exception 'ZELL_0021A_P1_RB_P2_FIRST';
+  end if;
   if (select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p
        where p.oid = pg_catalog.to_regprocedure('public.zell_create_order(jsonb, text, text, text, text, text, text, text, text, text, text, boolean, text, jsonb)'))
      is distinct from '811d4d573d750db9c7e5164799536aa6' then
@@ -42,6 +48,10 @@ begin
      or exists (select 1 from public.zell_payment_commands)
      or exists (select 1 from public.orders o where o.paid_piastres <> 0 or o.confirmation_fee_piastres <> 0) then
     raise exception 'ZELL_0021A_P1_RB_HAS_MONEY_DATA';
+  end if;
+  -- إعدادات الدفع أو طرق الدفع اتغيّرت (سطر في السجل) = forward-fix بس، مفيش مسح للسجل.
+  if exists (select 1 from public.zell_payment_config_log) then
+    raise exception 'ZELL_0021A_P1_RB_HAS_CONFIG_DATA';
   end if;
 end
 $p1rb$;

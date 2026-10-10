@@ -6,6 +6,7 @@
 
 begin;
 set local idle_in_transaction_session_timeout = '15s';
+set local zell.approved_by = 'ptest-0021a-p2';
 
 do $zguard$
 begin
@@ -44,9 +45,14 @@ set local statement_timeout = '30s';
 
 -- (0) preflight: P1 متطبّق، و P2 لأ.
 do $p2pre$
+declare
+  v_by text := pg_catalog.btrim(coalesce(pg_catalog.current_setting('zell.approved_by', true), ''));
 begin
   if current_user <> 'postgres' then
     raise exception 'ZELL_0021A_P2_WRONG_CALLER';
+  end if;
+  if v_by = '' or pg_catalog.char_length(v_by) > 120 then
+    raise exception 'ZELL_0021A_P2_APPROVAL_MISSING';
   end if;
   if pg_catalog.to_regclass('public.zell_payment_settings') is null
      or pg_catalog.to_regrole('zell_order_definer') is null

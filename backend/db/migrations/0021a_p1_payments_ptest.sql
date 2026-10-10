@@ -5,9 +5,11 @@
 -- • جسم الـ migration منسوخ بالحرف بين >>> و <<< (md5 في CI)، ومعاه نسخة من zell_create_order الحالية (بعد D) بالحرف
 --   باسم pg_temp.zell_create_order_old (ptest_old — العقد §٦-١) للمقارنة على نفس المدخلات.
 -- • profile production: البنية · الحساب · الإعدادات وطرق الدفع (جداول P1 بس، اتعملت جوه المعاملة) · الحراس · رفض
---   zell_create_order قديم = جديد. الـ skip المتوقع: O00 (طلبات صالحة قديم/جديد = CI بس، علشان مايلمسش تسلسل الطلبات).
+--   zell_create_order قديم = جديد. الـ skips المتوقعة بتتحسب من البيانات (zt_expect): O00 في production (طلبات صالحة
+--   قديم/جديد = CI بس، علشان مايلمسش تسلسل الطلبات) · V10 و M08 لو مفيش أدمن شغال · G01 لو مفيش ولا طلب. والحكم بالعدد بالحرف.
 -- • الأثر على Production: كله جوه المعاملة وبيترجع. الأثر الوحيد اللي مابيترجعش: فجوة في تسلسل erp_access_audit.id
---   بعدد الأدمنز الشغالين (سطر المنح بيتكتب ويترجع). ⚠ ALTER TABLE orders بياخد قفل لحظي. ⚠ محتاج موافقة منفصلة.
+--   بعدد الأدمنز الشغالين (سطر المنح بيتكتب ويترجع). ⚠ ALTER TABLE orders بياخد قفل ACCESS EXCLUSIVE على orders بيفضل لحد
+--   آخر المعاملة (rollback)، فأي طلب جديد بيستنى طول مدة الـ ptest — وقت هادي بس. ⚠ محتاج موافقة منفصلة.
 
 begin;
 set local idle_in_transaction_session_timeout = '30s';
@@ -32,8 +34,6 @@ $zguard$;
 
 create temporary table zt_results (n serial, id text, name text, outcome text, detail text) on commit drop;
 create temporary table zt_expect (expected text[]) on commit drop;
-insert into zt_expect (expected)
-values (case when pg_catalog.current_setting('zell.ptest_profile', true) = 'ci' then array[]::text[] else array['O00'] end);
 create temporary table zt_fx (owner_id uuid, admin_id uuid, order_id integer, create_acl text, create_owner text) on commit drop;
 insert into zt_fx (owner_id, admin_id, order_id, create_acl, create_owner)
 select (select a.user_id from public.admin_users a where a.role = 'owner' and a.is_active order by a.created_at, a.user_id limit 1),
@@ -45,6 +45,15 @@ select (select a.user_id from public.admin_users a where a.role = 'owner' and a.
            where p.oid = pg_catalog.to_regprocedure('public.zell_create_order(jsonb, text, text, text, text, text, text, text, text, text, text, boolean, text, jsonb)')) s),
        (select pg_catalog.pg_get_userbyid(p.proowner) from pg_catalog.pg_proc p
          where p.oid = pg_catalog.to_regprocedure('public.zell_create_order(jsonb, text, text, text, text, text, text, text, text, text, text, boolean, text, jsonb)'));
+-- الـ skips المتوقعة من البيانات (مراجعة #122 B2)، مرتبة زي الحكم: O00 (production) · V10 و M08 (مفيش أدمن شغال) · G01 (مفيش طلبات).
+insert into zt_expect (expected)
+select array(select x from pg_catalog.unnest(array[
+         case when pg_catalog.current_setting('zell.ptest_profile', true) <> 'ci' then 'O00' end,
+         case when f.admin_id is null then 'M08' end,
+         case when f.admin_id is null then 'V10' end,
+         case when f.order_id is null then 'G01' end]) as x
+        where x is not null order by x)
+  from zt_fx f;
 
 create function pg_temp.zt(p_name text, p_ok boolean, p_detail text)
 returns void language sql as $f$
@@ -2765,7 +2774,7 @@ begin
     and r ->> 'payment_numbers' = 'فودافون كاش 01000000000' and r -> 'customer_credit_enabled' = 'true'::jsonb
     and (select count(*) from public.zell_payment_config_log l where l.kind = 'settings') = 1, r::text);
   if v_fx.admin_id is null then
-    perform pg_temp.zt('V10 admin: reads settings, cannot save (45402) — no active admin here, covered in CI flows', true, 'no-admin');
+    perform pg_temp.zt_skip('V10 admin: reads settings, cannot save (45402)', 'no active admin (covered in CI flows and S14)');
   else
     r := pg_temp.as_user(v_a, format('select public.zell_payment_save_settings(%s, %L::jsonb, false)', pg_temp.settings_ver(), '{"enabled": false}'));
     perform pg_temp.zt('V10 admin: reads settings, cannot save (45402)', r ->> '_error' = '45402'
@@ -2809,7 +2818,7 @@ begin
     (select string_agg(l.kind, ',' order by l.id) from public.zell_payment_config_log l where l.kind like 'method\_%')
       = 'method_add,method_update,method_delete', null);
   if v_fx.admin_id is null then
-    perform pg_temp.zt('M08 admin lists methods, cannot add (45402) — no active admin here, covered in CI flows', true, 'no-admin');
+    perform pg_temp.zt_skip('M08 admin lists methods, cannot add (45402)', 'no active admin (covered in CI flows and S14)');
   else
     perform pg_temp.zt('M08 admin lists methods, cannot add (45402)',
       jsonb_array_length(pg_temp.as_user(pg_temp.cl(v_fx.admin_id), 'select public.zell_payment_list_methods()')) = 4
@@ -2828,7 +2837,7 @@ declare
 begin
   select * into v_fx from pg_temp.zt_fx;
   if v_fx.order_id is null then
-    perform pg_temp.zt('G01 direct UPDATE of paid / fee -> 45418 — no orders here', true, 'no-orders');
+    perform pg_temp.zt_skip('G01 direct UPDATE of paid / fee as postgres -> 45418 (row untouched)', 'no orders (covered in CI flows F24 and S14)');
   else
     perform pg_temp.zt('G01 direct UPDATE of paid / fee as postgres -> 45418 (row untouched)',
       pg_temp.try_exec(format('update public.orders set paid_piastres = 1 where id = %s', v_fx.order_id)) = '45418'
@@ -2960,8 +2969,12 @@ select 0::integer as ord, 'summary'::text as kind, null::text as test_id, null::
        (select count(*) from pg_temp.zt_results where outcome = 'pass') as pass,
        (select count(*) from pg_temp.zt_results where outcome = 'fail') as fail,
        (select count(*) from pg_temp.zt_results where outcome = 'skip') as skip,
+       -- 33 حالة. النجاح بالحرف: ci = 33 · production = 32 (O00 skip)، وكل fixture ناقص (V10 · M08 · G01) = skip بدل نجاح.
        case when (select count(*) from pg_temp.zt_results where outcome = 'fail') = 0
-             and (select count(*) from pg_temp.zt_results where outcome = 'pass') >= 27
+             and (select count(*) from pg_temp.zt_results) = 33
+             and (select count(*) from pg_temp.zt_results where outcome = 'pass')
+                 = case pg_catalog.current_setting('zell.ptest_profile', true) when 'ci' then 33 else 32 end
+                   - (select count(*) from pg_temp.zt_expect e, pg_catalog.unnest(e.expected) as x where x in ('G01', 'M08', 'V10'))
              and coalesce((select string_agg(id, ',' order by id) from pg_temp.zt_results where outcome = 'skip'), '')
                  = (select array_to_string(e.expected, ',') from pg_temp.zt_expect e)
             then 'PASS' else 'FAIL' end as verdict,
