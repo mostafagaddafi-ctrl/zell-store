@@ -144,10 +144,10 @@ create trigger orders_cancelled_final before update of status on public.orders
   for each row execute function public.zell_orders_cancelled_final();
 grant select on public.products, public.product_widths, public.settings, public.coupons to zell_order_writer;
 grant update on public.coupons to zell_order_writer;
-grant select, insert on public.orders, public.order_items to zell_order_writer;
+grant select, insert, update on public.orders, public.order_items to zell_order_writer;
 grant usage on sequence public.orders_id_seq, public.order_items_id_seq to zell_order_writer;
 create policy orders_insert_for_writer on public.orders for insert to zell_order_writer with check (true);
-create policy orders_read_for_writer on public.orders for select to zell_order_writer using (true);
+create policy orders_read_for_writer on public.orders for select to zell_order_writer using (true); create policy orders_update_for_writer on public.orders for update to zell_order_writer using (true) with check (true);
 
 insert into public.products (id, name_ar, price_per_meter_piastres, width_cm, min_length_cm, step_cm, max_length_cm, is_active, sale_unit, max_quantity) values
   (1, 'فيلم عازل', 30000, 50, 100, 50, 3000, true, 'meter', 1),
