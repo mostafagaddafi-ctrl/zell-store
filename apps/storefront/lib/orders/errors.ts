@@ -64,6 +64,12 @@ export const ORDER_ERRORS: Record<OrderErrorCode, ErrorSpec> = {
   },
   // 0019 — أكواد الخصم. رسايل عامة؛ رسالة الحد الأدنى بالرقم بتتبني في الواجهة من المعاينة (PR4).
   COUPON_INVALID: { status: 400, message: 'كود الخصم غير صحيح.', retryable: false },
+  // 0021-D — موعد التسليم المفضّل (45415)
+  PREFERRED_DELIVERY_INVALID: {
+    status: 400,
+    message: 'موعد التسليم المفضّل مش صحيح. اختار تاريخ من النهارده لحد 60 يوم، أو سيبه فاضي.',
+    retryable: false,
+  },
   COUPON_EXPIRED: { status: 409, message: 'كود الخصم ده مش ساري دلوقتي.', retryable: false },
   COUPON_EXHAUSTED: { status: 409, message: 'كود الخصم ده خلص.', retryable: false },
   COUPON_MIN_SUBTOTAL: { status: 409, message: 'إجمالي الأصناف أقل من الحد الأدنى لكود الخصم ده.', retryable: false },
