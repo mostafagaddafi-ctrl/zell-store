@@ -45,6 +45,8 @@ import {
   parsePeriods,
   parseWriteResult,
   periodLine,
+  preferredLine,
+  preferredTitle,
   readFollowUpFilter,
   statusControls,
   transitionConfirmation,
@@ -289,6 +291,10 @@ export async function runOrderCases(): Promise<OrderCasesReport> {
   check('R6 validation messages carry no codes', ['45402', '45405', '45406', '45407', '45408', '45409', '45410', '45411', '45412'].map((c) => kind(c)).filter((k) => k.kind === 'validation' && LATIN.test(k.message)).length, 0)
   check('R7 write result', [parseWriteResult({ ok: true, order_id: 7, status: 'confirmed', updated_at: '2026-01-15T10:00:00Z' }), parseWriteResult({ ok: false })], [{ orderId: 7, status: 'confirmed', updatedAt: '2026-01-15T10:00:00Z' }, null])
   check('R8 gate state', [parseGateState({ is_open: false, changed_at: '2026-01-01T00:00:00Z' }), parseGateState({ is_open: 'no' })], [{ isOpen: false, changedAt: '2026-01-01T00:00:00Z' }, null])
+
+  // ── PD: موعد العميل المفضّل (0021-D) ──
+  check('PD1 preferred title', [preferredTitle(false), preferredTitle(true)], ['موعد مفضل — بانتظار التأكيد', 'موعد مفضل من العميل'])
+  check('PD2 preferred line', [preferredLine({ date: '2026-01-20', period: 'noon', note: null }), preferredLine({ date: '2026-01-20', period: null, note: 'x' })], ['2026-01-20 · ظهرًا', '2026-01-20 · بدون فترة محددة'])
 
   return { passed, failures }
 }
