@@ -15,6 +15,7 @@ import 'server-only'
 
 import { INSTALLATION_NOTE_MARKER, hasInstallerRequest } from '@zell/core'
 import { restPatch, restSelect } from '../data/rpc'
+import { fetchOrderMoney } from './receiptMoney'
 import { DISCOUNT_SIGN, discountLabel, discountLine } from './coupon'
 import { PREFERRED_DELIVERY_PENDING, isDeliveryPeriod, preferredDeliveryLine } from '@zell/core'
 
@@ -95,7 +96,7 @@ function isNotifyOrder(value: unknown): value is NotifyOrder {
   return Array.isArray(o['order_items'])
 }
 
-function buildMessage(order: NotifyOrder): string {
+function buildMessage(order: NotifyOrder, feePiastres: number = 0): string {
   const when = new Date(order.created_at).toLocaleString('ar-EG', { timeZone: TIME_ZONE })
 
   const lines: string[] = [
@@ -144,6 +145,10 @@ function buildMessage(order: NotifyOrder): string {
     lines.push('<b>' + escapeHtml(discountLabel(discount.code)) + ':</b> ' + escapeHtml(DISCOUNT_SIGN + money(discount.piastres)))
   }
   lines.push('<b>الإجمالي:</b> ' + escapeHtml(money(order.total_piastres)))
+  // 0021-A P2 — رسوم التأكيد (لقطة الطلب): المقدم المطلوب والباقي عند الاستلام. من غير رسوم مفيش سطر.
+  if (feePiastres > 0) {
+    lines.push('<b>مقدم التأكيد المطلوب:</b> ' + escapeHtml(money(feePiastres) + ' · الباقي عند الاستلام ' + money(order.total_piastres - feePiastres)))
+  }
 
   // 0021-D — موعد التسليم المفضّل من العميل (لسه مش مؤكد)
   if (typeof order.preferred_delivery_date === 'string' && order.preferred_delivery_date !== '') {
@@ -282,7 +287,7 @@ export async function notifyNewOrder(orderNumber: string): Promise<void> {
       console.error('[notify] ' + orderNumber + ' :: CLAIM_UNKNOWN_SENDING_ANYWAY')
     }
 
-    const telegramCode = await sendTelegram(buildMessage(order))
+    const telegramCode = await sendTelegram(buildMessage(order, (await fetchOrderMoney(orderNumber))?.fee ?? 0))
     const elapsed = () => String(Date.now() - startedAt) + 'ms'
 
     if (telegramCode === null) {
