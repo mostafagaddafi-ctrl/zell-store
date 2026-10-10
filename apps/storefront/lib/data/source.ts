@@ -2,6 +2,7 @@ import { parsePeriodTimes, type DeliveryPeriodTime, type StoreCollection, type S
 import { getFallbackCollections, getFallbackProducts, getFallbackSettings } from '../catalog'
 import { fetchStorefrontFromSupabase } from './queries'
 import { restRpc } from './rpc'
+import { parseCheckoutFee, type CheckoutFee } from '../orders/confirmationFee'
 
 /**
  * مصدر بيانات المتجر — نقطة الدخول الوحيدة للصفحات.
@@ -86,6 +87,20 @@ export async function getCheckoutPeriods(): Promise<DeliveryPeriodTime[] | null>
   try {
     const result = await restRpc<unknown>('zell_checkout_delivery_periods', {})
     return result.ok ? parsePeriodTimes(result.data) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 0021-A P2 — إعداد رسوم التأكيد للـ Checkout (zell_checkout_confirmation_fee، service_role).
+ * fallback (CI والتطوير) أو أي فشل أو الدالة مش موجودة = null: مفيش سطر مقدم، والطلب مايقعش (المعتمد لقطة الداتابيز).
+ */
+export async function getCheckoutConfirmationFee(): Promise<CheckoutFee | null> {
+  if (resolveDataSource() === 'fallback') return null
+  try {
+    const result = await restRpc<unknown>('zell_checkout_confirmation_fee', {})
+    return result.ok ? parseCheckoutFee(result.data) : null
   } catch {
     return null
   }

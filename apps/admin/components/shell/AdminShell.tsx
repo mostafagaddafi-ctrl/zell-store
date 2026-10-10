@@ -22,6 +22,7 @@ import {
   Wrench,
   PackageOpen,
   X,
+  Wallet,
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { SignOutButton } from './SignOutButton'
@@ -79,6 +80,7 @@ export function AdminShell({
         { href: '/identity', label: 'الهوية', icon: Store },
         // 0019 — أكواد الخصم للمالك بس (والصفحة والـactions بيتحققوا من الدور على السيرفر)
         ...(identity.role === 'owner' ? [{ href: '/coupons', label: 'أكواد الخصم', icon: Tag }] : []),
+        ...(identity.role === 'owner' ? [{ href: '/payments', label: 'الدفع ورسوم التأكيد', icon: Wallet }] : []),
       ],
     },
     // 0020 — المخزون للمالك بس (الصفحة والـactions ودوال الداتابيز نفسها بيتحققوا من الدور)

@@ -37,6 +37,7 @@ import { useCart } from '../../lib/cart'
 import { clearCheckoutDraft, readCheckoutDraft, saveCheckoutDraft } from '../../lib/drafts'
 import { couponBlockReason, couponDraftCode, couponPayloadField, estimateCoupon, isCouponErrorCode } from '../../lib/orders/couponCheckout'
 import { useCheckoutCoupon } from '../../lib/useCheckoutCoupon'
+import type { CheckoutFee } from '../../lib/orders/confirmationFee'
 import { Button, buttonClasses } from '../ui/Button'
 import { Field, inputClasses, textareaClasses } from '../ui/Field'
 import { ImageSlot } from '../ui/ImageSlot'
@@ -152,11 +153,14 @@ export function CheckoutForm({
   products,
   settings,
   periods = null,
+  confirmationFee = null,
 }: {
   products: StoreProduct[]
   settings: StoreSettings
   /** 0021-D — أوقات الفترات من الداتابيز (null = الأسماء بس). */
   periods?: DeliveryPeriodTime[] | null
+  /** 0021-A P2 — إعداد رسوم التأكيد من الداتابيز (null = مفيش سطر مقدم). */
+  confirmationFee?: CheckoutFee | null
 }) {
   // 0021-D — موعد التسليم المفضّل (اختياري)
   const [preferred, setPreferred] = useState<PreferredDeliveryDraft>(EMPTY_PREFERRED_DELIVERY)
@@ -745,6 +749,7 @@ export function CheckoutForm({
             discount={couponDiscount}
             trustLine={settings.content.trustLine}
             gift={settings.offerEnabled ? settings.offerText : ''}
+            confirmationFee={confirmationFee === null ? null : { fee: confirmationFee, madeToMeasure: meterLengthCm > 0, installation: installationReady }}
           />
 
           <Button type="submit" size="lg" disabled={submitting || submitBlocked}>
