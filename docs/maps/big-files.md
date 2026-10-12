@@ -1,8 +1,8 @@
 # الملفات الضخمة: أقسامها وأرقام سطورها
 
-كل ملف في الريبو حجمه 20 KB أو أكتر (SQL · shell · Markdown)، وأقسامه بأرقام سطورها، ومعاهم ملفات 0021-A P1/P2 الأصغر علشان المرحلة تبقى كاملة. الهدف إن أي شات يقرا الجزء اللي محتاجه بس، من غير ما يفتح ملف فيه آلاف السطور.
+كل ملف في الريبو حجمه 20 KB أو أكتر (SQL · shell · Markdown)، وأقسامه بأرقام سطورها، ومعاهم ملفات 0021-A P1/P2 و0021-D2 الأصغر علشان المرحلة تبقى كاملة. الهدف إن أي شات يقرا الجزء اللي محتاجه بس، من غير ما يفتح ملف فيه آلاف السطور.
 
-- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR.
+- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR. ملفات 0021-D2 W1 (`0021d2_*`) اتضافت في PR W1 فوق main `6f3df51` (صفوفها وأقسامها من الـ head بتاعه)، وباقي الجدول زي ما هو.
 - **القراية بالسطور:** على GitHub ضيف `#L100-L200` للرابط، أو اقرا الـ blob وقطّع السطور من القسم لحد القسم اللي بعده.
 - **الـ ptest:** جسم الـ migration منسوخ جواه بالحرف بين «بداية/نهاية الجسم المنسوخ»، فمش محتاج تقراه هناك. اقراه من ملف الـ migration.
 - الجداول متولّدة من عناوين الملفات نفسها: `-- (N)` · الفواصل · `DO $…$` · `create function/table/role` · `BEGIN/COMMIT/ROLLBACK` · `#` في Markdown · `name() {` و`X=$(cat <<'SQL'` في shell.
@@ -12,6 +12,8 @@
 | --- | --- | --- | --- |
 | `backend/db/ci/0020s_sql_ci.sh` | 36 KB | 515 | اختبارات SQL لـ 0020-S في CI (ptest · تطبيق · verify · نداءات زي PostgREST · rollback) |
 | `backend/db/ci/0021a_sql_ci.sh` | 39 KB | 537 | اختبارات SQL لـ 0021-A A1 في CI (S0–S13: ptest · تطبيق · البوابة قبل/بعد · rollback · اتصالين) |
+| `backend/db/ci/0021d2_flows.sql` | 15 KB | 248 | 0021-D2 W1 سيناريوهات الإعداد بعد التطبيق في CI (F01–F32، 24 حالة، معاملة بترجع) — أقل من 20 KB |
+| `backend/db/ci/0021d2_sql_ci.sh` | 14 KB | 212 | اختبارات SQL لـ 0021-D2 W1 في CI فوق شكل Production (S0–S5: الشكل · ptest · تطبيق · verify · السيناريوهات · rollback · حراس الـ preflight) — أقل من 20 KB |
 | `backend/db/ci/0021d_sql_ci.sh` | 28 KB | 391 | اختبارات SQL لـ 0021-D في CI (ptest · تطبيق · مقارنة قديم/جديد 480 حالة · الإيصال · rollback · الانحراف) |
 | `backend/db/ci/0021p_sql_ci.sh` | 30 KB | 445 | اختبارات SQL لـ 0021-P في CI (S0–S8 و C1–C4) |
 | `backend/db/ci/0021p1_flows.sql` | 37 KB | 538 | 0021-A P1 سيناريوهات الدفع بعد التطبيق في CI (F01–F42، معاملة بترجع) |
@@ -43,6 +45,10 @@
 | `backend/db/migrations/0021a_p2_checkout_fee_rollback.sql` | 1 KB | 32 | 0021-A P2 الرجوع (بيشيل الدالة بس، قبل أي رجوع لـ P1) — أقل من 20 KB |
 | `backend/db/migrations/0021a_p2_checkout_fee_verify.sql` | 2 KB | 37 | 0021-A P2 التحقق بعد التطبيق — أقل من 20 KB |
 | `backend/db/migrations/0021a_p2_checkout_fee.sql` | 4 KB | 75 | 0021-A P2 دالة `zell_checkout_confirmation_fee()` لـ `service_role` — أقل من 20 KB |
+| `backend/db/migrations/0021d2_delivery_settings_ptest.sql` | 21 KB | 365 | 0021-D2 W1 اختبار قبل التطبيق (smoke، 6 حالات، والنتيجة صفوف) |
+| `backend/db/migrations/0021d2_delivery_settings_rollback.sql` | 2 KB | 56 | 0021-D2 W1 الرجوع (الدوال والجدولين؛ بيرفض بأي سطر في السجل) — أقل من 20 KB |
+| `backend/db/migrations/0021d2_delivery_settings_verify.sql` | 7 KB | 93 | 0021-D2 W1 التحقق بعد التطبيق (8 فحوص، والنتيجة صفوف) — أقل من 20 KB |
+| `backend/db/migrations/0021d2_delivery_settings.sql` | 15 KB | 252 | 0021-D2 W1 إعداد موعد التسليم: الجدولين · الحراس · `zell_delivery_settings_get` / `_save` · `zell_checkout_delivery_settings` — أقل من 20 KB |
 | `backend/db/migrations/0021d_preferred_delivery_ptest.sql` | 98 KB | 1938 | 0021-D اختبار قبل التطبيق (الجسم + القديمة بالحرف، والنتيجة صفوف) |
 | `backend/db/migrations/0021d_preferred_delivery_rollback.sql` | 39 KB | 852 | 0021-D الرجوع (الدالتين القديمتين بالحرف من 0019) |
 | `backend/db/migrations/0021d_preferred_delivery.sql` | 50 KB | 1012 | 0021-D الموعد المفضّل: الأعمدة · zell_create_order بـ 14 معامل · الإيصال · فترات Checkout |
@@ -123,6 +129,38 @@
 | 472 | # ── S11: rollback مرفوض ── |
 | 495 | # ── S12: rollback نضيف + إعادة تطبيق ── |
 | 512 | # ── S13: التعارض باتصالين ── |
+
+## `backend/db/ci/0021d2_flows.sql`
+
+0021-D2 W1 سيناريوهات الإعداد بعد التطبيق في CI (F01–F32، 24 حالة، معاملة بترجع) — أقل من 20 KB · 248 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 8 | begin; |
+| 14 | create function pg_temp.zt(p_name text, p_ok boolean, p_detail text) |
+| 21 | create function pg_temp.call_as(p_role text, p_sub text, p_sql text) |
+| 44 | create function pg_temp.save_sql(p_ts timestamptz, p_choice text, p_note text, p_text text) |
+| 50 | create function pg_temp.js(p text) returns jsonb language sql as $f$ |
+| 55 | do $zA$ |
+| 107 | do $zB$ |
+| 143 | do $zC$ |
+| 201 | do $zD$ |
+| 248 | rollback; |
+
+## `backend/db/ci/0021d2_sql_ci.sh`
+
+اختبارات SQL لـ 0021-D2 W1 في CI فوق شكل Production (S0–S5: الشكل · ptest · تطبيق · verify · السيناريوهات · rollback · حراس الـ preflight) — أقل من 20 KB · 212 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 53 | record() { |
+| 96 | prep() { |
+| 106 | # ── S0: الشكل والملفات ── |
+| 123 | # ── S1: ptest قبل التطبيق ── |
+| 136 | # ── S2: التطبيق ── |
+| 157 | # ── S3: السيناريوهات (معاملة بترجع) ثم حفظ حقيقي ── |
+| 178 | # ── S4: الرجوع ── |
+| 199 | # ── S5: حراس الـ preflight ── |
 
 ## `backend/db/ci/0021d_sql_ci.sh`
 
@@ -942,6 +980,79 @@
 | 59 | do $p2post$ |
 | 74 | -- <<< 0021A_P2 BODY |
 | 75 | commit; |
+
+## `backend/db/migrations/0021d2_delivery_settings_ptest.sql`
+
+0021-D2 W1 اختبار قبل التطبيق (smoke، 6 حالات، والنتيجة صفوف) · 365 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 8 | begin; |
+| 12 | do $zguard$ |
+| 30 | create function pg_temp.zt(p_name text, p_ok boolean, p_detail text) |
+| 36 | create function pg_temp.call_as(p_role text, p_sql text) |
+| 57 | -- >>> 0021D2 BODY |
+| 61 | -- (0) preflight: الموافقة · المتطلبات (A1 · D · P1 · P2) · مش متطبّق قبل كده · الكود 45430 مش مستخدم في أي دالة. |
+| 62 | do $d2pre$ |
+| 96 | -- (1) الجداول (مالكها postgres): RLS + policy لـ zell_order_definer بس، وصفر صلاحيات لـ anon و authenticated و servi… |
+| 98 | create table public.zell_delivery_settings ( |
+| 114 | create table public.zell_delivery_settings_log ( |
+| 134 | -- (2) الثبات: السجل append-only (مفيش UPDATE ولا DELETE ولا TRUNCATE)، وصف الإعداد مايتمسحش. دالة الـ trigger مالكها |
+| 136 | create function public.zell_delivery_settings_trg_append_only() |
+| 153 | -- (3) الدوال: CREATE كـ zell_order_definer (SET LOCAL ROLE). الأسماء برّه عدّادات zell_order_* و zell_payment_* (ر٥). |
+| 158 | create function public.zell_delivery_settings_get() |
+| 175 | create function public.zell_delivery_settings_save(p_expected_updated_at timestamptz, p_customer_choice_enabled boolean, |
+| 227 | create function public.zell_checkout_delivery_settings() |
+| 246 | -- (4) postflight |
+| 247 | do $d2post$ |
+| 286 | -- <<< 0021D2 BODY |
+| 288 | do $zT$ |
+| 365 | rollback; |
+
+## `backend/db/migrations/0021d2_delivery_settings_rollback.sql`
+
+0021-D2 W1 الرجوع (الدوال والجدولين؛ بيرفض بأي سطر في السجل) — أقل من 20 KB · 56 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 7 | begin; |
+| 11 | do $d2rb$ |
+| 25 | do $d2rbdata$ |
+| 43 | do $d2rbpost$ |
+| 56 | commit; |
+
+## `backend/db/migrations/0021d2_delivery_settings_verify.sql`
+
+0021-D2 W1 التحقق بعد التطبيق (8 فحوص، والنتيجة صفوف) — أقل من 20 KB · 93 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 8 | begin; |
+| 93 | rollback; |
+
+## `backend/db/migrations/0021d2_delivery_settings.sql`
+
+0021-D2 W1 إعداد موعد التسليم: الجدولين · الحراس · `zell_delivery_settings_get` / `_save` · `zell_checkout_delivery_settings` — أقل من 20 KB · 252 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 21 | begin; |
+| 22 | -- >>> 0021D2 BODY |
+| 26 | -- (0) preflight: الموافقة · المتطلبات (A1 · D · P1 · P2) · مش متطبّق قبل كده · الكود 45430 مش مستخدم في أي دالة. |
+| 27 | do $d2pre$ |
+| 61 | -- (1) الجداول (مالكها postgres): RLS + policy لـ zell_order_definer بس، وصفر صلاحيات لـ anon و authenticated و servi… |
+| 63 | create table public.zell_delivery_settings ( |
+| 79 | create table public.zell_delivery_settings_log ( |
+| 99 | -- (2) الثبات: السجل append-only (مفيش UPDATE ولا DELETE ولا TRUNCATE)، وصف الإعداد مايتمسحش. دالة الـ trigger مالكها |
+| 101 | create function public.zell_delivery_settings_trg_append_only() |
+| 118 | -- (3) الدوال: CREATE كـ zell_order_definer (SET LOCAL ROLE). الأسماء برّه عدّادات zell_order_* و zell_payment_* (ر٥). |
+| 123 | create function public.zell_delivery_settings_get() |
+| 140 | create function public.zell_delivery_settings_save(p_expected_updated_at timestamptz, p_customer_choice_enabled boolean, |
+| 192 | create function public.zell_checkout_delivery_settings() |
+| 211 | -- (4) postflight |
+| 212 | do $d2post$ |
+| 251 | -- <<< 0021D2 BODY |
+| 252 | commit; |
 
 ## `backend/db/migrations/0021d_preferred_delivery_ptest.sql`
 
