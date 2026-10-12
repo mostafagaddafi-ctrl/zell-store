@@ -24,7 +24,10 @@ import ts from 'typescript'
 const appRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const coreSrc = join(appRoot, '..', '..', 'packages', 'core', 'src')
 
-const SUITES = [{ name: 'delivery', dir: 'lib/orders', entry: 'deliverySettings.cases.ts', run: 'runDeliverySettingsCases' }]
+const SUITES = [
+  { name: 'delivery', dir: 'lib/orders', entry: 'deliverySettings.cases.ts', run: 'runDeliverySettingsCases' },
+  { name: 'install', dir: 'lib/install', entry: 'installChoice.cases.ts', run: 'runInstallChoiceCases' },
+]
 
 const COMPILER_OPTIONS = {
   module: ts.ModuleKind.CommonJS,
