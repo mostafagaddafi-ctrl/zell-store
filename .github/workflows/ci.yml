@@ -43,6 +43,10 @@ jobs:
       - name: Typecheck storefront
         run: pnpm --filter @zell/storefront typecheck
 
+      # 0021-D2 W2 — حالات المتجر الخالصة (إعداد موعد التسليم + مسار الطلب بداتابيز مزيّفة) — بتتشغّل فعليًا، من غير شبكة.
+      - name: Storefront cases
+        run: pnpm --filter @zell/storefront cases
+
       - name: Build storefront
         run: pnpm --filter @zell/storefront build
 
