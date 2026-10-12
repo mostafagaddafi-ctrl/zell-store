@@ -116,9 +116,9 @@ record "S03 apply / rollback: exactly one begin / commit" "$ok" "-"
 CODES=$(grep -o "errcode = '[0-9]*'" "$APPLY" | grep -o '[0-9]\+' | sort -u | tr '\n' ' ')
 ok=no; if [ "$CODES" = "45404 45413 45430 " ]; then ok=yes; fi
 record "S04 error codes in the migration: 45430 (new) + 45404 / 45413 from A1 only" "$ok" "$CODES"
-OTHER=$(grep -rl '45430' "$ROOT/backend" "$ROOT/apps" "$ROOT/packages" 2> /dev/null | grep -v '/0021d2_' | tr '\n' ' ')
+OTHER=$(grep -rl '45430' "$ROOT/backend" "$ROOT/apps" "$ROOT/packages" 2> /dev/null | grep -v '/0021d2_' | grep -v '\.md$' | tr '\n' ' ')
 ok=no; if [ -z "$OTHER" ]; then ok=yes; fi
-record "S05 45430 unused anywhere else in backend / apps / packages" "$ok" "$OTHER"
+record "S05 45430 unused in any other code file in backend / apps / packages (Markdown docs excluded)" "$ok" "$OTHER"
 
 # ── S1: ptest قبل التطبيق ──
 if ! prep with_p2; then record "S10 prep" "no" "see output"; fi
