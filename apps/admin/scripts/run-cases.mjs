@@ -35,6 +35,7 @@ const SUITES = [
   { name: 'duplicate', dir: 'lib/inventory', entry: 'purchaseDuplicate.cases.ts', run: 'runDuplicateCases' },
   { name: 'orders', dir: 'lib/orders', entry: 'orders.cases.ts', run: 'runOrderCases' },
   { name: 'payments', dir: 'lib/orders', entry: 'payments.cases.ts', run: 'runPaymentCases' },
+  { name: 'delivery', dir: 'lib/orders', entry: 'deliverySettings.cases.ts', run: 'runDeliverySettingsCases' },
 ]
 
 const COMPILER_OPTIONS = {
