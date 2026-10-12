@@ -14,15 +14,15 @@
 
 | الدور | اتعرّف في | بيعمل إيه |
 | --- | --- | --- |
-| `anon` · `authenticated` | Supabase | مالهمش أي وصول للجداول (RLS + سحب الصلاحيات في 0002). `authenticated` عنده EXECUTE على ١٢ دالة `zell_erp_*` (0021-P) و٢٣ دالة `zell_inv_session_*` (0020-S PR-1) و١١ دالة `zell_order_*` (0021-A A1) بس. بعد تطبيق 0021-A P1: + ١٠ دوال `zell_payment_*` (§٧-ب) |
-| `service_role` | Supabase | بيتخطى RLS. اللوحة والمتجر بيقروا بيه من السيرفر بس (حل انتقالي)، وعنده EXECUTE على دوال اللوحة القديمة بس: صفر على أي `zell_inv_*` (من 0020-S PR-3) وعلى جداول 0020. صفر على `erp_*` و`zell_erp_*`. من `zell_order_*`: `zell_order_gate_is_open` بس (trigger الحالة وقت PATCH اللوحة). من `zell_checkout_*`: `zell_checkout_delivery_periods` (0021-D)، و`zell_checkout_confirmation_fee` بعد تطبيق P2. صفر على `zell_payment_*` |
+| `anon` · `authenticated` | Supabase | مالهمش أي وصول للجداول (RLS + سحب الصلاحيات في 0002). `authenticated` عنده EXECUTE على ١٢ دالة `zell_erp_*` (0021-P) و٢٣ دالة `zell_inv_session_*` (0020-S PR-1) و١١ دالة `zell_order_*` (0021-A A1) بس. بعد تطبيق 0021-A P1: + ١٠ دوال `zell_payment_*` (§٧-ب، متطبّق 2026-10-11). بعد تطبيق 0021-D2: + `zell_delivery_settings_get` و`zell_delivery_settings_save` (§٧-ج) |
+| `service_role` | Supabase | بيتخطى RLS. اللوحة والمتجر بيقروا بيه من السيرفر بس (حل انتقالي)، وعنده EXECUTE على دوال اللوحة القديمة بس: صفر على أي `zell_inv_*` (من 0020-S PR-3) وعلى جداول 0020. صفر على `erp_*` و`zell_erp_*`. من `zell_order_*`: `zell_order_gate_is_open` بس (trigger الحالة وقت PATCH اللوحة). من `zell_checkout_*`: `zell_checkout_delivery_periods` (0021-D)، و`zell_checkout_confirmation_fee` (P2)، و`zell_checkout_delivery_settings` بعد تطبيق 0021-D2. صفر على `zell_payment_*` و`zell_delivery_settings_*` |
 | `postgres` | Supabase | مالك الجداول، واللي بيطبّق الـ migrations (الـ preflight بيتأكد) |
 | `zell_definer` | `0005c` (مسودة) | دور مسودة `create_order` القديمة |
 | `zell_order_writer` | `0006b` | مالك دوال مسار الطلب في الملفات (`zell_create_order` · `zell_get_order_receipt`)، ومن غير صلاحيات جداول مباشرة. **على Production مالك `zell_create_order` = `postgres`** (`08-HANDOFF-NOW.md`)، وCI بتاع P1 بيجرّب الاتنين |
 | `zell_inventory_definer` | `0020` | مالك دوال المخزون `zell_inv_*`، ومنها `zell_inv_session_*` و`zell_inv_claims_actor` من 0020-S (NOLOGIN · NOBYPASSRLS) |
 | `erp_definer` | `0021p_erp_access` | مالك دوال المحرك `erp_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS) |
 | `zell_erp_definer` | `0021p_zell_erp_access` | مالك دوال المحوّل والواجهة `erp_actor_status_v1`. مالوش أي صلاحية على `admin_users` |
-| `zell_order_definer` | `0021a_a1_order_cycle` | مالك دوال دورة الطلب `zell_order_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS). على `orders`: SELECT + UPDATE لأعمدة الدورة بس. ومالك `zell_checkout_delivery_periods` (0021-D)، وبعد P1/P2: `zell_payment_*` (ماعدا الـ triggers) و`zell_checkout_confirmation_fee` (§٧-ب) |
+| `zell_order_definer` | `0021a_a1_order_cycle` | مالك دوال دورة الطلب `zell_order_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS). على `orders`: SELECT + UPDATE لأعمدة الدورة بس. ومالك `zell_checkout_delivery_periods` (0021-D)، وبعد P1/P2: `zell_payment_*` (ماعدا الـ triggers) و`zell_checkout_confirmation_fee` (§٧-ب)، وبعد 0021-D2: `zell_delivery_settings_get` / `_save` و`zell_checkout_delivery_settings` (§٧-ج) |
 
 ---
 
@@ -62,6 +62,15 @@
 | `order_delivery_periods` | `0021a_a1_order_cycle` | الفترات التلاتة (`morning` · `noon` · `evening`) بتوقيت القاهرة، والمالك بيعدّل الأوقات |
 | `zell_order_gate` | `0021a_a1_order_cycle` | البوابة: صف واحد، مقفول افتراضيًا، بيتغيّر بـ `zell_order_set_gate` بس (45414) |
 | `zell_order_config_log` | `0021a_a1_order_cycle` | سجل append-only لتغييرات البوابة والفترات (مين · إمتى · من/لـ · الموافقة) |
+
+### موعد التسليم في Checkout (0021-D2 W1 — مش متطبّق لسه)
+
+الاتنين مالكهم `postgres`، RLS وpolicy لـ `zell_order_definer` بس، وصفر صلاحيات لـ `anon` و`authenticated` و`service_role`.
+
+| الجدول | اتعرّف في | بيعمل إيه |
+| --- | --- | --- |
+| `zell_delivery_settings` | `0021d2_delivery_settings` | صف واحد: العميل يختار الموعد · إظهار السطر · نص السطر (≤ 300 بعد trim) · `updated_at` · `updated_by`. القيم وقت التطبيق = السلوك الحالي (العميل بيختار، ومفيش سطر). مايتمسحش (45413) |
+| `zell_delivery_settings_log` | `0021d2_delivery_settings` | سجل append-only لكل تغيير (الممثل · القديم · الجديد · الوقت). UPDATE وDELETE وTRUNCATE = 45413، والرجوع بيرفض بأي سطر |
 
 ### المخزون والمشتريات (0020)
 
@@ -108,6 +117,7 @@
 | `zell_checkout_delivery_periods()` | `0021d` | أوقات فترات التسليم للـ Checkout من `order_delivery_periods` (مالكها `zell_order_definer`، `service_role` بس) |
 | `zell_payment_*` (24: 10 عامة · 11 داخلية · 3 triggers) | `0021a_p1` | الدفعات ورسوم التأكيد بهوية الجلسة. الجرد الكامل في §٧-ب تحت |
 | `zell_checkout_confirmation_fee()` | `0021a_p2` | إعداد رسوم التأكيد والسياسة للـ Checkout (مالكها `zell_order_definer`، `service_role` بس) — §٧-ب |
+| `zell_checkout_delivery_settings()` | `0021d2` | إعداد موعد التسليم للـ Checkout و`/api/orders`: `{customer_choice_enabled, note}` (`note` بس لو السطر متفعّل). مالكها `zell_order_definer`، `service_role` بس — §٧-ج (W1، مش متطبّق) |
 | `zell_orders_cancelled_final()` | `0019` | دالة الـ trigger `orders_cancelled_final` (BEFORE UPDATE OF status): الإلغاء نهائي، والطلب الملغي مايرجعش (45080)، علشان استخدام الكوبون مايتعدّاش |
 
 ## ٤) دوال اللوحة (الكتابة الذرّية)
@@ -211,7 +221,7 @@
 
 ## ٧-ب) دوال الدفعات ورسوم التأكيد (0021-A P1 و P2)
 
-> ⚠ **مش متطبّقين على Production لحد دلوقتي** (المرجع `08-HANDOFF-NOW.md`). الملفات على main، والكود المنشور بيتعامل مع غيابهم.
+> **متطبّقين على Production (2026-10-11)** — المرجع `08-HANDOFF-NOW.md`.
 
 التفاصيل: `docs/contracts/0021-A.md` §١٧ و§١٨. الهوية من الجلسة (`zell_order_actor` من A1) من غير `p_actor`. الأكواد 45416..45429.
 verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دالة جديدة للمتجر اسمها `zell_checkout_*`.
@@ -238,6 +248,26 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | `ci/0021p1_sql_ci.sh` | CI على Postgres 17 مؤقت: S0–S9 لـ P1 و S95–S99 لـ P2 |
 | `ci/0021p1_flows.sql` | سيناريوهات الدفع بعد التطبيق (F01–F42، CI بس) |
 | `ci/0021p1_fee_parity.mjs` | حالات رسوم التأكيد من `@zell/core` للمقارنة بالداتابيز (S40) |
+
+## ٧-ج) دوال موعد التسليم في Checkout (0021-D2 W1)
+
+> **مش متطبّقة على Production** (المرجع `08-HANDOFF-NOW.md`). التفاصيل: `docs/contracts/0021-D2.md` §٢ و§١٠. الكود الجديد 45430 بس.
+
+| الدالة | المالك · EXECUTE | بتعمل إيه |
+| --- | --- | --- |
+| `zell_delivery_settings_get()` | `zell_order_definer` · `authenticated` بس | قراية الإعداد للوحة (أي أدمن شغّال، `zell_order_actor(false)`): القيم التلاتة + `updated_at` |
+| `zell_delivery_settings_save(timestamptz, boolean, boolean, text)` | `zell_order_definer` · `authenticated` بس | الحفظ (المالك بس): النسخة 45404 · التحقق 45430 بالحقل · سطر في السجل لو فيه تغيير بس · بترجّع القيم + `changed` |
+| `zell_checkout_delivery_settings()` | `zell_order_definer` · `service_role` بس | للمتجر: `{customer_choice_enabled, note}` |
+| `zell_delivery_settings_trg_append_only()` | `postgres` (invoker) | دالة الـ triggers: `zell_delivery_settings_log_immutable` · `zell_delivery_settings_log_no_truncate` · `zell_delivery_settings_no_delete` · `zell_delivery_settings_no_truncate` (45413) |
+
+- الأسماء برّه عدّادات `zell_order_*` (24) و`zell_payment_*` (24)، ومفيش أي تعديل في `zell_create_order` ولا `zell_checkout_delivery_periods`.
+
+| الملف | بيعمل إيه |
+| --- | --- |
+| `migrations/0021d2_delivery_settings.sql` | W1 كله (الجسم بين `-- >>> 0021D2 BODY` و`-- <<<`)، ومحتاج سطر `zell.approved_by` بعد `begin;` |
+| `migrations/0021d2_delivery_settings_ptest.sql` | smoke قبل التطبيق (6 حالات): الجسم منسوخ بالحرف (CI بيقارن md5)، والنتيجة صفوف |
+| `migrations/0021d2_delivery_settings_verify.sql` · `_rollback.sql` | التحقق (8 فحوص، في أي وقت بعد التطبيق) · الرجوع (بعد revert كود W2، وبيرفض بأي سطر في السجل) |
+| `ci/0021d2_sql_ci.sh` · `ci/0021d2_flows.sql` | CI على Postgres 17 مؤقت فوق شكل Production (S0–S5) · سيناريوهات الإعداد (F01–F32، 24 حالة) |
 
 ## ٨) ملفات من غير جداول أو دوال جديدة
 
