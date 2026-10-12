@@ -70,6 +70,8 @@ export const ORDER_ERRORS: Record<OrderErrorCode, ErrorSpec> = {
     message: 'موعد التسليم المفضّل مش صحيح. اختار تاريخ من النهارده لحد 60 يوم، أو سيبه فاضي.',
     retryable: false,
   },
+  // 0021-D2 — قراية إعداد موعد التسليم فشلت والطلب فيه موعد: مفيش طلب بيتعمل، والإعادة بنفس المفتاح والبيانات آمنة
+  DELIVERY_SETTINGS_UNAVAILABLE: { status: 503, message: 'حصلت مشكلة مؤقتة، حاول تاني.', retryable: true },
   COUPON_EXPIRED: { status: 409, message: 'كود الخصم ده مش ساري دلوقتي.', retryable: false },
   COUPON_EXHAUSTED: { status: 409, message: 'كود الخصم ده خلص.', retryable: false },
   COUPON_MIN_SUBTOTAL: { status: 409, message: 'إجمالي الأصناف أقل من الحد الأدنى لكود الخصم ده.', retryable: false },

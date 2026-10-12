@@ -1,12 +1,13 @@
 import { NextResponse, after, type NextRequest } from 'next/server'
 import { isValidEgyptianPhone, parsePreferredDeliveryField } from '@zell/core'
-import { restRpc, type RpcResult } from '../../../lib/data/rpc'
+import { readCheckoutDeliverySettings } from '../../../lib/data/deliverySettings'
+import { restRpc } from '../../../lib/data/rpc'
 import type { OrderErrorCode, OrderItemInput, OrderRequest } from '../../../lib/orders/contracts'
 import { codeFromSqlError, orderFailure, statusFor } from '../../../lib/orders/errors'
 import { CHECKOUT_SESSION_COOKIE, checkoutSessionHash } from '../../../lib/orders/checkoutSession'
 import { parseCouponCodeField } from '../../../lib/orders/coupon'
 import { notifyNewOrder } from '../../../lib/orders/notify'
-import { normalizeOrder, requestHash } from '../../../lib/orders/requestHash'
+import { placeOrder } from '../../../lib/orders/placeOrder'
 import {
   RECEIPT_MAX_AGE_SECONDS,
   newReceiptSecret,
@@ -164,58 +165,39 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const parsed = parseRequest(payload)
   if (!parsed.ok) return fail(parsed.code)
 
-  // (٦) الهاشات — كلها سيرفر-سايد، والعميل عمره ما بعت ولا واحد فيهم
-  const normalized = normalizeOrder(parsed.value)
+  // (٦) الهاشات — كلها سيرفر-سايد، والعميل عمره ما بعت ولا واحد فيهم.
+  //     request_hash بيتحسب جوه placeOrder من طلب العميل زي ما وصل، قبل قراية إعداد الموعد (0021-D2 ر٦).
   const receiptSecret = newReceiptSecret()
 
-  let requestHashHex: string
   let sessionHashHex: string
   let receiptHashHex: string
   try {
-    requestHashHex = await requestHash(normalized)
     sessionHashHex = await checkoutSessionHash(sessionSecret)
     receiptHashHex = await receiptTokenHash(receiptSecret)
   } catch {
     return fail('INTERNAL')
   }
 
-  // (٧) المعاملة الذرّية
+  // (٧) إعداد الموعد (لو الطلب فيه موعد بس) ← المعاملة الذرّية — lib/orders/placeOrder (0021-D2 §٢-٣).
   //
-  // ⚠️ restRpc بترمي لو الـcredentials ناقصة. الـtry هنا **إلزامي**: من غيره
-  //    إعداد ناقص بيطلع صفحة خطأ عامة من Next بدل عقد INTERNAL الثابت،
-  //    وده بيخرق قاعدة «الرسالة دايماً من جدول §1.3».
-  let result: RpcResult<unknown>
-  try {
-    result = await restRpc<unknown>('zell_create_order', {
-      p_items: normalized.items.map((item) =>
-        item.quantity !== undefined
-          ? { productId: item.productId, quantity: item.quantity }
-          : item.widthCm === undefined
-            ? { productId: item.productId, lengthCm: item.lengthCm }
-            : { productId: item.productId, lengthCm: item.lengthCm, widthCm: item.widthCm },
-      ),
-      p_customer_name: normalized.customerName,
-      p_customer_phone: normalized.customerPhone,
-      p_governorate: normalized.governorate,
-      p_address: normalized.address,
-      p_notes: normalized.notes,
-      p_idempotency_key: idempotencyKey,
-      p_request_hash: requestHashHex,
-      p_checkout_session_hash: sessionHashHex,
-      p_receipt_token_hash: receiptHashHex,
-      // 0018 — بيتبعتوا بس لما يكونوا موجودين، فالطلب العادي نفس النداء القديم بالحرف
-      ...(normalized.area !== null ? { p_area: normalized.area } : {}),
-      ...(normalized.installation ? { p_installation: true } : {}),
-      // 0019 — الكود المطبّع بس ولو موجود بس، فالطلب من غير كوبون نفس النداء القديم بالحرف
-      ...(normalized.couponCode !== null ? { p_coupon_code: normalized.couponCode } : {}),
-      // 0021-D — الموعد المطبّع بس ولو موجود بس، فالطلب من غير موعد نفس النداء القديم بالحرف
-      ...(normalized.preferredDelivery !== null ? { p_preferred_delivery: normalized.preferredDelivery } : {}),
-    })
-  } catch (error) {
-    // اسم الاستثناء بس — مفيش مفتاح ولا رابط ولا بيانات عميل في اللوج
-    console.error('[orders] INTERNAL :: rpc threw ' + (error instanceof Error ? error.name : 'unknown'))
-    return fail('INTERNAL')
+  // ⚠️ restRpc بترمي لو الـcredentials ناقصة. placeOrder بتمسك الرمي وبترجّع INTERNAL: من غيرها إعداد ناقص
+  //    بيطلع صفحة خطأ عامة من Next بدل عقد INTERNAL الثابت، وده بيخرق قاعدة «الرسالة دايماً من جدول §1.3».
+  //    وقراية الإعداد بترجّع null عند أي فشل (lib/data/deliverySettings): بموعد = DELIVERY_SETTINGS_UNAVAILABLE
+  //    من غير نداء zell_create_order، ومن غير موعد مفيش قراية أصلًا.
+  const outcome = await placeOrder(
+    parsed.value,
+    { idempotencyKey, sessionHashHex, receiptHashHex },
+    {
+      readDeliverySettings: readCheckoutDeliverySettings,
+      createOrder: (args) => restRpc<unknown>('zell_create_order', args),
+    },
+  )
+  if (outcome.kind === 'failure') {
+    // الكود والسبب بس — مفيش مفتاح ولا رابط ولا بيانات عميل في اللوج
+    console.error('[orders] ' + outcome.code + ' :: ' + outcome.reason)
+    return fail(outcome.code)
   }
+  const result = outcome.result
 
   if (!result.ok) {
     const code = codeFromSqlError(result.sqlMessage)

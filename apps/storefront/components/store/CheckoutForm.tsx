@@ -38,6 +38,7 @@ import { clearCheckoutDraft, readCheckoutDraft, saveCheckoutDraft } from '../../
 import { couponBlockReason, couponDraftCode, couponPayloadField, estimateCoupon, isCouponErrorCode } from '../../lib/orders/couponCheckout'
 import { useCheckoutCoupon } from '../../lib/useCheckoutCoupon'
 import type { CheckoutFee } from '../../lib/orders/confirmationFee'
+import { deliveryNote, showDeliveryChoice, type CheckoutDeliverySettings } from '../../lib/orders/deliverySettings'
 import { Button, buttonClasses } from '../ui/Button'
 import { Field, inputClasses, textareaClasses } from '../ui/Field'
 import { ImageSlot } from '../ui/ImageSlot'
@@ -154,6 +155,7 @@ export function CheckoutForm({
   settings,
   periods = null,
   confirmationFee = null,
+  deliverySettings = null,
 }: {
   products: StoreProduct[]
   settings: StoreSettings
@@ -161,9 +163,14 @@ export function CheckoutForm({
   periods?: DeliveryPeriodTime[] | null
   /** 0021-A P2 — إعداد رسوم التأكيد من الداتابيز (null = مفيش سطر مقدم). */
   confirmationFee?: CheckoutFee | null
+  /** 0021-D2 — إعداد موعد التسليم من الداتابيز (null = اختيار الموعد والسطر مخفيين). */
+  deliverySettings?: CheckoutDeliverySettings | null
 }) {
   // 0021-D — موعد التسليم المفضّل (اختياري)
   const [preferred, setPreferred] = useState<PreferredDeliveryDraft>(EMPTY_PREFERRED_DELIVERY)
+  // 0021-D2 — المالك بيتحكم: الحقل بيظهر بس لو الإعداد مقروء والاختيار شغّال، والسطر لو موجود
+  const deliveryChoiceOn = showDeliveryChoice(deliverySettings)
+  const deliveryNoteText = deliveryNote(deliverySettings)
   const cart = useCart()
   const [values, setValues] = useState<CheckoutValues>(EMPTY)
   // 0018 — فني التركيب بالسعر: أجر لكل متر من أفلام المقاس + انتقال حسب المنطقة،
@@ -375,8 +382,8 @@ export function CheckoutForm({
     setFailure(null)
     if (invalid || submitting || items.length === 0 || submitBlocked) return
 
-    // 0021-D — الموعد المفضّل: تحقق مبدئي بنفس حدود الداتابيز (والداتابيز هي الحكم)
-    const preferredIssue = preferredDeliveryIssue(preferred, cairoDateIso(Date.now()))
+    // 0021-D — الموعد المفضّل: تحقق مبدئي بنفس حدود الداتابيز (والداتابيز هي الحكم). 0021-D2: بس لو الحقل ظاهر
+    const preferredIssue = deliveryChoiceOn ? preferredDeliveryIssue(preferred, cairoDateIso(Date.now())) : null
     if (preferredIssue !== null) {
       setFailure(preferredIssue)
       return
@@ -400,7 +407,8 @@ export function CheckoutForm({
       // 0019 — الكود بس، من غير أي مبلغ. من غير كوبون الـbody القديم بالحرف
       ...couponPayloadField(couponCode),
       // 0021-D — بس لو فيه تاريخ، فالطلب من غير موعد نفس الـbody القديم بالحرف
-      ...preferredPayloadField(preferred),
+      // 0021-D2 — الحقل مخفي (المالك قفل الاختيار أو الإعداد مش مقروء) = مفيش موعد خالص
+      ...(deliveryChoiceOn ? preferredPayloadField(preferred) : {}),
     }
     const body = JSON.stringify(payload)
 
@@ -668,7 +676,12 @@ export function CheckoutForm({
             </button>
           )}
 
-          <PreferredDeliveryField value={preferred} onChange={setPreferred} periods={periods} today={cairoDateIso(Date.now())} />
+          {deliveryNoteText !== null ? (
+            <p className="rounded-lg border border-border bg-card p-4 text-sm text-fg">{deliveryNoteText}</p>
+          ) : null}
+          {deliveryChoiceOn ? (
+            <PreferredDeliveryField value={preferred} onChange={setPreferred} periods={periods} today={cairoDateIso(Date.now())} />
+          ) : null}
         </div>
       </div>
 

@@ -29,6 +29,9 @@ export const ORDER_FUNCTIONS = {
   deletePaymentMethod: 'zell_payment_delete_method',
   paymentSettings: 'zell_payment_get_settings',
   savePaymentSettings: 'zell_payment_save_settings',
+  // 0021-D2 — إعداد موعد التسليم في صفحة الطلب: القراية لأي أدمن شغّال، والحفظ للمالك (القرار في الداتابيز).
+  deliverySettings: 'zell_delivery_settings_get',
+  saveDeliverySettings: 'zell_delivery_settings_save',
 } as const
 
 export type OrderFunction = keyof typeof ORDER_FUNCTIONS

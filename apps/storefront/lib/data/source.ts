@@ -3,6 +3,8 @@ import { getFallbackCollections, getFallbackProducts, getFallbackSettings } from
 import { fetchStorefrontFromSupabase } from './queries'
 import { restRpc } from './rpc'
 import { parseCheckoutFee, type CheckoutFee } from '../orders/confirmationFee'
+import type { CheckoutDeliverySettings } from '../orders/deliverySettings'
+import { readCheckoutDeliverySettings } from './deliverySettings'
 
 /**
  * مصدر بيانات المتجر — نقطة الدخول الوحيدة للصفحات.
@@ -104,4 +106,13 @@ export async function getCheckoutConfirmationFee(): Promise<CheckoutFee | null> 
   } catch {
     return null
   }
+}
+
+/**
+ * 0021-D2 — إعداد موعد التسليم للـ Checkout (zell_checkout_delivery_settings، service_role).
+ * fallback (CI والتطوير) أو أي فشل = null: اختيار الموعد والسطر مخفيين، والطلب شغّال من غير موعد.
+ */
+export async function getCheckoutDeliverySettings(): Promise<CheckoutDeliverySettings | null> {
+  if (resolveDataSource() === 'fallback') return null
+  return readCheckoutDeliverySettings()
 }
