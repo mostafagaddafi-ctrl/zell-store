@@ -20,6 +20,7 @@ import { Num } from './Num'
 import { GiftNote } from './GiftNote'
 import { SizePanel } from './SizePanel'
 import { AddonsPicker } from './AddonsPicker'
+import { currentInstallModeLine, revealToolsOnChange, showToolSuggestions } from '../../lib/install/installChoice'
 import { InstallChoice } from './InstallChoice'
 
 /** gift: «نص العرض» لو ظاهر — بيظهر كهدية فوق زرار الإضافة. */
@@ -51,6 +52,8 @@ export function ProductBuy({
   // والسبب ظاهر جنب الأزرار. فيلم من غير الكارت أو منتج بالقطعة مابيتأثروش.
   const choiceRequired = showChoice && cart.ready && cart.installMode === 'unset'
   const choiceHintId = useId()
+  // سطر الاختيار الحالي (null لو لسه مااختارش)
+  const currentLine = currentInstallModeLine(cart.installMode)
   const [revealTools, setRevealTools] = useState(false)
   const toolsRef = useRef<HTMLParagraphElement>(null)
   // «هركّبه بنفسي» بعد «فني»: الأدوات بتظهر والتركيز يروح لها (سلس، وفوري مع reduced motion).
@@ -142,23 +145,28 @@ export function ProductBuy({
         <div aria-hidden="true" className="h-36 rounded-lg border border-border bg-card" />
       ) : null}
       {showChoice && fee !== null && !choicePending ? (
-        <InstallChoice
-          mode={cart.installMode}
-          onChange={(next) => {
-            if (next === 'self' && cart.installMode !== 'self' && addons.length > 0) setRevealTools(true)
-            cart.setInstallMode(next)
-            // أدوات مختارة ولسه مااتضافتش بتتصفّر — مابتتضافش من غير ما العميل يشوفها
-            if (next === 'installer') setAddonQty({})
-          }}
-          feePerMeterPiastres={fee}
-          lengthCm={lengthCm}
-          governorates={installerGovernorates}
-          context="product"
-        />
+        <div className="space-y-2">
+          <InstallChoice
+            mode={cart.installMode}
+            onChange={(next) => {
+              // «هركّبه بنفسي» بعد اختيار تاني + فيه أدوات = الأدوات بتظهر والتركيز يروح لها (نفس الشرط بالحرف، lib/install)
+              if (revealToolsOnChange(cart.installMode, next, addons.length)) setRevealTools(true)
+              cart.setInstallMode(next)
+              // أدوات مختارة ولسه مااتضافتش بتتصفّر — مابتتضافش من غير ما العميل يشوفها
+              if (next === 'installer') setAddonQty({})
+            }}
+            feePerMeterPiastres={fee}
+            lengthCm={lengthCm}
+            governorates={installerGovernorates}
+            context="product"
+          />
+          {/* الاختيار واحد للطلب كله (cart.installMode): لو متحدد، سطر واضح بالقيمة الحالية وإنها للطلب كله وبتتغيّر من هنا */}
+          {currentLine !== null ? <p className="text-sm text-fg">{currentLine}</p> : null}
+        </div>
       ) : null}
 
       {/* مع الفني اقتراحات الأدوات بتختفي — مش محتاجها. وقبل الاختيار مابتظهرش عشان «بنفسي» مايبانش افتراضي */}
-      {installer || choicePending || choiceRequired || addons.length === 0 ? null : (
+      {!showToolSuggestions({ installer, choicePending, choiceRequired, addonCount: addons.length }) ? null : (
         <div className="space-y-2">
           {showChoice ? (
             <p ref={toolsRef} tabIndex={-1} className="scroll-mt-24 text-sm font-semibold text-fg outline-none">

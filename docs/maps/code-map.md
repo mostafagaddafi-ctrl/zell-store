@@ -65,7 +65,7 @@
 | `app/api/health` | فحص صحة |
 | `components/store` | مكونات المتجر: الهيدر والفوتر، والهيرو، وكارت المنتج، والمقاس والعرض، والقطعة والإضافات، والسلة والدفع، والكوبون، وواتساب … |
 | `components/ui` | مكونات مشتركة: `Button` · `Field` · `Container` · `ImageSlot` · `BackButton` |
-| `lib/` (الجذر) | `cart.tsx` (السلة) · `catalog.ts` · `drafts.ts` · `productCopy.ts` · `useCheckoutCoupon.ts` · `cn.ts` |
+| `lib/` (الجذر) | `cart.tsx` (السلة) · `catalog.ts` · `drafts.ts` · `productCopy.ts` · `useCheckoutCoupon.ts` · `cn.ts` · `install/installChoice.ts` («هتركّبه إزاي؟» في صفحة المنتج: سطر الاختيار الحالي وظهور الأدوات، + حالات) |
 | `lib/data` | القراءة: `queries.ts` · `mappers.ts` · `rpc.ts` · `source.ts` · `supabaseServer.ts` · `deliverySettings.ts` (إعداد موعد التسليم — 0021-D2) |
 | `lib/orders` | مسار الطلب: `contracts.ts` · `canonical.ts` + `requestHash.ts` + `hash.ts` (idempotency) · `checkoutSession.ts` · `receiptToken.ts` · `requestGuards.ts` · `coupon*.ts` (+ حالات) · `notify.ts` (تليجرام) · `result.ts` · `errors.ts` · `placeOrder.ts` (ترتيب إنشاء الطلب: الهاش ← إعداد الموعد ← النداء) + `deliverySettings.ts` (+ حالات بتتشغّل في CI — 0021-D2) |
 
