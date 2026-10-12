@@ -39,7 +39,7 @@
 | `lib/mutations` | كل الكتابة في الداتابيز، ملف لكل منطقة (منتجات · صور · أقسام · محتوى · شحن · تركيب · كوبونات · مخزون …)، ومعاهم `concurrency.ts` (التزامن التفاؤلي) و`errors.ts`. **الكتابة بس:** القراءة اتنقلت لـ `lib/data` |
 | `lib/validation` | التحقق من المدخلات لكل منطقة |
 | `lib/inventory` | منطق شاشات المخزون: النماذج والتسعير والتوزيع، و`rpc.ts` + `sessionCall.ts` (نداء `zell_inv_session_*` بجلسة المستخدم، 0020-S PR-2)، والرسايل، وحالات الاختبار (`*.cases.ts`) |
-| `lib/orders` | 0021-A A2 — دورة الطلب: `cycle.ts` (منطق خالص: الانتقالات والبوابة · نتايج المكالمة · وقت القاهرة وفلاتر المتابعة · الموعد المؤكد والفترات · تعديل البيانات · وصف السجل · تحويل الأخطاء) + `orders.cases.ts`، و`rpc.ts` (نداء `zell_order_*` بجلسة المستخدم). الـ actions في `lib/orderActions.ts`، والقراءات في `lib/data/orderCycle.ts`، والكروت في `components/orders/OrderCycle.tsx` و`OrderTimeline.tsx` |
+| `lib/orders` | 0021-A A2 — دورة الطلب: `cycle.ts` (منطق خالص: الانتقالات والبوابة · نتايج المكالمة · وقت القاهرة وفلاتر المتابعة · الموعد المؤكد والفترات · تعديل البيانات · وصف السجل · تحويل الأخطاء) + `orders.cases.ts`، و`rpc.ts` (نداء `zell_order_*` بجلسة المستخدم). الـ actions في `lib/orderActions.ts`، والقراءات في `lib/data/orderCycle.ts`، والكروت في `components/orders/OrderCycle.tsx` و`OrderTimeline.tsx`. 0021-D2: `deliverySettings.ts` (+ حالات) لكارت «موعد التسليم» في الإعدادات (`components/settings/DeliverySettingsCard.tsx`)، والقراية `lib/data/deliverySettings.ts` والحفظ `lib/mutations/deliverySettings.ts` |
 | `lib/coupons` | نموذج الكوبون وحالاته |
 | `lib/client` | كود المتصفح: ضغط ورفع الصور، والـ hooks (`useSaveAction` · `usePreview` · `useInventoryIntent` · `useLineCards`) |
 | `lib/uploads` | فحص حجم ونوع الصورة |
@@ -52,7 +52,7 @@
 
 | الفولدر | بيعمل إيه |
 | --- | --- |
-| `apps/storefront/` (الجذر) | الإعدادات: `middleware.ts` (بيصدر كوكي جلسة الدفع على `/checkout`) · `next.config.mjs` · `vercel.json` · `.env.example` |
+| `apps/storefront/` (الجذر) | الإعدادات: `middleware.ts` (بيصدر كوكي جلسة الدفع على `/checkout`) · `next.config.mjs` · `vercel.json` · `.env.example` · `scripts/run-cases.mjs` (حالات المتجر الخالصة — 0021-D2) |
 | `app/` | `page.tsx` (الرئيسية) · `layout.tsx` · `not-found.tsx` |
 | `app/products` · `app/product/[productId]` | كل المنتجات، وصفحة المنتج |
 | `app/collections` · `app/collection/[slug]` | الأقسام، وصفحة القسم |
@@ -66,8 +66,8 @@
 | `components/store` | مكونات المتجر: الهيدر والفوتر، والهيرو، وكارت المنتج، والمقاس والعرض، والقطعة والإضافات، والسلة والدفع، والكوبون، وواتساب … |
 | `components/ui` | مكونات مشتركة: `Button` · `Field` · `Container` · `ImageSlot` · `BackButton` |
 | `lib/` (الجذر) | `cart.tsx` (السلة) · `catalog.ts` · `drafts.ts` · `productCopy.ts` · `useCheckoutCoupon.ts` · `cn.ts` |
-| `lib/data` | القراءة: `queries.ts` · `mappers.ts` · `rpc.ts` · `source.ts` · `supabaseServer.ts` |
-| `lib/orders` | مسار الطلب: `contracts.ts` · `canonical.ts` + `requestHash.ts` + `hash.ts` (idempotency) · `checkoutSession.ts` · `receiptToken.ts` · `requestGuards.ts` · `coupon*.ts` (+ حالات) · `notify.ts` (تليجرام) · `result.ts` · `errors.ts` |
+| `lib/data` | القراءة: `queries.ts` · `mappers.ts` · `rpc.ts` · `source.ts` · `supabaseServer.ts` · `deliverySettings.ts` (إعداد موعد التسليم — 0021-D2) |
+| `lib/orders` | مسار الطلب: `contracts.ts` · `canonical.ts` + `requestHash.ts` + `hash.ts` (idempotency) · `checkoutSession.ts` · `receiptToken.ts` · `requestGuards.ts` · `coupon*.ts` (+ حالات) · `notify.ts` (تليجرام) · `result.ts` · `errors.ts` · `placeOrder.ts` (ترتيب إنشاء الطلب: الهاش ← إعداد الموعد ← النداء) + `deliverySettings.ts` (+ حالات بتتشغّل في CI — 0021-D2) |
 
 ## packages/core — منطق صافي مشترك (`@zell/core`)
 
