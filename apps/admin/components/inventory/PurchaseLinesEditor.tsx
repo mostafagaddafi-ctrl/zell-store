@@ -90,7 +90,7 @@ export function PurchaseLinesEditor({
           </Button>
         </div>
       ) : (
-        <p className="text-xs text-muted">مفيش بنود لسه. ضيف بند لفّات أو بند قطع.</p>
+        <p className="text-xs text-muted">لا توجد بنود بعد. يمكن إضافة بند لفّات أو بند قطع.</p>
       )}
 
       {lines.map((line, index) => (
