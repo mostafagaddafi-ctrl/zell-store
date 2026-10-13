@@ -115,7 +115,7 @@ export default pageWithAccess('zell.products.view', async function ProductsPage(
             <Link href={'/collections/' + current.id} className="font-semibold text-accent">
               صفحة القسم
             </Link>
-            . أسهم الترتيب هنا للترتيب العام وبتشتغل في «الكل» بس.
+            . أسهم الترتيب للترتيب العام، وتعمل في «الكل» فقط.
           </p>
         ) : selected === 'none' ? (
           <p className="text-xs text-muted">
