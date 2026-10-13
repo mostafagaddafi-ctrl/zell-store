@@ -27,6 +27,8 @@ import {
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { STOREFRONT_LINK_NOT_SET } from '../../lib/storefront/link'
+import { LOGO_LETTER } from '../../lib/brand/logo'
+import { LogoMark } from './Logo'
 import { SignOutButton } from './SignOutButton'
 
 type Item = { href: string; label: string; icon: typeof Package; badge?: number }
@@ -111,7 +113,12 @@ export function AdminShell({
   const nav = (
     <nav className="flex h-full flex-col gap-5 overflow-y-auto p-3">
       <div className="px-2 pt-1">
-        <p className="text-sm font-extrabold text-brand">ZELL</p>
+        <p className="text-sm font-extrabold text-brand">
+          <span dir="ltr" className="inline-flex items-center gap-1.5">
+            <LogoMark size={20} letter={LOGO_LETTER} />
+            ZELL
+          </span>
+        </p>
         <p className="text-xs text-muted">لوحة التحكم</p>
       </div>
 
@@ -201,7 +208,10 @@ export function AdminShell({
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
-          <span className="text-sm font-bold text-brand">ZELL</span>
+          <span dir="ltr" className="inline-flex items-center gap-1.5 text-sm font-bold text-brand">
+            <LogoMark size={20} letter={LOGO_LETTER} />
+            ZELL
+          </span>
         </header>
 
         <main className="px-4 py-5 sm:px-6 sm:py-6">{children}</main>
