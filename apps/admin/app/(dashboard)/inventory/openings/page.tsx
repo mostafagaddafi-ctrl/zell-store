@@ -73,7 +73,7 @@ export default pageWithAccess('zell.inventory0020.view', async function Openings
       {!result.ok ? (
         <div role="alert" className="space-y-1 rounded-lg border-s-2 border-danger bg-danger/5 px-3 py-2.5 text-xs text-fg">
           <p className="font-semibold">مقدرناش نقرا رصيد أول المدة.</p>
-          <p className="text-muted">{result.code === 'INTERNAL' ? 'حصل خطأ في القراءة. حدّث الصفحة، ولو اتكرر بلّغ.' : result.message}</p>
+          <p className="text-muted">{result.code === 'INTERNAL' ? 'حدث خطأ في القراءة. يُرجى تحديث الصفحة، والإبلاغ إذا تكرر.' : result.message}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -82,7 +82,7 @@ export default pageWithAccess('zell.inventory0020.view', async function Openings
               title={emptyListTitle('opening', tab, query)}
               description={
                 query !== ''
-                  ? 'جرّب جزء من رقم المستند، أو التاريخ زي 2026-10.'
+                  ? 'يمكن البحث بجزء من رقم المستند، أو بالتاريخ مثل 2026-10.'
                   : tab === 'active' || tab === 'all' || tab === 'draft'
                     ? 'سجّل البضاعة الموجودة عندك برصيد أول مدة جديد من الزرار فوق.'
                     : 'غيّر التبويب لـ «النشط» أو «الكل».'
