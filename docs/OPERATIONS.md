@@ -73,6 +73,21 @@ middleware هيشوفه **فاضي**، وكل طلب هيروح `/login?error=un
 | `SUPABASE_ANON_KEY` | لوحة Vercel | لا، بس مايتعرضش | الهوية بس |
 | `SUPABASE_SERVICE_ROLE_KEY` | لوحة Vercel | 🔒 نعم | ⚠️ انتقالي |
 | `ADMIN_MUTATIONS_ENABLED` | لوحة Vercel | لا | **`true` حاليًا** |
+| `STOREFRONT_URL` | لوحة Vercel | لا | رابط المتجر `https://…` من غير مسار — التحديث الفوري و«حالة النظام» ولينكين «معاينة المتجر» و«شوف المتجر» |
+| `STOREFRONT_HOST` | لوحة Vercel | لا | مضيف `STOREFRONT_URL` بالحرف (من غير `https://`) — لازم يتطابقوا |
+
+### رابط المتجر لكل نسخة (الدومين)
+
+كل نسخة (أي محل) بتضبط رابط متجرها من غير أي تعديل في الكود:
+
+1. مشروع **اللوحة** في Vercel ← Settings ← Environment Variables (Production).
+2. `STOREFRONT_URL` = رابط المتجر، مثلًا `https://zellnow.me` — `https` بس، من غير مسار ولا استعلام ولا بيانات دخول.
+3. `STOREFRONT_HOST` = نفس المضيف بالحرف، مثلًا `zellnow.me`.
+4. **Redeploy للوحة** علشان القيم الجديدة تتقري.
+
+- المتغيرين دول بيشغّلوا: التحديث الفوري بعد الحفظ (`lib/revalidateStorefront.ts`) · فحص المتجر في «حالة النظام» (`lib/systemHealth.ts`) · لينكين «معاينة المتجر» و«شوف المتجر» (`lib/storefrontLink.ts`).
+- لو واحد فيهم غايب، أو القيمة مش آمنة، أو المضيف مش متطابق: التحديث الفوري بيقف («حالة النظام» بتوضّح)، واللينكين بيرجعوا للرابط الاحتياطي `https://zell-store-nine.vercel.app` (`STOREFRONT_LINK_FALLBACK` في `apps/admin/lib/storefront/link.ts`).
+- رابط اللوحة نفسه مايتكتبش في الريبو (§١).
 
 ### قواعد
 
