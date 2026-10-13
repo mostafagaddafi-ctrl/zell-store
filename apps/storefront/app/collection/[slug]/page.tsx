@@ -6,7 +6,6 @@ import type { StoreProduct } from '@zell/core'
 import { CollectionNav } from '../../../components/store/CollectionNav'
 import { ProductCard } from '../../../components/store/ProductCard'
 import { Container } from '../../../components/ui/Container'
-import { ImageSlot } from '../../../components/ui/ImageSlot'
 import { getStorefrontData } from '../../../lib/data/source'
 
 /**
@@ -15,6 +14,8 @@ import { getStorefrontData } from '../../../lib/data/source'
  * ⚠️ الصفحة موجودة بس للأقسام المفعّلة في القائمة (showInNav). قسم
  *    مفعّل للرئيسية بس بيرجّع 404 هنا — والرئيسية مابتحطّلوش رابط
  *    «شوف الكل» أصلًا، فمفيش رابط داخلي بيوصل لصفحة مش موجودة.
+ *
+ * الـ header = العنوان والوصف بس لكل الأقسام (قرار المالك): من غير صورة الغلاف — الغلاف مكانه الرئيسية (#137).
  */
 
 type Params = { slug: string }
@@ -50,7 +51,6 @@ export default async function CollectionPage({ params }: { params: Promise<Param
   const { collection, items } = found
   // نفس البيانات المكاشة — مفيش طلب زيادة
   const { collections } = await getStorefrontData()
-  const image = collection.image
   // 0017 — شكل العرض من اللوحة. قسم فيه منتج ظاهر واحد بيتعرض كروت كبيرة دايمًا.
   const compact = collection.catalogLayout === 'compact' && items.length > 1
 
@@ -75,26 +75,10 @@ export default async function CollectionPage({ params }: { params: Promise<Param
       {/* التنقّل من قسم لقسم من غير الرجوع للرئيسية */}
       <CollectionNav collections={collections} currentSlug={collection.slug} />
 
-      <header className="grid gap-5 py-6 md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] md:items-center md:gap-10 md:py-8">
-        <div className="min-w-0">
-          <h1 className="text-display font-extrabold text-fg">{collection.title}</h1>
-          {collection.subtitle ? (
-            <p className="mt-2 max-w-md text-base leading-relaxed text-muted">{collection.subtitle}</p>
-          ) : null}
-        </div>
-
-        {/* الصورة الكبيرة للغلاف المرفوع بس — البديل التلقائي هو صورة أول منتج،
-            فكانت بتتكرر فوق كارته على طول (صورتين شبه بعض فوق بعض). */}
-        {image && collection.hasCover ? (
-          <ImageSlot
-            ratio="16/9"
-            fit="cover"
-            src={image.url}
-            alt={image.alt}
-            sizes="(min-width: 768px) 352px, 100vw"
-            priority
-            className="rounded-lg border border-border"
-          />
+      <header className="py-6 md:py-8">
+        <h1 className="text-display font-extrabold text-fg">{collection.title}</h1>
+        {collection.subtitle ? (
+          <p className="mt-2 max-w-md text-base leading-relaxed text-muted">{collection.subtitle}</p>
         ) : null}
       </header>
 

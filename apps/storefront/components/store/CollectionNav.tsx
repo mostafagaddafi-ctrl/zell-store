@@ -44,11 +44,11 @@ export function CollectionNav({
                 aria-current={active ? 'page' : undefined}
                 className="group block text-center"
               >
-                {/* HOME-MOBILE §٤ — دواير ستوريز: إطار متدرّج (القسم الحالي لون واحد)، والصورة جوه بحد بلون الخلفية */}
+                {/* HOME-MOBILE §٤ — دواير ستوريز: إطار متدرّج، والقسم الحالي إطار brand سادة أتخن + اسم bold + شرطة تحته */}
                 <span
                   className={cn(
-                    'block rounded-full p-[2.5px] transition-transform group-active:scale-95',
-                    active ? 'bg-brand' : 'bg-gradient-to-tr from-gold via-accent to-brand',
+                    'block rounded-full transition-transform group-active:scale-95',
+                    active ? 'bg-brand p-[3.5px]' : 'bg-gradient-to-tr from-gold via-accent to-brand p-[2.5px]',
                   )}
                 >
                   <span
@@ -62,12 +62,13 @@ export function CollectionNav({
                 </span>
                 <span
                   className={cn(
-                    'mt-1.5 block truncate text-xs font-semibold transition-colors',
-                    active ? 'text-brand' : 'text-fg group-hover:text-accent',
+                    'mt-1.5 block truncate text-xs transition-colors',
+                    active ? 'font-bold text-brand' : 'font-semibold text-fg group-hover:text-accent',
                   )}
                 >
                   {collection.title}
                 </span>
+                {active ? <span aria-hidden="true" className="mx-auto mt-1 block h-0.5 w-6 rounded-full bg-brand" /> : null}
               </Link>
             </li>
           )
