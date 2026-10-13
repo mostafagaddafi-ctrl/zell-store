@@ -178,9 +178,9 @@ export function InstallationEditor({ initial, groups }: { initial: InstallationR
   const status = !draft.enabled
     ? { tone: 'text-muted', text: 'متقفل — خيار الفني مش ظاهر للزبون.' }
     : fee === null
-      ? { tone: 'text-gold', text: 'اكتب سعر تركيب المتر — من غيره الفني مش متاح في أي حتة.' }
+      ? { tone: 'text-gold', text: 'يُرجى إدخال سعر تركيب المتر؛ بدونه لا تتوفر خدمة التركيب في أي منطقة.' }
       : enabledAreas === 0
-        ? { tone: 'text-gold', text: 'مفيش منطقة مفعّلة — الفني مش متاح في أي حتة.' }
+        ? { tone: 'text-gold', text: 'لا توجد منطقة مفعّلة، لذلك لا تتوفر خدمة التركيب في أي منطقة.' }
         : {
             tone: 'text-ok',
             text:
@@ -195,7 +195,7 @@ export function InstallationEditor({ initial, groups }: { initial: InstallationR
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-fg">تشغيل فني التركيب</p>
-              <p className="text-xs text-muted">بيظهر للزبون في المناطق المفعّلة تحت بس.</p>
+              <p className="text-xs text-muted">يظهر للعميل في المناطق المفعّلة أدناه فقط.</p>
             </div>
             <Switch
               checked={draft.enabled}
@@ -210,7 +210,7 @@ export function InstallationEditor({ initial, groups }: { initial: InstallationR
             htmlFor="installation-fee"
             label="سعر تركيب المتر الطولي (ج.م)"
             hint={
-              'بيتحسب على مجموع أطوال أفلام المقاس في الطلب — المنتجات بالعدد مش داخلة.' +
+              'يُحسب على مجموع أطوال المنتجات المبيعة بالمقاس في الطلب، ولا تدخل فيه المنتجات المبيعة بالعدد.' +
               (fee === null ? '' : ' مثال: فيلم 5 متر = ' + formatPiastres(fee * 5) + ' تركيب.')
             }
           >
@@ -273,7 +273,7 @@ export function InstallationEditor({ initial, groups }: { initial: InstallationR
           <Card key={group.governorate} title={group.governorate + ' (' + String(active) + '/' + String(group.areas.length) + ')'}>
             {group.shippingDisabled ? (
               <p className="mb-2 text-xs font-semibold text-gold">
-                الشحن للمحافظة دي متوقف — الطلبات منها مرفوضة لحد ما تشغّلها من صفحة الشحن.
+                الشحن لهذه المحافظة متوقف، وتُرفض الطلبات منها حتى يُعاد تشغيله من صفحة الشحن.
               </p>
             ) : null}
             <div className="mb-3 flex flex-wrap items-end gap-2">
