@@ -13,6 +13,7 @@ import type {
   OrderStep,
   StoreSection,
 } from '../adminData'
+import { readHeroMobileLayout } from '../content/homeMobile'
 import { orderCouponSnapshot } from '../coupons/form'
 import { ORDER_STATUSES, SECTION_KEYS, type ImageFit, type OrderStatus, type SectionKey } from '../enums'
 
@@ -449,6 +450,8 @@ export function readSections(map: Map<string, unknown>): StoreSection[] {
     const subtitle = text(row['subtitle'])
     if (title !== '') section.title = title
     if (subtitle !== '') section.subtitle = subtitle
+    // HOME-MOBILE — لازم يتقري علشان الحفظ مايضيّعوش (غايب أو غلط = compact)
+    if (section.key === 'hero') section.mobileLayout = readHeroMobileLayout(row['mobileLayout'])
     out.push(section)
   }
   return out.sort((a, b) => a.sortOrder - b.sortOrder)
