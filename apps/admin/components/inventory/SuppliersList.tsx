@@ -15,8 +15,8 @@ import { SupplierForm } from './SupplierForm'
 type Editing = { mode: 'create' } | { mode: 'edit'; supplier: InventorySupplier } | null
 
 const SAVED_MESSAGE = 'اتحفظ.'
-const REPLAYED_MESSAGE = 'العملية دي كانت اتنفذت قبل كده، واتعرضت نتيجتها من غير تكرار.'
-const RECONCILED_MESSAGE = 'النموذج اتقفل والقايمة اتقرت من جديد. راجعها قبل أي محاولة جديدة.'
+const REPLAYED_MESSAGE = 'سبق تنفيذ هذه العملية، وتم عرض نتيجتها دون تكرار.'
+const RECONCILED_MESSAGE = 'أُغلق النموذج وأُعيدت قراءة القائمة. يُرجى مراجعتها قبل أي محاولة جديدة.'
 
 /**
  * قايمة الموردين + الإضافة والتعديل (الإيقاف من التعديل). مفيش حذف.
@@ -67,7 +67,7 @@ export function SuppliersList({ rows }: { rows: InventorySupplier[] }) {
         }
       >
         {rows.length === 0 ? (
-          <EmptyState title="مفيش موردين هنا" description="ضيف أول مورد، وبعدها هيظهر في اختيار المورد لفواتير الشراء." />
+          <EmptyState title="مفيش موردين هنا" description="بعد إضافة أول مورد، يظهر في اختيار المورد لفواتير الشراء." />
         ) : (
           <ul className="divide-y divide-border">
             {rows.map((supplier) => (
