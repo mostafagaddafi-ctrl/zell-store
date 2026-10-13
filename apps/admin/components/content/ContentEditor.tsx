@@ -255,7 +255,7 @@ export function ContentEditor({ content, storefrontHref }: { content: StoreConte
           />
         </div>
         <p className="mt-3 text-xs text-muted">
-          تجنّب كتابة أرقام زي عرض الرول أو أقل طول هنا — لو اتغيّرت من صفحة المنتج، الإجابة تبقى غلط.
+          يُفضَّل عدم كتابة أرقام مثل عرض الرول أو أقل طول هنا، لأنها قد تتغيّر من صفحة المنتج فتصبح الإجابة غير صحيحة.
         </p>
       </Card>
 
