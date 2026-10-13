@@ -44,11 +44,11 @@ export function CollectionNav({
                 aria-current={active ? 'page' : undefined}
                 className="group block text-center"
               >
-                {/* HOME-MOBILE §٤ — دواير ستوريز: إطار متدرّج، والقسم الحالي إطار brand سادة أتخن + اسم bold + شرطة تحته */}
+                {/* HOME-MOBILE §٤ — الدواير العادية إطار رفيع رمادي دافي فاتح (هادي)، والكحلي للقسم الحالي بس: إطار brand سادة أتخن + اسم bold + شرطة تحته */}
                 <span
                   className={cn(
                     'block rounded-full transition-transform group-active:scale-95',
-                    active ? 'bg-brand p-[3.5px]' : 'bg-gradient-to-tr from-gold via-accent to-brand p-[2.5px]',
+                    active ? 'bg-brand p-[3.5px]' : 'bg-[hsl(37_18%_80%)] p-[2.5px]',
                   )}
                 >
                   <span
