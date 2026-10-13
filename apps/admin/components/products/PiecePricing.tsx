@@ -82,7 +82,7 @@ export function PiecePricing({
   return (
     <Card title="سعر الوحدة">
       <div className="space-y-3">
-        <p className="text-xs text-muted">للمنتجات الجاهزة بسعر ثابت، زي الرول الكامل، الفوطة، الكرتونة أو الباكدج.</p>
+        <p className="text-xs text-muted">للمنتجات الجاهزة ذات السعر الثابت.</p>
         <div className="grid grid-cols-3 gap-2">
           <Field htmlFor="piece-price" label="سعر الوحدة (ج.م)">
             <input
