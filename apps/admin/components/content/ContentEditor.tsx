@@ -6,6 +6,7 @@ import { ChevronDown, ChevronUp, ExternalLink, Plus, Trash2 } from 'lucide-react
 import { saveContentAction } from '../../lib/actions'
 import type { StoreContent } from '../../lib/adminData'
 import { useSaveAction } from '../../lib/client/useSaveAction'
+import { HOME_MOBILE_OPTIONS, type HomeMobileLayout } from '../../lib/content/homeMobile'
 import { SECTION_LABELS } from '../../lib/enums'
 import { useMutationsEnabled } from '../../lib/readiness'
 import { FailureBanner } from '../ui/FailureBanner'
@@ -70,6 +71,15 @@ export function ContentEditor({ content }: { content: StoreContent }) {
     touch({ ...draft, sections: list.map((item, position) => ({ ...item, sortOrder: position + 1 })) })
   }
 
+  // HOME-MOBILE — «أول الصفحة على الموبايل» على عنصر hero، وبيتحفظ مع المحتوى (نفس action)
+  const heroMobile: HomeMobileLayout = draft.sections.find((item) => item.key === 'hero')?.mobileLayout ?? 'compact'
+  function setHeroMobileLayout(value: HomeMobileLayout) {
+    touch({
+      ...draft,
+      sections: draft.sections.map((item) => (item.key === 'hero' ? { ...item, mobileLayout: value } : item)),
+    })
+  }
+
   function setSectionVisible(key: string, visible: boolean) {
     touch({
       ...draft,
@@ -121,6 +131,27 @@ export function ContentEditor({ content }: { content: StoreContent }) {
             {draft.hero.title} <span className="text-brand">{draft.hero.accent}</span>
           </p>
         </div>
+
+        <fieldset className="mt-4 space-y-2 rounded border border-border p-3">
+          <legend className="px-1 text-sm font-semibold text-fg">أول الصفحة على الموبايل</legend>
+          {HOME_MOBILE_OPTIONS.map((option) => (
+            <label key={option.value} className="flex cursor-pointer items-start gap-2 text-sm text-fg">
+              <input
+                type="radio"
+                name="hero-mobile-layout"
+                value={option.value}
+                checked={heroMobile === option.value}
+                onChange={() => setHeroMobileLayout(option.value)}
+                className="mt-1"
+              />
+              <span>
+                <span className="font-semibold">{option.label}</span>
+                <span className="block text-xs text-muted">{option.hint}</span>
+              </span>
+            </label>
+          ))}
+          <p className="text-xs text-muted">الكمبيوتر والتابلت مابيتأثروش. «إظهار الواجهة» في «ترتيب وإظهار الأقسام» زي ما هو.</p>
+        </fieldset>
       </Card>
 
       <Card title="خطوات الطلب">

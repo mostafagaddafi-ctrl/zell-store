@@ -27,6 +27,7 @@ const coreSrc = join(appRoot, '..', '..', 'packages', 'core', 'src')
 const SUITES = [
   { name: 'delivery', dir: 'lib/orders', entry: 'deliverySettings.cases.ts', run: 'runDeliverySettingsCases' },
   { name: 'install', dir: 'lib/install', entry: 'installChoice.cases.ts', run: 'runInstallChoiceCases' },
+  { name: 'home', dir: 'lib/home', entry: 'homeLayout.cases.ts', run: 'runHomeLayoutCases' },
 ]
 
 const COMPILER_OPTIONS = {

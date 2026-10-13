@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 import {
   discountInfo,
   formatPiastres,
@@ -8,8 +9,8 @@ import {
   widthOptionsOf,
   type StoreProduct,
 } from '@zell/core'
+import { cn } from '../../lib/cn'
 import { shortBenefit } from '../../lib/productCopy'
-import { buttonClasses } from '../ui/Button'
 import { ImageSlot } from '../ui/ImageSlot'
 import { Num } from './Num'
 
@@ -25,6 +26,10 @@ import { Num } from './Num'
  * ⚠️ الكارت كله لينك واحد بس — ممنوع أي لينك أو زرار أو onClick جواه.
  *    «التفاصيل» span متنسّق زي زرار، مش عنصر تفاعلي.
  */
+/** HOME-MOBILE §٦ — «التفاصيل» خفيف (span مش زرار: الكارت لينك واحد). compact = نفس الستايل بـ h-9. */
+const DETAILS_CLASSES =
+  'inline-flex h-10 w-full items-center justify-center gap-1 rounded-lg border border-brand/20 bg-brand/[0.04] px-2 text-xs font-bold text-brand transition-colors group-hover:bg-brand group-hover:text-brand-fg sm:text-sm'
+
 export function ProductCard({ product, density = 'regular' }: { product: StoreProduct; density?: 'regular' | 'compact' }) {
   const compact = density === 'compact'
   const preview = primaryImage(product)
@@ -75,10 +80,16 @@ export function ProductCard({ product, density = 'regular' }: { product: StorePr
           </div>
 
           {compact ? (
-            <span className={buttonClasses('primary', 'md', 'h-9 w-full px-2 text-xs')}>التفاصيل</span>
+            <span className={cn(DETAILS_CLASSES, 'h-9')}>
+              التفاصيل
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            </span>
           ) : (
-          <span className={buttonClasses('primary', 'md', 'w-full px-2 text-xs sm:px-4 sm:text-sm')}>التفاصيل{' '}
-            {isPiece(product) ? null : <span className="hidden sm:inline">واختيار المقاس</span>}</span>
+            <span className={DETAILS_CLASSES}>
+              التفاصيل{' '}
+              {isPiece(product) ? null : <span className="hidden sm:inline">واختيار المقاس</span>}
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            </span>
           )}
         </div>
       </div>
