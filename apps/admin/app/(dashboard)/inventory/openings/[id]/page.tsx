@@ -44,7 +44,7 @@ export default pageWithAccess('zell.inventory0020.view', async function OpeningP
         <PageHeader title="رصيد أول المدة" actions={back} />
         <div role="alert" className="space-y-1 rounded-lg border-s-2 border-danger bg-danger/5 px-3 py-2.5 text-xs text-fg">
           <p className="font-semibold">مقدرناش نقرا المستند.</p>
-          <p className="text-muted">{result.code === 'INTERNAL' ? 'حصل خطأ في القراءة. حدّث الصفحة، ولو اتكرر بلّغ.' : result.message}</p>
+          <p className="text-muted">{result.code === 'INTERNAL' ? 'حدث خطأ في القراءة. يُرجى تحديث الصفحة، والإبلاغ إذا تكرر.' : result.message}</p>
         </div>
       </>
     )
@@ -69,7 +69,7 @@ export default pageWithAccess('zell.inventory0020.view', async function OpeningP
     <>
       <PageHeader
         title={'رصيد أول المدة ' + header.docNo}
-        description="مسودة: تقدر تعدّلها وتعاينها، وبعد الحفظ ترحّلها أو تستبعدها."
+        description="مسودة: يمكن تعديلها ومعاينتها، ثم ترحيلها أو استبعادها بعد الحفظ."
         actions={
           <>
             <DocStatusBadge status={header.status} />
