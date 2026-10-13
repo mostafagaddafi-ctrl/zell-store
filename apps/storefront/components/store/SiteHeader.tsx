@@ -7,6 +7,7 @@ import { MessageCircle, ShoppingBag } from 'lucide-react'
 import type { SocialLink, StoreCollection, StoreImage } from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { Container } from '../ui/Container'
+import { LogoWordmark } from './Logo'
 import { MobileMenu } from './MobileMenu'
 import { Num } from './Num'
 
@@ -91,7 +92,11 @@ export function SiteHeader({
               className="h-12 w-full object-contain mix-blend-multiply sm:h-14"
             />
           ) : (
-            <span className="text-base font-semibold text-brand">{storeName}</span>
+            <>
+              {/* من غير لوجو مرفوع: الاسم الكامل (العلامة + الاسم) جوه نفس الخانة — 15px على الموبايل و18px من sm */}
+              <LogoWordmark name={storeName} size={15} className="sm:hidden" />
+              <LogoWordmark name={storeName} size={18} className="hidden sm:inline-flex" />
+            </>
           )}
         </Link>
 
