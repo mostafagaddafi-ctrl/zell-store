@@ -59,7 +59,7 @@ export function OrderStatusControls({
     if (question !== null && !window.confirm(question)) return
     targetRef.current = next
     setTarget(next)
-    // targetRef عشان «حاول تاني» تبعت آخر حالة مختارة مش الأولى
+    // targetRef عشان «إعادة المحاولة» تبعت آخر حالة مختارة مش الأولى
     void run(() => updateOrderStatusAction(orderId, targetRef.current ?? next, stampRef.current), {
       onSuccess: () => router.refresh(),
     })
@@ -118,7 +118,7 @@ export function OrderNotes({
   const { state, failure, run, retry, markDirty } = useSaveAction()
   const [draft, setDraft] = useState(notes)
 
-  /** «حاول تاني» لازم تبعت أحدث نص مش نسخة من وقت الضغط الأول. */
+  /** «إعادة المحاولة» لازم تبعت أحدث نص مش نسخة من وقت الضغط الأول. */
   const draftRef = useRef(draft)
   draftRef.current = draft
   const stampRef = useRef(expectedUpdatedAt)
