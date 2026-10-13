@@ -22,7 +22,7 @@ export default function ForbiddenPage() {
         <div className="space-y-1">
           <h1 className="text-sm font-bold text-fg">الحساب ده مش مصرّح له</h1>
           <p className="text-xs text-muted">
-            دخلت بحساب موجود فعلًا، بس مالوش صلاحية على لوحة التحكم. لو ده غلط كلّم المالك.
+            تم الدخول بحساب موجود، لكنه لا يملك صلاحية الوصول إلى لوحة التحكم. إذا كان ذلك خطأ، يُرجى التواصل مع مالك المتجر.
           </p>
         </div>
         <SignOutButton />
