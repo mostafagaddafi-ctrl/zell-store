@@ -21,7 +21,7 @@ const TEXT_FIELDS: Array<{ key: TextField; label: string; hint: string; multilin
   {
     key: 'videoNote',
     label: 'ملاحظة الفيديو (اختياري)',
-    hint: 'نص بس، زي «فيديو التركيب على صفحتنا». مفيش فيديو بيتبعت تلقائي — فاضي = مايظهرش',
+    hint: 'نص فقط، مثل «فيديو التركيب على صفحتنا». لا يُرسَل أي فيديو تلقائيًا، وإذا تُرك فارغًا لا يظهر.',
     multiline: true,
   },
   { key: 'browseButtonLabel', label: 'نص زرار الأدوات', hint: 'في صفحة الفيلم بعد «ضيف للسلة» وفي السلة', multiline: false },
@@ -80,7 +80,7 @@ export function ToolsPageEditor({ initial, summary }: { initial: ToolsPageRecord
   const status = !draft.enabled
     ? 'مقفولة — مش ظاهرة للزبون.'
     : activeTools.size === 0
-      ? 'مفعّلة، بس مفيش أداة نشطة مربوطة بفيلم نشط — مش هتظهر لحد ما تربط أدوات من صفحة الفيلم.'
+      ? 'الصفحة مفعّلة، لكن لا توجد أداة نشطة مرتبطة بمنتج نشط، فلن تظهر حتى تُربط أدوات من صفحة المنتج.'
       : 'ظاهرة للزبون بعد الحفظ — ' + String(activeTools.size) + ' أداة على ' + String(filmsWithTools) + ' فيلم.'
 
   return (

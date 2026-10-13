@@ -18,8 +18,8 @@ export function ConfirmDialog({
   confirmLabel = 'تأكيد',
   onCancel,
   onConfirm,
-  disabledReason = 'التعديلات موقوفة دلوقتي — مفيش أي حاجة هتتغيّر.',
-  notImplementedReason = 'الإجراء ده لسه ما اتعملش — مفيش أي حاجة هتتغيّر.',
+  disabledReason = 'التعديلات متوقفة حاليًا، ولن يتغيّر أي شيء.',
+  notImplementedReason = 'هذا الإجراء غير متاح بعد، ولن يتغيّر أي شيء.',
   busy = false,
 }: {
   open: boolean

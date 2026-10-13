@@ -432,7 +432,7 @@ export function OpeningEditor({
           <ConfirmDialog
             open={confirmPost}
             title={'ترحيل ' + draft.header.docNo + '؟'}
-            message="بعد الترحيل المستند بيتقفل، وبتتعمل دفعة لكل لفّة ولكل بند قطع بالتكلفة (والتقديري بيفضل متعلّم إنه تقديري). مفيش تعديل بعد كده — الإبطال بس، وبسبب."
+            message="بعد الترحيل يُقفل المستند، وتُنشأ دفعة لكل لفّة ولكل بند قطع بالتكلفة (وتبقى التكلفة التقديرية معلَّمة كتقديرية). لا يمكن التعديل بعد ذلك، والمتاح هو الإبطال فقط مع ذكر السبب."
             confirmLabel={DOC_ACTION_LABELS.post}
             busy={locked}
             onCancel={() => setConfirmPost(false)}
@@ -442,7 +442,7 @@ export function OpeningEditor({
             open={discardOpen}
             kind="discard"
             title={DOC_ACTION_LABELS.discard}
-            message="المسودة هتتنقل لتبويب «مستبعَد» في القايمة (ومش هتظهر في «النشط»)، ومش هتتعدل ولا تترحّل بعد كده."
+            message="ستُنقل المسودة إلى تبويب «مستبعَد» في القائمة (ولن تظهر في «النشط»)، ولا يمكن تعديلها أو ترحيلها بعد ذلك."
             confirmLabel={DOC_ACTION_LABELS.discard}
             busy={locked}
             onCancel={() => setDiscardOpen(false)}

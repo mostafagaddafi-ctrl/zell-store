@@ -148,8 +148,7 @@ export function PiecePricing({
             className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
           />
           <span>
-            <span className="font-semibold">يظهر في قوايم المنتجات</span> — الرئيسية والأقسام و«كل المنتجات». اقفله لو ده
-            إضافة بس بتظهر جوه صفحات الأفلام.
+            <span className="font-semibold">يظهر في قوايم المنتجات</span> — الرئيسية والأقسام و«كل المنتجات». يُوقف إذا كان المنتج إضافة تظهر داخل صفحات المنتجات فقط.
           </span>
         </label>
 

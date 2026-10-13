@@ -291,8 +291,7 @@ export function PurchaseEditor({
             نسخة من فاتورة <bdi dir="ltr">{duplicate.sourceDocNo}</bdi>، ولسه مااتحفظتش.
           </p>
           <p className="text-muted">
-            راجع البيانات وعدّلها، والمسودة الجديدة مش هتتعمل غير لما تدوس «حفظ». التاريخ النهارده، ورقم فاتورة المورد فاضي.
-            الفاتورة الأصلية مابتتغيّرش.
+            يُرجى مراجعة البيانات وتعديلها عند الحاجة، ولا تُنشأ المسودة الجديدة إلا بعد الضغط على «حفظ». التاريخ هو تاريخ اليوم، ورقم فاتورة المورد فارغ، ولا تتغيّر الفاتورة الأصلية.
           </p>
           {duplicate.notes.length > 0 ? (
             <ul className="list-disc space-y-0.5 ps-4 font-medium text-fg marker:text-gold">
@@ -519,7 +518,7 @@ export function PurchaseEditor({
           <ConfirmDialog
             open={confirmPost}
             title={'ترحيل ' + draft.header.docNo + '؟'}
-            message="بعد الترحيل الفاتورة بتتقفل، وبتتعمل دفعة لكل لفّة ولكل بند قطع بالتكلفة النهائية. مفيش تعديل بعد كده — الإبطال بس، وبسبب."
+            message="بعد الترحيل تُقفل الفاتورة، وتُنشأ دفعة لكل لفّة ولكل بند قطع بالتكلفة النهائية. لا يمكن التعديل بعد ذلك، والمتاح هو الإبطال فقط مع ذكر السبب."
             confirmLabel={DOC_ACTION_LABELS.post}
             busy={locked}
             onCancel={() => setConfirmPost(false)}
@@ -529,7 +528,7 @@ export function PurchaseEditor({
             open={discardOpen}
             kind="discard"
             title={DOC_ACTION_LABELS.discard}
-            message="المسودة هتتنقل لتبويب «مستبعَد» في القايمة (ومش هتظهر في «النشط»)، ومش هتتعدل ولا تترحّل بعد كده."
+            message="ستُنقل المسودة إلى تبويب «مستبعَد» في القائمة (ولن تظهر في «النشط»)، ولا يمكن تعديلها أو ترحيلها بعد ذلك."
             confirmLabel={DOC_ACTION_LABELS.discard}
             busy={locked}
             onCancel={() => setDiscardOpen(false)}

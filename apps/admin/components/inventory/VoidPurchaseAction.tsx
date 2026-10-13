@@ -116,7 +116,7 @@ export function VoidPurchaseAction({
         open={open}
         kind="void"
         title={DOC_ACTION_LABELS.void + ' ' + docNo}
-        message="الإبطال نهائي: المستند والدفعات بتاعته بيبقوا «مُبطَل». مش بيتمسح حاجة، والسجل بيفضل ظاهر."
+        message="الإبطال نهائي: يصبح المستند ودفعاته في حالة «مُبطَل». لا يُحذف أي شيء، ويبقى السجل ظاهرًا."
         confirmLabel={DOC_ACTION_LABELS.void}
         busy={busy}
         onCancel={() => setOpen(false)}

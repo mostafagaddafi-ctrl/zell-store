@@ -28,7 +28,7 @@ export default pageWithAccess('zell.coupons.view', async function CouponsPage(ct
     <>
       <PageHeader
         title="أكواد الخصم"
-        description="الخصم على الأصناف بس — مش على الشحن ولا الفني. الداتابيز هي اللي بتحسم وقت الطلب."
+        description="يُطبَّق الخصم على الأصناف فقط، لا على الشحن أو التركيب، ويُحسم في قاعدة البيانات وقت الطلب."
       />
 
       <div className="space-y-5">

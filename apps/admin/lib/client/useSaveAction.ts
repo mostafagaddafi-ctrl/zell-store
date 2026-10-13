@@ -56,7 +56,7 @@ export function useSaveAction() {
 
   async function run<T>(action: () => Promise<MutationResult<T>>, options?: RunOptions<T>): Promise<void> {
     /**
-     * «حاول تاني» بتعيد **نفس** الـ thunk.
+     * «إعادة المحاولة» بتعيد **نفس** الـ thunk.
      *
      * ⚠️ عشان الإعادة تبعت أحدث draft مش نسخة متجمدة، المكوّن لازم
      * يبني الـ thunk من ref. أي thunk بيقرا متغيّر من الـ render

@@ -101,7 +101,7 @@ export default pageWithAccess('zell.products.view', async function NewProductPag
       <div className="mb-4">
         <PreviewNotice
           what="إنشاء منتج"
-          note="مش هيتعمل أي منتج جديد، ومش هيتسجّل أي صف في قاعدة البيانات. الشاشة دي لمراجعة الشكل بس."
+          note="لن يُنشأ أي منتج، ولن يُسجَّل أي شيء في قاعدة البيانات؛ هذه الشاشة لمعاينة الشكل فقط."
         />
       </div>
 

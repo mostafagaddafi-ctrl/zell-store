@@ -19,7 +19,7 @@ export function HealthActions() {
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" size="sm" disabled={telegram.state === 'saving'} onClick={() => void telegram.run(() => testTelegramAction())}>
             <Send className="h-3.5 w-3.5" />
-            {telegram.state === 'saving' ? 'بيبعت…' : 'اختبر تليجرام'}
+            {telegram.state === 'saving' ? 'بيبعت…' : 'اختبار تليجرام'}
           </Button>
           {telegram.state === 'saved' ? (
             <span className="text-xs font-semibold text-ok">اتبعتت — لو وصلتك على تليجرام، إشعارات الطلبات شغّالة</span>
@@ -43,7 +43,7 @@ export function HealthActions() {
           {refresh.state === 'saved' ? <span className="text-xs font-semibold text-ok">المتجر اتحدّث</span> : null}
         </div>
         <p className="text-xs text-muted">
-          أي حفظ في اللوحة بيحدّث المتجر لوحده. الزرار ده لو حاجة اتغيّرت من بره اللوحة (Supabase مثلًا).
+          يُحدَّث المتجر تلقائيًا بعد أي حفظ في لوحة التحكم. يُستخدم هذا الزر فقط عند تغيير البيانات من خارج اللوحة (مثل التعديل المباشر في قاعدة البيانات).
         </p>
         <FailureBanner failure={refresh.failure} onRetry={refresh.retry} onDiscardAndRefresh={() => router.refresh()} />
       </div>

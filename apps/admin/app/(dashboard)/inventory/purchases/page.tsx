@@ -62,7 +62,7 @@ export default pageWithAccess('zell.inventory0020.view', async function Purchase
     <>
       <PageHeader
         title="المشتريات"
-        description="فواتير الشراء. المسودة بتتعدل وتترحّل، والمرحّل بيعمل دفعات المخزون بالتكلفة ومابيتعدلش (الإبطال بس)."
+        description="فواتير الشراء. يمكن تعديل المسودة وترحيلها، والفاتورة المرحّلة تُنشئ دفعات المخزون بالتكلفة ولا تُعدَّل (الإبطال فقط)."
         actions={
           <Link href="/inventory/purchases/new" className={buttonClasses('primary', 'sm')}>
             <Plus className="h-3.5 w-3.5" />

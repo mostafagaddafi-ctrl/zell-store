@@ -13,8 +13,8 @@ import { SaveBar } from '../ui/SaveBar'
 
 const MODES: { value: HomeProductsMode; title: string; hint: string }[] = [
   { value: 'all', title: 'كل المنتجات', hint: 'كل المنتجات النشطة بتظهر في الرئيسية.' },
-  { value: 'selected', title: 'منتجات أختارها', hint: 'اللي هتعلّم عليه بس، والباقي في صفحة قسمه و«كل المنتجات».' },
-  { value: 'none', title: 'من غير منتجات', hint: 'الرئيسية بتعرض الأقسام المفعّل لها «صف في الرئيسية» بس.' },
+  { value: 'selected', title: 'منتجات أختارها', hint: 'المنتجات المحددة فقط، ويظهر الباقي في صفحة قسمه وفي «كل المنتجات».' },
+  { value: 'none', title: 'من غير منتجات', hint: 'تعرض الرئيسية الأقسام المفعّل لها «صف في الرئيسية» فقط.' },
 ]
 
 /**
@@ -106,7 +106,7 @@ export function HomeProductsEditor({ initial, products }: { initial: HomeProduct
         <Field
           htmlFor="all-products-label"
           label="اسم رابط «كل المنتجات» في القائمة"
-          hint="بيظهر في القائمة فوق ويفتح صفحة فيها كل المنتجات. سيبه فاضي لو مش عايز الرابط."
+          hint="يظهر في القائمة العلوية ويفتح صفحة بجميع المنتجات. ويُترك فارغًا لإخفاء الرابط."
         >
           <input
             id="all-products-label"
@@ -120,8 +120,7 @@ export function HomeProductsEditor({ initial, products }: { initial: HomeProduct
         </Field>
 
         <p className="rounded border border-dashed border-border p-2.5 text-xs text-muted">
-          أي قسم مفتاح «صف في الرئيسية» بتاعه مفتوح تحت بيظهر كصف لوحده في الرئيسية بعد جزء المنتجات. لو المفتاح مقفول،
-          القسم بيبان في القائمة وصفحته بس.
+          يظهر كل قسم مفعّل له خيار «صف في الرئيسية» كصف مستقل في الصفحة الرئيسية بعد جزء المنتجات. وعند إيقاف الخيار يظهر القسم في القائمة وفي صفحته فقط.
         </p>
 
         <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />

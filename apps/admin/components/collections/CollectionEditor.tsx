@@ -101,7 +101,7 @@ export function CollectionEditor({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmSlug, setConfirmSlug] = useState(false)
 
-  // «حاول تاني» لازم تبعت أحدث قيم — مش نسخة من وقت الضغط
+  // «إعادة المحاولة» لازم تبعت أحدث قيم — مش نسخة من وقت الضغط
   const draftRef = useRef({ title, slug, subtitle, showOnHome, showInNav, catalogLayout })
   draftRef.current = { title, slug, subtitle, showOnHome, showInNav, catalogLayout }
   const selectedRef = useRef(selected)
@@ -317,7 +317,7 @@ export function CollectionEditor({
                 })}
               </div>
               <p className="text-xs text-muted">
-                لو القسم فيه منتج واحد ظاهر بس، هيتعرض بالكروت الكبيرة. صف القسم في الرئيسية مابيتأثرش.
+                إذا كان في القسم منتج ظاهر واحد فقط، فيُعرض بالبطاقات الكبيرة، ولا يتأثر صف القسم في الرئيسية.
               </p>
             </div>
           )}
@@ -345,7 +345,7 @@ export function CollectionEditor({
 
               {selected.length === 0 ? (
                 <p className="rounded border border-dashed border-border p-3 text-xs text-muted">
-                  مفيش منتجات مختارة لسه. اختار المنتجات من تحت واحفظ، والقسم هيظهر في المتجر على طول.
+                  لم تُختر منتجات بعد. وبعد اختيار المنتجات أدناه والحفظ، يظهر القسم في المتجر مباشرة.
                 </p>
               ) : (
                 <ul className="space-y-2">
@@ -396,7 +396,7 @@ export function CollectionEditor({
 
               {selected.length > 0 && activeSelected === 0 ? (
                 <p className="mt-2 text-xs font-semibold text-gold">
-                  كل المنتجات المختارة متوقفة، فالقسم مش هيظهر للزباين لحد ما منتج منهم يتفعّل.
+                  جميع المنتجات المختارة متوقفة، لذلك لن يظهر القسم للعملاء حتى يُفعَّل أحدها.
                 </p>
               ) : null}
             </div>

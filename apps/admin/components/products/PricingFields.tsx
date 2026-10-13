@@ -166,8 +166,7 @@ export function PricingFields({
       <Card title={'عروض الرول والأسعار (' + String(rows.length) + ')'} className="lg:col-span-2">
         <div className="space-y-3">
           <p className="text-xs text-muted">
-            كل عرض رول بسعر المتر بتاعه. أول واحد هو اللي بيظهر للزبون الأول — رتّبهم بالأسهم. لو فيه أكتر من عرض، الزبون
-            بيختار من أزرار «عرض الرول» في صفحة المنتج، والأوردر بيتحسب بسعر العرض اللي اختاره.
+            لكل عرض سعر للمتر. يظهر العرض الأول للعميل أولًا، ويمكن تغيير الترتيب بالأسهم. وعند وجود أكثر من عرض يختار العميل من أزرار «عرض الرول» في صفحة المنتج، ويُحسب الطلب بسعر العرض المختار.
           </p>
 
           <ul className="space-y-2">
@@ -277,8 +276,7 @@ export function PricingFields({
               className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
             />
             <span>
-              <span className="font-semibold">تثبيت العرض</span> — الزبون مايكتبش العرض، والخانة بتتقفل على عرض الرول اللي
-              اختاره. بيكتب الارتفاع بس.
+              <span className="font-semibold">تثبيت العرض</span> — لا يُدخل العميل العرض، إذ تُثبَّت الخانة على عرض الرول المختار، ويُدخل الارتفاع فقط.
             </span>
           </label>
 
@@ -321,7 +319,7 @@ export function PricingFields({
       </Card>
 
       <Card title="معاينة الحساب">
-        <p className="text-xs text-muted">نفس دوال التسعير اللي بتحسب للزبون — لو الرقم هنا صح، هو صح عنده.</p>
+        <p className="text-xs text-muted">تُستخدم دوال التسعير نفسها المستخدمة لحساب سعر العميل، فإذا كان الرقم صحيحًا هنا فهو صحيح لديه.</p>
         <div className="mt-3 space-y-3">
           {rows
             .filter((row, index) => index === 0 || row.isActive)

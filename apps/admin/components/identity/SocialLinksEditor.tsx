@@ -47,7 +47,7 @@ export function SocialLinksEditor({ initial }: { initial: SocialLinksInput }) {
     <Card title="السوشيال ميديا">
       <div className="space-y-3">
         <p className="text-xs text-muted">
-          الصق رابط البروفايل، وهيظهر كأيقونة تحت «تابعنا» في آخر كل صفحة في المتجر. اللي تسيبه فاضي مش هيظهر.
+          يُلصق رابط الحساب، ويظهر كأيقونة تحت «تابعنا» في أسفل كل صفحة في المتجر. ولا تظهر الحقول الفارغة.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           {SOCIAL_PLATFORMS.map((platform) => (

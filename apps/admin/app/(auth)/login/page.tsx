@@ -31,14 +31,14 @@ export default async function LoginPage({ searchParams }: PageProps) {
           role="status"
           className="rounded border border-danger/40 bg-danger/5 px-3 py-2 text-xs font-medium text-danger"
         >
-          خدمة الدخول مش متاحة دلوقتي. جرّب تاني بعد شوية.
+          خدمة الدخول غير متاحة حاليًا. يُرجى المحاولة لاحقًا.
         </p>
       ) : null}
 
       <LoginForm next={next} />
 
       <p className="text-center text-[11px] text-muted">
-        الدخول للمصرّح لهم بس. مفيش تسجيل حسابات جديدة من هنا.
+        الدخول للمستخدمين المصرّح لهم فقط، ولا يتوفر تسجيل حسابات جديدة.
       </p>
     </div>
   )
