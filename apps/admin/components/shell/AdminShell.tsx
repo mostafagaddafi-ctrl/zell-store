@@ -36,10 +36,13 @@ export function AdminShell({
   children,
   newOrders,
   identity,
+  storefrontHref,
 }: {
   children: ReactNode
   newOrders: number
   identity: AdminShellIdentity
+  /** رابط «معاينة المتجر» — من السيرفر (lib/storefrontLink.ts، من STOREFRONT_URL). */
+  storefrontHref: string
 }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
@@ -143,7 +146,7 @@ export function AdminShell({
       ))}
 
       <a
-        href="https://zellnow.me"
+        href={storefrontHref}
         target="_blank"
         rel="noopener noreferrer"
         className="mt-auto flex items-center gap-2 rounded px-2 py-2 text-xs font-medium text-muted transition-colors hover:text-accent"
