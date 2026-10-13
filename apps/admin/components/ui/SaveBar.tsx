@@ -10,7 +10,7 @@ const LABELS: Record<SaveState, { text: string; tone: string }> = {
   dirty: { text: 'فيه تغييرات مش محفوظة', tone: 'text-gold' },
   saving: { text: 'بيحفظ…', tone: 'text-muted' },
   saved: { text: 'اتحفظ', tone: 'text-ok' },
-  conflict: { text: 'حد تاني عدّل نفس السجل — حدّث الصفحة', tone: 'text-danger' },
+  conflict: { text: 'عدّل مستخدم آخر السجل نفسه — يُرجى تحديث الصفحة', tone: 'text-danger' },
   error: { text: 'الحفظ فشل', tone: 'text-danger' },
 }
 
