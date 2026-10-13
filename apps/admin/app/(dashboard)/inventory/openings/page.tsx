@@ -56,7 +56,7 @@ export default pageWithAccess('zell.inventory0020.view', async function Openings
     <>
       <PageHeader
         title="رصيد أول المدة"
-        description="البضاعة الموجودة قبل بداية التسجيل. بتتحفظ مسودة، وبعد الترحيل بتعمل دفعات المخزون بالتكلفة (الفعلية أو التقديرية)."
+        description="البضاعة الموجودة قبل بداية التسجيل. تُحفظ كمسودة، وبعد الترحيل تُنشأ دفعات المخزون بالتكلفة (الفعلية أو التقديرية)."
         actions={
           <Link href="/inventory/openings/new" className={buttonClasses('primary', 'sm')}>
             <Plus className="h-3.5 w-3.5" />
