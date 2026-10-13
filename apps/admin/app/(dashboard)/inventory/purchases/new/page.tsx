@@ -41,7 +41,7 @@ export default pageWithAccess('zell.inventory0020.view', async function NewPurch
         />
         <div role="alert" className="space-y-1 rounded-lg border-s-2 border-danger bg-danger/5 px-3 py-2.5 text-xs text-fg">
           <p className="font-semibold">مقدرناش نقرا الفاتورة الأصلية، فماعملناش نسخة.</p>
-          <p className="text-muted">{source.code === 'INTERNAL' ? 'حصل خطأ في القراءة. حدّث الصفحة، ولو اتكرر بلّغ.' : source.message}</p>
+          <p className="text-muted">{source.code === 'INTERNAL' ? 'حدث خطأ في القراءة. يُرجى تحديث الصفحة، والإبلاغ إذا تكرر.' : source.message}</p>
           <p>
             <Link href="/inventory/purchases/new" className="text-brand hover:underline">
               فاتورة جديدة فاضية
@@ -68,7 +68,7 @@ export default pageWithAccess('zell.inventory0020.view', async function NewPurch
         description={
           seed
             ? 'مسودة جديدة من بيانات الفاتورة الأصلية، ولا تُحفظ إلا بعد مراجعتها والضغط على «حفظ». ولا تتغيّر الفاتورة الأصلية.'
-            : 'بتتحفظ كمسودة الأول. الترحيل من صفحة المسودة بعد الحفظ والمعاينة.'
+            : 'تُحفظ أولًا كمسودة، ويتم الترحيل من صفحة المسودة بعد الحفظ والمعاينة.'
         }
       />
       {data.ok ? (
