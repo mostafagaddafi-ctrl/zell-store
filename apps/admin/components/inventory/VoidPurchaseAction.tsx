@@ -52,7 +52,7 @@ export function VoidPurchaseAction({
     {
       onDone: (result) => {
         setNotice(
-          result.replayed === true ? 'العملية دي كانت اتنفذت قبل كده، واتعرضت نتيجتها من غير تكرار.' : 'اتبطل المستند.',
+          result.replayed === true ? 'سبق تنفيذ هذه العملية، وتم عرض نتيجتها دون تكرار.' : 'اتبطل المستند.',
         )
         startReconcile(() => router.refresh())
       },
