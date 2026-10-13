@@ -1,7 +1,7 @@
-import type { Announcement, HomeMobileLayout } from '@zell/core'
+import type { HomeMobileLayout } from '@zell/core'
 
 /**
- * HOME-MOBILE — قرارات العرض في الرئيسية (docs/contracts/HOME-MOBILE.md §٣ و§٥). منطق خالص.
+ * HOME-MOBILE — قرارات العرض في الرئيسية (docs/contracts/HOME-MOBILE.md §٣). منطق خالص.
  *
  * في 'compact' تحت sm بس: شريط الأقسام للموبايل برّه لوب الأجزاء تحت الهيدر على طول (sm:hidden)، والنسخة اللي
  * في اللوب hidden sm:block — فنسخة واحدة بس ظاهرة في أي مقاس، والتانية display:none (برّه قارئ الشاشة كمان)،
@@ -41,14 +41,4 @@ export function homeMobileView(layout: HomeMobileLayout): HomeMobileView {
     // pt-6 pb-10 تحت sm بس؛ من sm لفوق زي قبل العقد بالحرف (§٣-٣)
     productsClassName: 'py-10 max-sm:pt-6 md:py-14',
   }
-}
-
-/**
- * شريط الثقة (§٥): سطر الثقة بعد trim، في كل الصفحات تحت sm في الوضعين (قرار المالك).
- * فاضي = مخفي. ولو شريط الإعلان ظاهر (نفس شرط AnnouncementBar) = مخفي.
- */
-export function trustBarText(announcement: Pick<Announcement, 'enabled' | 'text'>, trustLine: string): string | null {
-  if (announcement.enabled && announcement.text.trim() !== '') return null
-  const text = trustLine.trim()
-  return text === '' ? null : text
 }

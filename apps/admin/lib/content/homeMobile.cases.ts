@@ -2,7 +2,7 @@
  * HOME-MOBILE — حالات اللوحة: القراية · التحقق · الحفظ والقراية مايضيّعوش الحقل (pnpm --filter @zell/admin cases، suite home).
  */
 
-import { HOME_MOBILE_MESSAGES, HOME_MOBILE_OPTIONS, checkSectionMobileLayout, readHeroMobileLayout } from './homeMobile'
+import { HOME_MOBILE_MESSAGES, HOME_MOBILE_OPTIONS, HOME_MOBILE_TITLE, checkSectionMobileLayout, readHeroMobileLayout } from './homeMobile'
 
 export type HomeCaseFailure = { name: string; expected: string; actual: string }
 
@@ -49,9 +49,14 @@ export function runHomeMobileCases(): { passed: number; failures: HomeCaseFailur
   check('A20 read -> save keeps the value (full stays full, compact stays compact, missing becomes compact)', [roundTrip('full'), roundTrip('compact'), roundTrip(undefined)], ['full', 'compact', 'compact'])
 
   // اللوحة
-  check('A30 the two options, compact first', HOME_MOBILE_OPTIONS.map((option) => option.value + ':' + option.label), [
-    'compact:مختصر — الأقسام الأول',
-    'full:كامل — العنوان والوصف والزرار',
+  check('A30 the two options, compact first (formal labels)', HOME_MOBILE_OPTIONS.map((option) => option.value + ':' + option.label), [
+    'compact:مختصر: عرض الأقسام أولًا',
+    'full:كامل: عرض الواجهة كاملة',
+  ])
+  check('A31 formal title and validation messages', [HOME_MOBILE_TITLE, HOME_MOBILE_MESSAGES.invalid, HOME_MOBILE_MESSAGES.heroOnly], [
+    'تخطيط أعلى الصفحة الرئيسية على الهاتف',
+    'يُرجى اختيار تخطيط أعلى الصفحة على الهاتف: مختصر أو كامل.',
+    'هذا الإعداد متاح لقسم الواجهة فقط.',
   ])
 
   return { passed, failures }

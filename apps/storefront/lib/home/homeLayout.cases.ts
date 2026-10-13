@@ -3,7 +3,7 @@
  */
 
 import { DEFAULT_STORE_CONTENT, heroMobileLayoutOf, parseHomeMobileLayout } from '@zell/core'
-import { MOBILE_IMAGE_PLACEHOLDER, homeMobileView, trustBarText } from './homeLayout'
+import { MOBILE_IMAGE_PLACEHOLDER, homeMobileView } from './homeLayout'
 
 export type HomeCaseFailure = { name: string; expected: string; actual: string }
 
@@ -51,12 +51,6 @@ export function runHomeLayoutCases(): { passed: number; failures: HomeCaseFailur
     productsClassName: 'py-10 md:py-14',
   })
   check('V05 the mobile image placeholder is an inline data URI (no network request, not an empty src)', MOBILE_IMAGE_PLACEHOLDER.startsWith('data:image/'), true)
-
-  // شريط الثقة
-  const line = 'الدفع عند الاستلام · توصيل لكل محافظات مصر'
-  check('T01 announcement shown = no trust bar', trustBarText({ enabled: true, text: 'خصم ١٠٪' }, line), null)
-  check('T02 announcement off or empty = trust bar with the line', [trustBarText({ enabled: false, text: 'خصم' }, line), trustBarText({ enabled: true, text: '   ' }, line)], [line, line])
-  check('T03 empty trust line = hidden, and the text is trimmed', [trustBarText({ enabled: false, text: '' }, '   '), trustBarText({ enabled: false, text: '' }, '  ' + line + ' ')], [null, line])
 
   return { passed, failures }
 }
