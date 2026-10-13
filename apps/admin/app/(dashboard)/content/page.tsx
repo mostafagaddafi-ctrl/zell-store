@@ -4,6 +4,7 @@ import { ContentEditor } from '../../../components/content/ContentEditor'
 import { PreviewNotice } from '../../../components/ui/PreviewNotice'
 import { adminData } from '../../../lib/adminData'
 import { pageWithAccess } from '../../../lib/access/instance'
+import { storefrontLinkHref } from '../../../lib/storefrontLink'
 
 export const metadata: Metadata = { title: 'محتوى المتجر' }
 
@@ -16,7 +17,7 @@ export default pageWithAccess('zell.content.view', async function ContentPage(_c
       <div className="mb-4">
         <PreviewNotice what="تعديل نصوص المتجر وترتيب الأقسام" />
       </div>
-      <ContentEditor content={content} />
+      <ContentEditor content={content} storefrontHref={storefrontLinkHref()} />
     </>
   )
 })
