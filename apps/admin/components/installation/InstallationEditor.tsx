@@ -240,11 +240,6 @@ export function InstallationEditor({ initial, groups }: { initial: InstallationR
               disabled={locked}
             />
           </Field>
-
-          <p className="rounded border border-border bg-bg p-2 text-xs text-muted">
-            لحد تحديث صفحة الطلب في المتجر، الزبون بيشوف «محتاج فني تركيب؟» في المحافظات اللي فيها منطقة مفعّلة، والسعر لسه
-            بيتفق عليه بالتواصل. أجر التركيب والانتقال هيدخلوا الإجمالي تلقائي بعد التحديث.
-          </p>
         </div>
       </Card>
 
@@ -253,8 +248,7 @@ export function InstallationEditor({ initial, groups }: { initial: InstallationR
           <p className="font-bold">مناطق كانت متاحة للفني ومابقتش موجودة في الشحن</p>
           <p className="mt-1">{orphans.join('، ')}</p>
           <p className="mt-1 text-muted">
-            اتشالت أو اتغير اسمها من صفحة الشحن، فالفني مش متاح فيها دلوقتي. هتتشال من هنا مع أول «حفظ» — ولو الاسم اتغيّر،
-            فعّل الاسم الجديد تحت.
+            حُذفت أو تغيّر اسمها في صفحة الشحن، لذلك خدمة التركيب غير متاحة فيها حاليًا. ستُزال من هنا عند الحفظ التالي، وإذا تغيّر الاسم يُرجى تفعيل الاسم الجديد أدناه.
           </p>
         </div>
       ) : null}
