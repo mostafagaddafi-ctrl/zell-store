@@ -10,6 +10,7 @@ import { CollectionStrip } from '../components/store/CollectionStrip'
 import { ProductCard } from '../components/store/ProductCard'
 import { Container } from '../components/ui/Container'
 import { getStorefrontData } from '../lib/data/source'
+import { homeMobileView } from '../lib/home/homeLayout'
 
 /**
  * الرئيسية — الأجزاء وترتيبها وظهورها ونصوصها من «المحتوى» في اللوحة.
@@ -20,6 +21,10 @@ import { getStorefrontData } from '../lib/data/source'
  * أقسام الرئيسية (CollectionStrip) بتيجي مكان جزء المنتجات بعده على طول،
  * حتى لو الجزء نفسه مخفي — الأقسام ليها مفتاحها الخاص في صفحة الأقسام.
  * «إزاي أطلب» و«أسئلة متكررة» بيستخبوا لوحدهم لو قايمتهم فاضية.
+ *
+ * HOME-MOBILE (docs/contracts/HOME-MOBILE.md §٣): في compact شريط الأقسام للموبايل برّه اللوب تحت الهيدر على طول
+ * (sm:hidden، من غير عنوان)، والنسخة اللي في اللوب hidden sm:block — نسخة واحدة ظاهرة في أي مقاس، ومهما الترتيب.
+ * في full كل حاجة زي قبل العقد بالحرف.
  */
 export default async function HomePage() {
   const { products, settings, collections } = await getStorefrontData()
@@ -30,15 +35,17 @@ export default async function HomePage() {
   const listed = products.filter(isListed)
   const homeProducts = pickHomeProducts(listed, settings.homeProducts)
   const allLabel = settings.homeProducts.allLabel || 'كل المنتجات'
+  const view = homeMobileView(content.heroMobileLayout)
 
   return (
     <Container className="pb-8">
+      {view.mobileTopNav ? <CollectionNav collections={collections} className={view.mobileTopNavClassName} /> : null}
       {content.homeSections.map((section) => {
         if (section.key === 'hero') {
           return (
             <Fragment key="hero">
-              {section.visible ? <Hero image={settings.heroImage} hero={content.hero} /> : null}
-              <CollectionNav collections={collections} title="تسوّق حسب القسم" />
+              {section.visible ? <Hero image={settings.heroImage} hero={content.hero} layout={content.heroMobileLayout} /> : null}
+              <CollectionNav collections={collections} title="تسوّق حسب القسم" className={view.loopNavClassName} />
             </Fragment>
           )
         }
@@ -47,7 +54,7 @@ export default async function HomePage() {
           return (
             <div key="products" id="products" className="scroll-mt-20">
               {section.visible && homeProducts.length > 0 ? (
-                <section className="py-10 md:py-14">
+                <section className={view.productsClassName}>
                   <h2 className="text-xl font-bold text-fg md:text-2xl">{section.title}</h2>
                   {section.subtitle ? <p className="mt-1 text-sm text-muted">{section.subtitle}</p> : null}
 
