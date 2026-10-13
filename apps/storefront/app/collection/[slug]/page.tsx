@@ -40,6 +40,12 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 
   const metadata: Metadata = { title: found.collection.title }
   if (found.collection.subtitle !== '') metadata.description = found.collection.subtitle
+  // معاينة المشاركة: اسم القسم والوصف + صورة القسم (وإلا الصورة الافتراضية)
+  const image = found.collection.image
+  const imageUrl = image ? image.url : '/opengraph-image'
+  const text = found.collection.subtitle !== '' ? { description: found.collection.subtitle } : {}
+  metadata.openGraph = { type: 'website', title: found.collection.title, ...text, images: [{ url: imageUrl, alt: image ? image.alt || found.collection.title : found.collection.title }] }
+  metadata.twitter = { card: 'summary_large_image', title: found.collection.title, ...text, images: [imageUrl] }
   return metadata
 }
 
