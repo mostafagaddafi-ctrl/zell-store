@@ -162,7 +162,7 @@ export type StoreSection = {
   sortOrder: number
   title?: string
   subtitle?: string
-  /** HOME-MOBILE — على hero بس («أول الصفحة على الموبايل»). */
+  /** HOME-MOBILE — على hero بس («تخطيط أعلى الصفحة الرئيسية على الهاتف»). */
   mobileLayout?: HomeMobileLayout
 }
 
