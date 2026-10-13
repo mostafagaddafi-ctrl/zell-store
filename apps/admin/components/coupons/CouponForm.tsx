@@ -187,7 +187,7 @@ export function CouponForm({
             />
           </Field>
 
-          <Field htmlFor="coupon-max" label="الحد الإجمالي للاستخدام" hint="فاضي = من غير حد. الطلبات الملغية مابتتحسبش">
+          <Field htmlFor="coupon-max" label="الحد الإجمالي للاستخدام" hint="الحقل الفارغ يعني بلا حد، ولا تُحتسب الطلبات الملغاة.">
             <input
               id="coupon-max"
               dir="ltr"
@@ -225,7 +225,7 @@ export function CouponForm({
         <Field
           htmlFor="coupon-note"
           label="ملاحظة داخلية (اختياري)"
-          hint={String(Array.from(form.note.trim()).length) + ' / ' + String(COUPON_NOTE_MAX) + ' — مابتظهرش للعميل'}
+          hint={String(Array.from(form.note.trim()).length) + ' / ' + String(COUPON_NOTE_MAX) + ' — لا تظهر للعميل'}
         >
           <textarea
             id="coupon-note"
