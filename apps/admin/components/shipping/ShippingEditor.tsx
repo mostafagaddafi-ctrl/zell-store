@@ -67,7 +67,7 @@ export function ShippingEditor({
     markDirty()
   }
 
-  /** «حاول تاني» لازم تبعت أحدث نسخة مش نسخة من وقت الضغط الأول. */
+  /** «إعادة المحاولة» لازم تبعت أحدث نسخة مش نسخة من وقت الضغط الأول. */
   const draftRef = useRef(draft)
   draftRef.current = draft
   const sequenceRef = useRef(sequence)
