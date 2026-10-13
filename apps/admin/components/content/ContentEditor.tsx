@@ -414,7 +414,7 @@ export function ContentEditor({ content }: { content: StoreContent }) {
       </Card>
 
       <a
-        href="https://zell-store-nine.vercel.app"
+        href="https://zellnow.me"
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent"
