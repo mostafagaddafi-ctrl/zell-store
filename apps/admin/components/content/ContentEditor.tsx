@@ -34,7 +34,7 @@ export function ContentEditor({ content, storefrontHref }: { content: StoreConte
     markDirty()
   }
 
-  /** «حاول تاني» لازم تبعت أحدث draft مش نسخة من وقت الضغط الأول. */
+  /** «إعادة المحاولة» لازم تبعت أحدث draft مش نسخة من وقت الضغط الأول. */
   const draftRef = useRef(draft)
   draftRef.current = draft
 
