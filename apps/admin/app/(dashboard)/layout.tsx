@@ -4,6 +4,7 @@ import { adminData } from '../../lib/adminData'
 import { layoutWithSession } from '../../lib/access/instance'
 import { mutationsEnabled } from '../../lib/mutations'
 import { ReadinessProvider } from '../../lib/readiness'
+import { storefrontLinkHref } from '../../lib/storefrontLink'
 
 /**
  * كل المسارات المحمية تحت المجموعة دي.
@@ -25,7 +26,7 @@ export default layoutWithSession(async function DashboardLayout(ctx, { children 
 
   return (
     <ReadinessProvider enabled={enabled}>
-      <AdminShell newOrders={summary.newCount} identity={shellIdentity}>
+      <AdminShell newOrders={summary.newCount} identity={shellIdentity} storefrontHref={storefrontLinkHref()}>
         {children}
       </AdminShell>
     </ReadinessProvider>

@@ -22,7 +22,7 @@ Vercel و Supabase والمتغيرات والكاش وإدارة الأدمن.
 | Build / Install | افتراضي | افتراضي |
 | Node.js | **20.x** (نفس `ci.yml`) | **20.x** |
 | Ignored Build Step | `bash scripts/vercel-ignore-build.sh storefront` | `bash scripts/vercel-ignore-build.sh admin` |
-| الرابط | `zell-store-nine.vercel.app` | مضبوط في Vercel — مش مكرر هنا |
+| الرابط | `zellnow.me` (و`www.zellnow.me` بيحوّل عليه) | مضبوط في Vercel — مش مكرر هنا |
 
 🔒 **رابط لوحة الإدارة مضبوط داخل Vercel ولا يُكرر عمدًا داخل مستودع**
 **الكود.** هذا إجراء تنظيمي وليس حدًا أمنيًا؛ Supabase Auth وفحص الدور
@@ -73,6 +73,21 @@ middleware هيشوفه **فاضي**، وكل طلب هيروح `/login?error=un
 | `SUPABASE_ANON_KEY` | لوحة Vercel | لا، بس مايتعرضش | الهوية بس |
 | `SUPABASE_SERVICE_ROLE_KEY` | لوحة Vercel | 🔒 نعم | ⚠️ انتقالي |
 | `ADMIN_MUTATIONS_ENABLED` | لوحة Vercel | لا | **`true` حاليًا** |
+| `STOREFRONT_URL` | لوحة Vercel | لا | رابط المتجر `https://…` من غير مسار — التحديث الفوري و«حالة النظام» ولينكين «معاينة المتجر» و«شوف المتجر» |
+| `STOREFRONT_HOST` | لوحة Vercel | لا | مضيف `STOREFRONT_URL` بالحرف (من غير `https://`) — لازم يتطابقوا |
+
+### رابط المتجر لكل نسخة (الدومين)
+
+كل نسخة (أي محل) بتضبط رابط متجرها من غير أي تعديل في الكود:
+
+1. مشروع **اللوحة** في Vercel ← Settings ← Environment Variables (Production).
+2. `STOREFRONT_URL` = رابط المتجر، مثلًا `https://zellnow.me` — `https` بس، من غير مسار ولا استعلام ولا بيانات دخول.
+3. `STOREFRONT_HOST` = نفس المضيف بالحرف، مثلًا `zellnow.me`.
+4. **Redeploy للوحة** علشان القيم الجديدة تتقري.
+
+- المتغيرين دول بيشغّلوا: التحديث الفوري بعد الحفظ (`lib/revalidateStorefront.ts`) · فحص المتجر في «حالة النظام» (`lib/systemHealth.ts`) · لينكين «معاينة المتجر» و«شوف المتجر» (`lib/storefrontLink.ts`).
+- لو واحد فيهم غايب، أو القيمة مش آمنة، أو المضيف مش متطابق: التحديث الفوري بيقف («حالة النظام» بتوضّح)، و**اللينكين بيستخبوا** ومكانهم تنبيه «رابط المتجر غير مضبوط…» بيطلب ضبط المتغيرين ثم Redeploy. **مفيش رابط احتياطي:** اللوحة عمرها ما تفتح متجر مااتحققش منه (`apps/admin/lib/storefront/link.ts`).
+- رابط اللوحة نفسه مايتكتبش في الريبو (§١).
 
 ### قواعد
 

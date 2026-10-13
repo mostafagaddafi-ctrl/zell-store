@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, ChevronUp, ExternalLink, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronUp, ExternalLink, Plus, Trash2 } from 'lucide-react'
 import { saveContentAction } from '../../lib/actions'
 import type { StoreContent } from '../../lib/adminData'
 import { useSaveAction } from '../../lib/client/useSaveAction'
 import { HOME_MOBILE_NOTE, HOME_MOBILE_OPTIONS, HOME_MOBILE_TITLE, type HomeMobileLayout } from '../../lib/content/homeMobile'
 import { SECTION_LABELS } from '../../lib/enums'
+import { STOREFRONT_LINK_NOT_SET } from '../../lib/storefront/link'
 import { useMutationsEnabled } from '../../lib/readiness'
 import { FailureBanner } from '../ui/FailureBanner'
 import { Card, Field, inputClasses, textareaClasses } from '../ui/Field'
@@ -21,7 +22,8 @@ function hrefState(href: string): { ok: boolean; note: string } {
   return { ok: false, note: 'لازم يبدأ بـ / أو https://' }
 }
 
-export function ContentEditor({ content }: { content: StoreContent }) {
+/** storefrontHref: رابط «شوف المتجر» — من السيرفر (lib/storefrontLink.ts). null = الإعداد مش مضبوط: اللينك بيستخبى والتنبيه بيظهر. */
+export function ContentEditor({ content, storefrontHref }: { content: StoreContent; storefrontHref: string | null }) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
   const { state, failure, warning, run, retry, markDirty } = useSaveAction()
@@ -413,15 +415,22 @@ export function ContentEditor({ content }: { content: StoreContent }) {
         </Field>
       </Card>
 
-      <a
-        href="https://zell-store-nine.vercel.app"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent"
-      >
-        <ExternalLink className="h-3.5 w-3.5" />
-        شوف المتجر
-      </a>
+      {storefrontHref !== null ? (
+        <a
+          href={storefrontHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          شوف المتجر
+        </a>
+      ) : (
+        <p role="status" className="flex items-start gap-1.5 rounded border border-danger/30 bg-danger/5 px-3 py-2 text-xs font-semibold text-danger">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>{STOREFRONT_LINK_NOT_SET}</span>
+        </p>
+      )}
 
       <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
 
