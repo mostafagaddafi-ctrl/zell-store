@@ -143,7 +143,7 @@ export function CollectionCoverCard({ collection }: { collection: AdminCollectio
       <ConfirmDialog
         open={confirmRemove}
         title="شيل صورة القسم؟"
-        message="المتجر هيرجع يعرض أول صورة لأول منتج في القسم. الملف بيتسجّل للتنظيف ومش بيتمسح فورًا."
+        message="سيعود المتجر إلى عرض أول صورة لأول منتج في القسم. ويُسجَّل الملف للتنظيف ولا يُحذف فورًا."
         confirmLabel="شيل الصورة"
         onCancel={() => setConfirmRemove(false)}
         onConfirm={remove}
