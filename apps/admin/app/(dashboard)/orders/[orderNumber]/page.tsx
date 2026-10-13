@@ -163,7 +163,7 @@ export default pageWithAccess('zell.orders.view', async function OrderDetailPage
                     totalPiastres: order.totalPiastres,
                   })}
                 </p>
-                <p className="text-muted">لقطة وقت الطلب — تعديل الكوبون بعد كده مابيغيّرهاش.</p>
+                <p className="text-muted">بيانات مسجّلة وقت الطلب، ولا تتأثر بتعديل الكوبون لاحقًا.</p>
               </div>
             ) : null}
           </Card>
