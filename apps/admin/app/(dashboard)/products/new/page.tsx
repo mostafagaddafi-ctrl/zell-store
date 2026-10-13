@@ -32,7 +32,7 @@ export default pageWithAccess('zell.products.view', async function NewProductPag
         </Link>
         <PageHeader
           title="إضافة / منتج بالعدد"
-          description="منتج جاهز بسعر ثابت (رول كامل، فوطة، كرتونة، باكدج أو أداة) — بيتباع بالكمية ومش لازم يبقى في قسم"
+          description="منتج جاهز بسعر ثابت، يُباع بالكمية ولا يُشترط أن يكون ضمن قسم."
         />
         <ProductEditor product={null} initialSaleUnit="piece" />
       </>
