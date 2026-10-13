@@ -111,7 +111,7 @@ export function FailureBanner({
           confirming ? (
             <div className="space-y-2 pt-0.5">
               <p className="font-semibold text-danger">
-                تحديث الصفحة هيمسح التعديلات غير المحفوظة. متأكد؟
+                سيؤدي تحديث الصفحة إلى فقدان التعديلات غير المحفوظة. هل تريد المتابعة؟
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="danger" size="sm" onClick={onDiscardAndRefresh}>

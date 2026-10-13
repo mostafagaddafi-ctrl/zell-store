@@ -49,7 +49,7 @@ type Draft = { header: PurchaseHeader; payload: PurchaseDocPayload }
 type DocRef = { docId: number; version: number }
 type DiscardPayload = DocRef & { reason: string }
 
-const REPLAYED_MESSAGE = 'العملية دي كانت اتنفذت قبل كده، واتعرضت نتيجتها من غير تكرار.'
+const REPLAYED_MESSAGE = 'سبق تنفيذ هذه العملية، وتم عرض نتيجتها دون تكرار.'
 const money = (piastres: number | undefined) => (piastres === undefined ? '—' : formatPiastresExact(piastres))
 
 /**
@@ -254,7 +254,7 @@ export function PurchaseEditor({
   const postBlocked = !draft
     ? 'احفظ المسودة الأول.'
     : dirty
-      ? 'احفظ التعديلات الأول — الترحيل بيرحّل المسودة المحفوظة.'
+      ? 'يُرجى حفظ التعديلات أولًا، إذ يتم ترحيل المسودة المحفوظة.'
       : savedIssues.length > 0
         ? savedIssues.join(' ')
         : null
@@ -312,7 +312,7 @@ export function PurchaseEditor({
 
       <Card title={draft ? 'مسودة ' + draft.header.docNo : duplicate ? 'نسخة من ' + duplicate.sourceDocNo : 'فاتورة شراء جديدة'}>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field htmlFor="purchase-supplier" label="المورد" hint="اختياري في المسودة · الموقوف مابيظهرش هنا">
+          <Field htmlFor="purchase-supplier" label="المورد" hint="اختياري في المسودة · لا يظهر المورد الموقوف هنا">
             {editable && supplierOptions.length > 5 ? (
               <input
                 type="search"
@@ -374,7 +374,7 @@ export function PurchaseEditor({
               </select>
             </Field>
           )}
-          <Field htmlFor="purchase-date" label="تاريخ الفاتورة" hint="مش في المستقبل (بتوقيت القاهرة)">
+          <Field htmlFor="purchase-date" label="تاريخ الفاتورة" hint="لا يكون في المستقبل (بتوقيت القاهرة)">
             <input
               id="purchase-date"
               type="date"

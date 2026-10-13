@@ -79,7 +79,7 @@ export function PaymentSettingsForm({ settings }: { settings: PaymentSettings })
 
         <label className="flex items-center gap-2 text-sm font-semibold text-fg">
           <input type="checkbox" checked={form.enabled} onChange={(event) => set({ enabled: event.target.checked })} disabled={disabled} />
-          تفعيل رسوم تأكيد الطلب (مقدم من نفس الإجمالي، مش خصم)
+          تفعيل رسوم تأكيد الطلب (مقدم من الإجمالي نفسه، وليس خصمًا)
         </label>
 
         <div className="grid gap-2 sm:grid-cols-2">
@@ -104,7 +104,7 @@ export function PaymentSettingsForm({ settings }: { settings: PaymentSettings })
         </div>
 
         {form.method === 'percent' ? (
-          <Field htmlFor="fee-percent" label="النسبة (%)" hint="نسبة مئوية من إجمالي الطلب، مثلًا 10 أو 2.5 (لحد رقمين بعد العلامة). المقدم بيتقرّب لأقرب جنيه لفوق.">
+          <Field htmlFor="fee-percent" label="النسبة (%)" hint="نسبة مئوية من إجمالي الطلب، مثل 10 أو 2.5 (حتى رقمين عشريين). ويُقرَّب المقدم إلى أقرب جنيه للأعلى.">
             <input id="fee-percent" inputMode="decimal" dir="ltr" value={form.percent} onChange={(event) => set({ percent: event.target.value })} className={inputClasses} disabled={disabled} />
           </Field>
         ) : null}
@@ -114,7 +114,7 @@ export function PaymentSettingsForm({ settings }: { settings: PaymentSettings })
           </Field>
         ) : null}
         {form.method === 'shipping' ? (
-          <Field htmlFor="fee-fallback" label="قيمة بديلة لو الشحن مجاني (جنيه)" hint="علشان المقدم مايبقاش صفر من غير قصد.">
+          <Field htmlFor="fee-fallback" label="قيمة بديلة لو الشحن مجاني (جنيه)" hint="حتى لا يكون المقدم صفرًا دون قصد.">
             <input id="fee-fallback" inputMode="decimal" dir="ltr" value={form.fallbackPounds} onChange={(event) => set({ fallbackPounds: event.target.value })} className={inputClasses} disabled={disabled} />
           </Field>
         ) : null}
@@ -139,7 +139,7 @@ export function PaymentSettingsForm({ settings }: { settings: PaymentSettings })
         <Field htmlFor="pay-numbers" label="أرقام الدفع (المحافظ والحساب البنكي)">
           <textarea id="pay-numbers" value={numbers} maxLength={PAYMENT_NUMBERS_MAX} onChange={(event) => setNumbers(event.target.value)} className={textareaClasses} disabled={disabled} />
         </Field>
-        <Field htmlFor="pay-policy" label="سياسة رسوم التأكيد (بتظهر للعميل في صفحة إتمام الطلب)">
+        <Field htmlFor="pay-policy" label="سياسة رسوم التأكيد (تظهر للعميل في صفحة إتمام الطلب)">
           <textarea id="pay-policy" value={policy} maxLength={FEE_POLICY_MAX} onChange={(event) => setPolicy(event.target.value)} className={textareaClasses} disabled={disabled} />
         </Field>
         <Field htmlFor="pay-template" label="قالب رسالة واتساب" hint={'المتغيرات: ' + TEMPLATE_VARIABLES.join(' ')}>

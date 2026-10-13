@@ -18,7 +18,7 @@ export default pageWithAccess('zell.settings.view', async function SettingsPage(
 
   return (
     <>
-      <PageHeader title="الإعدادات" description="حالة النظام الحقيقية — كل سطر اتفحص دلوقتي" />
+      <PageHeader title="الإعدادات" description="حالة النظام الفعلية — تم فحص كل بند الآن" />
       <div className="space-y-4">
         <SystemHealthView health={health} />
         <DeliverySettingsCard key={delivery?.updatedAt ?? 'none'} settings={delivery} canSave={ctx.identity.role === 'owner'} />

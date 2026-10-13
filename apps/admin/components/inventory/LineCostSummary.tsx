@@ -25,7 +25,7 @@ export function SalePriceNote({
   return (
     <div className="text-xs text-muted">
       <span>
-        سعر البيع الحالي{postedView ? ' (دلوقتي، مش وقت الترحيل)' : ''}:{' '}
+        سعر البيع الحالي{postedView ? ' (حاليًا، وليس وقت الترحيل)' : ''}:{' '}
         <span className="font-semibold text-fg" dir="ltr">
           {salePrice ? priceText(salePrice.pricePiastres, salePrice.unit === 'meter' ? 'متر' : 'قطعة') : '—'}
         </span>
@@ -45,7 +45,7 @@ export function SalePriceNote({
   )
 }
 
-export const POSTED_SALE_PRICE_LABEL = 'سعر البيع الحالي (دلوقتي، مش وقت الترحيل)'
+export const POSTED_SALE_PRICE_LABEL = 'سعر البيع الحالي (حاليًا، وليس وقت الترحيل)'
 export const PER_UNIT_COST_LABEL = 'النهائية للمتر/القطعة (تقريبي)'
 
 /**

@@ -197,7 +197,7 @@ export function CollectionEditor({
     <div className="space-y-4">
       <Card title="بيانات القسم">
         <div className="space-y-3">
-          <Field htmlFor="title" label="الاسم" hint="اللي بيظهر للزباين فوق المنتجات وفي القائمة">
+          <Field htmlFor="title" label="الاسم" hint="يظهر للعملاء أعلى المنتجات وفي القائمة">
             <input
               id="title"
               value={title}
@@ -213,7 +213,7 @@ export function CollectionEditor({
           <Field
             htmlFor="slug"
             label="الرابط المختصر"
-            hint="حروف إنجليزي صغيرة وأرقام وشرطات بس. بيظهر في العنوان: /collection/الرابط"
+            hint="حروف إنجليزية صغيرة وأرقام وشرطات فقط. يظهر في العنوان: /collection/الرابط"
           >
             <input
               id="slug"
@@ -251,7 +251,7 @@ export function CollectionEditor({
           <div className="space-y-3 rounded border border-border p-3">
             <PlacementRow
               title="إظهار في الرئيسية"
-              hint="القسم ومنتجاته بيظهروا كجزء مستقل في الصفحة الرئيسية."
+              hint="يظهر القسم ومنتجاته كجزء مستقل في الصفحة الرئيسية."
               checked={showOnHome}
               onChange={(next) => {
                 setShowOnHome(next)
@@ -262,7 +262,7 @@ export function CollectionEditor({
             />
             <PlacementRow
               title="إظهار في قائمة الأقسام"
-              hint="بيظهر في الهيدر وقائمة الموبايل، وبياخد صفحة خاصة على /collection/الرابط."
+              hint="يظهر في رأس الصفحة وقائمة الهاتف، وتكون له صفحة خاصة على /collection/الرابط."
               checked={showInNav}
               onChange={(next) => {
                 setShowInNav(next)
@@ -276,13 +276,13 @@ export function CollectionEditor({
             </p>
             {collection === null ? (
               <p className="text-xs text-muted">
-                القسم الجديد بيظهر أول القائمة، وتقدر تحرّكه بعدين من صفحة الأقسام.
+                يظهر القسم الجديد في أول القائمة، ويمكن تغيير موضعه لاحقًا من صفحة الأقسام.
               </p>
             ) : null}
           </div>
 
           {collection === null ? (
-            <p className="text-xs text-muted">تقدر تختار شكل عرض المنتجات في صفحة القسم بعد ما تحفظ القسم.</p>
+            <p className="text-xs text-muted">يمكن اختيار شكل عرض المنتجات في صفحة القسم بعد حفظه.</p>
           ) : (
             <div className="space-y-2 rounded border border-border p-3">
               <p id="catalog-layout-label" className="text-sm font-semibold text-fg">
@@ -334,7 +334,7 @@ export function CollectionEditor({
       {collection === null ? null : <CollectionCoverCard collection={collection} />}
 
       {collection === null ? (
-        <p className="text-xs text-muted">احفظ القسم الأول، وبعدها تقدر تضيف المنتجات والصورة وتظبط الترتيب.</p>
+        <p className="text-xs text-muted">يُحفظ القسم أولًا، ثم تُضاف المنتجات والصورة ويُضبط الترتيب.</p>
       ) : (
         <Card title="منتجات القسم">
           <div id="products" className="scroll-mt-24 space-y-4">
@@ -429,7 +429,7 @@ export function CollectionEditor({
                   ))}
                 </div>
               )}
-              <p className="mt-2 text-xs text-muted">المنتج ينفع يبقى في أكتر من قسم.</p>
+              <p className="mt-2 text-xs text-muted">يمكن أن يكون المنتج في أكثر من قسم.</p>
             </div>
 
             <FailureBanner
@@ -512,7 +512,7 @@ export function CollectionEditor({
           (originalSlug ?? '') +
           ' إلى /collection/' +
           normalizeSlug(slug) +
-          '. أي لينك قديم اتشارك للقسم هيرجّع 404.'
+          '. أي رابط قديم للقسم سيؤدي إلى صفحة غير موجودة (404).'
         }
         confirmLabel="غيّر الرابط واحفظ"
         onCancel={() => setConfirmSlug(false)}

@@ -14,7 +14,7 @@ export default pageWithAccess('zell.installation_tools.view', async function Ins
     <>
       <PageHeader
         title="أدوات التركيب"
-        description="صفحة في المتجر بالأدوات والباكدجات المناسبة لكل فيلم — المحتوى من هنا، والربط من صفحة كل فيلم"
+        description="صفحة في المتجر تعرض الأدوات والباقات المناسبة لكل منتج؛ يُدار المحتوى من هنا، ويتم الربط من صفحة كل منتج."
       />
       {/* key = الطابع: «تجاهل وحدّث» بيجيب نسخة السيرفر في محرر جديد */}
       <ToolsPageEditor key={record.updatedAt ?? 'new'} initial={record} summary={summary} />

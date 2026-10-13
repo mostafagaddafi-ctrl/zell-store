@@ -32,7 +32,7 @@ import { FailureBanner } from '../ui/FailureBanner'
 import { UnresolvedNotice } from './UnresolvedNotice'
 import { UnsavedChangesGuard } from './UnsavedChangesGuard'
 
-const CLOSE_DIRTY_CONFIRM = 'في تعديلات مش محفوظة. تقفل النموذج من غير حفظ؟'
+const CLOSE_DIRTY_CONFIRM = 'توجد تعديلات غير محفوظة. هل تريد إغلاق النموذج دون حفظ؟'
 
 /**
  * إضافة أو تعديل مورد — كل حفظ «نية كتابة» بمفتاح عملية (lib/inventory/intent.ts):
@@ -216,7 +216,7 @@ export function SupplierForm({
               onChange={(event) => set({ isActive: event.target.checked })}
             />
             المورد نشط
-            <span className="text-xs text-muted">(الموقوف مابيظهرش في اختيار المورد للفواتير الجديدة)</span>
+            <span className="text-xs text-muted">(لا يظهر المورد الموقوف عند اختيار المورد للفواتير الجديدة)</span>
           </label>
         ) : null}
 

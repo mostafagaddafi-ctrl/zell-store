@@ -47,7 +47,7 @@ export function OpeningView({ detail, catalog }: { detail: OpeningDetail; catalo
       {lines.length > 0 ? (
         <Card title="البنود">
           {products === null ? (
-            <p className="mb-3 text-xs text-muted">سعر البيع الحالي مش ظاهر: قايمة المنتجات ماتقرتش كاملة ومؤكدة. حدّث الصفحة، ولو اتكررت بلّغ.</p>
+            <p className="mb-3 text-xs text-muted">سعر البيع الحالي غير ظاهر لأن قائمة المنتجات لم تُقرأ كاملة ومؤكدة. يُرجى تحديث الصفحة، والإبلاغ إذا تكرر ذلك.</p>
           ) : null}
           <Table>
             <THead>

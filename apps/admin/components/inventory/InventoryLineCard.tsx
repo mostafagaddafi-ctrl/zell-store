@@ -218,7 +218,7 @@ export function InventoryLineCard({
             />
           </Field>
           {zero ? (
-            <Field htmlFor={'line-zero-' + line.key} label="سبب التكلفة الصفر" hint="إجباري للبند اللي تكلفته صفر · من 3 لـ 200 حرف">
+            <Field htmlFor={'line-zero-' + line.key} label="سبب التكلفة الصفر" hint="إلزامي للبند الذي تكلفته صفر · من 3 إلى 200 حرف">
               <input
                 id={'line-zero-' + line.key}
                 data-field="zeroReason"

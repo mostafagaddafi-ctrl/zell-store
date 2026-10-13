@@ -146,7 +146,7 @@ export function ToolsPageEditor({ initial, summary }: { initial: ToolsPageRecord
 
       <Card title="الأفلام وأدواتها">
         <p className="mb-3 text-xs text-muted">
-          للعرض بس. الربط من صفحة كل فيلم ← «التسعير والعروض» ← كارت «الإضافات». الباكدج منتج بالعدد عادي بسعره.
+          للعرض فقط. يتم الربط من صفحة كل منتج ← «التسعير والعروض» ← بطاقة «الإضافات». والباقة منتج بالعدد بسعرها الخاص.
         </p>
         {summary.films.length === 0 ? (
           <p className="text-xs text-muted">مفيش أفلام بالمقاس نشطة.</p>
@@ -171,7 +171,7 @@ export function ToolsPageEditor({ initial, summary }: { initial: ToolsPageRecord
         )}
         {summary.unlinkedPieces.length > 0 ? (
           <div className="mt-3 rounded border border-border bg-bg p-2 text-xs text-muted">
-            <p>منتجات بالعدد مش مربوطة بفيلم نشط — طبيعي لو المنتج مش أداة، زي رول كامل.</p>
+            <p>منتجات بالعدد غير مرتبطة بمنتج نشط، وهذا طبيعي إذا لم يكن المنتج أداة.</p>
             <p className="mt-1">{summary.unlinkedPieces.map((piece) => piece.name).join(' · ')}</p>
           </div>
         ) : null}

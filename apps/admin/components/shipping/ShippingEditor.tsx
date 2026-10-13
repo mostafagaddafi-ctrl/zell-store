@@ -193,7 +193,7 @@ export function ShippingEditor({
     <div className="space-y-4">
       <Card title="القواعد العامة">
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field htmlFor="default" label="سعر الشحن الافتراضي (ج.م)" hint="بيتطبق على أي محافظة مالهاش سعر">
+          <Field htmlFor="default" label="سعر الشحن الافتراضي (ج.م)" hint="يُطبَّق على أي محافظة ليس لها سعر">
             <input
               id="default"
               type="number"
@@ -312,7 +312,7 @@ export function ShippingEditor({
                   {isOpen ? (
                     <div className="mt-2 space-y-2 rounded border border-border bg-bg p-2.5">
                       {list.length === 0 ? (
-                        <p className="text-xs text-muted">مفيش مناطق. الزبون هيكتب منطقته في العنوان.</p>
+                        <p className="text-xs text-muted">لا توجد مناطق، وسيكتب العميل منطقته في العنوان.</p>
                       ) : (
                         <ul className="flex flex-wrap gap-1.5">
                           {list.map((area) => (
@@ -404,7 +404,7 @@ export function ShippingEditor({
           </Button>
         </div>
         {addError ? <p className="mt-2 text-xs font-medium text-danger">{addError}</p> : null}
-        <p className="mt-2 text-xs text-muted">بتتضاف آخر القايمة — حرّكها بالأسهم ودوس «حفظ».</p>
+        <p className="mt-2 text-xs text-muted">تُضاف في آخر القائمة، ويمكن تحريكها بالأسهم ثم الضغط على «حفظ».</p>
       </Card>
 
       {lostInstaller.length > 0 ? (

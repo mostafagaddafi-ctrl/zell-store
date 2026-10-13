@@ -347,7 +347,7 @@ export function ProductEditor({
           note(titleSaved.warning)
         } else problems.push('عنوان الإضافات (' + titleSaved.message + ')')
       }
-      const all = problems.length > 0 ? ['المنتج اتحفظ، بس ' + problems.join(' و') + ' ما اتحفظش.', ...notes] : notes
+      const all = problems.length > 0 ? ['تم حفظ المنتج، لكن لم يتم حفظ ' + problems.join(' و') + '.', ...notes] : notes
       if (all.length === 0) return result
       const warning = all.join(' · ')
       lastWarningRef.current = warning
@@ -432,7 +432,7 @@ export function ProductEditor({
                 <input id="benefit" value={form.shortBenefit} onChange={(e) => set({ shortBenefit: e.target.value })} className={inputClasses} />
               </Field>
 
-              <Field label="المميزات" hint="بتظهر في صفحة المنتج — ٦ كحد أقصى، كل واحدة ١٤٠ حرف">
+              <Field label="المميزات" hint="تظهر في صفحة المنتج — بحد أقصى ٦، وكل منها حتى ١٤٠ حرفًا">
                 <div className="space-y-2">
                   {form.benefits.map((point, index) => (
                     <div key={index} className="flex items-center gap-1.5">

@@ -83,7 +83,7 @@ export function WidthsEditor({
   function problemOf(row: Draft, index: number): string | null {
     const width = Number(row.width)
     if (row.width.trim() === '' || !Number.isInteger(width) || width <= 0 || width > 1000) return 'اكتب العرض بالسنتيمتر (رقم صحيح)'
-    if (width === baseWidthCm) return 'ده العرض الأساسي — مش محتاج يتضاف هنا'
+    if (width === baseWidthCm) return 'هذا هو العرض الأساسي، ولا حاجة لإضافته هنا'
     if (rows.some((other, otherIndex) => otherIndex !== index && Number(other.width) === width)) return 'العرض ده متكرر'
     const price = poundsToPiastres(row.price)
     if (row.price.trim() === '' || price <= 0) return 'اكتب سعر المتر'
@@ -199,7 +199,7 @@ export function WidthsEditor({
                       disabled={!mutationsOn}
                       label="العرض شغّال"
                     />
-                    {row.isActive ? 'شغّال — بيظهر للزبون' : 'متوقف — مش بيظهر للزبون'}
+                    {row.isActive ? 'شغّال — بيظهر للزبون' : 'متوقف — لا يظهر للعميل'}
                     {problem ? <span className="ms-auto font-medium text-danger">{problem}</span> : null}
                   </div>
                 </li>

@@ -13,7 +13,7 @@ export default pageWithAccess('zell.content.view', async function ContentPage(_c
 
   return (
     <>
-      <PageHeader title="محتوى المتجر" description="النصوص والأقسام اللي بتظهر للزبون" />
+      <PageHeader title="محتوى المتجر" description="النصوص والأقسام التي تظهر للعملاء" />
       <div className="mb-4">
         <PreviewNotice what="تعديل نصوص المتجر وترتيب الأقسام" />
       </div>

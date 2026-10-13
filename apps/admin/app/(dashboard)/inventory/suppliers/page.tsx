@@ -83,7 +83,7 @@ export default pageWithAccess('zell.inventory0020.view', async function Supplier
         >
           <p className="font-semibold">مقدرناش نقرا الموردين.</p>
           <p className="text-muted">
-            {result.code === 'INTERNAL' ? 'حصل خطأ في القراءة. حدّث الصفحة، ولو اتكرر بلّغ.' : result.message}
+            {result.code === 'INTERNAL' ? 'حدث خطأ في القراءة. يُرجى تحديث الصفحة، والإبلاغ إذا تكرر.' : result.message}
           </p>
         </div>
       )}

@@ -86,7 +86,7 @@ export function ImageManager({ productId, images }: { productId: number; images:
       <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
         <EmptyState
           title="مفيش صور للمنتج ده"
-          description="الصورة الرئيسية بتظهر في كارت المتجر، والباقي في معرض صفحة المنتج."
+          description="تظهر الصورة الرئيسية في بطاقة المنتج بالمتجر، وتظهر باقي الصور في معرض صفحة المنتج."
           action={<ImageUploader productId={productId} />}
         />
       </div>
@@ -218,9 +218,9 @@ export function ImageManager({ productId, images }: { productId: number; images:
       <ConfirmDialog
         open={confirmId !== null}
         title="حذف الصورة؟"
-        message="لو الحذف كان مفعّل، الصورة كانت هتتشال من المنتج ومن Storage، والإجراء ده ما ينفعش يترجع."
+        message="عند تفعيل الحذف، ستُزال الصورة من المنتج ومن التخزين، ولا يمكن التراجع عن هذا الإجراء."
         confirmLabel="احذف"
-        disabledReason="الحذف لسه ما اتعملش — مفيش أي صورة هتتمسح."
+        disabledReason="الحذف غير متاح بعد، ولن تُحذف أي صورة."
         onCancel={() => setConfirmId(null)}
       />
     </div>

@@ -125,7 +125,7 @@ export default pageWithAccess('zell.inventory0020.view', async function LotsPage
       {!result.ok ? (
         <div role="alert" className="space-y-1 rounded-lg border-s-2 border-danger bg-danger/5 px-3 py-2.5 text-xs text-fg">
           <p className="font-semibold">مقدرناش نقرا دفعات المخزون.</p>
-          <p className="text-muted">{result.code === 'INTERNAL' ? 'حصل خطأ في القراءة. حدّث الصفحة، ولو اتكرر بلّغ.' : result.message}</p>
+          <p className="text-muted">{result.code === 'INTERNAL' ? 'حدث خطأ في القراءة. يُرجى تحديث الصفحة، والإبلاغ إذا تكرر.' : result.message}</p>
         </div>
       ) : result.data.items.length === 0 ? (
         <EmptyState

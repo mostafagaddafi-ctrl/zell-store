@@ -16,7 +16,7 @@ export default pageWithAccess('zell.inventory0020.view', async function NewOpeni
 
   return (
     <>
-      <PageHeader title="رصيد أول مدة جديد" description="بيتحفظ كمسودة الأول. الترحيل من صفحة المسودة بعد الحفظ والمعاينة." />
+      <PageHeader title="رصيد أول مدة جديد" description="يُحفظ أولًا كمسودة، ويتم الترحيل من صفحة المسودة بعد الحفظ والمعاينة." />
       {data.ok ? (
         <OpeningEditor draft={null} catalog={data.catalog} locations={data.locations} today={cairoToday(new Date())} />
       ) : (

@@ -240,7 +240,7 @@ export function PricingFields({
                     ) : (
                       <>
                         <Switch checked={row.isActive} onChange={(next) => update(index, { isActive: next })} disabled={false} label="العرض شغّال" />
-                        {row.isActive ? 'شغّال — بيظهر للزبون' : 'متوقف — مش بيظهر للزبون'}
+                        {row.isActive ? 'شغّال — بيظهر للزبون' : 'متوقف — لا يظهر للعميل'}
                       </>
                     )}
                     {problem ? <span className="ms-auto font-medium text-danger">{problem}</span> : null}
@@ -298,7 +298,7 @@ export function PricingFields({
             htmlFor="step"
             label="التقريب كل (سم)"
             className="col-span-2"
-            hint={'= ' + formatLength(Number(form.stepCm)) + ' — الطول بيتقرّب لأعلى بالمقدار ده (مثلًا ٥٠ = كل نص متر)'}
+            hint={'= ' + formatLength(Number(form.stepCm)) + ' — يُقرَّب الطول للأعلى بهذا المقدار (مثلًا ٥٠ = كل نصف متر)'}
           >
             <input id="step" type="number" min={1} value={form.stepCm} onChange={(e) => set({ stepCm: e.target.value })} className={inputClasses} />
           </Field>

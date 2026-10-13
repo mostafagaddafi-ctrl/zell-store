@@ -31,12 +31,12 @@ export function SettingsEditor({ settings }: { settings: OperationalSettings }) 
           <li>فيهم فشل إشعار أو إشعار معلّق: {String(delivery.failedOrders)}</li>
         </ul>
       ) : (
-        <p className="text-xs text-muted">العدّ الدقيق مش متاح دلوقتي، فالأرقام مش معروضة عن قصد.</p>
+        <p className="text-xs text-muted">العدّ الدقيق غير متاح حاليًا، لذلك لا تُعرض الأرقام.</p>
       )}
       {delivery.state === 'unknown' ? (
         <p className="mt-2 text-xs text-muted">لا توجد طلبات في هذه الفترة. يمكن استخدام «اختبار تليجرام» أعلاه للتأكد من عمل الإشعارات.</p>
       ) : null}
-      <p className="mt-2 text-xs text-muted">الإيميل مش متاح لسه — الإشعارات على تليجرام بس.</p>
+      <p className="mt-2 text-xs text-muted">البريد الإلكتروني غير متاح بعد، والإشعارات عبر تليجرام فقط.</p>
     </Card>
   )
 }
