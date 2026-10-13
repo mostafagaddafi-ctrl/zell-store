@@ -84,7 +84,7 @@ export function CollectionCoverCard({ collection }: { collection: AdminCollectio
               </p>
             ) : null}
             <p className="text-xs text-muted">
-              من غير غلاف، المتجر بيعرض أول صورة لأول منتج ظاهر في القسم تلقائيًا بدل مساحة فاضية.
+              بدون غلاف، يعرض المتجر تلقائيًا أول صورة لأول منتج ظاهر في القسم بدل مساحة فارغة.
             </p>
           </div>
         </div>
