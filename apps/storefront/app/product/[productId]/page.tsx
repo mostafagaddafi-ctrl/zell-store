@@ -8,6 +8,7 @@ import {
   formatPiastres,
   isPiece,
   lowestPricePerMeter,
+  primaryImage,
   widthOptionsOf,
   type StoreProduct,
 } from '@zell/core'
@@ -33,10 +34,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { productId } = await params
   const product = await getStorefrontProductById(Number(productId))
   if (!product) return { title: 'المنتج مش موجود' }
+  // معاينة المشاركة: اسم المنتج · السعر في الوصف · أول صورة للمنتج (وإلا الصورة الافتراضية)
+  const description = priceLine(product) + (product.description_ar ? ' · ' + product.description_ar : '')
+  const image = primaryImage(product)
+  const imageUrl = image ? image.url : '/opengraph-image'
   return {
     title: product.name_ar,
-    description: product.description_ar ?? undefined,
+    description,
+    openGraph: { type: 'website', title: product.name_ar, description, images: [{ url: imageUrl, alt: image ? image.alt || product.name_ar : product.name_ar }] },
+    twitter: { card: 'summary_large_image', title: product.name_ar, description, images: [imageUrl] },
   }
+}
+
+/** سطر السعر لمعاينة المشاركة — زي الصفحة: أقل سعر لو فيه أكتر من عرض. */
+function priceLine(product: StoreProduct): string {
+  if (isPiece(product)) return 'السعر ' + formatPiastres(product.price_per_meter_piastres) + ' للوحدة'
+  if (widthOptionsOf(product).length > 1) return 'يبدأ من ' + formatPiastres(lowestPricePerMeter(product)) + ' للمتر'
+  return 'السعر ' + formatPiastres(product.price_per_meter_piastres) + ' للمتر'
 }
 
 export default async function ProductPage({ params }: PageProps) {
