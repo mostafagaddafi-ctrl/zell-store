@@ -32,7 +32,7 @@
 | `components/<المنطقة>` | واجهة كل قسم: `products` · `collections` · `orders` · `content` · `identity` · `shipping` · `installation` · `coupons` · `inventory` · `settings` |
 | `components/shell` | الإطار: `AdminShell` · `PageHeader` · `SignOutButton` |
 | `components/ui` | مكونات مشتركة: `Button` · `Field` · `Table` · `ConfirmDialog` · `SaveBar` · `FailureBanner` … |
-| `lib/` (الجذر) | `actions.ts` (Server Actions) · `mutations.ts` (أنواع نتايج الكتابة) · `adminData.ts` · `systemHealth.ts` (حالة النظام) · `readiness.tsx` · `revalidateStorefront.ts` (بينادي `/api/revalidate` في المتجر) · `couponActions.ts` · `inventoryActions.ts` · `enums.ts` · `format.ts` · `collectionStatus.ts` · `cn.ts` · `content/homeMobile.ts` (HOME-MOBILE: قراية وتحقق «أول الصفحة على الموبايل»، + حالات) |
+| `lib/` (الجذر) | `actions.ts` (Server Actions) · `mutations.ts` (أنواع نتايج الكتابة) · `adminData.ts` · `systemHealth.ts` (حالة النظام) · `readiness.tsx` · `revalidateStorefront.ts` (بينادي `/api/revalidate` في المتجر) · `couponActions.ts` · `inventoryActions.ts` · `enums.ts` · `format.ts` · `collectionStatus.ts` · `cn.ts` · `content/homeMobile.ts` (HOME-MOBILE: نصوص وقراية وتحقق «تخطيط أعلى الصفحة الرئيسية على الهاتف»، + حالات) |
 | `lib/auth` | الهوية والحراس: `session.ts` (`readAdminRole`: الدور من `admin_users` بـ service_role) · `guards.ts` (`requireAdminPage` / `requireAdminAction`) · `supabaseServer.ts` · `supabaseMiddleware.ts` · `env.ts` · `nextPath.ts` |
 | `lib/access` | 0021-P: الأغلفة المحمية (`wrappers.ts`)، وقرار الوصول لكل وضع legacy · shadow · enforce (`resolve.ts` · `mode.ts`)، وقايمة الـ 29 صلاحية (`capabilities.ts`)، وتفسير علم التعديلات (`flag.ts`)، وحالاتهم (`access.cases.ts`). `instance.ts` = الربط الحقيقي بالجلسة و`admin_users` و`zell_erp_*` (server-only). **من ب2 كل page و layout و route و action محمي متصدّر منه**، وجدول الربط `manifest.ts` (+ `manifest.cases.ts`: تكافؤ legacy لكل رمز) |
 | `lib/data` | القراءة من PostgREST: `client.ts` · `reads.ts` · `rows.ts` · `inventoryEditor.ts`، وملف قراءة لكل منطقة بنفس اسم ملف الكتابة في `lib/mutations` (اتنقلوا بالحرف في 0021-P PR أ، وأنواعهم في ب1). `lib/data` مابيستوردش من `lib/mutations/**` |
@@ -63,9 +63,9 @@
 | `app/api/coupons/preview` | معاينة الكوبون ← `zell_preview_coupon` |
 | `app/api/revalidate` | تحديث الكاش (بتناديه اللوحة بعد الحفظ) |
 | `app/api/health` | فحص صحة |
-| `components/store` | مكونات المتجر: الهيدر والفوتر، والهيرو، وكارت المنتج، والمقاس والعرض، والقطعة والإضافات، والسلة والدفع، والكوبون، وواتساب … · `TrustBar` (شريط الثقة على الموبايل — HOME-MOBILE) |
+| `components/store` | مكونات المتجر: الهيدر والفوتر، والهيرو، وكارت المنتج، والمقاس والعرض، والقطعة والإضافات، والسلة والدفع، والكوبون، وواتساب … |
 | `components/ui` | مكونات مشتركة: `Button` · `Field` · `Container` · `ImageSlot` · `BackButton` |
-| `lib/` (الجذر) | `cart.tsx` (السلة) · `catalog.ts` · `drafts.ts` · `productCopy.ts` · `useCheckoutCoupon.ts` · `cn.ts` · `install/installChoice.ts` («هتركّبه إزاي؟» في صفحة المنتج: سطر الاختيار الحالي وظهور الأدوات، + حالات) · `home/homeLayout.ts` (HOME-MOBILE: قرارات عرض الرئيسية وشريط الثقة، + حالات) |
+| `lib/` (الجذر) | `cart.tsx` (السلة) · `catalog.ts` · `drafts.ts` · `productCopy.ts` · `useCheckoutCoupon.ts` · `cn.ts` · `install/installChoice.ts` («هتركّبه إزاي؟» في صفحة المنتج: سطر الاختيار الحالي وظهور الأدوات، + حالات) · `home/homeLayout.ts` (HOME-MOBILE: قرارات عرض الرئيسية، + حالات) |
 | `lib/data` | القراءة: `queries.ts` · `mappers.ts` · `rpc.ts` · `source.ts` · `supabaseServer.ts` · `deliverySettings.ts` (إعداد موعد التسليم — 0021-D2) |
 | `lib/orders` | مسار الطلب: `contracts.ts` · `canonical.ts` + `requestHash.ts` + `hash.ts` (idempotency) · `checkoutSession.ts` · `receiptToken.ts` · `requestGuards.ts` · `coupon*.ts` (+ حالات) · `notify.ts` (تليجرام) · `result.ts` · `errors.ts` · `placeOrder.ts` (ترتيب إنشاء الطلب: الهاش ← إعداد الموعد ← النداء) + `deliverySettings.ts` (+ حالات بتتشغّل في CI — 0021-D2) |
 
