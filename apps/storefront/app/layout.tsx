@@ -5,10 +5,12 @@ import { hasInstallationTools } from '@zell/core'
 import { AnnouncementBar } from '../components/store/AnnouncementBar'
 import { SiteFooter } from '../components/store/SiteFooter'
 import { SiteHeader } from '../components/store/SiteHeader'
+import { TrustBar } from '../components/store/TrustBar'
 import { WhatsAppFab } from '../components/store/WhatsAppFab'
 import { NavHistory } from '../components/ui/BackButton'
 import { CartProvider } from '../lib/cart'
 import { getStorefrontData } from '../lib/data/source'
+import { trustBarText } from '../lib/home/homeLayout'
 import './globals.css'
 
 // Cairo خط متغيّر — من غير weight عشان ياخد كل الأوزان
@@ -35,6 +37,8 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: '#FAF7F2',
+  // المتجر فاتح بس: المتصفح مايقلبش الألوان في الوضع الداكن (HOME-MOBILE §٧)
+  colorScheme: 'only light',
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
@@ -51,6 +55,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <NavHistory />
           {/* فوق الهيدر — settings متاحة هنا أصلاً، فمفيش fetch زيادة */}
           <AnnouncementBar announcement={settings.announcement} />
+          {/* HOME-MOBILE §٥ — شريط الثقة على الموبايل بس، ومخفي لو الإعلان ظاهر أو السطر فاضي */}
+          <TrustBar text={trustBarText(settings.announcement, settings.content.trustLine)} />
           <SiteHeader
             storeName={settings.storeName}
             logo={settings.logo}
