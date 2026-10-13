@@ -1,6 +1,7 @@
 import 'server-only'
 
 import type { Announcement, FaqItem, FooterLink, HeroContent, OrderStep, StoreContent, StoreSection } from '../adminData'
+import { checkSectionMobileLayout } from '../content/homeMobile'
 import { SECTION_KEYS, type SectionKey } from '../enums'
 import { flag, invalid, optionalText, requiredText, wholeNumber, type ValidationFailure } from './shared'
 
@@ -120,10 +121,15 @@ function validateSections(value: unknown): { ok: true; value: StoreSection[] } |
     const subtitle = optionalText(item['subtitle'], 'وصف القسم', 200)
     if (!subtitle.ok) return subtitle
 
+    // HOME-MOBILE — على hero بس: compact أو full (غايب = compact)، وعلى أي جزء تاني مرفوض
+    const mobileLayout = checkSectionMobileLayout(key, item['mobileLayout'])
+    if (!mobileLayout.ok) return invalid(mobileLayout.message)
+
     // المفاتيح الفاضية **بتتشال** مش بتتحفظ نص فاضي — نفس الشكل الحالي
     const section: StoreSection = { key, visible: visible.value, sortOrder: sortOrder.value }
     if (title.value !== null) section.title = title.value
     if (subtitle.value !== null) section.subtitle = subtitle.value
+    if (mobileLayout.value !== null) section.mobileLayout = mobileLayout.value
     out.push(section)
   }
 
