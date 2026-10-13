@@ -19,7 +19,7 @@ export default pageWithAccess('zell.collections.view', async function Collection
     <>
       <PageHeader
         title="الأقسام"
-        description="الترتيب هنا هو ترتيب الظهور في الرئيسية والقائمة. القسم الجديد بيبدأ أول القائمة."
+        description="يطابق هذا الترتيب ترتيب الظهور في الرئيسية والقائمة، ويظهر القسم الجديد في أول القائمة."
         actions={
           <Link href="/collections/new" className={buttonClasses('primary', 'md')}>
             <Plus className="h-4 w-4" />
