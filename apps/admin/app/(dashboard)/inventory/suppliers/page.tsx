@@ -38,7 +38,7 @@ export default pageWithAccess('zell.inventory0020.view', async function Supplier
     <>
       <PageHeader
         title="الموردين"
-        description="الموردين اللي بتشتري منهم. الموقوف مابيظهرش في الفواتير الجديدة، ومفيش حذف."
+        description="الموردون المعتمدون للشراء. لا يظهر المورد الموقوف في الفواتير الجديدة، ولا يمكن حذف مورد."
         actions={
           <LinkCheckbox
             label="عرض الموردين الموقوفين"
