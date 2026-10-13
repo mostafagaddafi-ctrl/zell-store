@@ -19,7 +19,7 @@ export function HealthActions() {
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" size="sm" disabled={telegram.state === 'saving'} onClick={() => void telegram.run(() => testTelegramAction())}>
             <Send className="h-3.5 w-3.5" />
-            {telegram.state === 'saving' ? 'بيبعت…' : 'اختبر تليجرام'}
+            {telegram.state === 'saving' ? 'بيبعت…' : 'اختبار تليجرام'}
           </Button>
           {telegram.state === 'saved' ? (
             <span className="text-xs font-semibold text-ok">اتبعتت — لو وصلتك على تليجرام، إشعارات الطلبات شغّالة</span>
