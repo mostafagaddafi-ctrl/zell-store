@@ -43,7 +43,7 @@ export function HealthActions() {
           {refresh.state === 'saved' ? <span className="text-xs font-semibold text-ok">المتجر اتحدّث</span> : null}
         </div>
         <p className="text-xs text-muted">
-          أي حفظ في اللوحة بيحدّث المتجر لوحده. الزرار ده لو حاجة اتغيّرت من بره اللوحة (Supabase مثلًا).
+          يُحدَّث المتجر تلقائيًا بعد أي حفظ في لوحة التحكم. يُستخدم هذا الزر فقط عند تغيير البيانات من خارج اللوحة (مثل التعديل المباشر في قاعدة البيانات).
         </p>
         <FailureBanner failure={refresh.failure} onRetry={refresh.retry} onDiscardAndRefresh={() => router.refresh()} />
       </div>
