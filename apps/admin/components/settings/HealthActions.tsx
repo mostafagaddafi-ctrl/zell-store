@@ -19,13 +19,13 @@ export function HealthActions() {
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" size="sm" disabled={telegram.state === 'saving'} onClick={() => void telegram.run(() => testTelegramAction())}>
             <Send className="h-3.5 w-3.5" />
-            {telegram.state === 'saving' ? 'بيبعت…' : 'اختبار تليجرام'}
+            {telegram.state === 'saving' ? 'جارٍ الإرسال…' : 'اختبار تليجرام'}
           </Button>
           {telegram.state === 'saved' ? (
-            <span className="text-xs font-semibold text-ok">اتبعتت — لو وصلتك على تليجرام، إشعارات الطلبات شغّالة</span>
+            <span className="text-xs font-semibold text-ok">تم الإرسال — عند وصول الرسالة على تليجرام تكون إشعارات الطلبات تعمل.</span>
           ) : null}
         </div>
-        <p className="text-xs text-muted">بيبعت رسالة تجربة حقيقية على شات الطلبات، بنفس طريق إشعار الطلب.</p>
+        <p className="text-xs text-muted">يرسل رسالة تجريبية فعلية إلى محادثة الطلبات، بنفس مسار إشعار الطلب.</p>
         <FailureBanner failure={telegram.failure} onRetry={telegram.retry} onDiscardAndRefresh={() => router.refresh()} />
       </div>
 
