@@ -62,7 +62,7 @@ export function IdentityEditor({ identity }: { identity: StoreIdentity }) {
             <Field
               htmlFor="offer"
               label="نص العرض"
-              hint="بيظهر كهدية في صفحة المنتج جنب زرار «ضيف للسلة»، وفي ملخص الطلب في السلة وبيانات التوصيل."
+              hint="يظهر كهدية في صفحة المنتج بجوار زر «ضيف للسلة»، وفي ملخص الطلب في السلة وصفحة بيانات التوصيل."
             >
               <input id="offer" value={draft.offerText} onChange={(e) => touch({ offerText: e.target.value })} className={inputClasses} />
             </Field>
