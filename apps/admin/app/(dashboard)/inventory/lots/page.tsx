@@ -130,7 +130,7 @@ export default pageWithAccess('zell.inventory0020.view', async function LotsPage
       ) : result.data.items.length === 0 ? (
         <EmptyState
           title={filters.status === 'voided' ? 'مفيش دفعات مخزون مُبطَلة' : 'مفيش دفعات مخزون هنا'}
-          description="دفعات المخزون بتتعمل لما فاتورة شراء أو رصيد أول مدة يترحّل. المسودات مابتعملش دفعات."
+          description="تُنشأ دفعات المخزون عند ترحيل فاتورة شراء أو رصيد أول مدة، ولا تُنشئ المسودات دفعات."
         />
       ) : (
         <div className="space-y-4">
