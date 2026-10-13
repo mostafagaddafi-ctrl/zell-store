@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
+  AlertTriangle,
   ExternalLink,
   Boxes,
   ClipboardList,
@@ -25,6 +26,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
+import { STOREFRONT_LINK_NOT_SET } from '../../lib/storefront/link'
 import { SignOutButton } from './SignOutButton'
 
 type Item = { href: string; label: string; icon: typeof Package; badge?: number }
@@ -41,8 +43,8 @@ export function AdminShell({
   children: ReactNode
   newOrders: number
   identity: AdminShellIdentity
-  /** رابط «معاينة المتجر» — من السيرفر (lib/storefrontLink.ts، من STOREFRONT_URL). */
-  storefrontHref: string
+  /** رابط «معاينة المتجر» — من السيرفر (lib/storefrontLink.ts). null = الإعداد مش مضبوط: اللينك بيستخبى والتنبيه بيظهر. */
+  storefrontHref: string | null
 }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
@@ -145,15 +147,22 @@ export function AdminShell({
         </div>
       ))}
 
-      <a
-        href={storefrontHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-auto flex items-center gap-2 rounded px-2 py-2 text-xs font-medium text-muted transition-colors hover:text-accent"
-      >
-        <ExternalLink className="h-3.5 w-3.5" />
-        معاينة المتجر
-      </a>
+      {storefrontHref !== null ? (
+        <a
+          href={storefrontHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-auto flex items-center gap-2 rounded px-2 py-2 text-xs font-medium text-muted transition-colors hover:text-accent"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          معاينة المتجر
+        </a>
+      ) : (
+        <p role="status" className="mt-auto flex items-start gap-2 rounded border border-danger/30 bg-danger/5 px-2 py-2 text-xs font-medium text-danger">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>{STOREFRONT_LINK_NOT_SET}</span>
+        </p>
+      )}
 
       <div className="space-y-2 border-t border-border px-2 pt-3">
         <div className="min-w-0">
