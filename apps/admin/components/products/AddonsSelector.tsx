@@ -45,7 +45,7 @@ export function AddonsSelector({
     <Card title={'الإضافات (' + String(value.length) + ')'}>
       <div className="space-y-3">
         <p className="text-xs text-muted">
-          منتجات بالعدد (زي أدوات التركيب) بتظهر في صفحة الفيلم ده، والزبون يضيف منها بالكمية. الترتيب هنا هو ترتيب الظهور.
+          تظهر المنتجات المبيعة بالعدد (مثل أدوات التركيب) في صفحة هذا المنتج، ويمكن للعميل إضافتها بالكمية. ويطابق هذا الترتيب ترتيب الظهور.
         </p>
 
         <Field htmlFor="addons-title" label="عنوان الجزء (واحد لكل المنتجات)" hint="مثلًا: أدوات التركيب">
@@ -71,7 +71,7 @@ export function AddonsSelector({
 
         {unavailable > 0 ? (
           <p className="rounded border border-danger/40 bg-danger/5 px-2.5 py-2 text-xs text-danger">
-            {'في ' + String(unavailable) + ' إضافة مابقتش منتج بالعدد. شيلها من هنا عشان الإضافات تتحفظ.'}
+            {'عدد الإضافات التي لم تعد منتجات بالعدد: ' + String(unavailable) + '. يُرجى إزالتها حتى يمكن حفظ الإضافات.'}
           </p>
         ) : null}
 
