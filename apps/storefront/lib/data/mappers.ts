@@ -16,6 +16,7 @@ import {
   parseInstallationConfig,
   DEFAULT_ADDONS_TITLE,
   DEFAULT_STORE_CONTENT,
+  heroMobileLayoutOf,
   type HomeSection,
   type HomeSectionKey,
   type StoreContent,
@@ -488,7 +489,10 @@ function settingContent(map: Map<string, unknown>): StoreContent {
   const trustRaw = map.get('trust_line')
   const trustLine = typeof trustRaw === 'string' ? trustRaw.trim() : defaults.trustLine
 
-  return { hero, homeSections, orderSteps, faqs, footerLinks, trustLine }
+  // HOME-MOBILE — من عنصر hero في settings.sections (غايب أو غلط = compact)
+  const heroMobileLayout = heroMobileLayoutOf(map.get('sections'))
+
+  return { hero, homeSections, orderSteps, faqs, footerLinks, trustLine, heroMobileLayout }
 }
 
 /**
