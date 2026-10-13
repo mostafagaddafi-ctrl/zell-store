@@ -39,7 +39,7 @@ zell_checkout_track_order(p_order_number text) returns jsonb
 | `delivery` | `{ kind: 'confirmed', date, period }` لو `delivery_confirmed_date` موجود، وإلا `{ kind: 'preferred', date, period }` لو `preferred_delivery_date` موجود، وإلا `null`. التاريخ `YYYY-MM-DD` |
 
 - **ممنوع يرجع:** `customer_name` (ولا جزء منه) · `customer_phone` (ولا جزء منه) · `address` · `governorate` · `shipping_area` · `notes` · `internal_notes` · ملاحظات الموعد (`preferred_delivery_note` و`delivery_confirmed_note`) · الكوبون والمبالغ التفصيلية · `next_follow_up_at` · أي `*_hash` · `idempotency_key` · الدفعات.
-- **ملفات W1:** `backend/db/migrations/0021tr_track_order.sql` + `_ptest.sql` + `_verify.sql` + `_rollback.sql`، و`backend/db/ci/0021tr_sql_ci.sh` + job في `.github/workflows/ci.yml`، و`docs/maps/db-map.md`.
+- **ملفات W1** (الأسماء `0021tr_*` — **موافقة المراجع**): `backend/db/migrations/0021tr_track_order.sql` + `_ptest.sql` + `_verify.sql` + `_rollback.sql`، و`backend/db/ci/0021tr_sql_ci.sh` + job في `.github/workflows/ci.yml`، و`docs/maps/db-map.md`.
   - **ptest** (smoke، معاملة بترجع): الدالة مش موجودة قبل · بتتعمل · شكل غلط ومش موجود = `null` · الأثر = قبله.
   - **verify:** المالك والـ definer والـ search_path · `EXECUTE` لـ `service_role` بس (`anon` و`authenticated` مرفوضين) · مفاتيح الرد بالظبط الجدول فوق (مفيش مفتاح زيادة).
   - **CI** على Postgres مؤقت فوق شكل Production: طلبات بكل حالة · موعد مؤكد ومفضّل ومن غير موعد · سطور متر وقطعة · شكل غلط / حروف صغيرة / من غير `FLM-` = `null` (التظبيط في المتجر، مش في الدالة) · rollback · **وكل الـ verify الموجودة بعد التطبيق = PASS** (A1 · D · P1 · P2 · D2 · 0021-P strict).
@@ -47,21 +47,48 @@ zell_checkout_track_order(p_order_number text) returns jsonb
   - **الأثر (IMPACT_SQL):** لو أي خانة بتعدّ دوال اتغيّرت بالدالة الجديدة، W1 بيكتب الرقم الجديد المتوقع بالظبط قبل التطبيق (قاعدة مقارنة الأثر — مراجعة #16).
 
 ## ٣) تظبيط الكود في المتجر (W2)
-- قبل النداء، في السيرفر (وفي الخانة للعرض بس): شيل المسافات ← حروف كبيرة ← شيل `FLM-` أو `FLM` أو `FLM ` من الأول لو موجود ← لازم يفضل **٦ حروف من نفس الأبجدية** ← `FLM-` + الستة.
-- أمثلة: `mrfvb3` · `FLM-mrfvb3` · ` flm mrfvb3 ` · `FLMMRFVB3` ← `FLM-MRFVB3`. أي حاجة تانية (`O`/`0`/`I`/`1` · طول غلط) = مفيش نداء، ونفس رسالة «مش موجود».
+- قبل النداء، في السيرفر (وفي الخانة للعرض بس)، بالترتيب:
+  1. شيل المسافات والشَرط (`-`).
+  2. حروف كبيرة.
+  3. **لو الطول ٦:** دي الستة. **لو الطول ٩ وأوله `FLM`:** آخر ٦. **غير كده = غلط** (مفيش نداء، ونفس رسالة «مش موجود»).
+  4. لازم الستة من **نفس الأبجدية** (`ABCDEFGHJKLMNPQRSTUVWXYZ23456789`)، وإلا غلط.
+  5. الرقم = `FLM-` + الستة.
+- **مايتشالش «FLM» من الأول على طول**، لأن الكود نفسه ممكن يبدأ بـ FLM (مثلًا `FLM-FLMABC` والعميل كتب `FLMABC`).
+- أمثلة (حالات الاختبار):
+
+| اللي العميل كتبه | الرقم |
+| --- | --- |
+| `mrfvb3` · `FLM-mrfvb3` · ` flm mrfvb3 ` · `FLMMRFVB3` | `FLM-MRFVB3` |
+| `FLMABC` (طوله ٦) | `FLM-FLMABC` |
+| `flm-flmabc` (طوله ٩ وأوله FLM) | `FLM-FLMABC` |
+| `FLM ABC` (٦ بعد شيل المسافة) | `FLM-FLMABC` |
+| فيه `O` أو `0` أو `I` أو `1` · طول غير ٦ و٩ · طوله ٩ ومش بادئ بـ FLM | غلط — مفيش نداء |
+
 - منطق خالص في `apps/storefront/lib/orders/trackOrder.ts` (التظبيط + حارس شكل الرد) + حالاته (`trackOrder.cases.ts`، suite في `scripts/run-cases.mjs`).
 
 ## ٤) الصفحة (W2)
 - `apps/storefront/app/track/page.tsx`: خانة الكود وزرار، والنداء **من السيرفر** (Server Action في `app/track/actions.ts` ← `restRpc` بمفتاح الخدمة زي الإيصال). **الكود مايدخلش الرابط** (لا query ولا path — نفس قاعدة الإيصال ب٨).
 - **رسالة واحدة** لكل الحالات الغلط (شكل غلط · مش موجود · خطأ مؤقت في القراية): «مالقيناش طلب بالكود ده. اتأكد منه وجرّب تاني.»
 - **العرض:**
-  - الحالة: `STATUS_LABELS` من `@zell/core`.
+  - الحالة: **ثابت جديد `CUSTOMER_STATUS_LABELS` في `@zell/core`** (جنب `STATUS_LABELS` في `packages/core/src/types.ts`، و`STATUS_LABELS` بتاعة اللوحة ماتتغيّرش):
+
+    | الحالة | للعميل |
+    | --- | --- |
+    | `new` | استلمنا طلبك |
+    | `confirmed` | طلبك اتأكد |
+    | `preparing` | بنجهّز طلبك |
+    | `shipped` | طلبك في الطريق |
+    | `delivered` | اتسلّم |
+    | `refused` | ماتمّش الاستلام |
+    | `cancelled` | الطلب اتلغى |
+
   - التاريخ: `created_at` بتوقيت `Africa/Cairo` (زي الإيصال).
   - المنتجات: الاسم · المقاس (`formatLength` للطول والعرض) أو العدد · إجمالي السطر (`formatPiastres`).
   - الإجمالي: `formatPiastres`.
   - الموعد: `preferredDeliveryLine` من `@zell/core` (نفس سطر الإيصال). المؤكد: «موعد التسليم: » + السطر. المفضّل: السطر + `PREFERRED_DELIVERY_PENDING` (زي الإيصال). من غير موعد: مفيش سطر.
-- `robots: noindex, nofollow` للصفحة (علشان النتيجة شخصية). مش في الـ sitemap.
+- `robots: noindex, nofollow` للصفحة (علشان النتيجة شخصية)، ومش في الـ sitemap — **موافقة المراجع**.
 - **لينك «تتبّع طلبك»** في قائمة الموبايل (`MobileMenu.tsx`) وفي الفوتر (`SiteFooter.tsx`).
+- `packages/core/src/types.ts`: `CUSTOMER_STATUS_LABELS` (+ حالة إن السبع حالات ليها اسم).
 - التوثيق: `docs/maps/code-map.md`.
 
 ## ٥) المخاطر
@@ -77,3 +104,4 @@ zell_checkout_track_order(p_order_number text) returns jsonb
 
 ## ٧) سجل التعديلات
 - **2026-10-13 · المسودة الأولى** على main `61e2a25`، من تقرير الفحص وموافقة المالك (من غير حد للمحاولات).
+- **2026-10-13 · مراجعة على `712a096` (مقبول بتعديل):** B1 — تظبيط الكود: الطول ٦ = الستة، والطول ٩ وأوله FLM = آخر ٦، وغير كده غلط، بدل شيل «FLM» من الأول على طول (الكود نفسه ممكن يبدأ بـ FLM) + حالات `FLMABC` و`flm-flmabc` و`FLM ABC` (§٣). أسماء الحالات للعميل في ثابت جديد `CUSTOMER_STATUS_LABELS` بدل `STATUS_LABELS` (§٤). موافقة على أسماء `0021tr_*` و`noindex` من غير sitemap.
