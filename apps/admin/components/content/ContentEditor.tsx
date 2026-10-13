@@ -6,7 +6,7 @@ import { ChevronDown, ChevronUp, ExternalLink, Plus, Trash2 } from 'lucide-react
 import { saveContentAction } from '../../lib/actions'
 import type { StoreContent } from '../../lib/adminData'
 import { useSaveAction } from '../../lib/client/useSaveAction'
-import { HOME_MOBILE_OPTIONS, type HomeMobileLayout } from '../../lib/content/homeMobile'
+import { HOME_MOBILE_NOTE, HOME_MOBILE_OPTIONS, HOME_MOBILE_TITLE, type HomeMobileLayout } from '../../lib/content/homeMobile'
 import { SECTION_LABELS } from '../../lib/enums'
 import { useMutationsEnabled } from '../../lib/readiness'
 import { FailureBanner } from '../ui/FailureBanner'
@@ -71,7 +71,7 @@ export function ContentEditor({ content }: { content: StoreContent }) {
     touch({ ...draft, sections: list.map((item, position) => ({ ...item, sortOrder: position + 1 })) })
   }
 
-  // HOME-MOBILE — «أول الصفحة على الموبايل» على عنصر hero، وبيتحفظ مع المحتوى (نفس action)
+  // HOME-MOBILE — «تخطيط أعلى الصفحة الرئيسية على الهاتف» على عنصر hero، وبيتحفظ مع المحتوى (نفس action)
   const heroMobile: HomeMobileLayout = draft.sections.find((item) => item.key === 'hero')?.mobileLayout ?? 'compact'
   function setHeroMobileLayout(value: HomeMobileLayout) {
     touch({
@@ -133,7 +133,7 @@ export function ContentEditor({ content }: { content: StoreContent }) {
         </div>
 
         <fieldset className="mt-4 space-y-2 rounded border border-border p-3">
-          <legend className="px-1 text-sm font-semibold text-fg">أول الصفحة على الموبايل</legend>
+          <legend className="px-1 text-sm font-semibold text-fg">{HOME_MOBILE_TITLE}</legend>
           {HOME_MOBILE_OPTIONS.map((option) => (
             <label key={option.value} className="flex cursor-pointer items-start gap-2 text-sm text-fg">
               <input
@@ -150,7 +150,7 @@ export function ContentEditor({ content }: { content: StoreContent }) {
               </span>
             </label>
           ))}
-          <p className="text-xs text-muted">الكمبيوتر والتابلت مابيتأثروش. «إظهار الواجهة» في «ترتيب وإظهار الأقسام» زي ما هو.</p>
+          <p className="text-xs text-muted">{HOME_MOBILE_NOTE}</p>
         </fieldset>
       </Card>
 
