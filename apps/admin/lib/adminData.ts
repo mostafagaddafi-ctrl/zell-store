@@ -11,6 +11,7 @@ import type { ImageFit, OrderStatus, SectionKey } from './enums'
 import type { DeliveryPeriod, FollowUpFilter } from './orders/cycle'
 import type { CatalogLayout } from '@zell/core'
 import type { OrderCouponSnapshot } from './coupons/form'
+import type { HomeMobileLayout } from './content/homeMobile'
 
 export * from './enums'
 
@@ -161,6 +162,8 @@ export type StoreSection = {
   sortOrder: number
   title?: string
   subtitle?: string
+  /** HOME-MOBILE — على hero بس («أول الصفحة على الموبايل»). */
+  mobileLayout?: HomeMobileLayout
 }
 
 export type FooterLink = { label: string; href: string }
