@@ -1,33 +1,39 @@
 /**
  * رابط المتجر في اللوحة: «معاينة المتجر» (القايمة الجانبية) و«شوف المتجر» (صفحة المحتوى). منطق خالص.
  *
- * المصدر STOREFRONT_URL من إعداد Vercel للوحة (كل نسخة بتضبطه)، بنفس فحص revalidateStorefront بالحرف:
- * https بس · من غير بيانات دخول ولا استعلام ولا # ولا مسار · والمضيف = STOREFRONT_HOST حرفيًا.
- * أي متغير غايب أو قيمة مش آمنة أو مضيف مش متطابق = STOREFRONT_LINK_FALLBACK (الرابط اللي كان مكتوب
- * في الكود قبل كده)، فاللينك عمره ما يبقى فاضي أو يروح لرابط مااتحققش منه.
+ * المصدر STOREFRONT_URL وSTOREFRONT_HOST من إعداد Vercel للوحة (كل نسخة بتضبطهم)، بنفس فحص
+ * revalidateStorefront بالحرف: https بس · من غير بيانات دخول ولا استعلام ولا # ولا مسار · والمضيف =
+ * STOREFRONT_HOST حرفيًا.
+ *
+ * ⚠️ **مفيش رابط احتياطي:** لو الإعداد ناقص أو مش صالح أو مش متطابق، النتيجة ok = false، واللوحة
+ * بتخبّي اللينكين وبتعرض STOREFRONT_LINK_NOT_SET بدلهم — عمرها ما تفتح متجر مااتحققش منه.
  */
-export const STOREFRONT_LINK_FALLBACK = 'https://zell-store-nine.vercel.app'
 
-export type StorefrontLink = { href: string; source: 'env' | 'fallback' }
+export type StorefrontLinkProblem = 'missing' | 'invalid' | 'mismatch'
+
+export type StorefrontLink = { ok: true; href: string } | { ok: false; reason: StorefrontLinkProblem }
+
+/** التنبيه اللي بيظهر مكان اللينكين (نص رسمي — قرار لغة اللوحة). */
+export const STOREFRONT_LINK_NOT_SET =
+  'رابط المتجر غير مضبوط: يلزم ضبط STOREFRONT_URL وSTOREFRONT_HOST في إعدادات Vercel للوحة بقيمتين صحيحتين ومتطابقتين، ثم إعادة النشر (Redeploy).'
 
 export function resolveStorefrontLink(rawUrl: string | undefined, rawHost: string | undefined): StorefrontLink {
-  const fallback: StorefrontLink = { href: STOREFRONT_LINK_FALLBACK, source: 'fallback' }
   const raw = (rawUrl ?? '').trim()
   const allowedHost = (rawHost ?? '').trim().toLowerCase()
-  if (raw === '' || allowedHost === '') return fallback
+  if (raw === '' || allowedHost === '') return { ok: false, reason: 'missing' }
 
   let url: URL
   try {
     url = new URL(raw)
   } catch {
-    return fallback
+    return { ok: false, reason: 'invalid' }
   }
 
-  if (url.protocol !== 'https:') return fallback
-  if (url.username !== '' || url.password !== '') return fallback
-  if (url.search !== '' || url.hash !== '') return fallback
-  if (url.pathname !== '' && url.pathname !== '/') return fallback
-  if (url.host.toLowerCase() !== allowedHost) return fallback
+  if (url.protocol !== 'https:') return { ok: false, reason: 'invalid' }
+  if (url.username !== '' || url.password !== '') return { ok: false, reason: 'invalid' }
+  if (url.search !== '' || url.hash !== '') return { ok: false, reason: 'invalid' }
+  if (url.pathname !== '' && url.pathname !== '/') return { ok: false, reason: 'invalid' }
+  if (url.host.toLowerCase() !== allowedHost) return { ok: false, reason: 'mismatch' }
 
-  return { href: url.origin, source: 'env' }
+  return { ok: true, href: url.origin }
 }
