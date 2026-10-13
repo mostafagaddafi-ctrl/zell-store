@@ -60,7 +60,7 @@ export function CollectionsList({ collections }: { collections: AdminCollection[
     return (
       <EmptyState
         title="مفيش أقسام لسه"
-        description="القسم بيجمّع منتجات تحت اسم واحد، وتقدر تظهره في الرئيسية أو في قائمة المتجر أو الاتنين."
+        description="يجمع القسم منتجات تحت اسم واحد، ويمكن إظهاره في الرئيسية أو في قائمة المتجر أو كليهما."
       />
     )
   }
