@@ -51,7 +51,7 @@ export function IdentityEditor({ identity }: { identity: StoreIdentity }) {
           accept="image/png,image/webp"
           emptyLabel="خانة اللوجو"
           previewClassName="h-24 w-24"
-          requirements="PNG أو WebP بخلفية شفافة. يفضّل أفقي (مثلاً 600×160) من غير هوامش داخلية حوالين الشعار — الهوامش بتخلّيه يبان صغير في الهيدر. بيظهر في هيدر المتجر بارتفاع 40 بكسل."
+          requirements="PNG أو WebP بخلفية شفافة. يُفضَّل أن يكون أفقيًا (مثل 600×160) دون هوامش داخلية حول الشعار، لأن الهوامش تجعله يبدو صغيرًا. يظهر في رأس المتجر بارتفاع 40 بكسل."
         />
 
         <Card title="المتجر">
@@ -78,7 +78,7 @@ export function IdentityEditor({ identity }: { identity: StoreIdentity }) {
         accept="image/jpeg,image/png,image/webp"
         emptyLabel="خانة صورة الواجهة"
         previewClassName="h-24 w-32"
-        requirements="JPEG أو PNG أو WebP. أقل مقاس 800×450، ويفضّل نسبة 4:3 أفقية. بتظهر جنب نص الواجهة في الصفحة الرئيسية. من غيرها الواجهة بتبقى نص بس."
+        requirements="JPEG أو PNG أو WebP، بحد أدنى 800×450، ويُفضَّل أن تكون أفقية بنسبة 4:3. تظهر بجوار نص الواجهة في الصفحة الرئيسية، وبدونها تُعرض الواجهة نصًا فقط."
       />
 
       <Card title="واتساب">
