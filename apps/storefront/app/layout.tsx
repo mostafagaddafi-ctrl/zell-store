@@ -9,6 +9,7 @@ import { WhatsAppFab } from '../components/store/WhatsAppFab'
 import { NavHistory } from '../components/ui/BackButton'
 import { CartProvider } from '../lib/cart'
 import { getStorefrontData } from '../lib/data/source'
+import { SITE_URL } from '../lib/site'
 import './globals.css'
 
 // Cairo خط متغيّر — من غير weight عشان ياخد كل الأوزان
@@ -20,14 +21,20 @@ const cairo = Cairo({
 
 export async function generateMetadata(): Promise<Metadata> {
   const { settings } = await getStorefrontData()
+  const title = settings.storeName + ' — أفلام حماية الزجاج بالمتر'
+  const description =
+    'أفلام حماية وعزل للزجاج للبيوت والشقق، تتباع بالمتر الطولي. عازل حرارة، مصنفر للخصوصية، وفاميه أسود. الدفع عند الاستلام وتوصيل لكل محافظات مصر.'
   return {
     title: {
-      default: settings.storeName + ' — أفلام حماية الزجاج بالمتر',
+      default: title,
       template: '%s · ' + settings.storeName,
     },
-    description:
-      'أفلام حماية وعزل للزجاج للبيوت والشقق، تتباع بالمتر الطولي. عازل حرارة، مصنفر للخصوصية، وفاميه أسود. الدفع عند الاستلام وتوصيل لكل محافظات مصر.',
+    description,
     applicationName: settings.storeName,
+    // معاينة المشاركة: الروابط المطلقة من metadataBase، والصورة الافتراضية من app/opengraph-image.tsx
+    metadataBase: new URL(SITE_URL),
+    openGraph: { type: 'website', locale: 'ar_EG', siteName: settings.storeName, title, description },
+    twitter: { card: 'summary_large_image', title, description },
   }
 }
 
