@@ -143,7 +143,7 @@ export function AdminShell({
       ))}
 
       <a
-        href="https://zell-store-nine.vercel.app"
+        href="https://zellnow.me"
         target="_blank"
         rel="noopener noreferrer"
         className="mt-auto flex items-center gap-2 rounded px-2 py-2 text-xs font-medium text-muted transition-colors hover:text-accent"
