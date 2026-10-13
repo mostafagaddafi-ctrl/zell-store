@@ -196,6 +196,9 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
 // ── محتوى الصفحة من «المحتوى» في اللوحة ─────────────────────────
 export type HomeSectionKey = 'hero' | 'products' | 'how_it_works' | 'faq'
 
+/** HOME-MOBILE — «أول الصفحة على الموبايل» (عنصر hero في settings.sections؛ غايب أو غلط = 'compact'). */
+export type HomeMobileLayout = 'compact' | 'full'
+
 /** جزء من الرئيسية — بالترتيب، والمخفي visible = false. */
 export type HomeSection = {
   key: HomeSectionKey
@@ -212,6 +215,8 @@ export type StoreContent = {
   /** href فاضي = نص من غير رابط (الصفحة لسه مش موجودة). */
   footerLinks: { label: string; href: string }[]
   trustLine: string
+  /** HOME-MOBILE — من عنصر hero في settings.sections (home.ts: heroMobileLayoutOf). */
+  heroMobileLayout: HomeMobileLayout
 }
 
 /**
@@ -250,6 +255,8 @@ export const DEFAULT_STORE_CONTENT: StoreContent = {
     { label: 'سياسة الخصوصية', href: '' },
   ],
   trustLine: 'الدفع عند الاستلام · توصيل لكل محافظات مصر',
+  // HOME-MOBILE — الجديد هو الافتراضي (قرار المالك 2026-10-12)
+  heroMobileLayout: 'compact',
 }
 
 // ── فني التركيب (بالتواصل) ─────────────────────────────────────
