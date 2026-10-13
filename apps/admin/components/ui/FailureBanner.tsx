@@ -50,7 +50,7 @@ export function FailureBanner({
           انتهت الجلسة
         </p>
         <p className="text-muted">
-          يُرجى تسجيل الدخول في تبويب جديد، ثم العودة إلى هذه الصفحة والضغط على «حاول تاني». التعديلات ما زالت موجودة في الصفحة.
+          يُرجى تسجيل الدخول في تبويب جديد، ثم العودة إلى هذه الصفحة والضغط على «إعادة المحاولة». التعديلات ما زالت موجودة في الصفحة.
         </p>
         <div className="flex flex-wrap items-center gap-2 pt-0.5">
           <a
@@ -65,7 +65,7 @@ export function FailureBanner({
           {onRetry ? (
             <Button size="sm" onClick={onRetry}>
               <RotateCcw className="h-3.5 w-3.5" />
-              حاول تاني
+              إعادة المحاولة
             </Button>
           ) : null}
         </div>
@@ -148,7 +148,7 @@ export function FailureBanner({
         <div className="pt-0.5">
           <Button variant="secondary" size="sm" onClick={onRetry}>
             <RotateCcw className="h-3.5 w-3.5" />
-            حاول تاني
+            إعادة المحاولة
           </Button>
         </div>
       ) : null}
