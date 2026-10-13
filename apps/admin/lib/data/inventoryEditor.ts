@@ -25,7 +25,7 @@ export type PurchaseEditorData =
   | { ok: true; catalog: CatalogProduct[]; suppliers: InventorySupplier[]; locations: InventoryLocationOption[] }
   | { ok: false; reasons: string[] }
 
-const READ_FAILED = 'حصل خطأ في القراءة. حدّث الصفحة، ولو اتكرر بلّغ.'
+const READ_FAILED = 'حدث خطأ في القراءة. يُرجى تحديث الصفحة، والإبلاغ إذا تكرر.'
 
 export async function loadPurchaseEditorData(): Promise<PurchaseEditorData> {
   const [catalog, suppliers, locations] = await Promise.all([
