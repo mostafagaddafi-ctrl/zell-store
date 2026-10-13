@@ -101,7 +101,7 @@ export function CollectionEditor({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmSlug, setConfirmSlug] = useState(false)
 
-  // «حاول تاني» لازم تبعت أحدث قيم — مش نسخة من وقت الضغط
+  // «إعادة المحاولة» لازم تبعت أحدث قيم — مش نسخة من وقت الضغط
   const draftRef = useRef({ title, slug, subtitle, showOnHome, showInNav, catalogLayout })
   draftRef.current = { title, slug, subtitle, showOnHome, showInNav, catalogLayout }
   const selectedRef = useRef(selected)
