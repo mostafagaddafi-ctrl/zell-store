@@ -21,7 +21,8 @@ function hrefState(href: string): { ok: boolean; note: string } {
   return { ok: false, note: 'لازم يبدأ بـ / أو https://' }
 }
 
-export function ContentEditor({ content }: { content: StoreContent }) {
+/** storefrontHref: رابط «شوف المتجر» — من السيرفر (lib/storefrontLink.ts، من STOREFRONT_URL). */
+export function ContentEditor({ content, storefrontHref }: { content: StoreContent; storefrontHref: string }) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
   const { state, failure, warning, run, retry, markDirty } = useSaveAction()
@@ -414,7 +415,7 @@ export function ContentEditor({ content }: { content: StoreContent }) {
       </Card>
 
       <a
-        href="https://zellnow.me"
+        href={storefrontHref}
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent"
