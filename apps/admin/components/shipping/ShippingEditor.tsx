@@ -131,8 +131,8 @@ export function ShippingEditor({
   function removeGovernorate(name: string) {
     const installer = (installerAreas[name] ?? []).length > 0
     const sure = window.confirm(
-      'تمسح «' + name + '» من الشحن؟ الزباين مش هيقدروا يختاروها. الأوردرات القديمة مش هتتأثر.' +
-        (installer ? ' فيها مناطق متاحة لفني التركيب، والفني هيبقى مش متاح فيها.' : ''),
+      'هل تريد حذف «' + name + '» من الشحن؟ لن يتمكن العملاء من اختيارها، ولن تتأثر الطلبات السابقة.' +
+        (installer ? ' تحتوي على مناطق متاحة لفني التركيب، وستتوقف خدمة التركيب فيها.' : ''),
     )
     if (!sure) return
     const rates = { ...draft.rates }
@@ -162,7 +162,7 @@ export function ShippingEditor({
   function removeArea(governorate: string, area: string) {
     if ((installerAreas[governorate] ?? []).includes(area)) {
       const sure = window.confirm(
-        '«' + area + '» متاحة لفني التركيب. لو مسحتها أو غيّرت اسمها، الفني هيبقى مش متاح فيها لحد ما تفعّلها تاني من صفحة فني التركيب. تكمّل؟',
+        '«' + area + '» متاحة لفني التركيب. عند حذفها أو تغيير اسمها لن تتوفر خدمة التركيب فيها حتى يُعاد تفعيلها من صفحة فني التركيب. هل تريد المتابعة؟',
       )
       if (!sure) return
     }
@@ -218,8 +218,7 @@ export function ShippingEditor({
 
       <Card title={'المحافظات (' + String(sequence.length) + ')'}>
         <p className="mb-3 text-xs text-muted">
-          الترتيب هنا هو ترتيب القايمة في صفحة الطلب — حط الأهم فوق. «المناطق» بتظهر للزبون بعد ما يختار المحافظة عشان
-          يختار بسرعة بدل ما يكتب.
+          يطابق هذا الترتيب ترتيب القائمة في صفحة الطلب، ويُفضَّل وضع الأهم في الأعلى. وتظهر «المناطق» للعميل بعد اختيار المحافظة لتسهيل الاختيار بدل الكتابة.
         </p>
         <ul className="space-y-2">
           {sequence.map((name, index) => {
@@ -364,7 +363,7 @@ export function ShippingEditor({
                           إضافة
                         </Button>
                       </div>
-                      <p className="text-xs text-muted">تقدر تكتب كذا منطقة مرة واحدة بينهم فاصلة. ماتنساش «حفظ» تحت.</p>
+                      <p className="text-xs text-muted">يمكن إدخال عدة مناطق دفعة واحدة مع الفصل بينها بفاصلة، ثم الضغط على «حفظ» أدناه.</p>
                     </div>
                   ) : null}
                 </div>
@@ -413,7 +412,7 @@ export function ShippingEditor({
           <p className="font-bold">مناطق متاحة لفني التركيب هتتشال من الشحن</p>
           <p className="mt-1">{lostInstaller.join('، ')}</p>
           <p className="mt-1 text-muted">
-            بعد الحفظ الفني هيبقى مش متاح فيها. لو بتغيّر الاسم، فعّل الاسم الجديد من صفحة فني التركيب.
+            بعد الحفظ لن تتوفر خدمة التركيب فيها. وعند تغيير الاسم يُرجى تفعيل الاسم الجديد من صفحة فني التركيب.
           </p>
         </div>
       ) : null}
