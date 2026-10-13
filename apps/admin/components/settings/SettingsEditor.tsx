@@ -34,7 +34,7 @@ export function SettingsEditor({ settings }: { settings: OperationalSettings }) 
         <p className="text-xs text-muted">العدّ الدقيق مش متاح دلوقتي، فالأرقام مش معروضة عن قصد.</p>
       )}
       {delivery.state === 'unknown' ? (
-        <p className="mt-2 text-xs text-muted">مفيش طلبات في الفترة دي — استخدم «اختبر تليجرام» فوق عشان تتأكد إن الإشعار شغّال.</p>
+        <p className="mt-2 text-xs text-muted">لا توجد طلبات في هذه الفترة. يمكن استخدام «اختبر تليجرام» أعلاه للتأكد من عمل الإشعارات.</p>
       ) : null}
       <p className="mt-2 text-xs text-muted">الإيميل مش متاح لسه — الإشعارات على تليجرام بس.</p>
     </Card>
