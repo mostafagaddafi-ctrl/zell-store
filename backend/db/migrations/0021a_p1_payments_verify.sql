@@ -4,6 +4,9 @@
 -- • صالح في أي وقت بعد التطبيق (والإعدادات متفعّلة أو لأ، وفيه دفعات أو لأ). قبل التطبيق: بيقع بخطأ (الجداول مش موجودة).
 -- • أعمدة psql -tA: 1 ord · 2 kind · 3 check_id · 4 check_name · 5 ok · 6 detail · 7 verdict · 8 orders_total · 9 payments
 --   · 10 fee_enabled · 11 credit_enabled · 12 methods · 13 create_order_owner · 14 commands
+-- • V06 والـ CTE co بحالتين بس (عقد EXPRESS-SHIPPING §٦-١): قبل EXPRESS (مفيش جدول zell_shipping_options) = 14 معامل و
+--   811d4d573d750db9c7e5164799536aa6 · بعده (الجدول موجود) = 15 معامل و 62924d0fe9b1563e76c54bbddfb628b4. أي خليط أو نسختين
+--   أو بصمة تانية = FAIL.
 
 begin;
 set transaction read only;
@@ -24,7 +27,9 @@ with procs as (
 ), co as (
   select p.oid, pg_catalog.pg_get_userbyid(p.proowner) as owner, p.prosrc
     from pg_catalog.pg_proc p
-   where p.oid = pg_catalog.to_regprocedure('public.zell_create_order(jsonb, text, text, text, text, text, text, text, text, text, text, boolean, text, jsonb)')
+   where p.oid = case when pg_catalog.to_regclass('public.zell_shipping_options') is null
+                      then pg_catalog.to_regprocedure('public.zell_create_order(jsonb, text, text, text, text, text, text, text, text, text, text, boolean, text, jsonb)')
+                      else pg_catalog.to_regprocedure('public.zell_create_order(jsonb, text, text, text, text, text, text, text, text, text, text, boolean, text, jsonb, text)') end
 ), money as (
   select o.id, o.paid_piastres,
          coalesce((select pg_catalog.sum(case when p.kind = 'payment' then p.amount_piastres else -p.amount_piastres end)
@@ -77,9 +82,11 @@ with procs as (
                               'zell_payment_commands_immutable', 'zell_payment_commands_no_truncate')) = 9,
          null
   union all
-  select 'V06', 'zell_create_order: one (14 args), P1 body (md5), security definer, service_role only, owner can compute the fee',
+  select 'V06', 'zell_create_order: one (14 args + P1 body before EXPRESS-SHIPPING / 15 args + EXPRESS body after), security definer, service_role only, owner can compute the fee',
          (select count(*) from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'zell_create_order') = 1
-         and (select pg_catalog.md5(co.prosrc) from co) = '811d4d573d750db9c7e5164799536aa6'
+         and (select pg_catalog.md5(co.prosrc) from co)
+             = case when pg_catalog.to_regclass('public.zell_shipping_options') is null
+                    then '811d4d573d750db9c7e5164799536aa6' else '62924d0fe9b1563e76c54bbddfb628b4' end
          and (select pg_catalog.has_function_privilege('service_role', co.oid, 'EXECUTE')
                      and not pg_catalog.has_function_privilege('anon', co.oid, 'EXECUTE')
                      and not pg_catalog.has_function_privilege('authenticated', co.oid, 'EXECUTE')
