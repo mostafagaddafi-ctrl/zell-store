@@ -1,6 +1,6 @@
 # عقد TRACK-ORDER v2 — التتبّع الكامل في «تتبّع طلبك»
 
-> **الحالة: مسودة للمراجعة.** عقد بس: مفيش كود ولا SQL في الـ PR ده. مبني على main `c825ce3` (TRACK-ORDER W1 متطبّق ومتحقق منه 2026-10-14، وW2 منشور في #146).
+> **الحالة: معتمد (#147) · قراءات T1–T5 اتنفّذت 2026-10-14 ومقبولة من غير أي فرق (§١١-١) · W1 (SQL + CI) في PR فوق main `7c68bb5` (§١٦).** المسودة مبنية على main `c825ce3` (TRACK-ORDER W1 متطبّق ومتحقق منه 2026-10-14، وW2 منشور في #146).
 > **بيبدأ بعد EXPRESS-SHIPPING** (`docs/contracts/EXPRESS-SHIPPING.md`): نوع الشحن ومدته من لقطة الطلب هناك.
 > الترتيب: العقد ← قراءات Production (§١١، كل واحدة بموافقة لوحدها) ← اعتماد ← W1 (SQL + CI) ← ptest ← backup ← تطبيق ← verify ← W2.
 
@@ -135,6 +135,16 @@
 | T4 | `orders` بعد تطبيق EXPRESS: الأعمدة والقيود | أعمدة اللقطة موجودة |
 | T5 | أي كائن `zell_order_shipments` · `zell_order_customer_updates` · `zell_shipment_%` · `zell_customer_update_%` + الأكواد الجديدة | الأسماء والأكواد فاضية |
 
+### ١١-١ النتايج (2026-10-14 — قراءة بس، كل واحدة بموافقة لوحدها، ومفيش أي فرق عن الريبو)
+| # | النتيجة |
+| --- | --- |
+| T1 | `zell_checkout_track_order(text)`: نسخة واحدة · sql · STABLE · SECURITY DEFINER · `search_path=""` · بترجّع jsonb · المالك `zell_order_definer` · `proacl` = `{zell_order_definer=X/zell_order_definer,service_role=X/zell_order_definer}` · `md5(prosrc)` = `edd7a26279a345963c68d69425f0ea1a` (1642 حرف) = جسم `0021tr_track_order.sql` بالحرف · `pg_get_functiondef`: md5 `6d2d323e0801fa43053984f2504ba3c4` · sha256 `e7fec5a9f85d67e922c6b9a1a7439e16510d8c0c41d0e918388427c773e069bc` · 1824 حرف |
+| T2 | `order_events_kind_check` = قايمة A1 (10 أنواع) ومتحقق منه · 10 أحداث `status_changed`: مفاتيحها `from,to` (7) و`from,reason,to` (3)، وكل `from` و`to` حالات معروفة · A1 بيكتب `jsonb_strip_nulls({from, to, reason})` · الأحداث كلها 23 (call_attempt 4 · created 3 · payment_recorded 5 · payment_refunded 1 · status_changed 10) |
+| T3 | `zell_order_definer` (من غير bypassrls ولا inherit ولا عضويات): `orders` SELECT (الجدول) + UPDATE على 12 عمود + policies `zell_order_definer_select` / `_update` · `order_events` SELECT + INSERT + policy `zell_order_definer_all` · `order_payments` SELECT + INSERT (منها `kind` و`amount_piastres`) + policy `zell_order_definer_all` · RLS على التلاتة (مش forced) والمالك `postgres` · **مفيش صلاحية جديدة محتاجة** |
+| T4 | `orders` 47 عمود: `shipping_method` text و`shipping_days_min/max` integer (nullable، من غير default) · 22 قيد كلها validated ومنها `orders_shipping_snapshot_shape` · `orders_internal_notes_length` لسه مالوش ملف migration (بند baseline) |
+| T5 | مفيش أي كائن `zell_order_shipment%` · `zell_order_customer_update%` · `zell_shipment_%` · `zell_customer_update_%` في أي schema · الأكواد المستخدمة 45400–45432 متصلة (الداتابيز والريبو)، و45449 حد النطاق بس (A1 CI S04) · الفاضي 45433–45449 · الأسماء في الريبو في العقد ده بس |
+- الأثر المعتمد قبل وبعد كل قراية بالحرف: `2|24|5|62924d0fe9b1563e76c54bbddfb628b4|postgres|4d7c514ebe1d12281a81b63991df2324|24|31|23|23|3|cancelled=1,delivered=2|23|0|0`، و`idle_tx` = 0، والأقفال على `orders` و`order_items` = 0.
+
 ## ١٢) التقسيم والموافقات
 1. PR العقد ده (مع EXPRESS-SHIPPING) ← مراجعة ← دمج.
 2. **بعد** ما EXPRESS W2 يتنشر: قراءات T1–T5 (كل واحدة بموافقة) ← اعتماد.
@@ -155,8 +165,39 @@
 7. **الموعد المتوقع:** تاريخ الأدمن، وإلا الشحن الفعلي + المدة المحفوظة، وإلا «لم يتحدد بعد».
 8. **خط المراحل:** الخمسة · الألوان · «جارٍ التجهيز» مقابل «تم التجهيز» · مفيش مرحلة ماحصلتش تظهر مكتملة · الإلغاء والرفض واضحين · مفيش إضافات من غير إجراء فعلي.
 9. **النصوص:** الخطوة التالية وأسماء المراحل ثابتة في الكود.
-- مفيش أسئلة مفتوحة في العقد ده. اللي فاضل قبل الاعتماد: القراءات T1–T5 بعد نشر EXPRESS.
+- مفيش أسئلة مفتوحة في العقد ده. القراءات T1–T5 اتنفّذت ومقبولة (§١١-١)، والأسماء والأكواد النهائية في §١٦.
 
 ## ١٥) سجل التعديلات
 - **2026-10-14 · المسودة الأولى** على main `c825ce3`.
 - **2026-10-14 · قرارات المالك وتصحيحات المراجعة:** حقول v1 (`total_piastres` و`delivery` وغيرهم) زي ما هي بمعانيها، وv2 جنبها، مع حالة توافق للصفحة القديمة قبل W2 · المجاميع من `amount_piastres` · الخطوة التالية بعد استيفاء المقدم · تحقق كوكي الإيصال قبل أي توسيع لعرضه · بيانات العميل مسموحة (§١ استثناءات TRACK-ORDER) · خط المراحل وقواعده · الموعد بالأولوية · رسايل العميل بالتعديل والإخفاء وسجل داخلي · الأسئلة اتحوّلت لقرارات (§١٤). القراءات T1–T5 لسه ماتنفّذتش.
+- **2026-10-14 · قراءات T1–T5 + W1:** القراءات اتنفّذت (كل واحدة بموافقة) ومفيش أي فرق عن الريبو (§١١-١). W1 (SQL + CI) في PR فوق main `7c68bb5` بالأسماء والأكواد النهائية في §١٦ والبصمة الجديدة لدالة التتبّع `14dad4721c48b73ee5e040bf7436bfc5`. مفيش تغيير في قرارات المنتج.
+
+## ١٦) W1 (SQL + CI) — الأسماء والأكواد النهائية والتفاصيل اللي اتحددت في الـ PR
+- **الملفات:** `backend/db/migrations/0021tr2_track_order_v2.sql` (+ `_ptest` · `_verify` · `_rollback`) · `backend/db/ci/0021tr2_sql_ci.sh` · `backend/db/ci/0021tr2_flows.sql` · `backend/db/ci/0021tr2_v1_guard.mjs` · job `sql-0021tr2` في `ci.yml` · `0021tr_track_order_verify.sql` بحالتين · سطر رفض في `0021tr_track_order_rollback.sql` و`0021ex_express_shipping_rollback.sql` (الاتنين بيرفضوا طول ما v2 متطبّق).
+- **الجداول (مالكها `postgres`، RLS + policy `zell_order_definer_all` للدور ده بس، صفر صلاحيات لـ anon و authenticated و service_role):**
+  | الجدول | الأعمدة |
+  | --- | --- |
+  | `zell_order_shipments` | `order_id` (المفتاح · FK restrict) · `carrier` (1..60 بعد trim) · `tracking_number` (≤ 60) · `tracking_url` (https:// · ≤ 300) · `shipped_on` · `expected_on` (≥ `shipped_on`) · `created_at` · `updated_at` (النسخة) · `updated_by` — مابتتمسحش (45413) |
+  | `zell_order_shipments_log` | `order_id` · `actor` · `old_value` (null لأول حفظ) · `new_value` · `created_at` — append-only (45413) |
+  | `zell_order_customer_updates` | `id` · `order_id` (FK restrict) · `text` (1..300 بعد trim) · `hidden` · `edited` · `created_at` / `created_by` · `updated_at` (النسخة) / `updated_by` — مابتتمسحش (الإخفاء بدل المسح) |
+  | `zell_order_customer_updates_log` | `update_id` · `order_id` · `action` (add · edit · hide · show) · `actor` · `old_value` · `new_value` · `created_at` — append-only (45413) |
+- **الدوال (11 اسم، برّه عدّادات `zell_order_*` 24 و`zell_payment_*` 24 و`zell_checkout_*` 4):**
+  | الدالة | النوع | بتعمل إيه |
+  | --- | --- | --- |
+  | `zell_shipment_get(p_order_number)` | عامة (authenticated) | الحالة · `editable` · الشحنة بنسختها أو null |
+  | `zell_shipment_save(p_order_number, p_expected_updated_at, p_carrier, p_tracking_number, p_tracking_url, p_shipped_on, p_expected_on)` | عامة | أول حفظ بنسخة null، وبعده `updated_at` الشحنة · مسموح في confirmed / preparing / shipped / delivered بس · بترجّع النتيجة + `changed` |
+  | `zell_customer_update_list(p_order_number)` | عامة | كل الرسايل (الظاهرة والمخفية) بنسخة كل واحدة، الأحدث الأول |
+  | `zell_customer_update_add(p_order_number, p_text)` | عامة | في أي حالة · أقصى 50 رسالة للطلب · بترجّع القايمة + `id` + `changed` |
+  | `zell_customer_update_edit(p_order_number, p_update_id, p_expected_updated_at, p_text)` | عامة | تعديل النص (`edited = true`) · نفس النص = مفيش كتابة |
+  | `zell_customer_update_set_hidden(p_order_number, p_update_id, p_expected_updated_at, p_hidden)` | عامة | إخفاء / إظهار · نفس الحالة = مفيش كتابة |
+  | `zell_shipment_result` · `zell_customer_update_result` · `zell_customer_update_text` | داخلية (مفيش EXECUTE لحد) | نتيجة اللوحة · تطبيع النص والتحقق منه |
+  | `zell_shipment_trg_append_only` · `zell_customer_update_trg_append_only` | triggers (مالكها `postgres`) | 8 triggers: السجلين مابيتعدّلوش ولا بيتمسحوا، والشحنة والرسالة مابيتمسحوش (45413) |
+- **الأكواد:** 45433 = تحقق الشحنة، الحقل في `detail` (`carrier` · `tracking_number` · `tracking_url` · `shipped_on` · `expected_on`) · 45434 = تحقق الرسايل (`text` · `hidden` · `count`). ومن A1 زي ما هم: 45400 / 45401 (الهوية · الأدمن والمالك) · 45403 (الطلب أو الرسالة مش موجودين، أو الرسالة لطلب تاني) · 45404 (النسخة) · 45410 (حفظ الشحنة في new أو cancelled أو refused) · 45413 (append-only).
+- **التحقق:** NFC + trim في الشركة ورقم الشحنة والنص · الفاضي في الاختياري = null · مفيش control characters (السطر الجديد بس مسموح في الرسالة، و CRLF ← LF) · الرابط `https://` + host فيه نقطة ومن غير مسافات · تاريخ الشحن من يوم الطلب لحد النهارده (القاهرة) · المتوقع من يوم الطلب لحد سنة قدام و ≥ تاريخ الشحن.
+- **الترتيب جوه الدالة:** الهوية ← الطلب (45403) ← القفل والنسخة (45404) ← الحالة (45410) ← التحقق ← الكتابة + سطر السجل في نفس المعاملة. حفظ الشحنة وإضافة الرسالة بيقفلوا صف الطلب (من غير ما يغيّروه)، فالحفظين المتزامنين بيترتّبوا والتاني بياخد 45404. حالة الطلب و`updated_at` بتاعه مابيتغيّروش من الشحنة أو الرسايل أبدًا.
+- **رد التتبّع (§٢):** `CREATE OR REPLACE` بنفس الاسم والتوقيع والمالك والصلاحيات (الـ `proacl` زي T1 بالحرف). حقول v1 بنفس التعبيرات بالحرف، وجنبها `customer` · `history` (حدث `created` بحالته، ثم `to` لكل `status_changed`، بالترتيب: `{status, at}` بس) · `money` (§٣ بالمفاتيح الـ 11) · `shipping` · `confirmed_delivery` · `shipment` (المفاتيح الخمسة بس) · `updates` (الظاهرة بس: `{id, at, text, edited}`، الأحدث الأول). البصمة الجديدة `md5(prosrc)` = `14dad4721c48b73ee5e040bf7436bfc5`.
+- **التوافق:** CI بيشغّل `parseTrackedOrder` من `c825ce3` (الـ blob `92b59827ec5872ca675056db7655c904f0fc601f` مثبّت، و`packages/core/src` من نفس الكوميت) على رد v1 قبل التطبيق ورد v2 بعده لعشر طلبات حقيقية بكل الحالات: النتيجة متطابقة بالحرف، ومفاتيح v1 في رد v2 = رد v1 بالحرف.
+- **فحوص التحقق:** `0021tr_track_order_verify.sql` بحالتين بس (قبل v2: الستة مفاتيح و«مفيش هاتف ولا عنوان» · بعده: 13 مفتاح وقيم `customer` و`money` والأشكال، و«مفيش ملاحظات داخلية ولا ملاحظات عميل أو موعد ولا مراجع دفع ولا سبب ولا ممثل ولا كوبون ولا hash» كقيمة نصية بالظبط ومفيش مفتاح بالأسماء دي)، والنداءات بدور `service_role` جوه بلوك DO. `0021tr2_track_order_v2_verify.sql` 10 فحوص (منها: كل شحنة ورسالة = آخر سطر في سجلها، والصافي في كل طلب = المدفوع − المردود).
+- **استعلام الأثر:** مفيش ولا خانة بتتغيّر بالتطبيق أو الرجوع.
+- **ptest على Production:** مفيش أي طلب بيتعمل (T09 في profile `ci` بس)، ورد آخر طلب بيتقارن جوه المعاملة (أسماء وأعداد بس). ⚠ الـ FK بياخد قفل SHARE ROW EXCLUSIVE على `orders` لحد الـ rollback (ثواني). المتوقع: PASS بـ 8 نجاح و skip واحد (T09).
+- **الرجوع:** سطر موافقة (`owner-approval-YYYY-MM-DD-0021tr2-track-order-v2-rollback`)، وبيرفض بأي صف في أي جدول من الأربعة (forward-fix بس)، وبيرجّع دالة التتبّع بجسم T1 بالحرف (البصمات التلاتة، ونفس الـ oid والصلاحيات).
