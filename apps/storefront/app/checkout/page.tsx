@@ -2,7 +2,13 @@ import type { Metadata } from 'next'
 import { CheckoutForm } from '../../components/store/CheckoutForm'
 import { BackButton } from '../../components/ui/BackButton'
 import { Container } from '../../components/ui/Container'
-import { getCheckoutConfirmationFee, getCheckoutDeliverySettings, getCheckoutPeriods, getStorefrontData } from '../../lib/data/source'
+import {
+  getCheckoutConfirmationFee,
+  getCheckoutDeliverySettings,
+  getCheckoutPeriods,
+  getCheckoutShippingOptions,
+  getStorefrontData,
+} from '../../lib/data/source'
 
 export const metadata: Metadata = { title: 'بيانات التوصيل' }
 
@@ -14,6 +20,8 @@ export default async function CheckoutPage() {
   const confirmationFee = await getCheckoutConfirmationFee()
   // 0021-D2 — إعداد موعد التسليم (null = اختيار الموعد والسطر مخفيين)
   const deliverySettings = await getCheckoutDeliverySettings()
+  // EXPRESS-SHIPPING — إعداد الشحن السريع ومدة الشحن (null = اختيار الطريقة مخفي والطلب عادي)
+  const shippingOptions = await getCheckoutShippingOptions()
 
   return (
     <Container className="py-8 md:py-12">
@@ -29,6 +37,7 @@ export default async function CheckoutPage() {
           periods={periods}
           confirmationFee={confirmationFee}
           deliverySettings={deliverySettings}
+          shippingOptions={shippingOptions}
         />
       </div>
     </Container>
