@@ -107,6 +107,8 @@ export function MobileMenu({
     ...(toolsLink ? [toolsLink] : []),
     { href: '/#how', label: 'إزاي أطلب' },
     { href: '/#faq', label: 'أسئلة متكررة' },
+    // TRACK-ORDER — صفحة «تتبّع طلبك» برقم الطلب
+    { href: '/track', label: 'تتبّع طلبك' },
   ]
 
   return (
