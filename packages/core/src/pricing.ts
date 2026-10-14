@@ -1,4 +1,5 @@
 import { isPiece, type StoreProduct } from './types'
+import { standardShippingPiastres } from './shippingOptions'
 /**
  * منطق التسعير — النسخة المرجعية الجديدة.
  *
@@ -190,7 +191,10 @@ export function formatPiastres(piastres: number): string {
   return text + ' ج.م'
 }
 
-/** حساب الشحن على الواجهة للعرض فقط — الرقم المعتمد بيتحسب في الداتابيز. */
+/**
+ * حساب الشحن العادي على الواجهة للعرض فقط — الرقم المعتمد بيتحسب في الداتابيز.
+ * EXPRESS-SHIPPING: نفس الحساب بالحرف اتنقل لـ standardShippingPiastres (./shippingOptions) علشان CI يقارنه بالداتابيز.
+ */
 export function computeShippingPiastres(
   governorate: string,
   subtotalPiastres: number,
@@ -198,10 +202,7 @@ export function computeShippingPiastres(
   defaultPiastres: number,
   freeThresholdPiastres: number,
 ): number {
-  const fallback = Number.isFinite(defaultPiastres) && defaultPiastres > 0 ? defaultPiastres : 0
-  if (freeThresholdPiastres > 0 && subtotalPiastres >= freeThresholdPiastres) return 0
-  const rate = rates[governorate]
-  return typeof rate === 'number' && Number.isFinite(rate) && rate >= 0 ? rate : fallback
+  return standardShippingPiastres(governorate, subtotalPiastres, rates, defaultPiastres, freeThresholdPiastres)
 }
 
 // ── سطر السلة (0016) ──────────────────────────────────────────
