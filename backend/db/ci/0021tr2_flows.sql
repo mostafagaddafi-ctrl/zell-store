@@ -7,7 +7,7 @@
 --   zell_order_set_confirmed_delivery · zell_order_set_internal_note · zell_order_set_gate)، فالسجل والدفعات حقيقيين.
 -- • نسخة v1 من دالة التتبّع (جسم TR W1 بالحرف) في pg_temp للمقارنة: حقول v1 في رد v2 = رد v1 بالظبط لكل طلب.
 -- • معاملة واحدة: أول جملة begin وآخر جملة rollback، والنتيجة صفوف في SELECT واحد (فحص الشكل في CI).
--- • المتوقع: PASS بـ 34 نجاح و 0 فشل.
+-- • المتوقع: PASS بـ 35 نجاح و 0 فشل.
 
 begin;
 set local idle_in_transaction_session_timeout = '30s';
@@ -141,9 +141,16 @@ returns text language sql as $f$
     'select public.zell_shipment_save(%L, %s, %L, %L, %L, %L::date, %L::date)::text',
     coalesce(pg_temp.num(p_tag), p_tag), p_ver, p_carrier, p_number, p_url, p_shipped, p_expected))
 $f$;
+create function pg_temp.lastid(p_tag text) returns text language sql as $f$
+  select coalesce((select pg_catalog.max(u.id)::text from public.zell_order_customer_updates u where u.order_id = pg_temp.oid_of(p_tag)), 'null')
+$f$;
+-- إضافة بنسخة صريحة (p_last = نص SQL: رقم أو null)، و uadd بالنسخة الحالية.
+create function pg_temp.uadd_v(p_who text, p_tag text, p_last text, p_text text) returns text language sql as $f$
+  select pg_temp.who(p_who, pg_catalog.format('select public.zell_customer_update_add(%L, %s, %L)::text',
+                                              coalesce(pg_temp.num(p_tag), p_tag), p_last, p_text))
+$f$;
 create function pg_temp.uadd(p_who text, p_tag text, p_text text) returns text language sql as $f$
-  select pg_temp.who(p_who, pg_catalog.format('select public.zell_customer_update_add(%L, %L)::text',
-                                              coalesce(pg_temp.num(p_tag), p_tag), p_text))
+  select pg_temp.uadd_v(p_who, p_tag, pg_temp.lastid(p_tag), p_text)
 $f$;
 create function pg_temp.uedit(p_who text, p_tag text, p_id bigint, p_ver text, p_text text) returns text language sql as $f$
   select pg_temp.who(p_who, pg_catalog.format('select public.zell_customer_update_edit(%L, %s, %s, %L)::text',
@@ -490,6 +497,23 @@ begin
       e1 = '45413' and e2 = '45413' and e3 = '45413' and e4 = '45413' and e5 = '45413',
       e1 || ',' || e2 || ',' || e3 || ',' || e4 || ',' || e5);
   end;
+  declare
+    v_last text := pg_temp.lastid('E');
+    v_n2 bigint;
+    v_c bigint := (select count(*) from public.zell_order_customer_updates u where u.order_id = pg_temp.oid_of('E'));
+    a1 text; a2 text; a3 text; a4 text;
+  begin
+    a1 := pg_temp.uadd_v('admin', 'E', v_last, 'رسالة المحاولة');
+    v_n2 := pg_temp.ulog();
+    a2 := pg_temp.uadd_v('admin', 'E', v_last, 'رسالة المحاولة');
+    a3 := pg_temp.uadd_v('owner', 'E', 'null', 'رسالة تانية');
+    a4 := pg_temp.uadd_v('admin', 'E', '999999999', 'رسالة تالتة');
+    perform pg_temp.zt('F31 add is versioned (last_id): a retry with the same version after a lost response -> 45404, no duplicate · null / unknown version when messages exist -> 45404 · result carries the new last_id',
+      a1 like '{%' and pg_temp.js(a1) ->> 'last_id' = pg_temp.js(a1) ->> 'id'
+      and a2 = 'ERR 45404' and a3 = 'ERR 45404' and a4 = 'ERR 45404' and pg_temp.ulog() = v_n2
+      and (select count(*) from public.zell_order_customer_updates u where u.order_id = pg_temp.oid_of('E')) = v_c + 1,
+      left(a1, 80) || ' | ' || a2 || ' | ' || a3 || ' | ' || a4);
+  end;
 exception when others then
   perform pg_temp.zt('ABORT_C block raised an unexpected error', false, sqlstate || ' ' || sqlerrm);
 end
@@ -596,7 +620,7 @@ select 0::integer as ord, 'summary'::text as kind, null::text as test_id, null::
        (select count(*) from pg_temp.zt_results where outcome = 'pass') as pass,
        (select count(*) from pg_temp.zt_results where outcome = 'fail') as fail,
        case when (select count(*) from pg_temp.zt_results where outcome = 'fail') = 0
-             and (select count(*) from pg_temp.zt_results where outcome = 'pass') = 34 then 'PASS' else 'FAIL' end as verdict
+             and (select count(*) from pg_temp.zt_results where outcome = 'pass') = 35 then 'PASS' else 'FAIL' end as verdict
 union all
 select r.n, 'test', r.id, r.name, r.outcome, r.detail, null, null, null
   from pg_temp.zt_results r
