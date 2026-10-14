@@ -353,8 +353,8 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | --- | --- | --- |
 | `zell_shipment_get(text)` | `zell_order_definer` · `authenticated` بس | للوحة (أي أدمن شغّال أو المالك): الحالة · `editable` · الشحنة بنسختها أو null. الطلب مش موجود = 45403 |
 | `zell_shipment_save(text, timestamptz, text, text, text, date, date)` | `zell_order_definer` · `authenticated` بس | الحفظ: أول مرة بنسخة null، وبعدها `updated_at` الشحنة (45404) · confirmed / preparing / shipped / delivered بس (45410) · التحقق 45433 · سطر سجل لو فيه تغيير بس · مابيلمسش حالة الطلب ولا `updated_at` بتاعه |
-| `zell_customer_update_list(text)` | `zell_order_definer` · `authenticated` بس | كل رسايل الطلب (الظاهرة والمخفية) بنسخها، الأحدث الأول |
-| `zell_customer_update_add(text, text)` | `zell_order_definer` · `authenticated` بس | إضافة في أي حالة (أقصى 50 للطلب) + سطر `add` |
+| `zell_customer_update_list(text)` | `zell_order_definer` · `authenticated` بس | كل رسايل الطلب (الظاهرة والمخفية) بنسخها، الأحدث الأول، و `last_id` |
+| `zell_customer_update_add(text, bigint, text)` | `zell_order_definer` · `authenticated` بس | إضافة في أي حالة بنسخة `last_id` (45404، فإعادة المحاولة مابتكرّرش) · أقصى 50 للطلب · سطر `add` |
 | `zell_customer_update_edit(text, bigint, timestamptz, text)` | `zell_order_definer` · `authenticated` بس | تعديل النص (النسخة 45404 · `edited`) + سطر `edit` |
 | `zell_customer_update_set_hidden(text, bigint, timestamptz, boolean)` | `zell_order_definer` · `authenticated` بس | إخفاء / إظهار + سطر `hide` / `show` |
 | `zell_shipment_result(integer)` · `zell_customer_update_result(integer)` · `zell_customer_update_text(text)` | `zell_order_definer` · مفيش | داخلية: نتيجة اللوحة · تطبيع النص (NFC · CRLF ← LF · trim) والتحقق منه |
@@ -370,4 +370,4 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | `migrations/0021tr2_track_order_v2.sql` | W1 كله (الجسم بين `-- >>> 0021TR2 BODY` و`-- <<<`)، ومحتاج سطر `zell.approved_by` بعد `begin;` (`owner-approval-YYYY-MM-DD-0021tr2-track-order-v2`) |
 | `migrations/0021tr2_track_order_v2_ptest.sql` | smoke قبل التطبيق (9 حالات؛ على Production 8 + skip T09): الجسم منسوخ بالحرف، ورد v1 لآخر طلب = مفاتيح v1 في رد v2، والصلاحيات والدوال التانية زي ما هي |
 | `migrations/0021tr2_track_order_v2_verify.sql` · `_rollback.sql` | التحقق (10 فحوص، في أي وقت بعد التطبيق) · الرجوع (محتاج سطر موافقة) |
-| `ci/0021tr2_sql_ci.sh` · `ci/0021tr2_flows.sql` · `ci/0021tr2_v1_guard.mjs` | CI على Postgres 17 مؤقت فوق شكل Production (A1 · D · P1 · P2 · D2 · TR · EXPRESS): S0–S7 — ptest · التطبيق والأثر · verify بالحالتين · السيناريوهات (F00–F48، 34 حالة) · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · الرجوع ببصمات T1 · حراس الـ preflight · توافق حارس v1 مع رد v2 |
+| `ci/0021tr2_sql_ci.sh` · `ci/0021tr2_flows.sql` · `ci/0021tr2_v1_guard.mjs` | CI على Postgres 17 مؤقت فوق شكل Production (A1 · D · P1 · P2 · D2 · TR · EXPRESS): S0–S7 — ptest · التطبيق والأثر · verify بالحالتين · السيناريوهات (F00–F48، 35 حالة) · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · الرجوع ببصمات T1 · حراس الـ preflight · توافق حارس v1 مع رد v2 |
