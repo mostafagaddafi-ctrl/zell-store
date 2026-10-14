@@ -56,6 +56,12 @@ export function SiteFooter({
         <div className="space-y-3 sm:text-left">
           <p className="text-sm font-semibold text-fg">معلومات</p>
           <ul className="space-y-1.5 text-sm text-muted">
+            {/* TRACK-ORDER — لينك ثابت لصفحة «تتبّع طلبك» */}
+            <li>
+              <Link href="/track" className="transition-colors hover:text-accent">
+                تتبّع طلبك
+              </Link>
+            </li>
             {links.map((link, index) => (
               <li key={String(index) + link.label}>
                 {link.href === '' ? (
