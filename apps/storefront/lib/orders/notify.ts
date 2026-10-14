@@ -18,6 +18,7 @@ import { restPatch, restSelect } from '../data/rpc'
 import { fetchOrderMoney } from './receiptMoney'
 import { DISCOUNT_SIGN, discountLabel, discountLine } from './coupon'
 import { PREFERRED_DELIVERY_PENDING, isDeliveryPeriod, preferredDeliveryLine } from '@zell/core'
+import { parseShippingSnapshot, shippingSnapshotLine } from '@zell/core'
 
 const TELEGRAM_TIMEOUT_MS = 5000
 const MAX_NOTIFY_ERROR = 200
@@ -58,6 +59,10 @@ type NotifyOrder = {
   preferred_delivery_date?: string | null
   preferred_delivery_period?: string | null
   preferred_delivery_note?: string | null
+  /** EXPRESS-SHIPPING — لقطة طريقة الشحن ومدتها (null للطلب القديم) */
+  shipping_method?: string | null
+  shipping_days_min?: number | null
+  shipping_days_max?: number | null
   created_at: string
   order_items: NotifyItem[]
 }
@@ -69,6 +74,7 @@ const ORDER_SELECT =
   'installation_piastres,installation_travel_piastres,' +
   'discount_piastres,coupon_code,' +
   'preferred_delivery_date,preferred_delivery_period,preferred_delivery_note,' +
+  'shipping_method,shipping_days_min,shipping_days_max,' +
   'order_items(product_name_ar,length_cm,width_cm,line_total_piastres,sale_unit,quantity)'
 
 /** تهريب HTML لكل قيمة — parse_mode: 'HTML' (§7.3). */
@@ -128,6 +134,9 @@ function buildMessage(order: NotifyOrder, feePiastres: number = 0): string {
     '<b>الإجمالي الفرعي:</b> ' + escapeHtml(money(order.subtotal_piastres)),
     '<b>الشحن:</b> ' + escapeHtml(money(order.shipping_piastres)),
   )
+  // EXPRESS-SHIPPING — نوع الشحن ومدته من لقطة الطلب (الطلب القديم من غير سطر)
+  const shippingSnapshot = parseShippingSnapshot(order.shipping_method, order.shipping_days_min, order.shipping_days_max)
+  if (shippingSnapshot !== null) lines.push('<b>نوع الشحن:</b> ' + escapeHtml(shippingSnapshotLine(shippingSnapshot)))
   if (priced) {
     const travel = order.installation_travel_piastres ?? 0
     const breakdown =
