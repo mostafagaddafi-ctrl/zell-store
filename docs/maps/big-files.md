@@ -2,7 +2,7 @@
 
 كل ملف في الريبو حجمه 20 KB أو أكتر (SQL · shell · Markdown)، وأقسامه بأرقام سطورها، ومعاهم ملفات 0021-A P1/P2 و0021-D2 الأصغر علشان المرحلة تبقى كاملة. الهدف إن أي شات يقرا الجزء اللي محتاجه بس، من غير ما يفتح ملف فيه آلاف السطور.
 
-- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR. ملفات 0021-D2 W1 (`0021d2_*`) اتضافت في PR W1 فوق main `6f3df51` (صفوفها وأقسامها من الـ head بتاعه)، وباقي الجدول زي ما هو. و`docs/plans/ADMIN-LANG-LIST.md` اتضاف في PR الحصر فوق main `c760822`. وملفات 0021-TR W1 (`0021tr_*`) اتضافت في PR W1 (#145) فوق main `3658906` (صفوفها وأقسامها من الـ head بتاعه)، وقسم `docs/maps/db-map.md` اتولّد من جديد من نفس الـ head (كان قديم: من غير §٧-ج و§٩). وعقدي `EXPRESS-SHIPPING.md` و`TRACK-ORDER-v2.md` اتضافوا في PR العقود (#147) فوق main `c825ce3` (صفوفهم وأقسامهم من الـ head بتاعه). وملفات EXPRESS-SHIPPING W1 (`0021ex_*`) اتضافت في PR W1 فوق main `30971d2` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021a_p1_payments_verify.sql` و`docs/maps/db-map.md` و`docs/contracts/EXPRESS-SHIPPING.md` اتحدّثت من نفس الـ head. وفي PR W2 فوق main `baa66a5`: صفوف وأقسام `backend/db/ci/0021ex_sql_ci.sh` (S46) و`docs/contracts/EXPRESS-SHIPPING.md` (§٧-٣) اتحدّثت من الـ head بتاعه.
+- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR. ملفات 0021-D2 W1 (`0021d2_*`) اتضافت في PR W1 فوق main `6f3df51` (صفوفها وأقسامها من الـ head بتاعه)، وباقي الجدول زي ما هو. و`docs/plans/ADMIN-LANG-LIST.md` اتضاف في PR الحصر فوق main `c760822`. وملفات 0021-TR W1 (`0021tr_*`) اتضافت في PR W1 (#145) فوق main `3658906` (صفوفها وأقسامها من الـ head بتاعه)، وقسم `docs/maps/db-map.md` اتولّد من جديد من نفس الـ head (كان قديم: من غير §٧-ج و§٩). وعقدي `EXPRESS-SHIPPING.md` و`TRACK-ORDER-v2.md` اتضافوا في PR العقود (#147) فوق main `c825ce3` (صفوفهم وأقسامهم من الـ head بتاعه). وملفات EXPRESS-SHIPPING W1 (`0021ex_*`) اتضافت في PR W1 فوق main `30971d2` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021a_p1_payments_verify.sql` و`docs/maps/db-map.md` و`docs/contracts/EXPRESS-SHIPPING.md` اتحدّثت من نفس الـ head. وفي PR W2 فوق main `baa66a5`: صفوف وأقسام `backend/db/ci/0021ex_sql_ci.sh` (S46) و`docs/contracts/EXPRESS-SHIPPING.md` (§٧-٣) اتحدّثت من الـ head بتاعه. وملفات TRACK-ORDER v2 W1 (`0021tr2_*`) اتضافت في PR W1 فوق main `7c68bb5` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021tr_track_order_verify.sql` و`0021tr_track_order_rollback.sql` و`0021ex_express_shipping_rollback.sql` و`docs/contracts/TRACK-ORDER-v2.md` و`docs/maps/db-map.md` اتحدّثت من نفس الـ head.
 - **القراية بالسطور:** على GitHub ضيف `#L100-L200` للرابط، أو اقرا الـ blob وقطّع السطور من القسم لحد القسم اللي بعده.
 - **الـ ptest:** جسم الـ migration منسوخ جواه بالحرف بين «بداية/نهاية الجسم المنسوخ»، فمش محتاج تقراه هناك. اقراه من ملف الـ migration.
 - الجداول متولّدة من عناوين الملفات نفسها: `-- (N)` · الفواصل · `DO $…$` · `create function/table/role` · `BEGIN/COMMIT/ROLLBACK` · `#` في Markdown · `name() {` و`X=$(cat <<'SQL'` في shell.
@@ -20,6 +20,8 @@
 | `backend/db/ci/0021p_sql_ci.sh` | 30 KB | 445 | اختبارات SQL لـ 0021-P في CI (S0–S8 و C1–C4) |
 | `backend/db/ci/0021p1_flows.sql` | 37 KB | 538 | 0021-A P1 سيناريوهات الدفع بعد التطبيق في CI (F01–F42، معاملة بترجع) |
 | `backend/db/ci/0021p1_sql_ci.sh` | 56 KB | 748 | اختبارات SQL لـ 0021-A P1 و P2 وتنضيف التجارب في CI، بتتشغّل مرتين (مالك zell_create_order = zell_order_writer ثم postgres): ptest · تطبيق · verify · مقارنة 520 حالة · الرسوم DB = core · السيناريوهات · rollback · الانحراف · التنضيف C00–C12 · ptest من غير أدمن ولا طلبات |
+| `backend/db/ci/0021tr2_flows.sql` | 43 KB | 605 | TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل ورد التتبّع بعد التطبيق في CI (F00–F48، 34 حالة، معاملة بترجع) |
+| `backend/db/ci/0021tr2_sql_ci.sh` | 42 KB | 518 | اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) |
 | `backend/db/ci/0021tr_sql_ci.sh` | 22 KB | 313 | اختبارات SQL لـ 0021-TR W1 في CI فوق شكل Production (S0–S5: الشكل · ptest · تطبيق · verify · الرد بالسبع حالات والموعد والسطور ومن غير بيانات عميل · null للشكل الغلط · الصلاحيات · rollback · حراس الـ preflight) |
 | `backend/db/migrations/0006b_order_functions.sql` | 38 KB | 765 | دور `zell_order_writer` وأول نسخة من `zell_create_order` و`zell_get_order_receipt` |
 | `backend/db/migrations/0006c_order_receipt_expiry.sql` | 23 KB | 504 | `zell_create_order` بترجّع `receipt_expires_at` |
@@ -56,23 +58,27 @@
 | `backend/db/migrations/0021d_preferred_delivery_rollback.sql` | 39 KB | 852 | 0021-D الرجوع (الدالتين القديمتين بالحرف من 0019) |
 | `backend/db/migrations/0021d_preferred_delivery.sql` | 50 KB | 1012 | 0021-D الموعد المفضّل: الأعمدة · zell_create_order بـ 14 معامل · الإيصال · فترات Checkout |
 | `backend/db/migrations/0021ex_express_shipping_ptest.sql` | 86 KB | 1514 | EXPRESS-SHIPPING W1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، 8 حالات؛ على Production 7 + skip T07، والنتيجة صفوف) |
-| `backend/db/migrations/0021ex_express_shipping_rollback.sql` | 42 KB | 847 | EXPRESS-SHIPPING W1 الرجوع (`zell_create_order` بـ 14 بالحرف = R1؛ بيرفض بسطر سجل أو بأي طلب بعد التطبيق) |
+| `backend/db/migrations/0021ex_express_shipping_rollback.sql` | 42 KB | 851 | EXPRESS-SHIPPING W1 الرجوع (`zell_create_order` بـ 14 بالحرف = R1؛ بيرفض بسطر سجل أو بأي طلب بعد التطبيق، أو طول ما TRACK-ORDER v2 متطبّق) |
 | `backend/db/migrations/0021ex_express_shipping_verify.sql` | 10 KB | 124 | EXPRESS-SHIPPING W1 التحقق بعد التطبيق (10 فحوص، والنتيجة صفوف) — أقل من 20 KB |
 | `backend/db/migrations/0021ex_express_shipping.sql` | 68 KB | 1218 | EXPRESS-SHIPPING W1 الشحن السريع ومدة الشحن: الجدولين · الحراس · أعمدة اللقطة · `zell_shipping_options_get` / `_save` / `_checkout` · `zell_create_order` (15) |
 | `backend/db/migrations/0021p_access_ptest.sql` | 123 KB | 2684 | 0021-P اختبار قبل التطبيق (الجسمين منسوخين بالحرف، والنتيجة صفوف) |
 | `backend/db/migrations/0021p_access_verify.sql` | 22 KB | 343 | 0021-P التحقق بعد التطبيق (15 فحص، والنتيجة صفوف) |
 | `backend/db/migrations/0021p_erp_access.sql` | 46 KB | 1048 | 0021-P المحرك `erp_*` |
 | `backend/db/migrations/0021p_zell_erp_access.sql` | 42 KB | 983 | 0021-P محوّل ZELL `zell_erp_*` |
+| `backend/db/migrations/0021tr2_track_order_v2_ptest.sql` | 65 KB | 960 | TRACK-ORDER v2 W1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، 9 حالات؛ على Production 8 + skip T09، والنتيجة صفوف) |
+| `backend/db/migrations/0021tr2_track_order_v2_rollback.sql` | 9 KB | 154 | TRACK-ORDER v2 W1 الرجوع (دالة التتبّع بجسم T1 بالحرف؛ بيرفض بأي شحنة أو رسالة أو سطر سجل) — أقل من 20 KB |
+| `backend/db/migrations/0021tr2_track_order_v2_verify.sql` | 15 KB | 170 | TRACK-ORDER v2 W1 التحقق بعد التطبيق (10 فحوص، والنتيجة صفوف) — أقل من 20 KB |
+| `backend/db/migrations/0021tr2_track_order_v2.sql` | 45 KB | 685 | TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · الحراس · `zell_shipment_get` / `_save` · `zell_customer_update_list` / `_add` / `_edit` / `_set_hidden` · `zell_checkout_track_order` (v2) |
 | `backend/db/migrations/0021tr_track_order_ptest.sql` | 15 KB | 261 | 0021-TR W1 اختبار قبل التطبيق (smoke، 6 حالات، والنتيجة صفوف) — أقل من 20 KB |
-| `backend/db/migrations/0021tr_track_order_rollback.sql` | 2 KB | 41 | 0021-TR W1 الرجوع (الدالة والـ policy وصلاحيات الأعمدة على `order_items`؛ مسموح دايمًا، وقبل rollback A1) — أقل من 20 KB |
-| `backend/db/migrations/0021tr_track_order_verify.sql` | 9 KB | 129 | 0021-TR W1 التحقق بعد التطبيق (7 فحوص بدور `service_role`، والنتيجة صفوف) — أقل من 20 KB |
+| `backend/db/migrations/0021tr_track_order_rollback.sql` | 2 KB | 45 | 0021-TR W1 الرجوع (الدالة والـ policy وصلاحيات الأعمدة على `order_items`؛ بيرفض طول ما TRACK-ORDER v2 متطبّق) — أقل من 20 KB |
+| `backend/db/migrations/0021tr_track_order_verify.sql` | 18 KB | 230 | 0021-TR W1 التحقق بعد التطبيق (7 فحوص، النداءات بدور `service_role`، بحالتين قبل/بعد TRACK-ORDER v2، والنتيجة صفوف) — أقل من 20 KB |
 | `backend/db/migrations/0021tr_track_order.sql` | 11 KB | 168 | 0021-TR W1 «تتبّع طلبك»: قراية `order_items` لـ `zell_order_definer` (٨ أعمدة + policy) · `zell_checkout_track_order` لـ `service_role` — أقل من 20 KB |
 | `docs/contracts/0021-A.md` | 94 KB | 438 | عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر |
 | `docs/contracts/0021-P-code.md` | 29 KB | 249 | عقد كود 0021-P: أ ← ب1 ← ب2 · الأوضاع · الفاحص · التعديلات بعد الاعتماد |
 | `docs/contracts/0021-P.md` | 22 KB | 252 | عقد 0021-P (الداتابيز): المحرك والمحوّل والهوية من الجلسة |
 | `docs/contracts/EXPRESS-SHIPPING.md` | 37 KB | 194 | عقد الشحن السريع ومدة الشحن: الإعداد `zell_shipping_options` · `zell_create_order` (15) واللقطة · Checkout والـ canonical · فحوص التحقق المتأثرة · قراءات R1–R6 ونتايجها · تفاصيل W1 و W2 |
-| `docs/contracts/TRACK-ORDER-v2.md` | 21 KB | 162 | عقد التتبّع الكامل: حقول v1 + v2 · المبالغ (المدفوع · المردود · الصافي · المتبقي) · خط المراحل · الشحنة · رسايل العميل · قراءات T1–T5 |
-| `docs/maps/db-map.md` | 44 KB | 334 | خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف |
+| `docs/contracts/TRACK-ORDER-v2.md` | 32 KB | 203 | عقد التتبّع الكامل: حقول v1 + v2 · المبالغ (المدفوع · المردود · الصافي · المتبقي) · خط المراحل · الشحنة · رسايل العميل · الموعد · قراءات T1–T5 ونتايجها · W1 (الأسماء والأكواد النهائية) |
+| `docs/maps/db-map.md` | 51 KB | 373 | خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف |
 | `docs/plans/ADMIN-LANG-LIST.md` | 62 KB | 224 | حصر نصوص اللوحة العامية مع مقترح فصحى مبسّطة لكل نص (أ · ب · ج · د)، للمالك يختار منه |
 | `docs/plans/ORDER-FLOW-PLAN.md` | 119 KB | 1584 | خطة مسار الطلب |
 | `README.md` | 25 KB | 325 | حالة النظام الحي: الميزات · اللوحة · الهيكل · الأمان · التوثيق |
@@ -348,6 +354,67 @@ EXPRESS-SHIPPING W1 سيناريوهات الإعداد والطلب بعد ال
 | 623 | c_seed() { |
 | 630 | c_concurrent() { |
 | 739 | # ── S14: ptest production من غير أدمن شغال ولا أي طلب (B2): الـ skips محسوبة من البيانات والحكم بال… |
+
+## `backend/db/ci/0021tr2_flows.sql`
+
+TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل ورد التتبّع بعد التطبيق في CI (F00–F48، 34 حالة، معاملة بترجع) · 605 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 12 | begin; |
+| 19 | create function pg_temp.zt(p_name text, p_ok boolean, p_detail text) |
+| 26 | create function pg_temp.call_as(p_role text, p_sub text, p_sql text) |
+| 49 | create function pg_temp.owner_id() returns text language sql as $f$ select '00000000-0000-0000-0000-… |
+| 50 | create function pg_temp.admin_id() returns text language sql as $f$ select '00000000-0000-0000-0000-… |
+| 51 | create function pg_temp.off_id() returns text language sql as $f$ select '00000000-0000-0000-0000-00… |
+| 52 | create function pg_temp.adm(p_sql text) returns text language sql as $f$ select pg_temp.call_as('aut… |
+| 53 | create function pg_temp.own(p_sql text) returns text language sql as $f$ select pg_temp.call_as('aut… |
+| 54 | create function pg_temp.who(p_who text, p_sql text) returns text language sql as $f$ |
+| 61 | create function pg_temp.js(p text) returns jsonb language sql as $f$ |
+| 66 | create function pg_temp.must(p text) returns text language plpgsql as $f$ |
+| 75 | create function pg_temp.num(p_tag text) returns text language sql as $f$ select o.num from pg_temp.z… |
+| 76 | create function pg_temp.oid_of(p_tag text) returns integer language sql as $f$ |
+| 79 | create function pg_temp.ver(p_tag text) returns text language sql as $f$ |
+| 82 | create function pg_temp.sver(p_tag text) returns text language sql as $f$ |
+| 86 | create function pg_temp.uver(p_id bigint) returns text language sql as $f$ |
+| 90 | create function pg_temp.today() returns date language sql as $f$ select (pg_catalog.now() at time zo… |
+| 93 | create function pg_temp.co(p_key text, p_phone text, p_over jsonb, p_method text) |
+| 126 | create function pg_temp.tr(p_tag text, p_to text, p_reason text) returns text language sql as $f$ |
+| 130 | create function pg_temp.pay(p_who text, p_fn text, p_cmd integer, p_tag text, p_amount integer, p_re… |
+| 137 | create function pg_temp.ship(p_who text, p_tag text, p_ver text, p_carrier text, p_number text, p_ur… |
+| 144 | create function pg_temp.uadd(p_who text, p_tag text, p_text text) returns text language sql as $f$ |
+| 148 | create function pg_temp.uedit(p_who text, p_tag text, p_id bigint, p_ver text, p_text text) returns … |
+| 152 | create function pg_temp.uhide(p_who text, p_tag text, p_id bigint, p_ver text, p_hidden boolean) ret… |
+| 156 | create function pg_temp.track(p_tag text) returns jsonb language sql as $f$ |
+| 160 | create function pg_temp.slog(p_tag text) returns bigint language sql as $f$ |
+| 163 | create function pg_temp.ulog() returns bigint language sql as $f$ select count(*) from public.zell_o… |
+| 164 | create function pg_temp.statuses(p_r jsonb) returns text language sql as $f$ |
+| 170 | create function pg_temp.track_v1(p_order_number text) |
+| 209 | do $zS$ |
+| 265 | do $zA$ |
+| 308 | do $zB$ |
+| 408 | do $zC$ |
+| 499 | do $zD$ |
+| 605 | rollback; |
+
+## `backend/db/ci/0021tr2_sql_ci.sh`
+
+اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) · 518 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 67 | record() { |
+| 137 | prep() { |
+| 151 | SEED_SQL=$(cat <<'SQL' |
+| 231 | SEED2_SQL=$(cat <<'SQL' |
+| 272 | # ── S0: الشكل والملفات ── |
+| 295 | # ── S1: قبل التطبيق (شكل Production) و ptest ── |
+| 325 | # ── S2: التطبيق ── |
+| 351 | # ── S3: فحوص التحقق: مفيش بصمة مجهولة ولا خليط ── |
+| 363 | # ── S4: السلوك ── |
+| 436 | # ── S5: الرجوع ── |
+| 464 | # ── S6: حراس الـ preflight ── |
+| 495 | # ── S7: توافق حارس v1 المنشور مع رد v2 (طلبات حقيقية) ── |
 
 ## `backend/db/ci/0021tr_sql_ci.sh`
 
@@ -1229,18 +1296,17 @@ EXPRESS-SHIPPING W1 اختبار قبل التطبيق (الجسم منسوخ ب
 
 ## `backend/db/migrations/0021ex_express_shipping_rollback.sql`
 
-EXPRESS-SHIPPING W1 الرجوع (`zell_create_order` بـ 14 بالحرف = R1؛ بيرفض بسطر سجل أو بأي طلب بعد التطبيق) · 847 سطر
+EXPRESS-SHIPPING W1 الرجوع (`zell_create_order` بـ 14 بالحرف = R1؛ بيرفض بسطر سجل أو بأي طلب بعد التطبيق، أو طول ما TRACK-ORDER v2 متطبّق) · 851 سطر
 
 | السطر | القسم |
 | ---: | --- |
-| 12 | begin; |
-| 16 | do $exrb$ |
-| 47 | do $exrbdata$ |
-| 71 | CREATE FUNCTION public.zell_create_order(p_items jsonb, p_customer_name text, p_customer_phone text,… |
-| 785 | do $exrbacl$ |
-| 815 | do $exrbpost$ |
-| 847 | commit; |
-
+| 13 | begin; |
+| 17 | do $exrb$ |
+| 51 | do $exrbdata$ |
+| 75 | CREATE FUNCTION public.zell_create_order(p_items jsonb, p_customer_name text, p_customer_phone text,… |
+| 789 | do $exrbacl$ |
+| 819 | do $exrbpost$ |
+| 851 | commit; |
 ## `backend/db/migrations/0021ex_express_shipping_verify.sql`
 
 EXPRESS-SHIPPING W1 التحقق بعد التطبيق (10 فحوص، والنتيجة صفوف) — أقل من 20 KB · 124 سطر
@@ -1425,6 +1491,106 @@ EXPRESS-SHIPPING W1 الشحن السريع ومدة الشحن: الجدولي�
 | 982 | نهاية الجسم المنسوخ: 0021P ADAPTER BODY |
 | 983 | COMMIT |
 
+## `backend/db/migrations/0021tr2_track_order_v2_ptest.sql`
+
+TRACK-ORDER v2 W1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، 9 حالات؛ على Production 8 + skip T09، والنتيجة صفوف) · 960 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 12 | begin; |
+| 19 | create function pg_temp.zt(p_name text, p_ok boolean, p_detail text) |
+| 25 | create function pg_temp.zt_skip(p_name text, p_detail text) |
+| 32 | create function pg_temp.call_as(p_role text, p_sub text, p_sql text) |
+| 55 | create function pg_temp.privs() returns text language sql as $f$ |
+| 73 | create function pg_temp.fns() returns text language sql as $f$ |
+| 81 | do $zguard$ |
+| 114 | -- >>> 0021TR2 BODY |
+| 118 | -- (0) preflight: المتصل · الموافقة · المتطلبات (A1 · P1 · TR · EXPRESS) · مش متطبّق (الأسماء فاضية … |
+| 121 | do $tr2pre$ |
+| 175 | -- (1) الجداول (مالكها postgres): RLS + policy لـ zell_order_definer بس، وصفر صلاحيات لـ anon و auth… |
+| 179 | create table public.zell_order_shipments ( |
+| 202 | create table public.zell_order_shipments_log ( |
+| 212 | create table public.zell_order_customer_updates ( |
+| 227 | create table public.zell_order_customer_updates_log ( |
+| 261 | -- (2) الثبات: السجلين append-only (مفيش UPDATE ولا DELETE ولا TRUNCATE)، والشحنة والرسالة مابيتمسحو… |
+| 263 | create function public.zell_shipment_trg_append_only() |
+| 269 | create function public.zell_customer_update_trg_append_only() |
+| 295 | -- (3) الدوال: CREATE كـ zell_order_definer (SET LOCAL ROLE). الأسماء zell_shipment_* و zell_custome… |
+| 303 | create function public.zell_shipment_result(p_order_id integer) |
+| 320 | create function public.zell_shipment_get(p_order_number text) |
+| 339 | create function public.zell_shipment_save(p_order_number text, p_expected_updated_at timestamptz, p_… |
+| 415 | create function public.zell_customer_update_result(p_order_id integer) |
+| 429 | create function public.zell_customer_update_text(p_text text) |
+| 441 | create function public.zell_customer_update_list(p_order_number text) |
+| 456 | create function public.zell_customer_update_add(p_order_number text, p_text text) |
+| 482 | create function public.zell_customer_update_edit(p_order_number text, p_update_id bigint, p_expected… |
+| 519 | create function public.zell_customer_update_set_hidden(p_order_number text, p_update_id bigint, p_ex… |
+| 570 | -- (4) zell_checkout_track_order: CREATE OR REPLACE بنفس الاسم والتوقيع والمالك والإعدادات (والصلاحي… |
+| 574 | create or replace function public.zell_checkout_track_order(p_order_number text) |
+| 676 | -- (5) postflight |
+| 677 | do $tr2post$ |
+| 770 | -- <<< 0021TR2 BODY |
+| 772 | do $zT$ |
+| 893 | do $zC$ |
+| 960 | rollback; |
+
+## `backend/db/migrations/0021tr2_track_order_v2_rollback.sql`
+
+TRACK-ORDER v2 W1 الرجوع (دالة التتبّع بجسم T1 بالحرف؛ بيرفض بأي شحنة أو رسالة أو سطر سجل) — أقل من 20 KB · 154 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 13 | begin; |
+| 17 | do $tr2rb$ |
+| 51 | do $tr2rbdata$ |
+| 64 | create or replace function public.zell_checkout_track_order(p_order_number text) |
+| 120 | do $tr2rbpost$ |
+| 154 | commit; |
+
+## `backend/db/migrations/0021tr2_track_order_v2_verify.sql`
+
+TRACK-ORDER v2 W1 التحقق بعد التطبيق (10 فحوص، والنتيجة صفوف) — أقل من 20 KB · 170 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 10 | begin; |
+| 170 | rollback; |
+
+## `backend/db/migrations/0021tr2_track_order_v2.sql`
+
+TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · الحراس · `zell_shipment_get` / `_save` · `zell_customer_update_list` / `_add` / `_edit` / `_set_hidden` · `zell_checkout_track_order` (v2) · 685 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 27 | begin; |
+| 28 | -- >>> 0021TR2 BODY |
+| 32 | -- (0) preflight: المتصل · الموافقة · المتطلبات (A1 · P1 · TR · EXPRESS) · مش متطبّق (الأسماء فاضية … |
+| 35 | do $tr2pre$ |
+| 89 | -- (1) الجداول (مالكها postgres): RLS + policy لـ zell_order_definer بس، وصفر صلاحيات لـ anon و auth… |
+| 93 | create table public.zell_order_shipments ( |
+| 116 | create table public.zell_order_shipments_log ( |
+| 126 | create table public.zell_order_customer_updates ( |
+| 141 | create table public.zell_order_customer_updates_log ( |
+| 175 | -- (2) الثبات: السجلين append-only (مفيش UPDATE ولا DELETE ولا TRUNCATE)، والشحنة والرسالة مابيتمسحو… |
+| 177 | create function public.zell_shipment_trg_append_only() |
+| 183 | create function public.zell_customer_update_trg_append_only() |
+| 209 | -- (3) الدوال: CREATE كـ zell_order_definer (SET LOCAL ROLE). الأسماء zell_shipment_* و zell_custome… |
+| 217 | create function public.zell_shipment_result(p_order_id integer) |
+| 234 | create function public.zell_shipment_get(p_order_number text) |
+| 253 | create function public.zell_shipment_save(p_order_number text, p_expected_updated_at timestamptz, p_… |
+| 329 | create function public.zell_customer_update_result(p_order_id integer) |
+| 343 | create function public.zell_customer_update_text(p_text text) |
+| 355 | create function public.zell_customer_update_list(p_order_number text) |
+| 370 | create function public.zell_customer_update_add(p_order_number text, p_text text) |
+| 396 | create function public.zell_customer_update_edit(p_order_number text, p_update_id bigint, p_expected… |
+| 433 | create function public.zell_customer_update_set_hidden(p_order_number text, p_update_id bigint, p_ex… |
+| 484 | -- (4) zell_checkout_track_order: CREATE OR REPLACE بنفس الاسم والتوقيع والمالك والإعدادات (والصلاحي… |
+| 488 | create or replace function public.zell_checkout_track_order(p_order_number text) |
+| 590 | -- (5) postflight |
+| 591 | do $tr2post$ |
+| 684 | -- <<< 0021TR2 BODY |
+| 685 | commit; |
+
 ## `backend/db/migrations/0021tr_track_order_ptest.sql`
 
 0021-TR W1 اختبار قبل التطبيق (smoke، 6 حالات، والنتيجة صفوف) — أقل من 20 KB · 261 سطر
@@ -1449,25 +1615,23 @@ EXPRESS-SHIPPING W1 الشحن السريع ومدة الشحن: الجدولي�
 
 ## `backend/db/migrations/0021tr_track_order_rollback.sql`
 
-0021-TR W1 الرجوع (الدالة والـ policy وصلاحيات الأعمدة على `order_items`؛ مسموح دايمًا، وقبل rollback A1) — أقل من 20 KB · 41 سطر
+0021-TR W1 الرجوع (الدالة والـ policy وصلاحيات الأعمدة على `order_items`؛ بيرفض طول ما TRACK-ORDER v2 متطبّق) — أقل من 20 KB · 45 سطر
 
 | السطر | القسم |
 | ---: | --- |
-| 6 | begin; |
-| 10 | do $trrb$ |
-| 22 | drop function public.zell_checkout_track_order(text); |
-| 29 | do $trrbpost$ |
-| 41 | commit; |
-
+| 7 | begin; |
+| 11 | do $trrb$ |
+| 33 | do $trrbpost$ |
+| 45 | commit; |
 ## `backend/db/migrations/0021tr_track_order_verify.sql`
 
-0021-TR W1 التحقق بعد التطبيق (7 فحوص بدور `service_role`، والنتيجة صفوف) — أقل من 20 KB · 129 سطر
+0021-TR W1 التحقق بعد التطبيق (7 فحوص، النداءات بدور `service_role`، بحالتين قبل/بعد TRACK-ORDER v2، والنتيجة صفوف) — أقل من 20 KB · 230 سطر
 
 | السطر | القسم |
 | ---: | --- |
-| 10 | begin; |
-| 129 | rollback; |
-
+| 14 | begin; |
+| 18 | do $trvcall$ |
+| 230 | rollback; |
 ## `backend/db/migrations/0021tr_track_order.sql`
 
 0021-TR W1 «تتبّع طلبك»: قراية `order_items` لـ `zell_order_definer` (٨ أعمدة + policy) · `zell_checkout_track_order` لـ `service_role` — أقل من 20 KB · 168 سطر
@@ -1611,7 +1775,7 @@ EXPRESS-SHIPPING W1 الشحن السريع ومدة الشحن: الجدولي�
 | 188 | ## ١١) سجل التعديلات |
 ## `docs/contracts/TRACK-ORDER-v2.md`
 
-عقد التتبّع الكامل: حقول v1 + v2 · المبالغ (المدفوع · المردود · الصافي · المتبقي) · خط المراحل · الشحنة · رسايل العميل · قراءات T1–T5 · 162 سطر
+عقد التتبّع الكامل: حقول v1 + v2 · المبالغ (المدفوع · المردود · الصافي · المتبقي) · خط المراحل · الشحنة · رسايل العميل · الموعد · قراءات T1–T5 ونتايجها · W1 (الأسماء والأكواد النهائية) · 203 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -1630,14 +1794,15 @@ EXPRESS-SHIPPING W1 الشحن السريع ومدة الشحن: الجدولي�
 | 119 | ## ٩) زرار واتساب |
 | 123 | ## ١٠) الأمان والمخاطر |
 | 129 | ## ١١) قراءات Production المطلوبة قبل اعتماد العقد (قراءة بس، كل واحدة بموافقة منفصلة) |
-| 138 | ## ١٢) التقسيم والموافقات |
-| 145 | ## ١٣) الرجوع |
-| 148 | ## ١٤) قرارات المالك (2026-10-14 — كانت أسئلة واتحسمت) |
-| 160 | ## ١٥) سجل التعديلات |
-
+| 138 | ### ١١-١ النتايج (2026-10-14 — قراءة بس، كل واحدة بموافقة لوحدها، ومفيش أي فرق عن الريبو) |
+| 148 | ## ١٢) التقسيم والموافقات |
+| 155 | ## ١٣) الرجوع |
+| 158 | ## ١٤) قرارات المالك (2026-10-14 — كانت أسئلة واتحسمت) |
+| 170 | ## ١٥) سجل التعديلات |
+| 175 | ## ١٦) W1 (SQL + CI) — الأسماء والأكواد النهائية والتفاصيل اللي اتحددت في الـ PR |
 ## `docs/maps/db-map.md`
 
-خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف · 334 سطر
+خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف · 373 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -1648,21 +1813,23 @@ EXPRESS-SHIPPING W1 الشحن السريع ومدة الشحن: الجدولي�
 | 54 | ### دورة الطلب (0021-A A1) |
 | 66 | ### موعد التسليم في Checkout (0021-D2 W1 — مش متطبّق لسه) |
 | 75 | ### الشحن السريع ومدة الشحن (EXPRESS-SHIPPING W1 — مش متطبّق لسه) |
-| 82 | ### المخزون والمشتريات (0020) |
-| 99 | ### الصلاحيات (0021-P) |
-| 115 | ## ٣) دوال المتجر والطلب |
-| 131 | ## ٤) دوال اللوحة (الكتابة الذرّية) |
-| 153 | ## ٥) دوال المخزون (0020، مالكها `zell_inventory_definer`) |
-| 181 | ## ٦) دوال الصلاحيات (0021-P) |
-| 185 | ### المحرك (`0021p_erp_access.sql`، مالكها `erp_definer`، كلها داخلية) |
-| 197 | ### المحوّل (`0021p_zell_erp_access.sql`) |
-| 206 | ### Triggers 0021-P |
-| 217 | ## ٧) دوال دورة الطلب (0021-A A1، مالكها `zell_order_definer`) |
-| 230 | ## ٧-ب) دوال الدفعات ورسوم التأكيد (0021-A P1 و P2) |
-| 260 | ## ٧-ج) دوال موعد التسليم في Checkout (0021-D2 W1) |
-| 280 | ## ٨) ملفات من غير جداول أو دوال جديدة |
-| 294 | ## ٩) تتبّع الطلب للعميل (0021-TR W1) |
-| 313 | ## ١٠) الشحن السريع ومدة الشحن (EXPRESS-SHIPPING W1) |
+| 82 | ### الشحنة ورسايل العميل (TRACK-ORDER v2 W1 — مش متطبّق لسه) |
+| 93 | ### المخزون والمشتريات (0020) |
+| 110 | ### الصلاحيات (0021-P) |
+| 126 | ## ٣) دوال المتجر والطلب |
+| 142 | ## ٤) دوال اللوحة (الكتابة الذرّية) |
+| 164 | ## ٥) دوال المخزون (0020، مالكها `zell_inventory_definer`) |
+| 192 | ## ٦) دوال الصلاحيات (0021-P) |
+| 196 | ### المحرك (`0021p_erp_access.sql`، مالكها `erp_definer`، كلها داخلية) |
+| 208 | ### المحوّل (`0021p_zell_erp_access.sql`) |
+| 217 | ### Triggers 0021-P |
+| 228 | ## ٧) دوال دورة الطلب (0021-A A1، مالكها `zell_order_definer`) |
+| 241 | ## ٧-ب) دوال الدفعات ورسوم التأكيد (0021-A P1 و P2) |
+| 271 | ## ٧-ج) دوال موعد التسليم في Checkout (0021-D2 W1) |
+| 291 | ## ٨) ملفات من غير جداول أو دوال جديدة |
+| 305 | ## ٩) تتبّع الطلب للعميل (0021-TR W1) |
+| 325 | ## ١٠) الشحن السريع ومدة الشحن (EXPRESS-SHIPPING W1) |
+| 348 | ## ١١) التتبّع الكامل: الشحنة ورسايل العميل (TRACK-ORDER v2 W1) |
 ## `docs/plans/ADMIN-LANG-LIST.md`
 
 حصر نصوص اللوحة العامية مع مقترح فصحى مبسّطة لكل نص (أ · ب · ج · د)، للمالك يختار منه · 224 سطر
