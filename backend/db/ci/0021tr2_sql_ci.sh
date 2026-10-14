@@ -211,6 +211,8 @@ update public.zell_shipping_options
        governorates = '{"القاهرة": {"standard_days_min": 2, "standard_days_max": 4, "express_enabled": true, "express_price_piastres": 11000, "express_days_min": 1, "express_days_max": 1}}'::jsonb
  where id;
 select pg_temp.co('01000000308', 'p_items => ''[{"productId":1,"lengthCm":300}]''::jsonb, p_shipping_method => ''express''');
+-- الإعداد يرجع لقيم التطبيق (زي 0021ex_sql_ci.sh) من غير سطر سجل، علشان EX verify V07.
+update public.zell_shipping_options set express_enabled = false, governorates = '{}'::jsonb where id;
 select pg_temp.co('01000000310', 'p_items => ''[{"productId":1,"lengthCm":500}]''::jsonb');
 insert into public.orders (order_number, customer_name, customer_phone, governorate, address, subtotal_piastres, shipping_piastres, total_piastres)
 values ('FLM-GKAAAA', 'عميل قديم', '01000000309', 'القاهرة', 'عنوان قديم طويل كفاية', 30000, 5000, 35000);
@@ -378,8 +380,8 @@ record "S31 mixed state (TR2 tables + T1 track body) -> TR and TR2 verify FAIL; 
 
 # ── S4: السلوك ──
 run_file "$FLOWS" "$TMP/flows.out"; E=$?; S=$(summary_of "$TMP/flows.out")
-ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$S" 9)" = "PASS" ] && [ "$(rf "$S" 7)" = "35" ] && [ "$(rf "$S" 8)" = "0" ]; then ok=yes; fi
-record "S40 flows (F00–F48) -> PASS (35 pass, 0 fail)" "$ok" "E=$E S=$S fails=$(fails_of "$TMP/flows.out") tail=$(tail -n 3 "$TMP/flows.out" | tr '\n' ' ' | cut -c1-600)"
+ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$S" 9)" = "PASS" ] && [ "$(rf "$S" 7)" = "36" ] && [ "$(rf "$S" 8)" = "0" ]; then ok=yes; fi
+record "S40 flows (F00–F49) -> PASS (36 pass, 0 fail)" "$ok" "E=$E S=$S fails=$(fails_of "$TMP/flows.out") tail=$(tail -n 3 "$TMP/flows.out" | tr '\n' ' ' | cut -c1-600)"
 ROW=$(q "select (select count(*) from public.zell_order_shipments) || '|' || (select count(*) from public.zell_order_shipments_log) || '|' || (select count(*) from public.zell_order_customer_updates) || '|' || (select count(*) from public.zell_order_customer_updates_log) || '|' || (select count(*) from public.orders)")
 ok=no; if [ "$ROW" = "0|0|0|0|1" ] && [ "$(impact)" = "$AFTER" ] && [ "$(rf "$(verify_tr2)" 7)" = "PASS" ]; then ok=yes; fi
 record "S41 flows left nothing (4 tables empty, only the base order, impact unchanged), TR2 verify PASS" "$ok" "row=$ROW"
