@@ -23,7 +23,7 @@ with tbl as (
    where p.oid in (pg_catalog.to_regprocedure('public.zell_shipment_get(text)'),
                    pg_catalog.to_regprocedure('public.zell_shipment_save(text, timestamptz, text, text, text, date, date)'),
                    pg_catalog.to_regprocedure('public.zell_customer_update_list(text)'),
-                   pg_catalog.to_regprocedure('public.zell_customer_update_add(text, text)'),
+                   pg_catalog.to_regprocedure('public.zell_customer_update_add(text, bigint, text)'),
                    pg_catalog.to_regprocedure('public.zell_customer_update_edit(text, bigint, timestamptz, text)'),
                    pg_catalog.to_regprocedure('public.zell_customer_update_set_hidden(text, bigint, timestamptz, boolean)'))
 ), inner_fn as (
