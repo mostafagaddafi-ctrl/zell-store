@@ -18,6 +18,7 @@ export function OrderSummary({
   installationTravelPiastres,
   discount,
   confirmationFee,
+  shippingLabel,
 }: {
   subtotalPiastres: number
   /** null = المحافظة لسه مش متحددة */
@@ -38,6 +39,8 @@ export function OrderSummary({
   discount?: { code: string; piastres: number } | null
   /** 0021-A P2 — رسوم التأكيد (Checkout بس): الإعداد + نوع الطلب. المعتمد لقطة الداتابيز وقت الطلب. */
   confirmationFee?: { fee: CheckoutFee; madeToMeasure: boolean; installation: boolean } | null
+  /** EXPRESS-SHIPPING — «الشحن العادي» / «الشحن السريع» لما الاختيار ظاهر. ناقص = «الشحن». */
+  shippingLabel?: string
 }) {
   const line = trustLine ?? 'الدفع عند الاستلام · توصيل لكل محافظات مصر'
   const installationShown = typeof installationPiastres === 'number' && typeof installationTravelPiastres === 'number'
@@ -78,7 +81,7 @@ export function OrderSummary({
           </div>
         ) : null}
         <Row
-          label="الشحن"
+          label={shippingLabel ?? 'الشحن'}
           value={
             shippingPiastres === null ? (
               <span className="text-muted">بعد اختيار المحافظة</span>
