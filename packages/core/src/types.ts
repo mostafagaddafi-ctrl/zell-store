@@ -193,6 +193,20 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
   cancelled: 'ملغي',
 }
 
+/**
+ * TRACK-ORDER — أسماء الحالات للعميل في صفحة «تتبّع طلبك» بالمتجر (العقد docs/contracts/TRACK-ORDER.md §٤).
+ * منفصلة عن STATUS_LABELS (اللي فوق) عن قصد، و STATUS_LABELS وأسماء اللوحة ماتتغيّرش.
+ */
+export const CUSTOMER_STATUS_LABELS: Record<OrderStatus, string> = {
+  new: 'استلمنا طلبك',
+  confirmed: 'طلبك اتأكد',
+  preparing: 'بنجهّز طلبك',
+  shipped: 'طلبك في الطريق',
+  delivered: 'اتسلّم',
+  refused: 'ماتمّش الاستلام',
+  cancelled: 'الطلب اتلغى',
+}
+
 // ── محتوى الصفحة من «المحتوى» في اللوحة ─────────────────────────
 export type HomeSectionKey = 'hero' | 'products' | 'how_it_works' | 'faq'
 
