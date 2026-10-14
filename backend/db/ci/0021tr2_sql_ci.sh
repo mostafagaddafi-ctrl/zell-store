@@ -259,20 +259,25 @@ $f$;
 create function pg_temp.uver(p_id bigint) returns text language sql as $f$
   select pg_catalog.quote_literal(u.updated_at::text) || '::timestamptz' from public.zell_order_customer_updates u where u.id = p_id
 $f$;
+create function pg_temp.uadd(p_who text, p_phone text, p_text text) returns jsonb language sql as $f$
+  select pg_temp.as_user(p_who, pg_catalog.format('select public.zell_customer_update_add(%L, %s, %L)', pg_temp.num(p_phone),
+    coalesce((select pg_catalog.max(u.id)::text from public.zell_order_customer_updates u join public.orders o on o.id = u.order_id
+               where o.customer_phone = p_phone), 'null'), p_text))
+$f$;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', pg_catalog.format('select public.zell_shipment_save(%L, null, %L, %L, %L, %L::date, null)',
        pg_temp.num('01000000305'), 'أرامكس', 'AWB-305', 'https://track.example.com/305', (now() at time zone 'Africa/Cairo')::date));
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', pg_catalog.format('select public.zell_shipment_save(%L, null, %L, null, null, null, %L::date)',
        pg_temp.num('01000000306'), 'بوسطة', (now() at time zone 'Africa/Cairo')::date + 1));
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', pg_catalog.format('select public.zell_shipment_save(%L, null, %L, null, null, null, null)',
        pg_temp.num('01000000303'), 'شركة محلية'));
-select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', pg_catalog.format('select public.zell_customer_update_add(%L, %L)', pg_temp.num('01000000302'), 'تم تأكيد طلبك'));
+select pg_temp.uadd('00000000-0000-0000-0000-00000000000b', '01000000302', 'تم تأكيد طلبك');
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', pg_catalog.format('select public.zell_customer_update_edit(%L, %s, %s, %L)',
        pg_temp.num('01000000302'), pg_temp.uid('01000000302', 1), pg_temp.uver(pg_temp.uid('01000000302', 1)), 'تم تأكيد طلبك وجاري التجهيز'));
-select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', pg_catalog.format('select public.zell_customer_update_add(%L, %L)', pg_temp.num('01000000306'), 'وصل طلبك'));
-select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', pg_catalog.format('select public.zell_customer_update_add(%L, %L)', pg_temp.num('01000000306'), 'رسالة هتتخفي'));
+select pg_temp.uadd('00000000-0000-0000-0000-00000000000b', '01000000306', 'وصل طلبك');
+select pg_temp.uadd('00000000-0000-0000-0000-00000000000b', '01000000306', 'رسالة هتتخفي');
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', pg_catalog.format('select public.zell_customer_update_set_hidden(%L, %s, %s, true)',
        pg_temp.num('01000000306'), pg_temp.uid('01000000306', 2), pg_temp.uver(pg_temp.uid('01000000306', 2))));
-select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', pg_catalog.format('select public.zell_customer_update_add(%L, %L)', pg_temp.num('01000000310'), 'طلبك وصلنا'));
+select pg_temp.uadd('00000000-0000-0000-0000-00000000000b', '01000000310', 'طلبك وصلنا');
 select 'SEED2_OK ' || (select count(*) from public.zell_order_shipments) || '/' || (select count(*) from public.zell_order_customer_updates);
 SQL
 )
@@ -373,8 +378,8 @@ record "S31 mixed state (TR2 tables + T1 track body) -> TR and TR2 verify FAIL; 
 
 # ── S4: السلوك ──
 run_file "$FLOWS" "$TMP/flows.out"; E=$?; S=$(summary_of "$TMP/flows.out")
-ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$S" 9)" = "PASS" ] && [ "$(rf "$S" 7)" = "34" ] && [ "$(rf "$S" 8)" = "0" ]; then ok=yes; fi
-record "S40 flows (F00–F48) -> PASS (34 pass, 0 fail)" "$ok" "E=$E S=$S fails=$(fails_of "$TMP/flows.out") tail=$(tail -n 3 "$TMP/flows.out" | tr '\n' ' ' | cut -c1-600)"
+ok=no; if [ "$E" -eq 0 ] && [ "$(rf "$S" 9)" = "PASS" ] && [ "$(rf "$S" 7)" = "35" ] && [ "$(rf "$S" 8)" = "0" ]; then ok=yes; fi
+record "S40 flows (F00–F48) -> PASS (35 pass, 0 fail)" "$ok" "E=$E S=$S fails=$(fails_of "$TMP/flows.out") tail=$(tail -n 3 "$TMP/flows.out" | tr '\n' ' ' | cut -c1-600)"
 ROW=$(q "select (select count(*) from public.zell_order_shipments) || '|' || (select count(*) from public.zell_order_shipments_log) || '|' || (select count(*) from public.zell_order_customer_updates) || '|' || (select count(*) from public.zell_order_customer_updates_log) || '|' || (select count(*) from public.orders)")
 ok=no; if [ "$ROW" = "0|0|0|0|1" ] && [ "$(impact)" = "$AFTER" ] && [ "$(rf "$(verify_tr2)" 7)" = "PASS" ]; then ok=yes; fi
 record "S41 flows left nothing (4 tables empty, only the base order, impact unchanged), TR2 verify PASS" "$ok" "row=$ROW"
@@ -394,7 +399,7 @@ for P in 01099999901 01099999902; do
   as_user "$ADMIN_ID" "select public.zell_order_transition($OID, '$OUV'::timestamptz, 'confirmed') ->> 'status'" > "$TMP/conf_$P.out"
 done
 R1=$(as_user "$ADMIN_ID" "select public.zell_shipment_save('$N1', null, 'أرامكس', 'AWB-1', 'https://track.example.com/1', null, null) ->> 'changed'")
-R2=$(as_user "$OWNER_ID" "select public.zell_customer_update_add('$N1', 'طلبك اتأكد') ->> 'changed'")
+R2=$(as_user "$OWNER_ID" "select public.zell_customer_update_add('$N1', null, 'طلبك اتأكد') ->> 'changed'")
 TR2V=$(verify_tr2); TRV=$(verify_tr)
 ok=no
 if [ -n "$N1" ] && [ -n "$N2" ] && [ "$R1" = "true" ] && [ "$R2" = "true" ] && [ "$(rf "$TR2V" 7)" = "PASS" ] && [ "$(rf "$TR2V" 8)" = "1" ] \
