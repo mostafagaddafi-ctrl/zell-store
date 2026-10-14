@@ -26,6 +26,12 @@ import {
   cairoDateIso,
   preferredDeliveryIssue,
   preferredPayloadField,
+  // EXPRESS-SHIPPING
+  SHIPPING_INSTALLATION_LINE,
+  SHIPPING_METHOD_LABELS,
+  shippingDaysLine,
+  type ShippingMethod,
+  type ShippingOptions,
   type DeliveryPeriodTime,
   type PreferredDeliveryDraft,
   type CheckoutValues,
@@ -39,6 +45,7 @@ import { couponBlockReason, couponDraftCode, couponPayloadField, estimateCoupon,
 import { useCheckoutCoupon } from '../../lib/useCheckoutCoupon'
 import type { CheckoutFee } from '../../lib/orders/confirmationFee'
 import { deliveryNote, showDeliveryChoice, type CheckoutDeliverySettings } from '../../lib/orders/deliverySettings'
+import { shippingChoiceView, shippingPayloadField, shippingSummaryLabel, strandedNotice } from '../../lib/orders/shippingChoice'
 import { Button, buttonClasses } from '../ui/Button'
 import { Field, inputClasses, textareaClasses } from '../ui/Field'
 import { ImageSlot } from '../ui/ImageSlot'
@@ -156,6 +163,7 @@ export function CheckoutForm({
   periods = null,
   confirmationFee = null,
   deliverySettings = null,
+  shippingOptions = null,
 }: {
   products: StoreProduct[]
   settings: StoreSettings
@@ -165,6 +173,8 @@ export function CheckoutForm({
   confirmationFee?: CheckoutFee | null
   /** 0021-D2 — إعداد موعد التسليم من الداتابيز (null = اختيار الموعد والسطر مخفيين). */
   deliverySettings?: CheckoutDeliverySettings | null
+  /** EXPRESS-SHIPPING — إعداد الشحن السريع ومدة الشحن من الداتابيز (null = اختيار الطريقة مخفي والطلب عادي). */
+  shippingOptions?: ShippingOptions | null
 }) {
   // 0021-D — موعد التسليم المفضّل (اختياري)
   const [preferred, setPreferred] = useState<PreferredDeliveryDraft>(EMPTY_PREFERRED_DELIVERY)
@@ -184,6 +194,9 @@ export function CheckoutForm({
   }
   // المنطقة: معامل صريح في الطلب (area) — مابقتش بتتلزق في العنوان.
   const [area, setArea] = useState('')
+  // EXPRESS-SHIPPING — اختيار العميل (الافتراضي «شحن عادي»). الطريقة الفعلية من shippingChoiceView حسب المحافظة والإعداد،
+  // ومفيش تحويل صامت: سريع لمحافظة مالهاش سريع = رسالة والتأكيد مقفول لحد ما يختار عادي بنفسه.
+  const [chosenShipping, setChosenShipping] = useState<ShippingMethod>('standard')
   const areas = values.governorate !== '' ? (settings.shippingAreas[values.governorate] ?? []) : []
   const selectedArea = areas.includes(area) ? area : ''
   const installerAreas = values.governorate !== '' ? installationAreasIn(settings.installation, values.governorate) : []
@@ -226,6 +239,8 @@ export function CheckoutForm({
       })
       setArea(governorateAreas.includes(draft.area) ? draft.area : '')
       setShowNotes(draft.showNotes || draft.notes.trim() !== '')
+      // EXPRESS-SHIPPING — الاختيار بس (السعر والإتاحة بيتحسبوا تاني من الإعداد الحالي)
+      if (draft.shippingMethod === 'express') setChosenShipping('express')
       // 0019 — الكود المحفوظ بيتعاين تاني مرة واحدة، ومش مطبّق قبل نجاح المعاينة
       if (settings.couponsEnabled && draft.couponCode !== undefined) coupon.restore(draft.couponCode)
     }
@@ -244,8 +259,10 @@ export function CheckoutForm({
       showNotes,
       // 0019 — الكود بس (من غير مبلغ ولا شروط)
       ...(draftCouponCode !== undefined ? { couponCode: draftCouponCode } : {}),
+      // EXPRESS-SHIPPING — الاختيار بس (مفيش سعر)
+      ...(chosenShipping === 'express' ? { shippingMethod: 'express' as const } : {}),
     })
-  }, [draftLoaded, values, selectedArea, showNotes, draftCouponCode])
+  }, [draftLoaded, values, selectedArea, showNotes, draftCouponCode, chosenShipping])
 
   const byId = useMemo(() => {
     const map = new Map<number, StoreProduct>()
@@ -265,7 +282,7 @@ export function CheckoutForm({
     0,
   )
 
-  const shipping = values.governorate
+  const standardShipping = values.governorate
     ? computeShippingPiastres(
         values.governorate,
         subtotal,
@@ -274,6 +291,22 @@ export function CheckoutForm({
         settings.freeShippingThresholdPiastres,
       )
     : null
+  // EXPRESS-SHIPPING — الطريقة والشحن للعرض: السريع = سعره الكامل (من غير الحد المجاني)، والعادي = نفس الحساب فوق بالحرف.
+  // المعتمد من zell_create_order (والـ CI بيقارن الحساب ده بالداتابيز).
+  const shippingView = shippingChoiceView(
+    chosenShipping,
+    values.governorate
+      ? {
+          governorate: values.governorate,
+          subtotalPiastres: subtotal,
+          rates: settings.shippingRates,
+          defaultPiastres: settings.shippingDefaultPiastres,
+          freeThresholdPiastres: settings.freeShippingThresholdPiastres,
+        }
+      : null,
+    shippingOptions,
+  )
+  const shipping = shippingView.shippingPiastres
 
   // 0018 — الفني لأفلام المقاس بس، والشحن المجاني بيتحسب على الأصناف بس (فوق).
   const meterLengthCm = installationLengthCm(entries)
@@ -338,7 +371,7 @@ export function CheckoutForm({
     couponEstimate.kind === 'ok' ? { code: couponEstimate.code, piastres: couponEstimate.discountPiastres } : null
 
   const submitBlocked =
-    installationBlocked || intentStranded || choiceRequired || toolsDecisionPending || couponBlock !== null
+    installationBlocked || intentStranded || choiceRequired || toolsDecisionPending || couponBlock !== null || shippingView.stranded
 
   // «هركّبه بنفسي وشوف أدوات التركيب»: الاختيار يرجع «بنفسي» (بيتحفظ في السلة)، والعميل يروح لأدوات
   // أفلام سلته بنفس معيار زرار السلة. مفيش صفحة أدوات أو مفيش أدوات → يفضل هنا برسالة، من غير رابط ميت.
@@ -409,6 +442,8 @@ export function CheckoutForm({
       // 0021-D — بس لو فيه تاريخ، فالطلب من غير موعد نفس الـbody القديم بالحرف
       // 0021-D2 — الحقل مخفي (المالك قفل الاختيار أو الإعداد مش مقروء) = مفيش موعد خالص
       ...(deliveryChoiceOn ? preferredPayloadField(preferred) : {}),
+      // EXPRESS-SHIPPING — بس لو سريع، فالعادي نفس الـbody القديم بالحرف (ونفس الهاش)
+      ...shippingPayloadField(shippingView.method),
     }
     const body = JSON.stringify(payload)
 
@@ -449,6 +484,8 @@ export function CheckoutForm({
       if (isOrderFailure(result)) {
         // البيانات اتغيّرت على نفس المفتاح — النية الجاية تاخد مفتاح جديد
         if (result.code === 'IDEMPOTENCY_MISMATCH') forgetIntent(canonical)
+        // EXPRESS-SHIPPING — السريع اتقفل قبل الطلب: الرسالة بتظهر، والاختيار مابيتغيّرش لوحده، والصفحة بتقرا الإعداد تاني
+        if (result.code === 'SHIPPING_EXPRESS_UNAVAILABLE') router.refresh()
         // 0019 — retryable = نتيجة مش محسومة (قفل الكود)، ورفض الكوبون بيظهر عند الكود بزر «شيل الكود»
         coupon.submitOutcome({ kind: 'failure', code: result.code, retryable: result.retryable !== false })
         if (couponCode === null || !isCouponErrorCode(result.code)) setFailure(result.message)
@@ -566,6 +603,72 @@ export function CheckoutForm({
                 ))}
               </select>
             </Field>
+          ) : null}
+
+          {shippingView.offer !== null ? (
+            <fieldset className="space-y-2">
+              <legend className="mb-1 text-sm font-semibold text-fg">طريقة الشحن</legend>
+              <label
+                className={
+                  'flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm ' +
+                  (shippingView.method === 'standard' ? 'border-brand bg-brand/5' : 'border-border bg-card')
+                }
+              >
+                <input
+                  type="radio"
+                  name="shippingMethod"
+                  value="standard"
+                  checked={shippingView.method === 'standard'}
+                  onChange={() => setChosenShipping('standard')}
+                  className="mt-1"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="flex justify-between gap-3 font-semibold text-fg">
+                    <span>{SHIPPING_METHOD_LABELS.standard}</span>
+                    <span>{standardShipping === 0 ? 'مجاني' : <Num>{formatPiastres(standardShipping ?? 0)}</Num>}</span>
+                  </span>
+                  {shippingView.standardDays !== null ? (
+                    <span className="mt-0.5 block text-xs text-muted">
+                      <Num>{shippingDaysLine(shippingView.standardDays)}</Num>
+                    </span>
+                  ) : null}
+                </span>
+              </label>
+              <label
+                className={
+                  'flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm ' +
+                  (shippingView.method === 'express' ? 'border-brand bg-brand/5' : 'border-border bg-card')
+                }
+              >
+                <input
+                  type="radio"
+                  name="shippingMethod"
+                  value="express"
+                  checked={shippingView.method === 'express'}
+                  onChange={() => setChosenShipping('express')}
+                  className="mt-1"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="flex justify-between gap-3 font-semibold text-fg">
+                    <span>{SHIPPING_METHOD_LABELS.express}</span>
+                    <Num>{formatPiastres(shippingView.offer.pricePiastres)}</Num>
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    <Num>{shippingDaysLine(shippingView.offer.days)}</Num>
+                  </span>
+                </span>
+              </label>
+              {installationChosen ? <p className="text-xs text-muted">{SHIPPING_INSTALLATION_LINE}</p> : null}
+            </fieldset>
+          ) : null}
+
+          {shippingView.stranded ? (
+            <div role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-xs text-fg">
+              <p className="font-semibold">{strandedNotice(values.governorate)}</p>
+              <button type="button" onClick={() => setChosenShipping('standard')} className={buttonClasses('secondary', 'md', 'mt-2 w-full')}>
+                كمّل بشحن عادي
+              </button>
+            </div>
           ) : null}
 
           {intentStranded ? (
@@ -757,6 +860,7 @@ export function CheckoutForm({
           <OrderSummary
             subtotalPiastres={subtotal}
             shippingPiastres={shipping}
+            shippingLabel={shippingSummaryLabel(shippingView)}
             installationPiastres={installationFee}
             installationTravelPiastres={installationReady ? travel : null}
             discount={couponDiscount}
