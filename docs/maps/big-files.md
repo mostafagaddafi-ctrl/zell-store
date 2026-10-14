@@ -70,7 +70,7 @@
 | `docs/contracts/0021-A.md` | 94 KB | 438 | عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر |
 | `docs/contracts/0021-P-code.md` | 29 KB | 249 | عقد كود 0021-P: أ ← ب1 ← ب2 · الأوضاع · الفاحص · التعديلات بعد الاعتماد |
 | `docs/contracts/0021-P.md` | 22 KB | 252 | عقد 0021-P (الداتابيز): المحرك والمحوّل والهوية من الجلسة |
-| `docs/contracts/EXPRESS-SHIPPING.md` | 36 KB | 193 | عقد الشحن السريع ومدة الشحن: الإعداد `zell_shipping_options` · `zell_create_order` (15) واللقطة · Checkout والـ canonical · فحوص التحقق المتأثرة · قراءات R1–R6 ونتايجها · تفاصيل W1 و W2 |
+| `docs/contracts/EXPRESS-SHIPPING.md` | 37 KB | 194 | عقد الشحن السريع ومدة الشحن: الإعداد `zell_shipping_options` · `zell_create_order` (15) واللقطة · Checkout والـ canonical · فحوص التحقق المتأثرة · قراءات R1–R6 ونتايجها · تفاصيل W1 و W2 |
 | `docs/contracts/TRACK-ORDER-v2.md` | 21 KB | 162 | عقد التتبّع الكامل: حقول v1 + v2 · المبالغ (المدفوع · المردود · الصافي · المتبقي) · خط المراحل · الشحنة · رسايل العميل · قراءات T1–T5 |
 | `docs/maps/db-map.md` | 44 KB | 334 | خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف |
 | `docs/plans/ADMIN-LANG-LIST.md` | 62 KB | 224 | حصر نصوص اللوحة العامية مع مقترح فصحى مبسّطة لكل نص (أ · ب · ج · د)، للمالك يختار منه |
@@ -1583,7 +1583,7 @@ EXPRESS-SHIPPING W1 الشحن السريع ومدة الشحن: الجدولي�
 
 ## `docs/contracts/EXPRESS-SHIPPING.md`
 
-عقد الشحن السريع ومدة الشحن: الإعداد `zell_shipping_options` · `zell_create_order` (15) واللقطة · Checkout والـ canonical · فحوص التحقق المتأثرة · قراءات R1–R6 ونتايجها · تفاصيل W1 و W2 · 193 سطر
+عقد الشحن السريع ومدة الشحن: الإعداد `zell_shipping_options` · `zell_create_order` (15) واللقطة · Checkout والـ canonical · فحوص التحقق المتأثرة · قراءات R1–R6 ونتايجها · تفاصيل W1 و W2 · 194 سطر
 
 | السطر | القسم |
 | ---: | --- |
