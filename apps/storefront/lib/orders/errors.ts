@@ -72,6 +72,13 @@ export const ORDER_ERRORS: Record<OrderErrorCode, ErrorSpec> = {
   },
   // 0021-D2 — قراية إعداد موعد التسليم فشلت والطلب فيه موعد: مفيش طلب بيتعمل، والإعادة بنفس المفتاح والبيانات آمنة
   DELIVERY_SETTINGS_UNAVAILABLE: { status: 503, message: 'حصلت مشكلة مؤقتة، حاول تاني.', retryable: true },
+  // EXPRESS-SHIPPING — طريقة شحن غلط (45432) · السريع اتقفل أو مش متاح للمحافظة قبل إنشاء الطلب (45431): مفيش طلب ومفيش تحويل لعادي
+  SHIPPING_METHOD_INVALID: { status: 400, message: 'طريقة الشحن مش صحيحة. حدّث الصفحة وجرّب تاني.', retryable: false },
+  SHIPPING_EXPRESS_UNAVAILABLE: {
+    status: 409,
+    message: 'الشحن السريع غير متاح حاليًا لمحافظتك. اختار «شحن عادي» وكمّل طلبك.',
+    retryable: false,
+  },
   COUPON_EXPIRED: { status: 409, message: 'كود الخصم ده مش ساري دلوقتي.', retryable: false },
   COUPON_EXHAUSTED: { status: 409, message: 'كود الخصم ده خلص.', retryable: false },
   COUPON_MIN_SUBTOTAL: { status: 409, message: 'إجمالي الأصناف أقل من الحد الأدنى لكود الخصم ده.', retryable: false },
