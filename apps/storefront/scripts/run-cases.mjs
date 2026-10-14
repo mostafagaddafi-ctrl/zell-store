@@ -29,6 +29,7 @@ const SUITES = [
   { name: 'install', dir: 'lib/install', entry: 'installChoice.cases.ts', run: 'runInstallChoiceCases' },
   { name: 'home', dir: 'lib/home', entry: 'homeLayout.cases.ts', run: 'runHomeLayoutCases' },
   { name: 'track', dir: 'lib/orders', entry: 'trackOrder.cases.ts', run: 'runTrackOrderCases' },
+  { name: 'shipping', dir: 'lib/orders', entry: 'shipping.cases.ts', run: 'runShippingCases' },
 ]
 
 const COMPILER_OPTIONS = {
