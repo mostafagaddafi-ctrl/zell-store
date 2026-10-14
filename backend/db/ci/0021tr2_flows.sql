@@ -7,7 +7,7 @@
 --   zell_order_set_confirmed_delivery · zell_order_set_internal_note · zell_order_set_gate)، فالسجل والدفعات حقيقيين.
 -- • نسخة v1 من دالة التتبّع (جسم TR W1 بالحرف) في pg_temp للمقارنة: حقول v1 في رد v2 = رد v1 بالظبط لكل طلب.
 -- • معاملة واحدة: أول جملة begin وآخر جملة rollback، والنتيجة صفوف في SELECT واحد (فحص الشكل في CI).
--- • المتوقع: PASS بـ 35 نجاح و 0 فشل.
+-- • المتوقع: PASS بـ 36 نجاح و 0 فشل.
 
 begin;
 set local idle_in_transaction_session_timeout = '30s';
@@ -295,9 +295,9 @@ begin
   perform pg_temp.zt('F02 anon / service_role -> 42501 on the 4 functions · no direct table read for anon / service_role / authenticated',
     v_bad = '' and v_r = 'ERR 42501', v_bad || ' auth=' || v_r);
   v_r := pg_temp.adm(v_get);
-  perform pg_temp.zt('F03 admin get: confirmed order, editable, shipment null · owner list: empty',
+  perform pg_temp.zt('F03 admin get: confirmed order, editable, shipment null · owner list: empty (last_id null)',
     pg_temp.js(v_r) = pg_catalog.jsonb_build_object('order_number', pg_temp.num('B'), 'status', 'confirmed', 'editable', true, 'shipment', null)
-    and pg_temp.js(pg_temp.own(v_list)) = pg_catalog.jsonb_build_object('order_number', pg_temp.num('B'), 'status', 'confirmed', 'updates', '[]'::jsonb),
+    and pg_temp.js(pg_temp.own(v_list)) = pg_catalog.jsonb_build_object('order_number', pg_temp.num('B'), 'status', 'confirmed', 'last_id', null, 'updates', '[]'::jsonb),
     v_r);
   perform pg_temp.zt('F04 unknown order -> 45403 (get / list / save / add / edit / hide)',
     pg_temp.adm('select public.zell_shipment_get(''FLM-ZZZZZZ'')::text') = 'ERR 45403'
@@ -486,16 +486,20 @@ begin
     and (select count(*) from public.zell_order_customer_updates u where u.order_id = pg_temp.oid_of('G')) = 50
     and pg_temp.ulog() = v_n, left(v_r2, 80));
   declare
-    e1 text; e2 text; e3 text; e4 text; e5 text;
+    e1 text; e2 text; e3 text; e4 text; e5 text; e6 text;
   begin
     begin delete from public.zell_order_customer_updates; e1 := 'none'; exception when others then e1 := sqlstate; end;
     begin truncate public.zell_order_customer_updates; e2 := 'none'; exception when others then e2 := sqlstate; end;
     begin update public.zell_order_customer_updates_log set actor = actor; e3 := 'none'; exception when others then e3 := sqlstate; end;
     begin delete from public.zell_order_customer_updates_log; e4 := 'none'; exception when others then e4 := sqlstate; end;
     begin truncate public.zell_order_customer_updates_log; e5 := 'none'; exception when others then e5 := sqlstate; end;
-    perform pg_temp.zt('F30 updates: no DELETE / TRUNCATE · log: no UPDATE / DELETE / TRUNCATE (45413)',
-      e1 = '45413' and e2 = '45413' and e3 = '45413' and e4 = '45413' and e5 = '45413',
+    begin truncate public.zell_order_customer_updates, public.zell_order_customer_updates_log; e6 := 'none'; exception when others then e6 := sqlstate; end;
+    perform pg_temp.zt('F30 updates: no DELETE (45413) · TRUNCATE of updates alone -> 0A000 (the log FK refuses it before the trigger) · log: no UPDATE / DELETE / TRUNCATE (45413)',
+      e1 = '45413' and e2 = '0A000' and e3 = '45413' and e4 = '45413' and e5 = '45413',
       e1 || ',' || e2 || ',' || e3 || ',' || e4 || ',' || e5);
+    perform pg_temp.zt('F49 TRUNCATE of updates + log together (no FK block) -> 45413 from the no-truncate trigger, nothing removed',
+      e6 = '45413' and (select count(*) from public.zell_order_customer_updates) > 0,
+      e6);
   end;
   declare
     v_last text := pg_temp.lastid('E');
@@ -620,7 +624,7 @@ select 0::integer as ord, 'summary'::text as kind, null::text as test_id, null::
        (select count(*) from pg_temp.zt_results where outcome = 'pass') as pass,
        (select count(*) from pg_temp.zt_results where outcome = 'fail') as fail,
        case when (select count(*) from pg_temp.zt_results where outcome = 'fail') = 0
-             and (select count(*) from pg_temp.zt_results where outcome = 'pass') = 35 then 'PASS' else 'FAIL' end as verdict
+             and (select count(*) from pg_temp.zt_results where outcome = 'pass') = 36 then 'PASS' else 'FAIL' end as verdict
 union all
 select r.n, 'test', r.id, r.name, r.outcome, r.detail, null, null, null
   from pg_temp.zt_results r
