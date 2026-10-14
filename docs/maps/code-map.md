@@ -58,16 +58,17 @@
 | `app/collections` · `app/collection/[slug]` | الأقسام، وصفحة القسم |
 | `app/cart` · `app/checkout` | السلة وإتمام الطلب |
 | `app/order/[orderNumber]` | الإيصال (بكوكي `HttpOnly`) |
+| `app/track` | «تتبّع طلبك» (TRACK-ORDER): `page.tsx` (noindex, nofollow، ومش في الـ sitemap) + `actions.ts` (Server Action ← `zell_checkout_track_order` بمفتاح الخدمة؛ الكود في body الفورم مش في الرابط، والإدخال الغلط من غير نداء) |
 | `app/installation-tools` | صفحة أدوات التركيب |
 | `app/api/orders` | إنشاء الطلب ← `zell_create_order` (مفتاح `ORDERS_ENABLED`) |
 | `app/api/coupons/preview` | معاينة الكوبون ← `zell_preview_coupon` |
 | `app/api/revalidate` | تحديث الكاش (بتناديه اللوحة بعد الحفظ) |
 | `app/api/health` | فحص صحة |
-| `components/store` | مكونات المتجر: الهيدر والفوتر، والهيرو، وكارت المنتج، والمقاس والعرض، والقطعة والإضافات، والسلة والدفع، والكوبون، وواتساب … · `Logo` (العلامة والاسم الكامل) |
+| `components/store` | مكونات المتجر: الهيدر والفوتر، والهيرو، وكارت المنتج، والمقاس والعرض، والقطعة والإضافات، والسلة والدفع، والكوبون، وواتساب … · `Logo` (العلامة والاسم الكامل) · `TrackOrderForm` (فورم «تتبّع طلبك» والنتيجة) |
 | `components/ui` | مكونات مشتركة: `Button` · `Field` · `Container` · `ImageSlot` · `BackButton` |
 | `lib/` (الجذر) | `cart.tsx` (السلة) · `catalog.ts` · `drafts.ts` · `productCopy.ts` · `useCheckoutCoupon.ts` · `cn.ts` · `install/installChoice.ts` («هتركّبه إزاي؟» في صفحة المنتج: سطر الاختيار الحالي وظهور الأدوات، + حالات) · `home/homeLayout.ts` (HOME-MOBILE: قرارات عرض الرئيسية، + حالات) · `site.ts` (عنوان المتجر العام) · `brand/logo.ts` و`brand/logoImage.tsx` (أرقام اللوجو وصورته وخط Cairo للأيقونات) |
 | `lib/data` | القراءة: `queries.ts` · `mappers.ts` · `rpc.ts` · `source.ts` · `supabaseServer.ts` · `deliverySettings.ts` (إعداد موعد التسليم — 0021-D2) |
-| `lib/orders` | مسار الطلب: `contracts.ts` · `canonical.ts` + `requestHash.ts` + `hash.ts` (idempotency) · `checkoutSession.ts` · `receiptToken.ts` · `requestGuards.ts` · `coupon*.ts` (+ حالات) · `notify.ts` (تليجرام) · `result.ts` · `errors.ts` · `placeOrder.ts` (ترتيب إنشاء الطلب: الهاش ← إعداد الموعد ← النداء) + `deliverySettings.ts` (+ حالات بتتشغّل في CI — 0021-D2) |
+| `lib/orders` | مسار الطلب: `contracts.ts` · `canonical.ts` + `requestHash.ts` + `hash.ts` (idempotency) · `checkoutSession.ts` · `receiptToken.ts` · `requestGuards.ts` · `coupon*.ts` (+ حالات) · `notify.ts` (تليجرام) · `result.ts` · `errors.ts` · `placeOrder.ts` (ترتيب إنشاء الطلب: الهاش ← إعداد الموعد ← النداء) + `deliverySettings.ts` (+ حالات بتتشغّل في CI — 0021-D2) · `trackOrder.ts` (+ `trackOrder.cases.ts`، suite `track` — TRACK-ORDER: تظبيط الكود · حارس الرد · نصوص العرض) |
 
 ## packages/core — منطق صافي مشترك (`@zell/core`)
 
@@ -80,7 +81,7 @@
 | `src/home.ts` | HOME-MOBILE: قراية «أول الصفحة على الموبايل» من عنصر `hero` في `settings.sections` (غايب أو غلط = `compact`) |
 | `src/orderNumber.ts` | شكل رقم الطلب |
 | `src/images.ts` · `src/imageUrl.ts` | الصور وروابطها |
-| `src/validation.ts` · `src/types.ts` · `src/index.ts` | التحقق والأنواع والتصدير |
+| `src/validation.ts` · `src/types.ts` · `src/index.ts` | التحقق والأنواع والتصدير (في `types.ts`: `STATUS_LABELS` لأسماء اللوحة، و`CUSTOMER_STATUS_LABELS` لأسماء العميل في «تتبّع طلبك» — TRACK-ORDER) |
 
 ---
 
