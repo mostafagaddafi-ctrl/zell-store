@@ -1408,9 +1408,9 @@ begin
     and not pg_catalog.has_function_privilege('anon', v_save, 'EXECUTE')
     and not pg_catalog.has_function_privilege('anon', v_chk, 'EXECUTE')
     and not exists (select 1
-                      from (values ('anon'), ('authenticated'), ('service_role')) r(n),
+                      from (values ('anon'), ('authenticated'), ('service_role')) ro(n),
                            (values ('public.zell_shipping_options'), ('public.zell_shipping_options_log')) t(n)
-                     where pg_catalog.has_table_privilege(r.n, t.n, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'))
+                     where pg_catalog.has_table_privilege(ro.n, t.n, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'))
     and not pg_catalog.has_schema_privilege('zell_order_definer', 'public', 'CREATE'), null);
   v_res := pg_temp.call_as('service_role', 'select public.zell_shipping_options_checkout()::text');
   perform pg_temp.zt('T03 identity live: get / save without a session -> 45400 · service_role checkout read = express off, {}',
