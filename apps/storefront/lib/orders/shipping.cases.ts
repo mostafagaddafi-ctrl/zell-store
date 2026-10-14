@@ -24,7 +24,15 @@ import type { OrderRequest } from './contracts'
 import { ORDER_ERRORS, codeFromSqlError, orderFailure, statusFor } from './errors'
 import { sha256Hex } from './hash'
 import { createOrderArgs, placeOrder, type PlaceOrderDeps, type PlaceOrderIds } from './placeOrder'
-import { parseDraftShippingMethod, shippingChoiceView, shippingPayloadField, shippingSummaryLabel } from './shippingChoice'
+import {
+  SHIPPING_CHOICE_TEXT,
+  parseDraftShippingMethod,
+  shippingChoiceView,
+  shippingPayloadField,
+  shippingSubmitField,
+  shippingSummaryLabel,
+  type ShippingChoiceView,
+} from './shippingChoice'
 
 export type ShippingCaseFailure = { name: string; expected: string; actual: string }
 export type ShippingCaseReport = { passed: number; failures: ShippingCaseFailure[] }
@@ -178,9 +186,9 @@ function choiceCases(): void {
   const std = shippingChoiceView('standard', quote('القاهرة', 90000), OPTIONS)
   check('C02 Cairo standard -> 5000 with standard days, label «الشحن العادي»', [std.method, std.shippingPiastres, std.standardDays, shippingSummaryLabel(std)], ['standard', 5000, { min: 3, max: 5 }, 'الشحن العادي'])
   const moved = shippingChoiceView('express', quote('الجيزة', 90000), OPTIONS)
-  check('C03 governorate changed to one without express -> standard price shown, stranded (no silent switch)', [moved.method, moved.stranded, moved.offer, shippingSummaryLabel(moved)], ['standard', true, null, 'الشحن'])
+  check('C03 governorate changed to one without express -> blocked (unavailable), no submit field (no silent switch)', [moved.blocked, moved.stranded, moved.offer, shippingSummaryLabel(moved), shippingSubmitField(moved)], ['unavailable', true, null, 'الشحن', null])
   const failed = shippingChoiceView('express', quote('القاهرة', 90000), null)
-  check('C04 failed settings read -> choice hidden, standard, not blocked', [failed.method, failed.stranded, failed.offer, failed.shippingPiastres], ['standard', false, null, 5000])
+  check('C04 express chosen + failed settings read -> choice kept, blocked (unread), no submit field', [failed.blocked, failed.stranded, failed.offer, shippingSubmitField(failed)], ['unread', true, null, null])
   const none = shippingChoiceView('express', null, OPTIONS)
   check('C05 no governorate yet -> nothing to show', [none.method, none.stranded, none.shippingPiastres], ['standard', false, null])
   check('C06 payload field only for express', [shippingPayloadField('express'), shippingPayloadField('standard')], [{ shippingMethod: 'express' }, {}])
@@ -196,6 +204,49 @@ function choiceCases(): void {
     shippingSnapshotLine(parseShippingSnapshot('standard', null, null) ?? { method: 'express', days: null }),
     parseShippingSnapshot(null, null, null),
   ], ['شحن سريع · خلال 1–2 يوم من الشحن', 'شحن عادي', null])
+}
+
+/**
+ * الإرسال زي CheckoutForm بالظبط: shippingSubmitField = null = مفيش إرسال، فمفيش canonical ولا resolveIdempotencyKey.
+ * keys = نوايا التاب (canonical → مفتاح) زي sessionStorage، علشان نثبت إن مفيش مفتاح جديد اتولّد تلقائيًا.
+ */
+function trySubmit(view: ShippingChoiceView, keys: Map<string, string>, sent: string[]): string | null {
+  const field = shippingSubmitField(view)
+  if (field === null) return null
+  const canonical = canonicalOrderJson(normalizeOrder({ ...BASE, ...field }))
+  if (!keys.has(canonical)) keys.set(canonical, 'k-' + String(keys.size + 1).padStart(16, '0'))
+  sent.push(canonical)
+  return canonical
+}
+
+function failedReadCases(): void {
+  const oldCanonical = JSON.stringify([BASE.customerName, BASE.customerPhone, BASE.governorate, BASE.address, null, [[1, 300]]])
+  // العميل على العادي + القراية فشلت = يكمّل عادي زي ما هو
+  const std = shippingChoiceView('standard', quote('القاهرة', 90000), null)
+  check('C10 standard chosen + failed read -> not blocked, old body (no field), choice hidden', [std.blocked, shippingSubmitField(std), std.offer, std.shippingPiastres], [null, {}, null, 5000])
+  // استعادة مسودة سريع + القراية فشلت
+  const draft = parseDraftShippingMethod('express')
+  const restored = draft.ok && draft.method === 'express' ? 'express' : 'standard'
+  const keys = new Map<string, string>()
+  const sent: string[] = []
+  const v1 = shippingChoiceView(restored, quote('القاهرة', 90000), null)
+  check('C11 restored express draft + failed read -> choice kept, blocked (unread), nothing sent, no key', [restored, v1.blocked, trySubmit(v1, keys, sent), keys.size, sent.length], ['express', 'unread', null, 0, 0])
+  // «إعادة تحميل الإعداد» والقراية فشلت تاني = نفس القفل
+  const v2 = shippingChoiceView(restored, quote('القاهرة', 90000), null)
+  check('C12 reload and the read fails again -> still blocked, still nothing sent', [v2.blocked, trySubmit(v2, keys, sent), keys.size, sent.length], ['unread', null, 0, 0])
+  // «إعادة تحميل الإعداد» والقراية نجحت = السريع زي ما اختاره
+  const v3 = shippingChoiceView(restored, quote('القاهرة', 90000), OPTIONS)
+  const c3 = trySubmit(v3, keys, sent)
+  check('C13 reload succeeds -> express kept and sent with [s1, express]', [v3.blocked, v3.method, c3, keys.size], [null, 'express', oldCanonical.slice(0, -1) + ',["s1","express"]]', 1])
+  // الاختيار الصريح للعادي (من نفس الحالة المقفولة) = طلب عادي بالهاش القديم بالحرف، بنية جديدة واضحة
+  const keys2 = new Map<string, string>()
+  const sent2: string[] = []
+  const blocked = shippingChoiceView('express', quote('القاهرة', 90000), null)
+  const before = [trySubmit(blocked, keys2, sent2), keys2.size]
+  const chosen = shippingChoiceView('standard', quote('القاهرة', 90000), null)
+  const c4 = trySubmit(chosen, keys2, sent2)
+  check('C14 standard only after the customer picks «المتابعة بشحن عادي» -> old canonical, one key, one send', [before, c4, keys2.size, sent2.length], [[null, 0], oldCanonical, 1, 1])
+  check('C15 failed-read message offers reload + explicit standard', [SHIPPING_CHOICE_TEXT.reload, SHIPPING_CHOICE_TEXT.continueStandard, SHIPPING_CHOICE_TEXT.unread.includes('«شحن سريع»')], ['إعادة تحميل الإعداد', 'المتابعة بشحن عادي', true])
 }
 
 async function hashCases(): Promise<void> {
@@ -240,6 +291,7 @@ export async function runShippingCases(): Promise<ShippingCaseReport> {
   optionCases()
   priceCases()
   choiceCases()
+  failedReadCases()
   await hashCases()
   await flowCases()
   return { passed, failures }
