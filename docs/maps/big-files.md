@@ -20,8 +20,8 @@
 | `backend/db/ci/0021p_sql_ci.sh` | 30 KB | 445 | اختبارات SQL لـ 0021-P في CI (S0–S8 و C1–C4) |
 | `backend/db/ci/0021p1_flows.sql` | 37 KB | 538 | 0021-A P1 سيناريوهات الدفع بعد التطبيق في CI (F01–F42، معاملة بترجع) |
 | `backend/db/ci/0021p1_sql_ci.sh` | 56 KB | 748 | اختبارات SQL لـ 0021-A P1 و P2 وتنضيف التجارب في CI، بتتشغّل مرتين (مالك zell_create_order = zell_order_writer ثم postgres): ptest · تطبيق · verify · مقارنة 520 حالة · الرسوم DB = core · السيناريوهات · rollback · الانحراف · التنضيف C00–C12 · ptest من غير أدمن ولا طلبات |
-| `backend/db/ci/0021tr2_flows.sql` | 45 KB | 629 | TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل ورد التتبّع بعد التطبيق في CI (F00–F48، 35 حالة، معاملة بترجع) |
-| `backend/db/ci/0021tr2_sql_ci.sh` | 43 KB | 534 | اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) |
+| `backend/db/ci/0021tr2_flows.sql` | 45 KB | 633 | TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل ورد التتبّع بعد التطبيق في CI (F00–F49، 36 حالة، معاملة بترجع) |
+| `backend/db/ci/0021tr2_sql_ci.sh` | 43 KB | 536 | اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) |
 | `backend/db/ci/0021tr_sql_ci.sh` | 22 KB | 313 | اختبارات SQL لـ 0021-TR W1 في CI فوق شكل Production (S0–S5: الشكل · ptest · تطبيق · verify · الرد بالسبع حالات والموعد والسطور ومن غير بيانات عميل · null للشكل الغلط · الصلاحيات · rollback · حراس الـ preflight) |
 | `backend/db/migrations/0006b_order_functions.sql` | 38 KB | 765 | دور `zell_order_writer` وأول نسخة من `zell_create_order` و`zell_get_order_receipt` |
 | `backend/db/migrations/0006c_order_receipt_expiry.sql` | 23 KB | 504 | `zell_create_order` بترجّع `receipt_expires_at` |
@@ -357,7 +357,7 @@ EXPRESS-SHIPPING W1 سيناريوهات الإعداد والطلب بعد ال
 
 ## `backend/db/ci/0021tr2_flows.sql`
 
-TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل ورد التتبّع بعد التطبيق في CI (F00–F48، 35 حالة، معاملة بترجع) · 629 سطر
+TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل ورد التتبّع بعد التطبيق في CI (F00–F49، 36 حالة، معاملة بترجع) · 633 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -396,27 +396,27 @@ TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل و
 | 272 | do $zA$ |
 | 315 | do $zB$ |
 | 415 | do $zC$ |
-| 523 | do $zD$ |
-| 629 | rollback; |
+| 527 | do $zD$ |
+| 633 | rollback; |
 
 ## `backend/db/ci/0021tr2_sql_ci.sh`
 
-اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) · 534 سطر
+اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) · 536 سطر
 
 | السطر | القسم |
 | ---: | --- |
 | 76 | record() { |
 | 148 | prep() { |
 | 162 | SEED_SQL=$(cat <<'SQL' |
-| 242 | SEED2_SQL=$(cat <<'SQL' |
-| 288 | # ── S0: الشكل والملفات ── |
-| 311 | # ── S1: قبل التطبيق (شكل Production) و ptest ── |
-| 341 | # ── S2: التطبيق ── |
-| 367 | # ── S3: فحوص التحقق: مفيش بصمة مجهولة ولا خليط ── |
-| 379 | # ── S4: السلوك ── |
-| 452 | # ── S5: الرجوع ── |
-| 480 | # ── S6: حراس الـ preflight ── |
-| 511 | # ── S7: توافق حارس v1 المنشور مع رد v2 (طلبات حقيقية) ── |
+| 244 | SEED2_SQL=$(cat <<'SQL' |
+| 290 | # ── S0: الشكل والملفات ── |
+| 313 | # ── S1: قبل التطبيق (شكل Production) و ptest ── |
+| 343 | # ── S2: التطبيق ── |
+| 369 | # ── S3: فحوص التحقق: مفيش بصمة مجهولة ولا خليط ── |
+| 381 | # ── S4: السلوك ── |
+| 454 | # ── S5: الرجوع ── |
+| 482 | # ── S6: حراس الـ preflight ── |
+| 513 | # ── S7: توافق حارس v1 المنشور مع رد v2 (طلبات حقيقية) ── |
 
 ## `backend/db/ci/0021tr_sql_ci.sh`
 
