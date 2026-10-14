@@ -411,12 +411,14 @@ begin
 end
 $fn$;
 
--- نتيجة الرسايل للوحة (داخلية): كل الرسايل (الظاهرة والمخفية) بنسخة كل واحدة، الأحدث الأول.
+-- نتيجة الرسايل للوحة (داخلية): كل الرسايل (الظاهرة والمخفية) بنسخة كل واحدة، الأحدث الأول، و last_id (نسخة القايمة للإضافة:
+-- أكبر id، أو null من غير رسايل).
 create function public.zell_customer_update_result(p_order_id integer)
 returns jsonb language sql stable set search_path = '' as $fn$
   select pg_catalog.jsonb_build_object(
            'order_number', o.order_number,
            'status', o.status,
+           'last_id', (select pg_catalog.max(u.id) from public.zell_order_customer_updates u where u.order_id = o.id),
            'updates', (select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
                                          'id', u.id, 'text', u.text, 'hidden', u.hidden, 'edited', u.edited,
                                          'created_at', u.created_at, 'updated_at', u.updated_at)
@@ -452,8 +454,10 @@ begin
 end
 $fn$;
 
--- إضافة: في أي حالة. أقصى 50 رسالة للطلب (الظاهرة والمخفية) = 45434 count. القفل على صف الطلب بيرتّب الإضافات المتزامنة.
-create function public.zell_customer_update_add(p_order_number text, p_text text)
+-- إضافة: في أي حالة. النسخة = last_id من آخر قراية (null من غير رسايل)، فإعادة المحاولة بعد ضياع الرد أو ضغطة مزدوجة
+-- بتاخد 45404 ومابتكرّرش الرسالة. أقصى 50 رسالة للطلب (الظاهرة والمخفية) = 45434 count. القفل على صف الطلب
+-- بيرتّب الإضافات المتزامنة.
+create function public.zell_customer_update_add(p_order_number text, p_expected_last_id bigint, p_text text)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $fn$
 declare
   v_actor uuid := public.zell_order_actor(false);
@@ -464,6 +468,10 @@ begin
   select o.id into v_order_id from public.orders o where o.order_number = p_order_number for no key update;
   if v_order_id is null then
     raise exception 'ZELL_ORD_NOT_FOUND' using errcode = '45403';
+  end if;
+  if (select pg_catalog.max(u.id) from public.zell_order_customer_updates u where u.order_id = v_order_id)
+     is distinct from p_expected_last_id then
+    raise exception 'ZELL_ORD_CONFLICT' using errcode = '45404';
   end if;
   v_text := public.zell_customer_update_text(p_text);
   if (select count(*) from public.zell_order_customer_updates u where u.order_id = v_order_id) >= 50 then
@@ -556,13 +564,13 @@ $fn$;
 revoke all on function public.zell_shipment_result(integer), public.zell_shipment_get(text),
   public.zell_shipment_save(text, timestamptz, text, text, text, date, date),
   public.zell_customer_update_result(integer), public.zell_customer_update_text(text),
-  public.zell_customer_update_list(text), public.zell_customer_update_add(text, text),
+  public.zell_customer_update_list(text), public.zell_customer_update_add(text, bigint, text),
   public.zell_customer_update_edit(text, bigint, timestamptz, text),
   public.zell_customer_update_set_hidden(text, bigint, timestamptz, boolean)
   from public, anon, authenticated, service_role;
 grant execute on function public.zell_shipment_get(text),
   public.zell_shipment_save(text, timestamptz, text, text, text, date, date),
-  public.zell_customer_update_list(text), public.zell_customer_update_add(text, text),
+  public.zell_customer_update_list(text), public.zell_customer_update_add(text, bigint, text),
   public.zell_customer_update_edit(text, bigint, timestamptz, text),
   public.zell_customer_update_set_hidden(text, bigint, timestamptz, boolean)
   to authenticated;
@@ -681,7 +689,7 @@ declare
     pg_catalog.to_regprocedure('public.zell_shipment_get(text)'),
     pg_catalog.to_regprocedure('public.zell_shipment_save(text, timestamptz, text, text, text, date, date)'),
     pg_catalog.to_regprocedure('public.zell_customer_update_list(text)'),
-    pg_catalog.to_regprocedure('public.zell_customer_update_add(text, text)'),
+    pg_catalog.to_regprocedure('public.zell_customer_update_add(text, bigint, text)'),
     pg_catalog.to_regprocedure('public.zell_customer_update_edit(text, bigint, timestamptz, text)'),
     pg_catalog.to_regprocedure('public.zell_customer_update_set_hidden(text, bigint, timestamptz, boolean)')];
   v_int oid[] := array[
@@ -827,11 +835,11 @@ begin
     pg_temp.call_as('authenticated', null, 'select public.zell_shipment_get(''FLM-AAAAAA'')::text') = 'ERR 45400'
     and pg_temp.call_as('authenticated', null, 'select public.zell_shipment_save(''FLM-AAAAAA'', null, ''x'', null, null, null, null)::text') = 'ERR 45400'
     and pg_temp.call_as('authenticated', null, 'select public.zell_customer_update_list(''FLM-AAAAAA'')::text') = 'ERR 45400'
-    and pg_temp.call_as('authenticated', null, 'select public.zell_customer_update_add(''FLM-AAAAAA'', ''x'')::text') = 'ERR 45400'
+    and pg_temp.call_as('authenticated', null, 'select public.zell_customer_update_add(''FLM-AAAAAA'', null, ''x'')::text') = 'ERR 45400'
     and pg_temp.call_as('authenticated', null, 'select public.zell_customer_update_edit(''FLM-AAAAAA'', 1, now(), ''x'')::text') = 'ERR 45400'
     and pg_temp.call_as('authenticated', null, 'select public.zell_customer_update_set_hidden(''FLM-AAAAAA'', 1, now(), true)::text') = 'ERR 45400'
     and pg_temp.call_as('service_role', null, 'select public.zell_shipment_save(''FLM-AAAAAA'', null, ''x'', null, null, null, null)::text') = 'ERR 42501'
-    and pg_temp.call_as('service_role', null, 'select public.zell_customer_update_add(''FLM-AAAAAA'', ''x'')::text') = 'ERR 42501'
+    and pg_temp.call_as('service_role', null, 'select public.zell_customer_update_add(''FLM-AAAAAA'', null, ''x'')::text') = 'ERR 42501'
     and not exists (select 1 from public.zell_order_customer_updates), null);
   perform pg_temp.zt('T04 zell_checkout_track_order: same function (oid), v2 body (md5), owner zell_order_definer, security definer, stable, search_path empty, EXECUTE = before (service_role only)',
     (select count(*) from pg_catalog.pg_proc p
@@ -917,7 +925,7 @@ begin
   v_s := pg_temp.call_as('authenticated', v_admin, pg_catalog.format(
     'select public.zell_shipment_save(%L, null, %L, %L, %L, null, null)::text', v_num, ' بوسطة ', 'TRK-1', 'https://track.example.com/TRK-1'));
   v_u := pg_temp.call_as('authenticated', v_admin, pg_catalog.format(
-    'select public.zell_customer_update_add(%L, %L)::text', v_num, '  طلبك خرج من المخزن  '));
+    'select public.zell_customer_update_add(%L, null, %L)::text', v_num, '  طلبك خرج من المخزن  '));
   v_t1 := pg_temp.call_as('service_role', null, pg_catalog.format('select public.zell_checkout_track_order(%L)::text', v_num))::jsonb;
   v_h := pg_temp.call_as('authenticated', v_admin, pg_catalog.format(
     'select public.zell_customer_update_set_hidden(%L, %s, %L::timestamptz, true)::text', v_num,
