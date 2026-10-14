@@ -18,6 +18,7 @@ import { OrderTimeline } from '../../../../components/orders/OrderTimeline'
 import { getOrderCycleView } from '../../../../lib/data/orderCycle'
 import { OrderPaymentsCard } from '../../../../components/orders/OrderPayments'
 import { getOrderPaymentsView } from '../../../../lib/data/orderPayments'
+import { shippingSnapshotLine } from '@zell/core'
 
 type PageProps = { params: Promise<{ orderNumber: string }> }
 
@@ -122,6 +123,7 @@ export default pageWithAccess('zell.orders.view', async function OrderDetailPage
               <Row label="الأصناف" value={formatPiastres(order.subtotalPiastres)} />
               {order.coupon ? <Row label={discountRowLabel(order.coupon.code)} value={discountRowValue(order.coupon.discountPiastres)} /> : null}
               <Row label="الشحن" value={formatPiastres(order.shippingPiastres)} />
+              {order.shipping !== null ? <Row label="نوع الشحن" value={shippingSnapshotLine(order.shipping)} /> : null}
               {order.installationRequested ? (
                 <>
                   <Row label="أجر التركيب" value={formatPiastres(order.installationPiastres)} />
