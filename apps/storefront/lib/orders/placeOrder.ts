@@ -60,6 +60,8 @@ export function createOrderArgs(order: NormalizedOrder, ids: PlaceOrderIds, requ
     ...(order.couponCode !== null ? { p_coupon_code: order.couponCode } : {}),
     // 0021-D — الموعد بس ولو موجود بس (0021-D2: بعد قرار الإعداد)
     ...(order.preferredDelivery !== null ? { p_preferred_delivery: order.preferredDelivery } : {}),
+    // EXPRESS-SHIPPING — بس لو سريع؛ العادي نفس النداء القديم بالحرف. الإتاحة والسعر قرار الداتابيز (45431)
+    ...(order.shippingMethod === 'express' ? { p_shipping_method: 'express' } : {}),
   }
 }
 
