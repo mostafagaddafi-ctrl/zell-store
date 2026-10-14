@@ -14,15 +14,15 @@
 
 | الدور | اتعرّف في | بيعمل إيه |
 | --- | --- | --- |
-| `anon` · `authenticated` | Supabase | مالهمش أي وصول للجداول (RLS + سحب الصلاحيات في 0002). `authenticated` عنده EXECUTE على ١٢ دالة `zell_erp_*` (0021-P) و٢٣ دالة `zell_inv_session_*` (0020-S PR-1) و١١ دالة `zell_order_*` (0021-A A1) بس. بعد تطبيق 0021-A P1: + ١٠ دوال `zell_payment_*` (§٧-ب، متطبّق 2026-10-11). بعد تطبيق 0021-D2: + `zell_delivery_settings_get` و`zell_delivery_settings_save` (§٧-ج) |
-| `service_role` | Supabase | بيتخطى RLS. اللوحة والمتجر بيقروا بيه من السيرفر بس (حل انتقالي)، وعنده EXECUTE على دوال اللوحة القديمة بس: صفر على أي `zell_inv_*` (من 0020-S PR-3) وعلى جداول 0020. صفر على `erp_*` و`zell_erp_*`. من `zell_order_*`: `zell_order_gate_is_open` بس (trigger الحالة وقت PATCH اللوحة). من `zell_checkout_*`: `zell_checkout_delivery_periods` (0021-D)، و`zell_checkout_confirmation_fee` (P2)، و`zell_checkout_delivery_settings` بعد تطبيق 0021-D2، و`zell_checkout_track_order` بعد تطبيق 0021-TR (§٩). صفر على `zell_payment_*` و`zell_delivery_settings_*` |
+| `anon` · `authenticated` | Supabase | مالهمش أي وصول للجداول (RLS + سحب الصلاحيات في 0002). `authenticated` عنده EXECUTE على ١٢ دالة `zell_erp_*` (0021-P) و٢٣ دالة `zell_inv_session_*` (0020-S PR-1) و١١ دالة `zell_order_*` (0021-A A1) بس. بعد تطبيق 0021-A P1: + ١٠ دوال `zell_payment_*` (§٧-ب، متطبّق 2026-10-11). بعد تطبيق 0021-D2: + `zell_delivery_settings_get` و`zell_delivery_settings_save` (§٧-ج). بعد تطبيق EXPRESS-SHIPPING: + `zell_shipping_options_get` و`zell_shipping_options_save` (§١٠) |
+| `service_role` | Supabase | بيتخطى RLS. اللوحة والمتجر بيقروا بيه من السيرفر بس (حل انتقالي)، وعنده EXECUTE على دوال اللوحة القديمة بس: صفر على أي `zell_inv_*` (من 0020-S PR-3) وعلى جداول 0020. صفر على `erp_*` و`zell_erp_*`. من `zell_order_*`: `zell_order_gate_is_open` بس (trigger الحالة وقت PATCH اللوحة). من `zell_checkout_*`: `zell_checkout_delivery_periods` (0021-D)، و`zell_checkout_confirmation_fee` (P2)، و`zell_checkout_delivery_settings` بعد تطبيق 0021-D2، و`zell_checkout_track_order` بعد تطبيق 0021-TR (§٩). ومن `zell_shipping_*`: `zell_shipping_options_checkout` بس بعد تطبيق EXPRESS-SHIPPING (§١٠). صفر على `zell_payment_*` و`zell_delivery_settings_*` |
 | `postgres` | Supabase | مالك الجداول، واللي بيطبّق الـ migrations (الـ preflight بيتأكد) |
 | `zell_definer` | `0005c` (مسودة) | دور مسودة `create_order` القديمة |
 | `zell_order_writer` | `0006b` | مالك دوال مسار الطلب في الملفات (`zell_create_order` · `zell_get_order_receipt`)، ومن غير صلاحيات جداول مباشرة. **على Production مالك `zell_create_order` = `postgres`** (`08-HANDOFF-NOW.md`)، وCI بتاع P1 بيجرّب الاتنين |
 | `zell_inventory_definer` | `0020` | مالك دوال المخزون `zell_inv_*`، ومنها `zell_inv_session_*` و`zell_inv_claims_actor` من 0020-S (NOLOGIN · NOBYPASSRLS) |
 | `erp_definer` | `0021p_erp_access` | مالك دوال المحرك `erp_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS) |
 | `zell_erp_definer` | `0021p_zell_erp_access` | مالك دوال المحوّل والواجهة `erp_actor_status_v1`. مالوش أي صلاحية على `admin_users` |
-| `zell_order_definer` | `0021a_a1_order_cycle` | مالك دوال دورة الطلب `zell_order_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS). على `orders`: SELECT + UPDATE لأعمدة الدورة بس. ومالك `zell_checkout_delivery_periods` (0021-D)، وبعد P1/P2: `zell_payment_*` (ماعدا الـ triggers) و`zell_checkout_confirmation_fee` (§٧-ب)، وبعد 0021-D2: `zell_delivery_settings_get` / `_save` و`zell_checkout_delivery_settings` (§٧-ج)، وبعد 0021-TR: `zell_checkout_track_order` و SELECT على ٨ أعمدة من `order_items` بـ policy قراية (§٩) |
+| `zell_order_definer` | `0021a_a1_order_cycle` | مالك دوال دورة الطلب `zell_order_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS). على `orders`: SELECT + UPDATE لأعمدة الدورة بس. ومالك `zell_checkout_delivery_periods` (0021-D)، وبعد P1/P2: `zell_payment_*` (ماعدا الـ triggers) و`zell_checkout_confirmation_fee` (§٧-ب)، وبعد 0021-D2: `zell_delivery_settings_get` / `_save` و`zell_checkout_delivery_settings` (§٧-ج)، وبعد 0021-TR: `zell_checkout_track_order` و SELECT على ٨ أعمدة من `order_items` بـ policy قراية (§٩)، وبعد EXPRESS-SHIPPING: `zell_shipping_options_get` / `_save` / `_checkout` و SELECT + UPDATE على `zell_shipping_options` و SELECT + INSERT على سجله (§١٠) |
 
 ---
 
@@ -33,7 +33,7 @@
 | الجدول | اتعرّف في | بيعمل إيه | اتغيّر في |
 | --- | --- | --- | --- |
 | `products` | `schema.sql` | المنتجات: سعر المتر والعرض والطول، والقطعة | 0013 `lock_width` · 0014 `compare_at_piastres` · 0016 `sale_unit` `is_listed` `max_quantity` · 0020 trigger بيحمي `sale_unit` |
-| `orders` | `schema.sql` | راس الطلب: الزبون والعنوان والإجماليات والحالة | 0005b/0006a idempotency والجلسة والإيصال · 0018 المنطقة والتركيب · 0019 الكوبون والخصم + trigger `orders_cancelled_final` · 0021-A A1: `preparing` و`refused` في قيد الحالة (القديم في تعليق القيد) + `next_follow_up_at` و`delivery_confirmed_date/period/note` + triggers `orders_status_guard` و`orders_created_event` · 0021-D: `preferred_delivery_date/period/note` (لقطة موعد العميل المفضّل) · 0021-A P1: `paid_piastres` (الدفعات − الردود، بتكتبه دوال الدفعات بس) و`confirmation_fee_piastres` (لقطة) + trigger `orders_money_guard` |
+| `orders` | `schema.sql` | راس الطلب: الزبون والعنوان والإجماليات والحالة | 0005b/0006a idempotency والجلسة والإيصال · 0018 المنطقة والتركيب · 0019 الكوبون والخصم + trigger `orders_cancelled_final` · 0021-A A1: `preparing` و`refused` في قيد الحالة (القديم في تعليق القيد) + `next_follow_up_at` و`delivery_confirmed_date/period/note` + triggers `orders_status_guard` و`orders_created_event` · 0021-D: `preferred_delivery_date/period/note` (لقطة موعد العميل المفضّل) · 0021-A P1: `paid_piastres` (الدفعات − الردود، بتكتبه دوال الدفعات بس) و`confirmation_fee_piastres` (لقطة) + trigger `orders_money_guard` · EXPRESS-SHIPPING W1: `shipping_method` و`shipping_days_min/max` (لقطة الطريقة والمدة، nullable) + قيد `orders_shipping_snapshot_shape` (§١٠) |
 | `order_payments` | `0021a_p1` | الدفعات والردود (append-only، `command_id` فريد، لقطة اسم الطريقة، FK restrict على الطلب) | RLS لـ `zell_order_definer` بس |
 | `zell_payment_methods` | `0021a_p1` | طرق الدفع (كاش · فودافون كاش · إنستاباي · تحويل بنكي، قابلة للإدارة) | الحذف بس لو مااتستخدمتش |
 | `zell_payment_settings` | `0021a_p1` | صف واحد: إعداد رسوم التأكيد (مقفول) · الآجل (مقفول) · أرقام الدفع · السياسة · قالب واتساب | الحفظ للمالك بدالة |
@@ -71,6 +71,13 @@
 | --- | --- | --- |
 | `zell_delivery_settings` | `0021d2_delivery_settings` | صف واحد: العميل يختار الموعد · إظهار السطر · نص السطر (≤ 300 بعد trim) · `updated_at` · `updated_by`. القيم وقت التطبيق = السلوك الحالي (العميل بيختار، ومفيش سطر). مايتمسحش (45413) |
 | `zell_delivery_settings_log` | `0021d2_delivery_settings` | سجل append-only لكل تغيير (الممثل · القديم · الجديد · الوقت). UPDATE وDELETE وTRUNCATE = 45413، والرجوع بيرفض بأي سطر |
+
+### الشحن السريع ومدة الشحن (EXPRESS-SHIPPING W1 — مش متطبّق لسه)
+
+| الجدول | اتعرّف في | بيعمل إيه |
+| --- | --- | --- |
+| `zell_shipping_options` | `0021ex_express_shipping` | صف واحد: `express_enabled` (المفتاح العام) · `governorates` (لكل محافظة: مدة العادي الاختيارية · السريع متاح · سعره الكامل · مدته) · `updated_at` · `updated_by`. القيم وقت التطبيق: السريع مقفول و`{}`. مايتمسحش (45413). سعر العادي بيفضل في `settings.shipping_rates` |
+| `zell_shipping_options_log` | `0021ex_express_shipping` | سجل append-only لكل تغيير (الممثل · القديم · الجديد · الوقت). UPDATE وDELETE وTRUNCATE = 45413، والرجوع بيرفض بأي سطر |
 
 ### المخزون والمشتريات (0020)
 
@@ -111,13 +118,14 @@
 | --- | --- | --- |
 | `generate_order_number()` | `0005a` (مسودة) | رقم الطلب في المسودة القديمة |
 | `create_order(…)` | `0005c` (مسودة) | إنشاء الطلب في المسودة القديمة (اتستبدلت بـ `zell_create_order`) |
-| `zell_create_order(…)` | `0006b` | إنشاء الطلب ذرّيًا: التسعير، والـ idempotency، والإيصال. **اتعادت كتابتها في** 0006c (`receipt_expires_at`) · 0015 (العروض) · 0016 (القطعة) · 0018 (التركيب والمنطقة، ١٢ معامل) · 0019 (الكوبون) · 0021-D (الموعد المفضّل، ١٤ معامل: `p_preferred_delivery`) · 0021-A P1 (لقطة `confirmation_fee_piastres`، نفس التوقيع). بيناديها المتجر (`/api/orders`) |
+| `zell_create_order(…)` | `0006b` | إنشاء الطلب ذرّيًا: التسعير، والـ idempotency، والإيصال. **اتعادت كتابتها في** 0006c (`receipt_expires_at`) · 0015 (العروض) · 0016 (القطعة) · 0018 (التركيب والمنطقة، ١٢ معامل) · 0019 (الكوبون) · 0021-D (الموعد المفضّل، ١٤ معامل: `p_preferred_delivery`) · 0021-A P1 (لقطة `confirmation_fee_piastres`، نفس التوقيع) · EXPRESS-SHIPPING W1 (١٥ معامل: `p_shipping_method`، والقديمة بتتشال — §١٠، مش متطبّق). بيناديها المتجر (`/api/orders`) |
 | `zell_get_order_receipt(…)` | `0006b` | الإيصال بالتوكن. اتعدّلت في 0016 · 0018 · 0019 |
 | `zell_preview_coupon(…)` | `0019` | معاينة الكوبون قبل الطلب (`/api/coupons/preview`) |
 | `zell_checkout_delivery_periods()` | `0021d` | أوقات فترات التسليم للـ Checkout من `order_delivery_periods` (مالكها `zell_order_definer`، `service_role` بس) |
 | `zell_payment_*` (24: 10 عامة · 11 داخلية · 3 triggers) | `0021a_p1` | الدفعات ورسوم التأكيد بهوية الجلسة. الجرد الكامل في §٧-ب تحت |
 | `zell_checkout_confirmation_fee()` | `0021a_p2` | إعداد رسوم التأكيد والسياسة للـ Checkout (مالكها `zell_order_definer`، `service_role` بس) — §٧-ب |
 | `zell_checkout_delivery_settings()` | `0021d2` | إعداد موعد التسليم للـ Checkout و`/api/orders`: `{customer_choice_enabled, note}` (`note` بس لو السطر متفعّل). مالكها `zell_order_definer`، `service_role` بس — §٧-ج (W1، مش متطبّق) |
+| `zell_shipping_options_checkout()` | `0021ex` | إعداد الشحن السريع ومدة الشحن للـ Checkout: `{express_enabled, governorates}`. مالكها `zell_order_definer`، `service_role` بس — §١٠ (W1، مش متطبّق) |
 | `zell_orders_cancelled_final()` | `0019` | دالة الـ trigger `orders_cancelled_final` (BEFORE UPDATE OF status): الإلغاء نهائي، والطلب الملغي مايرجعش (45080)، علشان استخدام الكوبون مايتعدّاش |
 
 ## ٤) دوال اللوحة (الكتابة الذرّية)
@@ -301,3 +309,26 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | `migrations/0021tr_track_order_ptest.sql` | smoke قبل التطبيق (6 حالات): الجسم منسوخ بالحرف (CI بيقارن md5)، والنداءات بأكواد غلط أو مش موجودة بس، والنتيجة صفوف |
 | `migrations/0021tr_track_order_verify.sql` · `_rollback.sql` | التحقق (7 فحوص، read only بدور `service_role`، وبيقارن رد آخر طلب بيه من غير ما يطلّع بياناته) · الرجوع |
 | `ci/0021tr_sql_ci.sh` | CI على Postgres 17 مؤقت فوق شكل Production (A1 · D · P1 · P2 · D2، و RLS على `order_items`): S0–S5 — طلبات بالسبع حالات · الموعد · سطور متر وقطعة · مفيش بيانات عميل · null للشكل الغلط · الصلاحيات · الرجوع · حراس الـ preflight |
+
+## ١٠) الشحن السريع ومدة الشحن (EXPRESS-SHIPPING W1)
+
+> **مش متطبّق على Production** (المرجع `08-HANDOFF-NOW.md`). العقد: `docs/contracts/EXPRESS-SHIPPING.md` (§٢ و§٧-٢). الأكواد الجديدة 45431 (السريع مش متاح) و45432 (طريقة أو إعداد شحن غلط).
+
+| الدالة | المالك · EXECUTE | بتعمل إيه |
+| --- | --- | --- |
+| `zell_shipping_options_get()` | `zell_order_definer` · `authenticated` بس | قراية الإعداد للوحة (أي أدمن شغّال، `zell_order_actor(false)`): `express_enabled` · `governorates` · `updated_at` |
+| `zell_shipping_options_save(timestamptz, boolean, jsonb)` | `zell_order_definer` · `authenticated` بس | الحفظ (المالك بس): النسخة 45404 · التحقق 45432 (الحقل في `detail`، والمحافظة في `hint`) · التطبيع (NFC + trim والمفاتيح الست) · سطر في السجل لو فيه تغيير بس · بترجّع القيم + `changed` |
+| `zell_shipping_options_checkout()` | `zell_order_definer` · `service_role` بس | للمتجر: `{express_enabled, governorates}` |
+| `zell_shipping_options_trg_append_only()` | `postgres` (invoker) | دالة الـ triggers: `zell_shipping_options_log_immutable` · `zell_shipping_options_log_no_truncate` · `zell_shipping_options_no_delete` · `zell_shipping_options_no_truncate` (45413) |
+| `zell_create_order(…)` (15) | `postgres` · `service_role` و`zell_order_writer` (زي ما كانت بالظبط) | معامل جديد `p_shipping_method` (`NULL` أو `standard` = عادي بالحرف · `express` = سعر السريع الكامل من غير حد مجاني، لو متاح للمحافظة، وإلا 45431 · غير كده 45432). لقطة `shipping_method` و`shipping_days_min/max` على كل طلب جديد. الرد والـ replay والمنطقة والفني والكوبون والمقدم زي ما هم. البصمة `62924d0fe9b1563e76c54bbddfb628b4`، والقديمة (14) بتتشال |
+
+- الأسماء برّه عدّادات `zell_order_*` (24) و`zell_payment_*` (24) و`zell_checkout_*` (4).
+- **فحوص التحقق اللي بتعتمد على `zell_create_order`:** `0021d_preferred_delivery_verify.sql` V02 و`0021a_p1_payments_verify.sql` V06 بحالتين بس (قبل EXPRESS: 14 و`811d…` · بعده: 15 والبصمة الجديدة)، وأي خليط أو overload أو بصمة تانية = FAIL. في استعلام الأثر الخانة 4 بس بتتغيّر.
+- **الرجوع:** بعد revert كود W2، وبيرفض بأي سطر في السجل أو أي طلب `shipping_method` مش `NULL` (forward-fix بس). بيرجّع `zell_create_order` (14) بالحرف (بصمات R1 التلاتة) بنفس المالك والصلاحيات.
+
+| الملف | بيعمل إيه |
+| --- | --- |
+| `migrations/0021ex_express_shipping.sql` | W1 كله (الجسم بين `-- >>> 0021EX BODY` و`-- <<<`)، ومحتاج سطر `zell.approved_by` بعد `begin;` (`owner-approval-YYYY-MM-DD-express-shipping`) |
+| `migrations/0021ex_express_shipping_ptest.sql` | smoke قبل التطبيق (8 حالات؛ على Production 7 + skip T07): الجسم منسوخ بالحرف (CI بيقارن md5)، وقديم = جديد على نداءات الرفض، والنتيجة صفوف |
+| `migrations/0021ex_express_shipping_verify.sql` · `_rollback.sql` | التحقق (10 فحوص، في أي وقت بعد التطبيق) · الرجوع (محتاج سطر موافقة) |
+| `ci/0021ex_sql_ci.sh` · `ci/0021ex_flows.sql` | CI على Postgres 17 مؤقت فوق شكل Production (A1 · D · P1 · P2 · D2 · TR): S0–S6 — مقارنة قديم/جديد 520 حالة × 4 نداءات · فحوص التحقق بالحالتين · الرجوع ببصمات R1 · حراس الـ preflight · سيناريوهات الإعداد والطلب (F01–F42، 38 حالة) |
