@@ -100,7 +100,8 @@ export function runTrackOrderCases(): { passed: number; failures: TrackCaseFailu
     parseTrackedOrder(sample({ delivery: { kind: 'preferred', date: '2026-11-01', period: 'night' } })),
     parseTrackedOrder(sample({ delivery: 'x' })),
   ], new Array(17).fill(null))
-  const { delivery: _omit, ...withoutDelivery } = sample()
+  const withoutDelivery: Record<string, unknown> = { ...sample() }
+  delete withoutDelivery['delivery']
   check('G07 missing delivery key -> null', parseTrackedOrder(withoutDelivery), null)
 
   // ── العرض ──
