@@ -357,8 +357,8 @@ record "S30 changed body (unknown md5) -> P1 + EX verify FAIL; restored verbatim
 extract_def "$CO14" "$P1APPLY" | psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$DB" > "$TMP/overload.out" 2>&1
 VO=$(v3)
 q "drop function public.zell_create_order($SIG14)" > /dev/null
-ok=no; if [ "$VO" = "FAIL|FAIL|FAIL" ] && [ "$(v3)" = "PASS|PASS|PASS" ]; then ok=yes; fi
-record "S31 overload (14 + 15) -> D + P1 + EX verify FAIL; dropped -> PASS" "$ok" "overload=$VO now=$(v3)"
+ok=no; if [ "$(rf "$VO" 1)" != "PASS" ] && [ "$(rf "$VO" 2)" = "FAIL" ] && [ "$(rf "$VO" 3)" = "FAIL" ] && [ "$(v3)" = "PASS|PASS|PASS" ]; then ok=yes; fi
+record "S31 overload (14 + 15) -> D verify not PASS (errors on two rows), P1 + EX verify FAIL; dropped -> PASS" "$ok" "overload=$VO now=$(v3)"
 q "alter table public.zell_shipping_options rename to ci_hidden_options" > /dev/null
 VX=$(v3 | cut -d'|' -f1-2)
 q "alter table public.ci_hidden_options rename to zell_shipping_options" > /dev/null
