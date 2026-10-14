@@ -99,7 +99,7 @@ $fn$;
 
 drop function public.zell_customer_update_set_hidden(text, bigint, timestamptz, boolean);
 drop function public.zell_customer_update_edit(text, bigint, timestamptz, text);
-drop function public.zell_customer_update_add(text, text);
+drop function public.zell_customer_update_add(text, bigint, text);
 drop function public.zell_customer_update_list(text);
 drop function public.zell_customer_update_text(text);
 drop function public.zell_customer_update_result(integer);
