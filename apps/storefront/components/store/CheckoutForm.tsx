@@ -45,7 +45,7 @@ import { couponBlockReason, couponDraftCode, couponPayloadField, estimateCoupon,
 import { useCheckoutCoupon } from '../../lib/useCheckoutCoupon'
 import type { CheckoutFee } from '../../lib/orders/confirmationFee'
 import { deliveryNote, showDeliveryChoice, type CheckoutDeliverySettings } from '../../lib/orders/deliverySettings'
-import { shippingChoiceView, shippingPayloadField, shippingSummaryLabel, strandedNotice } from '../../lib/orders/shippingChoice'
+import { SHIPPING_CHOICE_TEXT, shippingChoiceView, shippingSubmitField, shippingSummaryLabel, strandedNotice } from '../../lib/orders/shippingChoice'
 import { Button, buttonClasses } from '../ui/Button'
 import { Field, inputClasses, textareaClasses } from '../ui/Field'
 import { ImageSlot } from '../ui/ImageSlot'
@@ -194,8 +194,10 @@ export function CheckoutForm({
   }
   // المنطقة: معامل صريح في الطلب (area) — مابقتش بتتلزق في العنوان.
   const [area, setArea] = useState('')
-  // EXPRESS-SHIPPING — اختيار العميل (الافتراضي «شحن عادي»). الطريقة الفعلية من shippingChoiceView حسب المحافظة والإعداد،
-  // ومفيش تحويل صامت: سريع لمحافظة مالهاش سريع = رسالة والتأكيد مقفول لحد ما يختار عادي بنفسه.
+  // EXPRESS-SHIPPING — اختيار العميل (الافتراضي «شحن عادي»). الطريقة الفعلية من shippingChoiceView حسب المحافظة والإعداد.
+  // مفيش تحويل صامت: سريع مختار (بنفسه أو من المسودة) ومش متاح دلوقتي — المحافظة مالهاش سريع أو الإعداد مش مقروء — =
+  // اختياره بيفضل، والتأكيد مقفول، ورسالة («إعادة تحميل الإعداد» لو القراية فشلت · «المتابعة بشحن عادي»). العادي مابيتبعتش
+  // غير بعد ما العميل يختاره بنفسه.
   const [chosenShipping, setChosenShipping] = useState<ShippingMethod>('standard')
   const areas = values.governorate !== '' ? (settings.shippingAreas[values.governorate] ?? []) : []
   const selectedArea = areas.includes(area) ? area : ''
@@ -421,6 +423,9 @@ export function CheckoutForm({
       setFailure(preferredIssue)
       return
     }
+    // EXPRESS-SHIPPING — سريع مختار ومش متاح دلوقتي = مفيش إرسال ولا canonical ولا مفتاح جديد (الحاجز فوق بيقفل الزرار كمان)
+    const shippingField = shippingSubmitField(shippingView)
+    if (shippingField === null) return
 
     coupon.submitStart()
     // 0019 — الكود المطبّق بس (بعد معاينة ناجحة)
@@ -443,7 +448,7 @@ export function CheckoutForm({
       // 0021-D2 — الحقل مخفي (المالك قفل الاختيار أو الإعداد مش مقروء) = مفيش موعد خالص
       ...(deliveryChoiceOn ? preferredPayloadField(preferred) : {}),
       // EXPRESS-SHIPPING — بس لو سريع، فالعادي نفس الـbody القديم بالحرف (ونفس الهاش)
-      ...shippingPayloadField(shippingView.method),
+      ...shippingField,
     }
     const body = JSON.stringify(payload)
 
@@ -662,12 +667,21 @@ export function CheckoutForm({
             </fieldset>
           ) : null}
 
-          {shippingView.stranded ? (
+          {shippingView.blocked !== null ? (
             <div role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-xs text-fg">
-              <p className="font-semibold">{strandedNotice(values.governorate)}</p>
-              <button type="button" onClick={() => setChosenShipping('standard')} className={buttonClasses('secondary', 'md', 'mt-2 w-full')}>
-                كمّل بشحن عادي
-              </button>
+              <p className="font-semibold">
+                {shippingView.blocked === 'unread' ? SHIPPING_CHOICE_TEXT.unread : strandedNotice(values.governorate)}
+              </p>
+              <div className="mt-2 grid gap-2">
+                {shippingView.blocked === 'unread' ? (
+                  <button type="button" onClick={() => router.refresh()} className={buttonClasses('primary', 'md', 'w-full')}>
+                    {SHIPPING_CHOICE_TEXT.reload}
+                  </button>
+                ) : null}
+                <button type="button" onClick={() => setChosenShipping('standard')} className={buttonClasses('secondary', 'md', 'w-full')}>
+                  {SHIPPING_CHOICE_TEXT.continueStandard}
+                </button>
+              </div>
             </div>
           ) : null}
 
