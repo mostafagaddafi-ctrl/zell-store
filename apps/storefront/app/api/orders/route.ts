@@ -1,5 +1,5 @@
 import { NextResponse, after, type NextRequest } from 'next/server'
-import { isValidEgyptianPhone, parsePreferredDeliveryField } from '@zell/core'
+import { isValidEgyptianPhone, parsePreferredDeliveryField, parseShippingMethodField } from '@zell/core'
 import { readCheckoutDeliverySettings } from '../../../lib/data/deliverySettings'
 import { restRpc } from '../../../lib/data/rpc'
 import type { OrderErrorCode, OrderItemInput, OrderRequest } from '../../../lib/orders/contracts'
@@ -131,11 +131,17 @@ function parseRequest(payload: unknown): { ok: true; value: OrderRequest } | { o
   const preferred = parsePreferredDeliveryField(payload['preferredDelivery'])
   if (!preferred.ok) return { ok: false, code: 'PREFERRED_DELIVERY_INVALID' }
 
+  // EXPRESS-SHIPPING — طريقة الشحن (اختيارية): غايب = عادي (الـ body القديم بالحرف) · 'express' = سريع · غير كده = رفض قبل
+  // أي نداء. الراوت مابيقراش إعداد الشحن خالص: الإتاحة والسعر قرار zell_create_order (45431 = رفض واضح، مفيش تحويل لعادي).
+  const shippingMethod = parseShippingMethodField(payload['shippingMethod'])
+  if (!shippingMethod.ok) return { ok: false, code: 'SHIPPING_METHOD_INVALID' }
+
   const value: OrderRequest = { customerName: name, customerPhone: phone, governorate, address, notes, items }
   if (area !== undefined) value.area = area
   if (installation) value.installation = true
   if (coupon.code !== null) value.couponCode = coupon.code
   if (preferred.value !== null) value.preferredDelivery = preferred.value
+  if (shippingMethod.method === 'express') value.shippingMethod = 'express'
   return { ok: true, value }
 }
 
