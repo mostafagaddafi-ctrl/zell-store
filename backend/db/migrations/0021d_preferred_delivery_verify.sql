@@ -3,6 +3,8 @@
 -- • معاملة read only: أول جملة begin وآخر جملة rollback، والنتيجة صفوف في SELECT واحد (ord = 0 ملخص).
 -- • أعمدة psql -tA: 1 ord · 2 kind · 3 check_id · 4 check_name · 5 ok · 6 detail · 7 verdict · 8 orders_total · 9 statuses
 --   · 10 with_preferred · 11 create_order_owner
+-- • V02 بحالتين بس (عقد EXPRESS-SHIPPING §٦-١): قبل EXPRESS (مفيش جدول zell_shipping_options) = 14 معامل بالحرف ·
+--   بعده (الجدول موجود) = نفس الـ 14 + p_shipping_method text. أي خليط أو نسختين = FAIL.
 
 begin;
 set transaction read only;
@@ -19,10 +21,12 @@ with fn as (
                       and c.conname = 'orders_preferred_delivery_shape' and c.convalidated),
          null::text
   union all
-  select 'V02', 'one zell_create_order with 14 args (no overload)',
+  select 'V02', 'one zell_create_order: 14 args before EXPRESS-SHIPPING / 15 args (+ p_shipping_method text) after (no overload, no mixed state)',
          (select count(*) from fn) = 1
-         and (select pg_catalog.pg_get_function_identity_arguments(fn.oid) from fn) = 'p_items jsonb, p_customer_name text, p_customer_phone text, p_governorate text, p_address text, p_notes text, p_idempotency_key text, p_request_hash text, p_checkout_session_hash text, p_receipt_token_hash text, p_area text, p_installation boolean, p_coupon_code text, p_preferred_delivery jsonb',
+         and (select pg_catalog.pg_get_function_identity_arguments(fn.oid) from fn) = 'p_items jsonb, p_customer_name text, p_customer_phone text, p_governorate text, p_address text, p_notes text, p_idempotency_key text, p_request_hash text, p_checkout_session_hash text, p_receipt_token_hash text, p_area text, p_installation boolean, p_coupon_code text, p_preferred_delivery jsonb'
+             || case when pg_catalog.to_regclass('public.zell_shipping_options') is null then '' else ', p_shipping_method text' end,
          (select count(*) from fn)::text
+           || case when pg_catalog.to_regclass('public.zell_shipping_options') is null then ' before EXPRESS-SHIPPING' else ' after EXPRESS-SHIPPING' end
   union all
   select 'V03', 'security definer + search_path empty + new body (preferred validation)',
          (select fn.prosecdef and fn.proconfig = array['search_path=""'] from fn)
