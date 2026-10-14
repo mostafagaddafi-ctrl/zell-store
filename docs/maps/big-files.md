@@ -20,8 +20,8 @@
 | `backend/db/ci/0021p_sql_ci.sh` | 30 KB | 445 | اختبارات SQL لـ 0021-P في CI (S0–S8 و C1–C4) |
 | `backend/db/ci/0021p1_flows.sql` | 37 KB | 538 | 0021-A P1 سيناريوهات الدفع بعد التطبيق في CI (F01–F42، معاملة بترجع) |
 | `backend/db/ci/0021p1_sql_ci.sh` | 56 KB | 748 | اختبارات SQL لـ 0021-A P1 و P2 وتنضيف التجارب في CI، بتتشغّل مرتين (مالك zell_create_order = zell_order_writer ثم postgres): ptest · تطبيق · verify · مقارنة 520 حالة · الرسوم DB = core · السيناريوهات · rollback · الانحراف · التنضيف C00–C12 · ptest من غير أدمن ولا طلبات |
-| `backend/db/ci/0021tr2_flows.sql` | 43 KB | 605 | TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل ورد التتبّع بعد التطبيق في CI (F00–F48، 34 حالة، معاملة بترجع) |
-| `backend/db/ci/0021tr2_sql_ci.sh` | 43 KB | 529 | اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) |
+| `backend/db/ci/0021tr2_flows.sql` | 45 KB | 629 | TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل ورد التتبّع بعد التطبيق في CI (F00–F48، 35 حالة، معاملة بترجع) |
+| `backend/db/ci/0021tr2_sql_ci.sh` | 43 KB | 534 | اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) |
 | `backend/db/ci/0021tr_sql_ci.sh` | 22 KB | 313 | اختبارات SQL لـ 0021-TR W1 في CI فوق شكل Production (S0–S5: الشكل · ptest · تطبيق · verify · الرد بالسبع حالات والموعد والسطور ومن غير بيانات عميل · null للشكل الغلط · الصلاحيات · rollback · حراس الـ preflight) |
 | `backend/db/migrations/0006b_order_functions.sql` | 38 KB | 765 | دور `zell_order_writer` وأول نسخة من `zell_create_order` و`zell_get_order_receipt` |
 | `backend/db/migrations/0006c_order_receipt_expiry.sql` | 23 KB | 504 | `zell_create_order` بترجّع `receipt_expires_at` |
@@ -65,10 +65,10 @@
 | `backend/db/migrations/0021p_access_verify.sql` | 22 KB | 343 | 0021-P التحقق بعد التطبيق (15 فحص، والنتيجة صفوف) |
 | `backend/db/migrations/0021p_erp_access.sql` | 46 KB | 1048 | 0021-P المحرك `erp_*` |
 | `backend/db/migrations/0021p_zell_erp_access.sql` | 42 KB | 983 | 0021-P محوّل ZELL `zell_erp_*` |
-| `backend/db/migrations/0021tr2_track_order_v2_ptest.sql` | 65 KB | 960 | TRACK-ORDER v2 W1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، 9 حالات؛ على Production 8 + skip T09، والنتيجة صفوف) |
+| `backend/db/migrations/0021tr2_track_order_v2_ptest.sql` | 66 KB | 968 | TRACK-ORDER v2 W1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، 9 حالات؛ على Production 8 + skip T09، والنتيجة صفوف) |
 | `backend/db/migrations/0021tr2_track_order_v2_rollback.sql` | 9 KB | 154 | TRACK-ORDER v2 W1 الرجوع (دالة التتبّع بجسم T1 بالحرف؛ بيرفض بأي شحنة أو رسالة أو سطر سجل) — أقل من 20 KB |
 | `backend/db/migrations/0021tr2_track_order_v2_verify.sql` | 15 KB | 170 | TRACK-ORDER v2 W1 التحقق بعد التطبيق (10 فحوص، والنتيجة صفوف) — أقل من 20 KB |
-| `backend/db/migrations/0021tr2_track_order_v2.sql` | 45 KB | 685 | TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · الحراس · `zell_shipment_get` / `_save` · `zell_customer_update_list` / `_add` / `_edit` / `_set_hidden` · `zell_checkout_track_order` (v2) |
+| `backend/db/migrations/0021tr2_track_order_v2.sql` | 45 KB | 693 | TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · الحراس · `zell_shipment_get` / `_save` · `zell_customer_update_list` / `_add` / `_edit` / `_set_hidden` · `zell_checkout_track_order` (v2) |
 | `backend/db/migrations/0021tr_track_order_ptest.sql` | 15 KB | 261 | 0021-TR W1 اختبار قبل التطبيق (smoke، 6 حالات، والنتيجة صفوف) — أقل من 20 KB |
 | `backend/db/migrations/0021tr_track_order_rollback.sql` | 2 KB | 45 | 0021-TR W1 الرجوع (الدالة والـ policy وصلاحيات الأعمدة على `order_items`؛ بيرفض طول ما TRACK-ORDER v2 متطبّق) — أقل من 20 KB |
 | `backend/db/migrations/0021tr_track_order_verify.sql` | 18 KB | 230 | 0021-TR W1 التحقق بعد التطبيق (7 فحوص، النداءات بدور `service_role`، بحالتين قبل/بعد TRACK-ORDER v2، والنتيجة صفوف) — أقل من 20 KB |
@@ -77,7 +77,7 @@
 | `docs/contracts/0021-P-code.md` | 29 KB | 249 | عقد كود 0021-P: أ ← ب1 ← ب2 · الأوضاع · الفاحص · التعديلات بعد الاعتماد |
 | `docs/contracts/0021-P.md` | 22 KB | 252 | عقد 0021-P (الداتابيز): المحرك والمحوّل والهوية من الجلسة |
 | `docs/contracts/EXPRESS-SHIPPING.md` | 37 KB | 194 | عقد الشحن السريع ومدة الشحن: الإعداد `zell_shipping_options` · `zell_create_order` (15) واللقطة · Checkout والـ canonical · فحوص التحقق المتأثرة · قراءات R1–R6 ونتايجها · تفاصيل W1 و W2 |
-| `docs/contracts/TRACK-ORDER-v2.md` | 32 KB | 203 | عقد التتبّع الكامل: حقول v1 + v2 · المبالغ (المدفوع · المردود · الصافي · المتبقي) · خط المراحل · الشحنة · رسايل العميل · الموعد · قراءات T1–T5 ونتايجها · W1 (الأسماء والأكواد النهائية) |
+| `docs/contracts/TRACK-ORDER-v2.md` | 33 KB | 204 | عقد التتبّع الكامل: حقول v1 + v2 · المبالغ (المدفوع · المردود · الصافي · المتبقي) · خط المراحل · الشحنة · رسايل العميل · الموعد · قراءات T1–T5 ونتايجها · W1 (الأسماء والأكواد النهائية) |
 | `docs/maps/db-map.md` | 51 KB | 373 | خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف |
 | `docs/plans/ADMIN-LANG-LIST.md` | 62 KB | 224 | حصر نصوص اللوحة العامية مع مقترح فصحى مبسّطة لكل نص (أ · ب · ج · د)، للمالك يختار منه |
 | `docs/plans/ORDER-FLOW-PLAN.md` | 119 KB | 1584 | خطة مسار الطلب |
@@ -357,7 +357,7 @@ EXPRESS-SHIPPING W1 سيناريوهات الإعداد والطلب بعد ال
 
 ## `backend/db/ci/0021tr2_flows.sql`
 
-TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل ورد التتبّع بعد التطبيق في CI (F00–F48، 34 حالة، معاملة بترجع) · 605 سطر
+TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل ورد التتبّع بعد التطبيق في CI (F00–F48، 35 حالة، معاملة بترجع) · 629 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -382,24 +382,26 @@ TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل و
 | 126 | create function pg_temp.tr(p_tag text, p_to text, p_reason text) returns text language sql as $f$ |
 | 130 | create function pg_temp.pay(p_who text, p_fn text, p_cmd integer, p_tag text, p_amount integer, p_re… |
 | 137 | create function pg_temp.ship(p_who text, p_tag text, p_ver text, p_carrier text, p_number text, p_ur… |
-| 144 | create function pg_temp.uadd(p_who text, p_tag text, p_text text) returns text language sql as $f$ |
-| 148 | create function pg_temp.uedit(p_who text, p_tag text, p_id bigint, p_ver text, p_text text) returns … |
-| 152 | create function pg_temp.uhide(p_who text, p_tag text, p_id bigint, p_ver text, p_hidden boolean) ret… |
-| 156 | create function pg_temp.track(p_tag text) returns jsonb language sql as $f$ |
-| 160 | create function pg_temp.slog(p_tag text) returns bigint language sql as $f$ |
-| 163 | create function pg_temp.ulog() returns bigint language sql as $f$ select count(*) from public.zell_o… |
-| 164 | create function pg_temp.statuses(p_r jsonb) returns text language sql as $f$ |
-| 170 | create function pg_temp.track_v1(p_order_number text) |
-| 209 | do $zS$ |
-| 265 | do $zA$ |
-| 308 | do $zB$ |
-| 408 | do $zC$ |
-| 499 | do $zD$ |
-| 605 | rollback; |
+| 144 | create function pg_temp.lastid(p_tag text) returns text language sql as $f$ |
+| 148 | create function pg_temp.uadd_v(p_who text, p_tag text, p_last text, p_text text) returns text langua… |
+| 152 | create function pg_temp.uadd(p_who text, p_tag text, p_text text) returns text language sql as $f$ |
+| 155 | create function pg_temp.uedit(p_who text, p_tag text, p_id bigint, p_ver text, p_text text) returns … |
+| 159 | create function pg_temp.uhide(p_who text, p_tag text, p_id bigint, p_ver text, p_hidden boolean) ret… |
+| 163 | create function pg_temp.track(p_tag text) returns jsonb language sql as $f$ |
+| 167 | create function pg_temp.slog(p_tag text) returns bigint language sql as $f$ |
+| 170 | create function pg_temp.ulog() returns bigint language sql as $f$ select count(*) from public.zell_o… |
+| 171 | create function pg_temp.statuses(p_r jsonb) returns text language sql as $f$ |
+| 177 | create function pg_temp.track_v1(p_order_number text) |
+| 216 | do $zS$ |
+| 272 | do $zA$ |
+| 315 | do $zB$ |
+| 415 | do $zC$ |
+| 523 | do $zD$ |
+| 629 | rollback; |
 
 ## `backend/db/ci/0021tr2_sql_ci.sh`
 
-اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) · 529 سطر
+اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) · 534 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -407,14 +409,14 @@ TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل و
 | 148 | prep() { |
 | 162 | SEED_SQL=$(cat <<'SQL' |
 | 242 | SEED2_SQL=$(cat <<'SQL' |
-| 283 | # ── S0: الشكل والملفات ── |
-| 306 | # ── S1: قبل التطبيق (شكل Production) و ptest ── |
-| 336 | # ── S2: التطبيق ── |
-| 362 | # ── S3: فحوص التحقق: مفيش بصمة مجهولة ولا خليط ── |
-| 374 | # ── S4: السلوك ── |
-| 447 | # ── S5: الرجوع ── |
-| 475 | # ── S6: حراس الـ preflight ── |
-| 506 | # ── S7: توافق حارس v1 المنشور مع رد v2 (طلبات حقيقية) ── |
+| 288 | # ── S0: الشكل والملفات ── |
+| 311 | # ── S1: قبل التطبيق (شكل Production) و ptest ── |
+| 341 | # ── S2: التطبيق ── |
+| 367 | # ── S3: فحوص التحقق: مفيش بصمة مجهولة ولا خليط ── |
+| 379 | # ── S4: السلوك ── |
+| 452 | # ── S5: الرجوع ── |
+| 480 | # ── S6: حراس الـ preflight ── |
+| 511 | # ── S7: توافق حارس v1 المنشور مع رد v2 (طلبات حقيقية) ── |
 
 ## `backend/db/ci/0021tr_sql_ci.sh`
 
@@ -1493,7 +1495,7 @@ EXPRESS-SHIPPING W1 الشحن السريع ومدة الشحن: الجدولي�
 
 ## `backend/db/migrations/0021tr2_track_order_v2_ptest.sql`
 
-TRACK-ORDER v2 W1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، 9 حالات؛ على Production 8 + skip T09، والنتيجة صفوف) · 960 سطر
+TRACK-ORDER v2 W1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، 9 حالات؛ على Production 8 + skip T09، والنتيجة صفوف) · 968 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -1519,20 +1521,20 @@ TRACK-ORDER v2 W1 اختبار قبل التطبيق (الجسم منسوخ با
 | 303 | create function public.zell_shipment_result(p_order_id integer) |
 | 320 | create function public.zell_shipment_get(p_order_number text) |
 | 339 | create function public.zell_shipment_save(p_order_number text, p_expected_updated_at timestamptz, p_… |
-| 415 | create function public.zell_customer_update_result(p_order_id integer) |
-| 429 | create function public.zell_customer_update_text(p_text text) |
-| 441 | create function public.zell_customer_update_list(p_order_number text) |
-| 456 | create function public.zell_customer_update_add(p_order_number text, p_text text) |
-| 482 | create function public.zell_customer_update_edit(p_order_number text, p_update_id bigint, p_expected… |
-| 519 | create function public.zell_customer_update_set_hidden(p_order_number text, p_update_id bigint, p_ex… |
-| 570 | -- (4) zell_checkout_track_order: CREATE OR REPLACE بنفس الاسم والتوقيع والمالك والإعدادات (والصلاحي… |
-| 574 | create or replace function public.zell_checkout_track_order(p_order_number text) |
-| 676 | -- (5) postflight |
-| 677 | do $tr2post$ |
-| 770 | -- <<< 0021TR2 BODY |
-| 772 | do $zT$ |
-| 893 | do $zC$ |
-| 960 | rollback; |
+| 416 | create function public.zell_customer_update_result(p_order_id integer) |
+| 431 | create function public.zell_customer_update_text(p_text text) |
+| 443 | create function public.zell_customer_update_list(p_order_number text) |
+| 460 | create function public.zell_customer_update_add(p_order_number text, p_expected_last_id bigint, p_te… |
+| 490 | create function public.zell_customer_update_edit(p_order_number text, p_update_id bigint, p_expected… |
+| 527 | create function public.zell_customer_update_set_hidden(p_order_number text, p_update_id bigint, p_ex… |
+| 578 | -- (4) zell_checkout_track_order: CREATE OR REPLACE بنفس الاسم والتوقيع والمالك والإعدادات (والصلاحي… |
+| 582 | create or replace function public.zell_checkout_track_order(p_order_number text) |
+| 684 | -- (5) postflight |
+| 685 | do $tr2post$ |
+| 778 | -- <<< 0021TR2 BODY |
+| 780 | do $zT$ |
+| 901 | do $zC$ |
+| 968 | rollback; |
 
 ## `backend/db/migrations/0021tr2_track_order_v2_rollback.sql`
 
@@ -1558,7 +1560,7 @@ TRACK-ORDER v2 W1 التحقق بعد التطبيق (10 فحوص، والنتي
 
 ## `backend/db/migrations/0021tr2_track_order_v2.sql`
 
-TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · الحراس · `zell_shipment_get` / `_save` · `zell_customer_update_list` / `_add` / `_edit` / `_set_hidden` · `zell_checkout_track_order` (v2) · 685 سطر
+TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · الحراس · `zell_shipment_get` / `_save` · `zell_customer_update_list` / `_add` / `_edit` / `_set_hidden` · `zell_checkout_track_order` (v2) · 693 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -1578,18 +1580,18 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 217 | create function public.zell_shipment_result(p_order_id integer) |
 | 234 | create function public.zell_shipment_get(p_order_number text) |
 | 253 | create function public.zell_shipment_save(p_order_number text, p_expected_updated_at timestamptz, p_… |
-| 329 | create function public.zell_customer_update_result(p_order_id integer) |
-| 343 | create function public.zell_customer_update_text(p_text text) |
-| 355 | create function public.zell_customer_update_list(p_order_number text) |
-| 370 | create function public.zell_customer_update_add(p_order_number text, p_text text) |
-| 396 | create function public.zell_customer_update_edit(p_order_number text, p_update_id bigint, p_expected… |
-| 433 | create function public.zell_customer_update_set_hidden(p_order_number text, p_update_id bigint, p_ex… |
-| 484 | -- (4) zell_checkout_track_order: CREATE OR REPLACE بنفس الاسم والتوقيع والمالك والإعدادات (والصلاحي… |
-| 488 | create or replace function public.zell_checkout_track_order(p_order_number text) |
-| 590 | -- (5) postflight |
-| 591 | do $tr2post$ |
-| 684 | -- <<< 0021TR2 BODY |
-| 685 | commit; |
+| 330 | create function public.zell_customer_update_result(p_order_id integer) |
+| 345 | create function public.zell_customer_update_text(p_text text) |
+| 357 | create function public.zell_customer_update_list(p_order_number text) |
+| 374 | create function public.zell_customer_update_add(p_order_number text, p_expected_last_id bigint, p_te… |
+| 404 | create function public.zell_customer_update_edit(p_order_number text, p_update_id bigint, p_expected… |
+| 441 | create function public.zell_customer_update_set_hidden(p_order_number text, p_update_id bigint, p_ex… |
+| 492 | -- (4) zell_checkout_track_order: CREATE OR REPLACE بنفس الاسم والتوقيع والمالك والإعدادات (والصلاحي… |
+| 496 | create or replace function public.zell_checkout_track_order(p_order_number text) |
+| 598 | -- (5) postflight |
+| 599 | do $tr2post$ |
+| 692 | -- <<< 0021TR2 BODY |
+| 693 | commit; |
 
 ## `backend/db/migrations/0021tr_track_order_ptest.sql`
 
@@ -1775,7 +1777,7 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 188 | ## ١١) سجل التعديلات |
 ## `docs/contracts/TRACK-ORDER-v2.md`
 
-عقد التتبّع الكامل: حقول v1 + v2 · المبالغ (المدفوع · المردود · الصافي · المتبقي) · خط المراحل · الشحنة · رسايل العميل · الموعد · قراءات T1–T5 ونتايجها · W1 (الأسماء والأكواد النهائية) · 203 سطر
+عقد التتبّع الكامل: حقول v1 + v2 · المبالغ (المدفوع · المردود · الصافي · المتبقي) · خط المراحل · الشحنة · رسايل العميل · الموعد · قراءات T1–T5 ونتايجها · W1 (الأسماء والأكواد النهائية) · 204 سطر
 
 | السطر | القسم |
 | ---: | --- |
