@@ -358,7 +358,7 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | `zell_customer_update_edit(text, bigint, timestamptz, text)` | `zell_order_definer` · `authenticated` بس | تعديل النص (النسخة 45404 · `edited`) + سطر `edit` |
 | `zell_customer_update_set_hidden(text, bigint, timestamptz, boolean)` | `zell_order_definer` · `authenticated` بس | إخفاء / إظهار + سطر `hide` / `show` |
 | `zell_shipment_result(integer)` · `zell_customer_update_result(integer)` · `zell_customer_update_text(text)` | `zell_order_definer` · مفيش | داخلية: نتيجة اللوحة · تطبيع النص (NFC · CRLF ← LF · trim) والتحقق منه |
-| `zell_shipment_trg_append_only()` · `zell_customer_update_trg_append_only()` | `postgres` (invoker) | 8 triggers (45413): السجلين مابيتعدّلوش ولا بيتمسحوا ولا بيتعملهم truncate، والشحنة والرسالة مابيتمسحوش |
+| `zell_shipment_trg_append_only()` · `zell_customer_update_trg_append_only()` | `postgres` (invoker) | 8 triggers (45413): السجلين مابيتعدّلوش ولا بيتمسحوا ولا بيتعملهم truncate، والشحنة والرسالة مابيتمسحوش · تفريغ جدول الرسايل لوحده بيترفضه الـ FK بتاع السجل قبلها (`0A000`) |
 | `zell_checkout_track_order(text)` (v2) | `zell_order_definer` · `service_role` بس (زي T1) | `CREATE OR REPLACE`: حقول v1 بالحرف + `customer` · `history` · `money` · `shipping` · `confirmed_delivery` · `shipment` · `updates` (§٩ والعقد §٢). البصمة `14dad4721c48b73ee5e040bf7436bfc5` |
 
 - مفيش صلاحية جديدة على `orders` ولا `order_events` ولا `order_payments` (قراءة T3)، ومفيش أي خانة في استعلام الأثر بتتغيّر.
@@ -370,4 +370,4 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | `migrations/0021tr2_track_order_v2.sql` | W1 كله (الجسم بين `-- >>> 0021TR2 BODY` و`-- <<<`)، ومحتاج سطر `zell.approved_by` بعد `begin;` (`owner-approval-YYYY-MM-DD-0021tr2-track-order-v2`) |
 | `migrations/0021tr2_track_order_v2_ptest.sql` | smoke قبل التطبيق (9 حالات؛ على Production 8 + skip T09): الجسم منسوخ بالحرف، ورد v1 لآخر طلب = مفاتيح v1 في رد v2، والصلاحيات والدوال التانية زي ما هي |
 | `migrations/0021tr2_track_order_v2_verify.sql` · `_rollback.sql` | التحقق (10 فحوص، في أي وقت بعد التطبيق) · الرجوع (محتاج سطر موافقة) |
-| `ci/0021tr2_sql_ci.sh` · `ci/0021tr2_flows.sql` · `ci/0021tr2_v1_guard.mjs` | CI على Postgres 17 مؤقت فوق شكل Production (A1 · D · P1 · P2 · D2 · TR · EXPRESS): S0–S7 — ptest · التطبيق والأثر · verify بالحالتين · السيناريوهات (F00–F48، 35 حالة) · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · الرجوع ببصمات T1 · حراس الـ preflight · توافق حارس v1 مع رد v2 |
+| `ci/0021tr2_sql_ci.sh` · `ci/0021tr2_flows.sql` · `ci/0021tr2_v1_guard.mjs` | CI على Postgres 17 مؤقت فوق شكل Production (A1 · D · P1 · P2 · D2 · TR · EXPRESS): S0–S7 — ptest · التطبيق والأثر · verify بالحالتين · السيناريوهات (F00–F49، 36 حالة) · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · الرجوع ببصمات T1 · حراس الـ preflight · توافق حارس v1 مع رد v2 |
