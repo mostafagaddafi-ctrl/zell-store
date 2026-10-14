@@ -1,6 +1,7 @@
 -- 0021-TR W1 — الرجوع لـ 0021tr_track_order.sql: بيشيل الدالة، وصلاحية القراية على order_items والـ policy بتاعتها.
 -- مفيش بيانات، فالرجوع مسموح دايمًا.
 -- الترتيب: revert كود W2 الأول لو اتنشر، وبعدين الداتابيز. ولازم قبل أي rollback لـ A1 (اللي بيشيل الدور zell_order_definer).
+-- بيرفض طول ما TRACK-ORDER v2 متطبّق (ZELL_0021TR_RB_TR2_APPLIED): رجوع 0021tr2_track_order_v2_rollback.sql الأول.
 -- ⚠ بيتشغّل على Production بموافقة صريحة بس.
 
 begin;
@@ -14,6 +15,9 @@ begin
   end if;
   if pg_catalog.to_regprocedure('public.zell_checkout_track_order(text)') is null then
     raise exception 'ZELL_0021TR_RB_NOT_APPLIED';
+  end if;
+  if pg_catalog.to_regclass('public.zell_order_shipments') is not null then
+    raise exception 'ZELL_0021TR_RB_TR2_APPLIED';
   end if;
 end
 $trrb$;
