@@ -21,7 +21,7 @@
 | `backend/db/ci/0021p1_flows.sql` | 37 KB | 538 | 0021-A P1 سيناريوهات الدفع بعد التطبيق في CI (F01–F42، معاملة بترجع) |
 | `backend/db/ci/0021p1_sql_ci.sh` | 56 KB | 748 | اختبارات SQL لـ 0021-A P1 و P2 وتنضيف التجارب في CI، بتتشغّل مرتين (مالك zell_create_order = zell_order_writer ثم postgres): ptest · تطبيق · verify · مقارنة 520 حالة · الرسوم DB = core · السيناريوهات · rollback · الانحراف · التنضيف C00–C12 · ptest من غير أدمن ولا طلبات |
 | `backend/db/ci/0021tr2_flows.sql` | 43 KB | 605 | TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل ورد التتبّع بعد التطبيق في CI (F00–F48، 34 حالة، معاملة بترجع) |
-| `backend/db/ci/0021tr2_sql_ci.sh` | 42 KB | 518 | اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) |
+| `backend/db/ci/0021tr2_sql_ci.sh` | 43 KB | 527 | اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) |
 | `backend/db/ci/0021tr_sql_ci.sh` | 22 KB | 313 | اختبارات SQL لـ 0021-TR W1 في CI فوق شكل Production (S0–S5: الشكل · ptest · تطبيق · verify · الرد بالسبع حالات والموعد والسطور ومن غير بيانات عميل · null للشكل الغلط · الصلاحيات · rollback · حراس الـ preflight) |
 | `backend/db/migrations/0006b_order_functions.sql` | 38 KB | 765 | دور `zell_order_writer` وأول نسخة من `zell_create_order` و`zell_get_order_receipt` |
 | `backend/db/migrations/0006c_order_receipt_expiry.sql` | 23 KB | 504 | `zell_create_order` بترجّع `receipt_expires_at` |
@@ -399,22 +399,22 @@ TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل و
 
 ## `backend/db/ci/0021tr2_sql_ci.sh`
 
-اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) · 518 سطر
+اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) · 527 سطر
 
 | السطر | القسم |
 | ---: | --- |
-| 67 | record() { |
-| 137 | prep() { |
-| 151 | SEED_SQL=$(cat <<'SQL' |
-| 231 | SEED2_SQL=$(cat <<'SQL' |
-| 272 | # ── S0: الشكل والملفات ── |
-| 295 | # ── S1: قبل التطبيق (شكل Production) و ptest ── |
-| 325 | # ── S2: التطبيق ── |
-| 351 | # ── S3: فحوص التحقق: مفيش بصمة مجهولة ولا خليط ── |
-| 363 | # ── S4: السلوك ── |
-| 436 | # ── S5: الرجوع ── |
-| 464 | # ── S6: حراس الـ preflight ── |
-| 495 | # ── S7: توافق حارس v1 المنشور مع رد v2 (طلبات حقيقية) ── |
+| 76 | record() { |
+| 146 | prep() { |
+| 160 | SEED_SQL=$(cat <<'SQL' |
+| 240 | SEED2_SQL=$(cat <<'SQL' |
+| 281 | # ── S0: الشكل والملفات ── |
+| 304 | # ── S1: قبل التطبيق (شكل Production) و ptest ── |
+| 334 | # ── S2: التطبيق ── |
+| 360 | # ── S3: فحوص التحقق: مفيش بصمة مجهولة ولا خليط ── |
+| 372 | # ── S4: السلوك ── |
+| 445 | # ── S5: الرجوع ── |
+| 473 | # ── S6: حراس الـ preflight ── |
+| 504 | # ── S7: توافق حارس v1 المنشور مع رد v2 (طلبات حقيقية) ── |
 
 ## `backend/db/ci/0021tr_sql_ci.sh`
 
