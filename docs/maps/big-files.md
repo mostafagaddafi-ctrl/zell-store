@@ -2,7 +2,7 @@
 
 كل ملف في الريبو حجمه 20 KB أو أكتر (SQL · shell · Markdown)، وأقسامه بأرقام سطورها، ومعاهم ملفات 0021-A P1/P2 و0021-D2 الأصغر علشان المرحلة تبقى كاملة. الهدف إن أي شات يقرا الجزء اللي محتاجه بس، من غير ما يفتح ملف فيه آلاف السطور.
 
-- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR. ملفات 0021-D2 W1 (`0021d2_*`) اتضافت في PR W1 فوق main `6f3df51` (صفوفها وأقسامها من الـ head بتاعه)، وباقي الجدول زي ما هو. و`docs/plans/ADMIN-LANG-LIST.md` اتضاف في PR الحصر فوق main `c760822`.
+- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR. ملفات 0021-D2 W1 (`0021d2_*`) اتضافت في PR W1 فوق main `6f3df51` (صفوفها وأقسامها من الـ head بتاعه)، وباقي الجدول زي ما هو. و`docs/plans/ADMIN-LANG-LIST.md` اتضاف في PR الحصر فوق main `c760822`. وملفات 0021-TR W1 (`0021tr_*`) اتضافت في PR W1 (#145) فوق main `3658906` (صفوفها وأقسامها من الـ head بتاعه)، وقسم `docs/maps/db-map.md` اتولّد من جديد من نفس الـ head (كان قديم: من غير §٧-ج و§٩).
 - **القراية بالسطور:** على GitHub ضيف `#L100-L200` للرابط، أو اقرا الـ blob وقطّع السطور من القسم لحد القسم اللي بعده.
 - **الـ ptest:** جسم الـ migration منسوخ جواه بالحرف بين «بداية/نهاية الجسم المنسوخ»، فمش محتاج تقراه هناك. اقراه من ملف الـ migration.
 - الجداول متولّدة من عناوين الملفات نفسها: `-- (N)` · الفواصل · `DO $…$` · `create function/table/role` · `BEGIN/COMMIT/ROLLBACK` · `#` في Markdown · `name() {` و`X=$(cat <<'SQL'` في shell.
@@ -18,6 +18,7 @@
 | `backend/db/ci/0021p_sql_ci.sh` | 30 KB | 445 | اختبارات SQL لـ 0021-P في CI (S0–S8 و C1–C4) |
 | `backend/db/ci/0021p1_flows.sql` | 37 KB | 538 | 0021-A P1 سيناريوهات الدفع بعد التطبيق في CI (F01–F42، معاملة بترجع) |
 | `backend/db/ci/0021p1_sql_ci.sh` | 56 KB | 748 | اختبارات SQL لـ 0021-A P1 و P2 وتنضيف التجارب في CI، بتتشغّل مرتين (مالك zell_create_order = zell_order_writer ثم postgres): ptest · تطبيق · verify · مقارنة 520 حالة · الرسوم DB = core · السيناريوهات · rollback · الانحراف · التنضيف C00–C12 · ptest من غير أدمن ولا طلبات |
+| `backend/db/ci/0021tr_sql_ci.sh` | 22 KB | 313 | اختبارات SQL لـ 0021-TR W1 في CI فوق شكل Production (S0–S5: الشكل · ptest · تطبيق · verify · الرد بالسبع حالات والموعد والسطور ومن غير بيانات عميل · null للشكل الغلط · الصلاحيات · rollback · حراس الـ preflight) |
 | `backend/db/migrations/0006b_order_functions.sql` | 38 KB | 765 | دور `zell_order_writer` وأول نسخة من `zell_create_order` و`zell_get_order_receipt` |
 | `backend/db/migrations/0006c_order_receipt_expiry.sql` | 23 KB | 504 | `zell_create_order` بترجّع `receipt_expires_at` |
 | `backend/db/migrations/0015_product_widths.sql` | 21 KB | 463 | عروض الرول (`product_widths`) + `zell_create_order` |
@@ -56,10 +57,14 @@
 | `backend/db/migrations/0021p_access_verify.sql` | 22 KB | 343 | 0021-P التحقق بعد التطبيق (15 فحص، والنتيجة صفوف) |
 | `backend/db/migrations/0021p_erp_access.sql` | 46 KB | 1048 | 0021-P المحرك `erp_*` |
 | `backend/db/migrations/0021p_zell_erp_access.sql` | 42 KB | 983 | 0021-P محوّل ZELL `zell_erp_*` |
+| `backend/db/migrations/0021tr_track_order_ptest.sql` | 15 KB | 261 | 0021-TR W1 اختبار قبل التطبيق (smoke، 6 حالات، والنتيجة صفوف) — أقل من 20 KB |
+| `backend/db/migrations/0021tr_track_order_rollback.sql` | 2 KB | 41 | 0021-TR W1 الرجوع (الدالة والـ policy وصلاحيات الأعمدة على `order_items`؛ مسموح دايمًا، وقبل rollback A1) — أقل من 20 KB |
+| `backend/db/migrations/0021tr_track_order_verify.sql` | 9 KB | 129 | 0021-TR W1 التحقق بعد التطبيق (7 فحوص بدور `service_role`، والنتيجة صفوف) — أقل من 20 KB |
+| `backend/db/migrations/0021tr_track_order.sql` | 11 KB | 168 | 0021-TR W1 «تتبّع طلبك»: قراية `order_items` لـ `zell_order_definer` (٨ أعمدة + policy) · `zell_checkout_track_order` لـ `service_role` — أقل من 20 KB |
 | `docs/contracts/0021-A.md` | 94 KB | 438 | عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر |
 | `docs/contracts/0021-P-code.md` | 29 KB | 249 | عقد كود 0021-P: أ ← ب1 ← ب2 · الأوضاع · الفاحص · التعديلات بعد الاعتماد |
 | `docs/contracts/0021-P.md` | 22 KB | 252 | عقد 0021-P (الداتابيز): المحرك والمحوّل والهوية من الجلسة |
-| `docs/maps/db-map.md` | 31 KB | 254 | خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف |
+| `docs/maps/db-map.md` | 37 KB | 303 | خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف |
 | `docs/plans/ADMIN-LANG-LIST.md` | 62 KB | 224 | حصر نصوص اللوحة العامية مع مقترح فصحى مبسّطة لكل نص (أ · ب · ج · د)، للمالك يختار منه |
 | `docs/plans/ORDER-FLOW-PLAN.md` | 119 KB | 1584 | خطة مسار الطلب |
 | `README.md` | 25 KB | 325 | حالة النظام الحي: الميزات · اللوحة · الهيكل · الأمان · التوثيق |
@@ -295,6 +300,22 @@
 | 623 | c_seed() { |
 | 630 | c_concurrent() { |
 | 739 | # ── S14: ptest production من غير أدمن شغال ولا أي طلب (B2): الـ skips محسوبة من البيانات والحكم بال… |
+
+## `backend/db/ci/0021tr_sql_ci.sh`
+
+اختبارات SQL لـ 0021-TR W1 في CI فوق شكل Production (S0–S5: الشكل · ptest · تطبيق · verify · الرد بالسبع حالات والموعد والسطور ومن غير بيانات عميل · null للشكل الغلط · الصلاحيات · rollback · حراس الـ preflight) · 313 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 53 | record() { |
+| 99 | prep() { |
+| 111 | seed() { |
+| 162 | # ── S0: الشكل والملفات ── |
+| 176 | # ── S1: ptest قبل التطبيق ── |
+| 190 | # ── S2: التطبيق ── |
+| 211 | # ── S3: الرد (بدور service_role زي المتجر) ── |
+| 286 | # ── S4: الرجوع ── |
+| 300 | # ── S5: حراس الـ preflight ── |
 
 ## `backend/db/migrations/0006b_order_functions.sql`
 
@@ -1270,6 +1291,67 @@
 | 982 | نهاية الجسم المنسوخ: 0021P ADAPTER BODY |
 | 983 | COMMIT |
 
+## `backend/db/migrations/0021tr_track_order_ptest.sql`
+
+0021-TR W1 اختبار قبل التطبيق (smoke، 6 حالات، والنتيجة صفوف) — أقل من 20 KB · 261 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 9 | begin; |
+| 13 | do $zguard$ |
+| 23 | create function pg_temp.zt(p_name text, p_ok boolean, p_detail text) |
+| 30 | create function pg_temp.call_as(p_role text, p_code text) returns text language plpgsql as $f$ |
+| 45 | -- >>> 0021TR BODY |
+| 49 | -- (0) preflight: المتصل · الموافقة · مش متطبّق قبل كده · المتطلبات (A1 · D · P1 · P2 · D2). |
+| 50 | do $trpre$ |
+| 91 | -- (1) قراية order_items للدالة: الأعمدة التمانية اللي في الإسقاط بس + policy قراية لـ zell_order_definer. |
+| 97 | -- (2) الدالة: مالكها zell_order_definer، EXECUTE لـ service_role بس — زي zell_checkout_delivery_periods و |
+| 102 | create function public.zell_checkout_track_order(p_order_number text) |
+| 144 | -- (3) postflight |
+| 145 | do $trpost$ |
+| 186 | -- <<< 0021TR BODY |
+| 188 | do $zT$ |
+| 261 | rollback; |
+
+## `backend/db/migrations/0021tr_track_order_rollback.sql`
+
+0021-TR W1 الرجوع (الدالة والـ policy وصلاحيات الأعمدة على `order_items`؛ مسموح دايمًا، وقبل rollback A1) — أقل من 20 KB · 41 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 6 | begin; |
+| 10 | do $trrb$ |
+| 22 | drop function public.zell_checkout_track_order(text); |
+| 29 | do $trrbpost$ |
+| 41 | commit; |
+
+## `backend/db/migrations/0021tr_track_order_verify.sql`
+
+0021-TR W1 التحقق بعد التطبيق (7 فحوص بدور `service_role`، والنتيجة صفوف) — أقل من 20 KB · 129 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 10 | begin; |
+| 129 | rollback; |
+
+## `backend/db/migrations/0021tr_track_order.sql`
+
+0021-TR W1 «تتبّع طلبك»: قراية `order_items` لـ `zell_order_definer` (٨ أعمدة + policy) · `zell_checkout_track_order` لـ `service_role` — أقل من 20 KB · 168 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 25 | begin; |
+| 26 | -- >>> 0021TR BODY |
+| 30 | -- (0) preflight: المتصل · الموافقة · مش متطبّق قبل كده · المتطلبات (A1 · D · P1 · P2 · D2). |
+| 31 | do $trpre$ |
+| 72 | -- (1) قراية order_items للدالة: الأعمدة التمانية اللي في الإسقاط بس + policy قراية لـ zell_order_definer. |
+| 78 | -- (2) الدالة: مالكها zell_order_definer، EXECUTE لـ service_role بس — زي zell_checkout_delivery_periods و |
+| 83 | create function public.zell_checkout_track_order(p_order_number text) |
+| 125 | -- (3) postflight |
+| 126 | do $trpost$ |
+| 167 | -- <<< 0021TR BODY |
+| 168 | commit; |
+
 ## `docs/contracts/0021-A.md`
 
 عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر · 438 سطر
@@ -1367,7 +1449,7 @@
 
 ## `docs/maps/db-map.md`
 
-خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف · 254 سطر
+خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف · 303 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -1376,18 +1458,21 @@
 | 29 | ## ٢) الجداول |
 | 31 | ### المتجر والطلبات |
 | 54 | ### دورة الطلب (0021-A A1) |
-| 66 | ### المخزون والمشتريات (0020) |
-| 83 | ### الصلاحيات (0021-P) |
-| 99 | ## ٣) دوال المتجر والطلب |
-| 113 | ## ٤) دوال اللوحة (الكتابة الذرّية) |
-| 135 | ## ٥) دوال المخزون (0020، مالكها `zell_inventory_definer`) |
-| 163 | ## ٦) دوال الصلاحيات (0021-P) |
-| 167 | ### المحرك (`0021p_erp_access.sql`، مالكها `erp_definer`، كلها داخلية) |
-| 179 | ### المحوّل (`0021p_zell_erp_access.sql`) |
-| 188 | ### Triggers 0021-P |
-| 199 | ## ٧) دوال دورة الطلب (0021-A A1، مالكها `zell_order_definer`) |
-| 212 | ## ٧-ب) دوال الدفعات ورسوم التأكيد (0021-A P1 و P2) |
-| 242 | ## ٨) ملفات من غير جداول أو دوال جديدة |
+| 66 | ### موعد التسليم في Checkout (0021-D2 W1 — مش متطبّق لسه) |
+| 75 | ### المخزون والمشتريات (0020) |
+| 92 | ### الصلاحيات (0021-P) |
+| 108 | ## ٣) دوال المتجر والطلب |
+| 123 | ## ٤) دوال اللوحة (الكتابة الذرّية) |
+| 145 | ## ٥) دوال المخزون (0020، مالكها `zell_inventory_definer`) |
+| 173 | ## ٦) دوال الصلاحيات (0021-P) |
+| 177 | ### المحرك (`0021p_erp_access.sql`، مالكها `erp_definer`، كلها داخلية) |
+| 189 | ### المحوّل (`0021p_zell_erp_access.sql`) |
+| 198 | ### Triggers 0021-P |
+| 209 | ## ٧) دوال دورة الطلب (0021-A A1، مالكها `zell_order_definer`) |
+| 222 | ## ٧-ب) دوال الدفعات ورسوم التأكيد (0021-A P1 و P2) |
+| 252 | ## ٧-ج) دوال موعد التسليم في Checkout (0021-D2 W1) |
+| 272 | ## ٨) ملفات من غير جداول أو دوال جديدة |
+| 286 | ## ٩) تتبّع الطلب للعميل (0021-TR W1) |
 
 ## `docs/plans/ADMIN-LANG-LIST.md`
 
