@@ -10,6 +10,9 @@
  *
  * 0021-D2 — حفظ إعداد موعد التسليم: المالك بس (zell.orders.payments_admin — صلاحية المالك لإعدادات الطلب، من غير
  * صلاحية جديدة) برسالة OWNER_ONLY_MESSAGE، والقرار النهائي في zell_delivery_settings_save (45402).
+ *
+ * EXPRESS-SHIPPING W2 — حفظ إعداد مدة الشحن والشحن السريع: نفس قاعدة D2 (المالك بس، zell.orders.payments_admin،
+ * OWNER_ONLY_MESSAGE)، والقرار النهائي في zell_shipping_options_save (45402).
  */
 
 import { actionWithAccess } from './access/instance'
@@ -17,9 +20,11 @@ import type { AccessContext } from './access/wrappers'
 import { OWNER_ONLY_MESSAGE } from './coupons/form'
 import type { MutationResult } from './mutations'
 import { saveDeliverySettings } from './mutations/deliverySettings'
+import { saveShippingOptions } from './mutations/shippingOptions'
 import { editOrderDetails, recordOrderCall, setOrderDelivery, setOrderFollowUp } from './mutations/orders'
 import type { CallOutcome, DeliveryValue, DetailsChanges } from './orders/cycle'
 import type { DeliverySettingsInput } from './orders/deliverySettings'
+import type { ShippingOptionsInput } from './orders/shippingOptions'
 
 export const recordOrderCallAction = actionWithAccess(
   'zell.orders.status_edit',
@@ -64,4 +69,10 @@ export const saveDeliverySettingsAction = actionWithAccess(
   'zell.orders.payments_admin',
   { mutates: true, forbiddenMessage: OWNER_ONLY_MESSAGE },
   async (_ctx: AccessContext, input: DeliverySettingsInput): Promise<MutationResult<null>> => saveDeliverySettings(input),
+)
+
+export const saveShippingOptionsAction = actionWithAccess(
+  'zell.orders.payments_admin',
+  { mutates: true, forbiddenMessage: OWNER_ONLY_MESSAGE },
+  async (_ctx: AccessContext, input: ShippingOptionsInput): Promise<MutationResult<null>> => saveShippingOptions(input),
 )
