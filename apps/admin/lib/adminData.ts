@@ -9,7 +9,7 @@
 import { supabaseAdminData } from './data/reads'
 import type { ImageFit, OrderStatus, SectionKey } from './enums'
 import type { DeliveryPeriod, FollowUpFilter } from './orders/cycle'
-import type { CatalogLayout } from '@zell/core'
+import type { CatalogLayout, ShippingDays, ShippingMethod } from '@zell/core'
 import type { OrderCouponSnapshot } from './coupons/form'
 import type { HomeMobileLayout } from './content/homeMobile'
 
@@ -75,6 +75,8 @@ export type AdminOrderDetail = AdminOrder & {
   deliveryConfirmed: { date: string; period: DeliveryPeriod | null; note: string | null } | null
   /** 0021-D — موعد العميل المفضّل من Checkout (لقطة منفصلة) أو null. */
   preferredDelivery: { date: string; period: DeliveryPeriod | null; note: string | null } | null
+  /** EXPRESS-SHIPPING — لقطة طريقة الشحن ومدتها، أو null للطلب القديم. */
+  shipping: { method: ShippingMethod; days: ShippingDays | null } | null
 }
 
 export type OrdersQuery = {

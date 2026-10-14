@@ -585,7 +585,7 @@ jobs:
           if [ "$EVENT" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           if [ "$EVENT" = "pull_request" ]; then range="$BASE_SHA...HEAD"; else range="$BEFORE_SHA..HEAD"; fi
           if ! changed=$(git diff --name-only "$range" 2>/dev/null); then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if printf '%s\n' "$changed" | grep -Eq '^(backend/db/migrations/0021ex_|backend/db/ci/0021ex_|backend/db/migrations/0021tr_|backend/db/migrations/0021d2_|backend/db/migrations/0021a_|backend/db/migrations/0021d_|backend/db/migrations/0021p_|backend/db/migrations/0019_coupons\.sql$|backend/db/ci/0021p1_sql_ci\.sh$|backend/db/ci/0021p_txn_shape\.py$|\.github/workflows/ci\.yml$)'; then
+          if printf '%s\n' "$changed" | grep -Eq '^(backend/db/migrations/0021ex_|backend/db/ci/0021ex_|packages/core/src/shippingOptions\.ts$|packages/core/src/pricing\.ts$|backend/db/migrations/0021tr_|backend/db/migrations/0021d2_|backend/db/migrations/0021a_|backend/db/migrations/0021d_|backend/db/migrations/0021p_|backend/db/migrations/0019_coupons\.sql$|backend/db/ci/0021p1_sql_ci\.sh$|backend/db/ci/0021p_txn_shape\.py$|\.github/workflows/ci\.yml$)'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -624,6 +624,12 @@ jobs:
 
       - name: psql client
         run: psql --version
+
+      # node 22 علشان --experimental-strip-types (S46: شحن العرض من packages/core بالحرف = الداتابيز، من غير build).
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       - name: SQL suite (EXPRESS-SHIPPING on the Production shape A1 + D + P1 + P2 + D2 + TR)
         run: bash backend/db/ci/0021ex_sql_ci.sh

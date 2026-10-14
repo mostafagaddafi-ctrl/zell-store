@@ -424,6 +424,15 @@ rollback_ex; E=$?
 ok=no; if [ "$E" -ne 0 ] && has "$TMP/rb.out" 'ZELL_0021EX_RB_HAS_ORDERS' && [ "$(ex_state)" = "$ST" ] && [ "$(impact)" = "$PRE" ]; then ok=yes; fi
 record "S45 rollback after an order was created -> refused (HAS_ORDERS), nothing changed" "$ok" "E=$E $(grep -m2 -E 'ERROR|ZELL' "$TMP/rb.out" | tr '\n' ' ' | cut -c1-400)"
 
+# ── S46: شحن العرض في المتجر (packages/core) = الداتابيز (EXPRESS-SHIPPING W2) ──
+if node --experimental-strip-types "$CIDIR/0021ex_core_parity.mjs" > "$TMP/parity.sql" 2> "$TMP/parity.err"; then
+  R=$(psql -X -q -tA -v ON_ERROR_STOP=1 -U postgres -d "$DB" -f "$TMP/parity.sql" 2>&1 | tail -n 1)
+else
+  R="node failed: $(tail -n 5 "$TMP/parity.err" | tr '\n' ' ')"
+fi
+ok=no; if [ "$(rf "$R" 1)" = "240" ] && [ "$(rf "$R" 2)" = "0" ]; then ok=yes; fi
+record "S46 display shipping (packages/core: standard price · express offer · days) = zell_create_order on 240 cases (20 settings x 2 governorates x 3 subtotals x 2 methods)" "$ok" "$(printf '%s' "$R" | cut -c1-600)"
+
 # ── S5: الرجوع ──
 if ! prep with_tr; then record "S50 prep" "no" "see output"; fi
 PRE=$(impact); FPPRE=$(co_fp)

@@ -32,6 +32,8 @@ export type OrderRequest = {
   couponCode?: string
   /** 0021-D — موعد التسليم المفضّل (اختياري). */
   preferredDelivery?: PreferredDelivery
+  /** EXPRESS-SHIPPING — 'express' لو العميل اختار «شحن سريع» بس؛ غايب = عادي (الـ body القديم بالحرف). */
+  shippingMethod?: 'express'
 }
 
 export type OrderSuccess = {
@@ -132,6 +134,8 @@ export type OrderErrorCode =
   | 'CART_INVALID'
   | 'PREFERRED_DELIVERY_INVALID'
   | 'DELIVERY_SETTINGS_UNAVAILABLE'
+  | 'SHIPPING_METHOD_INVALID'
+  | 'SHIPPING_EXPRESS_UNAVAILABLE'
   | 'INVALID_NAME'
   | 'INVALID_PHONE'
   | 'INVALID_ADDRESS'

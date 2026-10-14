@@ -5,6 +5,8 @@ import { restRpc } from './rpc'
 import { parseCheckoutFee, type CheckoutFee } from '../orders/confirmationFee'
 import type { CheckoutDeliverySettings } from '../orders/deliverySettings'
 import { readCheckoutDeliverySettings } from './deliverySettings'
+import type { ShippingOptions } from '@zell/core'
+import { readCheckoutShippingOptions } from './shippingOptions'
 
 /**
  * مصدر بيانات المتجر — نقطة الدخول الوحيدة للصفحات.
@@ -115,4 +117,13 @@ export async function getCheckoutConfirmationFee(): Promise<CheckoutFee | null> 
 export async function getCheckoutDeliverySettings(): Promise<CheckoutDeliverySettings | null> {
   if (resolveDataSource() === 'fallback') return null
   return readCheckoutDeliverySettings()
+}
+
+/**
+ * EXPRESS-SHIPPING W2 — إعداد الشحن السريع ومدة الشحن للـ Checkout (zell_shipping_options_checkout، service_role).
+ * fallback (CI والتطوير) أو أي فشل = null: اختيار «شحن عادي / شحن سريع» مايظهرش، والطلب عادي.
+ */
+export async function getCheckoutShippingOptions(): Promise<ShippingOptions | null> {
+  if (resolveDataSource() === 'fallback') return null
+  return readCheckoutShippingOptions()
 }

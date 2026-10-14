@@ -10,7 +10,7 @@
  *    النية — فأول إرسال نجح وضاع رده يتحوّل لطلب تاني بدل replay.
  */
 
-import { normalizeCouponCode, normalizePhone, type PreferredDelivery } from '@zell/core'
+import { normalizeCouponCode, normalizePhone, type PreferredDelivery, type ShippingMethod } from '@zell/core'
 import type { OrderRequest } from './contracts'
 
 /**
@@ -38,6 +38,8 @@ export type NormalizedOrder = {
   couponCode: string | null
   /** 0021-D — الموعد المفضّل (null = مفيش). */
   preferredDelivery: PreferredDelivery | null
+  /** EXPRESS-SHIPPING — 'standard' لو مفيش اختيار. */
+  shippingMethod: ShippingMethod
   items: Array<{ productId: number; lengthCm?: number; widthCm?: number; quantity?: number }>
 }
 
@@ -83,6 +85,8 @@ export function normalizeOrder(input: OrderRequest): NormalizedOrder {
             period: input.preferredDelivery.period,
             note: input.preferredDelivery.note === null ? null : normalizeText(input.preferredDelivery.note) || null,
           },
+    // EXPRESS-SHIPPING — 'express' بس لو مبعوت صراحة؛ غير كده عادي
+    shippingMethod: input.shippingMethod === 'express' ? 'express' : 'standard',
     items,
   }
 }
@@ -118,5 +122,8 @@ export function canonicalOrderJson(order: NormalizedOrder): string {
   if (order.preferredDelivery !== null) {
     shape.push(['d1', order.preferredDelivery.date, order.preferredDelivery.period ?? '', order.preferredDelivery.note ?? ''])
   }
+  // EXPRESS-SHIPPING — بس لو سريع: عنصر ['s1', 'express'] في الآخر. العادي = الشكل القديم بالحرف (نفس الهاش ونفس مفاتيح
+  // الـ idempotency)، وتغيير الطريقة = canonical جديد = مفتاح جديد (مش IDEMPOTENCY_MISMATCH).
+  if (order.shippingMethod === 'express') shape.push(['s1', 'express'])
   return JSON.stringify(shape)
 }

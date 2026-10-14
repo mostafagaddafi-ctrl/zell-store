@@ -32,6 +32,9 @@ export const ORDER_FUNCTIONS = {
   // 0021-D2 — إعداد موعد التسليم في صفحة الطلب: القراية لأي أدمن شغّال، والحفظ للمالك (القرار في الداتابيز).
   deliverySettings: 'zell_delivery_settings_get',
   saveDeliverySettings: 'zell_delivery_settings_save',
+  // EXPRESS-SHIPPING W2 — إعداد مدة الشحن والشحن السريع في صفحة الشحن: القراية لأي أدمن شغّال، والحفظ للمالك (القرار في الداتابيز).
+  shippingOptions: 'zell_shipping_options_get',
+  saveShippingOptions: 'zell_shipping_options_save',
 } as const
 
 export type OrderFunction = keyof typeof ORDER_FUNCTIONS

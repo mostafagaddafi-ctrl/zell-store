@@ -14,6 +14,7 @@
  */
 
 import { normalizeCouponCode } from '@zell/core'
+import { parseDraftShippingMethod } from './orders/shippingChoice'
 
 const CHECKOUT_KEY = 'zell-checkout-draft-v1'
 const SIZE_KEY_PREFIX = 'zell-size-draft-v1:'
@@ -80,6 +81,8 @@ export type CheckoutDraft = {
   showNotes: boolean
   /** 0019 — الكود المطبّق بس (من غير مبلغ ولا شروط). ناقص في التخزين القديم. */
   couponCode?: string
+  /** EXPRESS-SHIPPING — الاختيار بس (مفيش سعر): 'express' أو ناقص (= عادي). */
+  shippingMethod?: 'express'
 }
 
 export function readCheckoutDraft(): CheckoutDraft | null {
@@ -115,8 +118,12 @@ export function parseCheckoutDraft(record: Record<string, unknown>): CheckoutDra
     if (bounded === null || normalizeCouponCode(bounded) !== bounded) return null
     couponCode = bounded
   }
+  // EXPRESS-SHIPPING — ناقص = عادي (أو تخزين قديم). أي قيمة غير 'express' = المسودة كلها بتتجاهل
+  const shipping = parseDraftShippingMethod(record['shippingMethod'])
+  if (!shipping.ok) return null
   const draft: CheckoutDraft = { customerName, customerPhone, governorate, area, address, notes, showNotes }
   if (couponCode !== undefined) draft.couponCode = couponCode
+  if (shipping.method !== undefined) draft.shippingMethod = shipping.method
   return draft
 }
 

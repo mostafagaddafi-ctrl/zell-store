@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { CheckCircle2 } from 'lucide-react'
 import {
   PREFERRED_DELIVERY_PENDING,
+  SHIPPING_METHOD_LABELS,
+  shippingDaysLine,
   formatLength,
   formatPiastres,
   isValidOrderNumber,
@@ -14,7 +16,7 @@ import type { Receipt } from '../../../lib/orders/contracts'
 import { DISCOUNT_SIGN, discountLine } from '../../../lib/orders/coupon'
 import { receiptCookieName, receiptTokenHash } from '../../../lib/orders/receiptToken'
 import { CHECKOUT_FEE_TEXT } from '../../../lib/orders/confirmationFee'
-import { fetchOrderMoney } from '../../../lib/orders/receiptMoney'
+import { fetchOrderMoney, fetchOrderShipping } from '../../../lib/orders/receiptMoney'
 import { Container } from '../../../components/ui/Container'
 import { buttonClasses } from '../../../components/ui/Button'
 import { Num } from '../../../components/store/Num'
@@ -163,6 +165,8 @@ export default async function OrderReceiptPage({
   const preferred = parsePreferredDeliverySnapshot(receipt.preferred_delivery)
   // 0021-A P2 — المطلوب مقدمًا والمدفوع والباقي من الطلب نفسه (بعد ما الإيصال اتحقق بالتوكن). أي فشل = مايظهرش.
   const money = await fetchOrderMoney(receipt.order_number)
+  // EXPRESS-SHIPPING — نوع الشحن ومدته من لقطة الطلب (بعد التحقق بالتوكن). الطلب القديم أو أي فشل = سطر الشحن زي النهارده.
+  const shippingSnapshot = await fetchOrderShipping(receipt.order_number)
 
   return (
     <Container className="py-10 sm:py-14">
@@ -238,9 +242,14 @@ export default async function OrderReceiptPage({
             <span><Num>{formatPiastres(receipt.subtotal_piastres)}</Num></span>
           </div>
           <div className="flex justify-between text-muted">
-            <span>الشحن</span>
+            <span>{shippingSnapshot !== null ? 'الشحن — ' + SHIPPING_METHOD_LABELS[shippingSnapshot.method] : 'الشحن'}</span>
             <span><Num>{formatPiastres(receipt.shipping_piastres)}</Num></span>
           </div>
+          {shippingSnapshot !== null && shippingSnapshot.days !== null ? (
+            <p className="text-xs text-muted">
+              <Num>{shippingDaysLine(shippingSnapshot.days)}</Num>
+            </p>
+          ) : null}
           {receipt.installation_requested === true ? (
             <>
               <div className="flex justify-between gap-3 text-muted">

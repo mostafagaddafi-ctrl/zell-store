@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { followUpQueryParts, isDeliveryPeriod } from '../orders/cycle'
+import { parseShippingSnapshot } from '@zell/core'
 
 import type {
   AdminCollection,
@@ -137,6 +138,10 @@ const ORDER_COLUMNS = [
   'preferred_delivery_date',
   'preferred_delivery_period',
   'preferred_delivery_note',
+  // EXPRESS-SHIPPING — لقطة طريقة الشحن ومدتها
+  'shipping_method',
+  'shipping_days_min',
+  'shipping_days_max',
   'notified_at',
   'notify_error',
   'created_at',
@@ -288,6 +293,8 @@ export const supabaseAdminData: AdminDataSource = {
               note: typeof row.preferred_delivery_note === 'string' ? row.preferred_delivery_note : null,
             }
           : null,
+      // EXPRESS-SHIPPING — null للطلب القديم
+      shipping: parseShippingSnapshot(row.shipping_method, row.shipping_days_min, row.shipping_days_max),
     }
   },
 

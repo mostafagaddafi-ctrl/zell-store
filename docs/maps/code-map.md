@@ -22,7 +22,7 @@
 | `app/(dashboard)/orders` · `orders/[orderNumber]` | الطلبات وتفاصيل الطلب |
 | `app/(dashboard)/content` | محتوى المتجر وشريط الإعلان |
 | `app/(dashboard)/identity` | الهوية والسوشيال وصور الموقع |
-| `app/(dashboard)/shipping` | المحافظات والمناطق والأسعار |
+| `app/(dashboard)/shipping` | المحافظات والمناطق والأسعار · كارت «مدة الشحن والشحن السريع» (EXPRESS-SHIPPING W2) |
 | `app/(dashboard)/installation` · `installation-tools` | فني التركيب، وصفحة أدوات التركيب |
 | `app/(dashboard)/coupons` | أكواد الخصم (المالك) |
 | `app/(dashboard)/inventory/{suppliers,purchases,openings,lots}` | المخزون والمشتريات (0020): الموردين، ومستندات الشراء، وأول المدة، والـ lots |
@@ -39,7 +39,7 @@
 | `lib/mutations` | كل الكتابة في الداتابيز، ملف لكل منطقة (منتجات · صور · أقسام · محتوى · شحن · تركيب · كوبونات · مخزون …)، ومعاهم `concurrency.ts` (التزامن التفاؤلي) و`errors.ts`. **الكتابة بس:** القراءة اتنقلت لـ `lib/data` |
 | `lib/validation` | التحقق من المدخلات لكل منطقة |
 | `lib/inventory` | منطق شاشات المخزون: النماذج والتسعير والتوزيع، و`rpc.ts` + `sessionCall.ts` (نداء `zell_inv_session_*` بجلسة المستخدم، 0020-S PR-2)، والرسايل، وحالات الاختبار (`*.cases.ts`) |
-| `lib/orders` | 0021-A A2 — دورة الطلب: `cycle.ts` (منطق خالص: الانتقالات والبوابة · نتايج المكالمة · وقت القاهرة وفلاتر المتابعة · الموعد المؤكد والفترات · تعديل البيانات · وصف السجل · تحويل الأخطاء) + `orders.cases.ts`، و`rpc.ts` (نداء `zell_order_*` بجلسة المستخدم). الـ actions في `lib/orderActions.ts`، والقراءات في `lib/data/orderCycle.ts`، والكروت في `components/orders/OrderCycle.tsx` و`OrderTimeline.tsx`. 0021-D2: `deliverySettings.ts` (+ حالات) لكارت «موعد التسليم» في الإعدادات (`components/settings/DeliverySettingsCard.tsx`)، والقراية `lib/data/deliverySettings.ts` والحفظ `lib/mutations/deliverySettings.ts` |
+| `lib/orders` | 0021-A A2 — دورة الطلب: `cycle.ts` (منطق خالص: الانتقالات والبوابة · نتايج المكالمة · وقت القاهرة وفلاتر المتابعة · الموعد المؤكد والفترات · تعديل البيانات · وصف السجل · تحويل الأخطاء) + `orders.cases.ts`، و`rpc.ts` (نداء `zell_order_*` بجلسة المستخدم). الـ actions في `lib/orderActions.ts`، والقراءات في `lib/data/orderCycle.ts`، والكروت في `components/orders/OrderCycle.tsx` و`OrderTimeline.tsx`. 0021-D2: `deliverySettings.ts` (+ حالات) لكارت «موعد التسليم» في الإعدادات (`components/settings/DeliverySettingsCard.tsx`)، والقراية `lib/data/deliverySettings.ts` والحفظ `lib/mutations/deliverySettings.ts` · EXPRESS-SHIPPING W2: `shippingOptions.ts` (+ حالات، suite `shipping-options`) لكارت «مدة الشحن والشحن السريع» في صفحة الشحن (`components/shipping/ShippingOptionsCard.tsx`)، والقراية `lib/data/shippingOptions.ts` والحفظ `lib/mutations/shippingOptions.ts` (action `saveShippingOptionsAction` للمالك) |
 | `lib/coupons` | نموذج الكوبون وحالاته |
 | `lib/client` | كود المتصفح: ضغط ورفع الصور، والـ hooks (`useSaveAction` · `usePreview` · `useInventoryIntent` · `useLineCards`) |
 | `lib/uploads` | فحص حجم ونوع الصورة |
@@ -67,14 +67,15 @@
 | `components/store` | مكونات المتجر: الهيدر والفوتر، والهيرو، وكارت المنتج، والمقاس والعرض، والقطعة والإضافات، والسلة والدفع، والكوبون، وواتساب … · `Logo` (العلامة والاسم الكامل) · `TrackOrderForm` (فورم «تتبّع طلبك» والنتيجة) |
 | `components/ui` | مكونات مشتركة: `Button` · `Field` · `Container` · `ImageSlot` · `BackButton` |
 | `lib/` (الجذر) | `cart.tsx` (السلة) · `catalog.ts` · `drafts.ts` · `productCopy.ts` · `useCheckoutCoupon.ts` · `cn.ts` · `install/installChoice.ts` («هتركّبه إزاي؟» في صفحة المنتج: سطر الاختيار الحالي وظهور الأدوات، + حالات) · `home/homeLayout.ts` (HOME-MOBILE: قرارات عرض الرئيسية، + حالات) · `site.ts` (عنوان المتجر العام) · `brand/logo.ts` و`brand/logoImage.tsx` (أرقام اللوجو وصورته وخط Cairo للأيقونات) |
-| `lib/data` | القراءة: `queries.ts` · `mappers.ts` · `rpc.ts` · `source.ts` · `supabaseServer.ts` · `deliverySettings.ts` (إعداد موعد التسليم — 0021-D2) |
-| `lib/orders` | مسار الطلب: `contracts.ts` · `canonical.ts` + `requestHash.ts` + `hash.ts` (idempotency) · `checkoutSession.ts` · `receiptToken.ts` · `requestGuards.ts` · `coupon*.ts` (+ حالات) · `notify.ts` (تليجرام) · `result.ts` · `errors.ts` · `placeOrder.ts` (ترتيب إنشاء الطلب: الهاش ← إعداد الموعد ← النداء) + `deliverySettings.ts` (+ حالات بتتشغّل في CI — 0021-D2) · `trackOrder.ts` (+ `trackOrder.cases.ts`، suite `track` — TRACK-ORDER: تظبيط الكود · حارس الرد · نصوص العرض) |
+| `lib/data` | القراءة: `queries.ts` · `mappers.ts` · `rpc.ts` · `source.ts` · `supabaseServer.ts` · `deliverySettings.ts` (إعداد موعد التسليم — 0021-D2) · `shippingOptions.ts` (إعداد الشحن السريع ومدة الشحن — EXPRESS-SHIPPING) |
+| `lib/orders` | مسار الطلب: `contracts.ts` · `canonical.ts` + `requestHash.ts` + `hash.ts` (idempotency) · `checkoutSession.ts` · `receiptToken.ts` · `requestGuards.ts` · `coupon*.ts` (+ حالات) · `notify.ts` (تليجرام) · `result.ts` · `errors.ts` · `placeOrder.ts` (ترتيب إنشاء الطلب: الهاش ← إعداد الموعد ← النداء) + `deliverySettings.ts` (+ حالات بتتشغّل في CI — 0021-D2) · `trackOrder.ts` (+ `trackOrder.cases.ts`، suite `track` — TRACK-ORDER: تظبيط الكود · حارس الرد · نصوص العرض) · `shippingChoice.ts` (+ `shipping.cases.ts`، suite `shipping` — EXPRESS-SHIPPING: اختيار «شحن عادي / شحن سريع» · الهاش · الـ retry · المسودة) · `receiptMoney.ts` (المبالغ ونوع الشحن بعد تحقق الإيصال) |
 
 ## packages/core — منطق صافي مشترك (`@zell/core`)
 
 | الملف | بيعمل إيه |
 | --- | --- |
 | `src/pricing.ts` | **التسعير — المرجع الوحيد** |
+| `src/shippingOptions.ts` | EXPRESS-SHIPPING: الشحن العادي والسريع للعرض بنفس قواعد `zell_create_order` (CI بيقارنهم: `backend/db/ci/0021ex_core_parity.mjs`) · المدة «من الشحن» · لقطة الطلب · حقل `shippingMethod`. من غير أي import عن قصد |
 | `src/addons.ts` | الإضافات (القطعة) |
 | `src/installation.ts` | حساب فني التركيب |
 | `src/coupons.ts` (+ `coupons.cases.ts`) | حساب الكوبون |
