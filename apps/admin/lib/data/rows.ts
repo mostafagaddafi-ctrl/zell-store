@@ -150,6 +150,10 @@ export type OrderRow = {
   preferred_delivery_date?: string | null
   preferred_delivery_period?: string | null
   preferred_delivery_note?: string | null
+  // EXPRESS-SHIPPING — لقطة طريقة الشحن ومدتها (null للطلب القديم)
+  shipping_method?: string | null
+  shipping_days_min?: number | null
+  shipping_days_max?: number | null
   notified_at: string | null
   notify_error: string | null
   created_at: string
