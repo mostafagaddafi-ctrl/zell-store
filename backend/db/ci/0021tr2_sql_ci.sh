@@ -23,6 +23,12 @@ ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 MIG="$ROOT/backend/db/migrations"
 CIDIR="$ROOT/backend/db/ci"
 P1CI="$CIDIR/0021p1_sql_ci.sh"
+# متغيرات الـ shim (init_cluster و reset_db من CI بتاع P1 بيستخدموها).
+OLD19="$MIG/0019_coupons.sql"
+A1="$MIG/0021a_a1_order_cycle.sql"
+DAPPLY="$MIG/0021d_preferred_delivery.sql"
+ENGINE="$MIG/0021p_erp_access.sql"
+ADAPTER="$MIG/0021p_zell_erp_access.sql"
 A1VERIFY="$MIG/0021a_a1_order_cycle_verify.sql"
 DVERIFY="$MIG/0021d_preferred_delivery_verify.sql"
 PVERIFY="$MIG/0021p_access_verify.sql"
@@ -50,6 +56,9 @@ DB="zell_ci"
 TMP="$(mktemp -d)"
 PASS=0
 FAIL=0
+OLD_SIG='jsonb, text, text, text, text, text, text, text, text, text, text, boolean, text'
+# شكل Production (08-HANDOFF-NOW): مالك zell_create_order = postgres.
+CO_OWNER=postgres
 OWNER_ID='00000000-0000-0000-0000-00000000000a'
 ADMIN_ID='00000000-0000-0000-0000-00000000000b'
 TRSTART='create function public.zell_checkout_track_order(p_order_number text)'
@@ -109,7 +118,7 @@ verify_tr() { run_file "$TRVERIFY" "$TMP/trv.out"; summary_of "$TMP/trv.out"; }
 # الحالة: الجداول الأربعة · عدد دوال zell_shipment_* و zell_customer_update_*
 tr2_state() { q "select (to_regclass('public.zell_order_shipments') is not null)::int || '|' || (to_regclass('public.zell_order_shipments_log') is not null)::int || '|' || (to_regclass('public.zell_order_customer_updates') is not null)::int || '|' || (to_regclass('public.zell_order_customer_updates_log') is not null)::int || '|' || (select count(*) from pg_proc p where p.proname like 'zell\_shipment\_%' or p.proname like 'zell\_customer\_update\_%')"; }
 # بصمة دالة التتبّع: md5(prosrc) · md5(def) · sha256(def) · المالك · security definer · volatile · الإعداد · الصلاحيات · oid
-track_fp() { q "select md5(p.prosrc) || '|' || md5(pg_get_functiondef(p.oid)) || '|' || encode(sha256(convert_to(pg_get_functiondef(p.oid), 'UTF8')), 'hex') || '|' || pg_get_userbyid(p.proowner) || '|' || p.prosecdef || '|' || p.provolatile || '|' || array_to_string(p.proconfig, ',') || '|' || coalesce(p.proacl::text, '') || '|' || p.oid from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'zell_checkout_track_order'"; }
+track_fp() { q "select md5(p.prosrc) || '|' || md5(pg_get_functiondef(p.oid)) || '|' || encode(sha256(convert_to(pg_get_functiondef(p.oid), 'UTF8')), 'hex') || '|' || pg_get_userbyid(p.proowner) || '|' || p.prosecdef::text || '|' || p.provolatile::text || '|' || array_to_string(p.proconfig, ',') || '|' || coalesce(p.proacl::text, '') || '|' || p.oid from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'zell_checkout_track_order'"; }
 codes() { grep -o "errcode = '[0-9A-Z]*'" | grep -o "'[0-9A-Z]*'" | tr -d "'" | sort -u | tr '\n' ' '; }
 # نداء كـ مستخدم (جلسة authenticated) في معاملة لوحده.
 as_user() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" 2>&1 <<SQL
@@ -338,7 +347,7 @@ ok=no; if [ "$V1" = "$ALL8" ]; then ok=yes; fi
 record "S23 A1 · D · P1 · P2 · 0021-P · D2 · TR (v2 state) · EX verify PASS after TR2" "$ok" "V=$V1 $(fails_of "$TMP/v.out")"
 FP1=$(track_fp)
 ok=no
-if [ "$(rf "$FP1" 1)" = "$NEW_MD5" ] && [ "$(rf "$FP1" 4)" = "zell_order_definer" ] && [ "$(rf "$FP1" 5)" = "t" ] && [ "$(rf "$FP1" 6)" = "s" ] \
+if [ "$(rf "$FP1" 1)" = "$NEW_MD5" ] && [ "$(rf "$FP1" 4)" = "zell_order_definer" ] && [ "$(rf "$FP1" 5)" = "true" ] && [ "$(rf "$FP1" 6)" = "s" ] \
    && [ "$(rf "$FP1" 7)" = "$(rf "$FP0" 7)" ] && [ "$(rf "$FP1" 8)" = "$T1_ACL" ] && [ "$(rf "$FP1" 9)" = "$(rf "$FP0" 9)" ]; then ok=yes; fi
 record "S24 track function: same oid, new md5, owner zell_order_definer, security definer, stable, search_path and EXECUTE exactly as T1" "$ok" "fp0=$FP0 fp1=$FP1"
 apply_tr2; E=$?
