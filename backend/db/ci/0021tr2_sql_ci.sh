@@ -92,6 +92,8 @@ has() { grep -q -- "$2" "$1"; }
 rf() { printf '%s' "$1" | cut -d'|' -f"$2"; }
 body_md5() { awk -v s="-- >>> $2" -v e="-- <<< $2" '$0 == s {f = 1} f {print} $0 == e {f = 0}' "$1" | md5sum | cut -d' ' -f1; }
 EMPTY_MD5="$(printf '' | md5sum | cut -d' ' -f1)"
+# الـ shim بيستخدمها (نفس تعريف CI بتاع P1 بالحرف).
+extract_fn() { awk -v s="$1" 'index($0, s) == 1 {f = 1} f {print} f && $0 == "$function$" {exit}' "$OLD19"; echo ';'; }
 # جسم الدالة (prosrc) من ملف: السطور بعد سطر البداية + سطر returns لحد سطر $fn$; — و md5 بنفس شكل prosrc (سطر فاضي قبله).
 body_after() { awk -v s="$2" 'f == 2 && $0 == "$fn$;" {exit} f == 2 {print} f == 1 {f = 2} f == 0 && index($0, s) == 1 {f = 1}' "$1"; }
 prosrc_md5() { { echo; body_after "$1" "$2"; } | md5sum | cut -d' ' -f1; }
