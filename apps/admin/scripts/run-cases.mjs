@@ -41,6 +41,7 @@ const SUITES = [
   { name: 'track-drafts', dir: 'lib/orders', entry: 'trackDrafts.cases.ts', run: 'runTrackDraftsCases' },
   { name: 'list-filters', dir: 'lib/orders', entry: 'listFilters.cases.ts', run: 'runListFiltersCases' },
   { name: 'home', dir: 'lib/content', entry: 'homeMobile.cases.ts', run: 'runHomeMobileCases' },
+  { name: 'size-entry', dir: 'lib/content', entry: 'sizeEntry.cases.ts', run: 'runSizeEntryCases' },
   { name: 'storefront-link', dir: 'lib/storefront', entry: 'link.cases.ts', run: 'runStorefrontLinkCases' },
 ]
 
