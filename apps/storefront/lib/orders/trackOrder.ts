@@ -9,6 +9,8 @@
  *   • أي إدخال غلط = مفيش نداء للداتابيز، ونفس رسالة «مش موجود».
  *   • الحارس بيبني كائن جديد من المفاتيح المعروفة بس، ومنها الكائنات المتداخلة بتاعة v2 — أي مفتاح زيادة في الرد
  *     مابيوصلش للمتصفح. أي شكل أو قيمة غير صالحة (ومنها مبالغ مش متسقة) = null، فالصفحة بتعرض «مش موجود».
+ *   • الحدود زي قيود الداتابيز: عدّ الحروف بالـ code points (زي char_length) · تواريخ تقويمية حقيقية · أعداد آمنة ·
+ *     المبالغ ومعادلة الإجمالي · مدد الشحن · رابط https صالح · الوصول المتوقع ≥ تاريخ الشحن.
  *   • من W2-A الرد لازم يكون v2 (W1 متطبّق على Production 2026-10-15). رجوع W1 لازم يسبقه revert W2-A (العقد §١٧-١).
  */
 
@@ -118,7 +120,7 @@ export type TrackState =
 export const TRACK_INITIAL_STATE: TrackState = { status: 'idle' }
 
 function isInt(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value)
+  return Number.isSafeInteger(value)
 }
 
 function isCount(value: unknown): value is number {
@@ -137,8 +139,30 @@ function isTimestamp(value: unknown): value is string {
   return typeof value === 'string' && value !== '' && !Number.isNaN(Date.parse(value))
 }
 
+/** تاريخ تقويمي حقيقي YYYY-MM-DD (مش الشكل بس): 2026-02-30 و2026-13-01 مرفوضين. */
 function isCalendar(value: unknown): value is string {
-  return typeof value === 'string' && DATE_RE.test(value)
+  if (typeof value !== 'string' || !DATE_RE.test(value)) return false
+  const [y, m, d] = value.split('-').map(Number)
+  if (y === undefined || m === undefined || d === undefined) return false
+  const date = new Date(Date.UTC(y, m - 1, d))
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d
+}
+
+/** عدد الحروف زي char_length في الداتابيز (code points، مش وحدات UTF-16): emoji = حرف واحد. */
+export function charCount(text: string): number {
+  return Array.from(text).length
+}
+
+/** رابط https بس، زي تحقق الداتابيز: https:// + host فيه نقطة · من غير مسافات · ≤ ٣٠٠ حرف. */
+function isHttpsUrl(value: string): boolean {
+  if (!value.startsWith('https://') || /\s/.test(value) || charCount(value) > 300) return false
+  try {
+    const url = new URL(value)
+    const host = url.hostname
+    return url.protocol === 'https:' && host.includes('.') && !host.startsWith('.') && !host.endsWith('.')
+  } catch {
+    return false
+  }
 }
 
 /** نص اختياري: null أو غايب = null · نص = نفسه · غير كده = undefined (رفض). */
@@ -229,7 +253,12 @@ const MONEY_KEYS = [
   ['remaining_piastres', 'remainingPiastres'],
 ] as const
 
-/** المبالغ الـ ١١ (العقد §٣)، وأي مبلغ مش متسق = null: الصافي = المدفوع − المردود، والمتبقي = الإجمالي − الصافي (≥ ٠). */
+/**
+ * المبالغ الـ ١١ (العقد §٣) بقيود الطلب والدفعات، وأي مبلغ مش متسق = null:
+ * الأصناف − الخصم + الشحن + التركيب + الانتقال = الإجمالي · الخصم ≤ الأصناف · المقدم ≤ الإجمالي ·
+ * الصافي = المدفوع − المردود وفي حدود ٠..الإجمالي (المدفوع التاريخي ممكن يزيد بعد رد وإعادة دفع، الصافي هو المقيّد) ·
+ * المتبقي = الإجمالي − الصافي.
+ */
 function parseMoney(raw: unknown, total: number): TrackedMoney | null {
   if (!isPlainObject(raw)) return null
   const out: Partial<Record<keyof TrackedMoney, number>> = {}
@@ -240,8 +269,13 @@ function parseMoney(raw: unknown, total: number): TrackedMoney | null {
   }
   const money = out as TrackedMoney
   if (money.totalPiastres !== total) return null
+  const sum = money.itemsPiastres - money.discountPiastres + money.shippingPiastres + money.installationPiastres + money.travelPiastres
+  if (sum !== money.totalPiastres) return null
+  if (money.discountPiastres > money.itemsPiastres) return null
+  if (money.confirmationFeePiastres > money.totalPiastres) return null
   if (money.netPaidPiastres !== money.paidPiastres - money.refundedPiastres) return null
-  if (money.remainingPiastres !== Math.max(money.totalPiastres - money.netPaidPiastres, 0)) return null
+  if (money.netPaidPiastres < 0 || money.netPaidPiastres > money.totalPiastres) return null
+  if (money.remainingPiastres !== money.totalPiastres - money.netPaidPiastres) return null
   return money
 }
 
@@ -256,6 +290,8 @@ function parseShipping(raw: unknown): TrackedShipping | null | undefined {
   if (max !== null && max !== undefined && !isCount(max)) return undefined
   const daysMin = isCount(min) ? min : null
   const daysMax = isCount(max) ? max : null
+  // المدة الاتنين أو ولا واحدة (مدة ناقصة = شكل غلط).
+  if ((daysMin === null) !== (daysMax === null)) return undefined
   if (daysMin !== null && daysMax !== null && daysMin > daysMax) return undefined
   return { method, daysMin, daysMax }
 }
@@ -278,10 +314,11 @@ function parseShipment(raw: unknown): TrackedShipment | null | undefined {
   const trackingUrl = optionalText(raw['tracking_url'])
   const shippedOn = optionalCalendar(raw['shipped_on'])
   const expectedOn = optionalCalendar(raw['expected_on'])
-  if (typeof carrier !== 'string' || carrier.trim() === '' || carrier.length > 60) return undefined
+  if (typeof carrier !== 'string' || carrier.trim() === '' || charCount(carrier) > 60) return undefined
   if (trackingNumber === undefined || trackingUrl === undefined || shippedOn === undefined || expectedOn === undefined) return undefined
-  if (trackingNumber !== null && trackingNumber.length > 60) return undefined
-  if (trackingUrl !== null && (!trackingUrl.startsWith('https://') || trackingUrl.length > 300 || /\s/.test(trackingUrl))) return undefined
+  if (trackingNumber !== null && charCount(trackingNumber) > 60) return undefined
+  if (trackingUrl !== null && !isHttpsUrl(trackingUrl)) return undefined
+  if (shippedOn !== null && expectedOn !== null && expectedOn < shippedOn) return undefined
   return {
     carrier,
     trackingNumber: trackingNumber === '' ? null : trackingNumber,
@@ -301,7 +338,7 @@ function parseUpdates(raw: unknown): TrackedUpdate[] | null {
     const text = entry['text']
     const edited = entry['edited']
     if (!isInt(id) || id <= 0 || !isTimestamp(at) || typeof edited !== 'boolean') return null
-    if (typeof text !== 'string' || text.trim() === '' || text.length > 300) return null
+    if (typeof text !== 'string' || text.trim() === '' || charCount(text) > 300) return null
     updates.push({ id, at, text, edited })
   }
   return updates
