@@ -7,6 +7,7 @@ import { saveContentAction } from '../../lib/actions'
 import type { StoreContent } from '../../lib/adminData'
 import { useSaveAction } from '../../lib/client/useSaveAction'
 import { HOME_MOBILE_NOTE, HOME_MOBILE_OPTIONS, HOME_MOBILE_TITLE, type HomeMobileLayout } from '../../lib/content/homeMobile'
+import { SIZE_ENTRY_NOTE, SIZE_ENTRY_OPTIONS, SIZE_ENTRY_TITLE } from '../../lib/content/sizeEntry'
 import { SECTION_LABELS } from '../../lib/enums'
 import { STOREFRONT_LINK_NOT_SET } from '../../lib/storefront/link'
 import { useMutationsEnabled } from '../../lib/readiness'
@@ -153,6 +154,30 @@ export function ContentEditor({ content, storefrontHref }: { content: StoreConte
             </label>
           ))}
           <p className="text-xs text-muted">{HOME_MOBILE_NOTE}</p>
+        </fieldset>
+      </Card>
+
+      {/* LENGTH-INPUT — الطريقة الأولى لإدخال المقاس في صفحة المنتج (settings.hero.productSizeEntry)، وبيتحفظ مع المحتوى (نفس action) */}
+      <Card title={SIZE_ENTRY_TITLE}>
+        <fieldset className="space-y-2">
+          <legend className="sr-only">{SIZE_ENTRY_TITLE}</legend>
+          {SIZE_ENTRY_OPTIONS.map((option) => (
+            <label key={option.value} className="flex cursor-pointer items-start gap-2 text-sm text-fg">
+              <input
+                type="radio"
+                name="product-size-entry"
+                value={option.value}
+                checked={draft.hero.productSizeEntry === option.value}
+                onChange={() => touch({ ...draft, hero: { ...draft.hero, productSizeEntry: option.value } })}
+                className="mt-1"
+              />
+              <span>
+                <span className="font-semibold">{option.label}</span>
+                <span className="block text-xs text-muted">{option.hint}</span>
+              </span>
+            </label>
+          ))}
+          <p className="text-xs text-muted">{SIZE_ENTRY_NOTE}</p>
         </fieldset>
       </Card>
 

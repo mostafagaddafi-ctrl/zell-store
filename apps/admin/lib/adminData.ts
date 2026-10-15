@@ -9,7 +9,7 @@
 import { supabaseAdminData } from './data/reads'
 import type { ImageFit, OrderStatus, SectionKey } from './enums'
 import type { DeliveryPeriod, FollowUpFilter } from './orders/cycle'
-import type { CatalogLayout, ShippingDays, ShippingMethod } from '@zell/core'
+import type { CatalogLayout, ProductSizeEntry, ShippingDays, ShippingMethod } from '@zell/core'
 import type { OrderCouponSnapshot } from './coupons/form'
 import type { HomeMobileLayout } from './content/homeMobile'
 import type { OrderShippingType, ShippingTypeFilter } from './orders/listFilters'
@@ -159,7 +159,14 @@ export type AdminProduct = {
 export type AdminProductDetail = AdminProduct & { images: AdminImage[] }
 
 // ── محتوى المتجر ─────────────────────────────────────────────
-export type HeroContent = { title: string; accent: string; subtitle: string; ctaLabel: string }
+export type HeroContent = {
+  title: string
+  accent: string
+  subtitle: string
+  ctaLabel: string
+  /** LENGTH-INPUT — الطريقة الأولى لإدخال المقاس في صفحة المنتج (settings.hero.productSizeEntry؛ الغايب أو الغلط = 'cm'). */
+  productSizeEntry: ProductSizeEntry
+}
 export type OrderStep = { title: string; description: string }
 export type FaqItem = { question: string; answer: string }
 

@@ -231,7 +231,12 @@ export type StoreContent = {
   trustLine: string
   /** HOME-MOBILE — من عنصر hero في settings.sections (home.ts: heroMobileLayoutOf). */
   heroMobileLayout: HomeMobileLayout
+  /** LENGTH-INPUT — الطريقة الأولى لإدخال المقاس في صفحة المنتج، من settings.hero.productSizeEntry (الغايب أو الغلط = 'cm'). */
+  productSizeEntry: ProductSizeEntry
 }
+
+/** LENGTH-INPUT — 'cm' = مقاس المكان بالسنتيمتر (الافتراضي) · 'm' = الطول بالمتر. نوع وإعداد بس، مالوش دخل بالحساب. */
+export type ProductSizeEntry = 'cm' | 'm'
 
 /**
  * القيم الافتراضية = نفس النصوص اللي كانت ثابتة في الكود قبل ما
@@ -271,6 +276,7 @@ export const DEFAULT_STORE_CONTENT: StoreContent = {
   trustLine: 'الدفع عند الاستلام · توصيل لكل محافظات مصر',
   // HOME-MOBILE — الجديد هو الافتراضي (قرار المالك 2026-10-12)
   heroMobileLayout: 'compact',
+  productSizeEntry: 'cm',
 }
 
 // ── فني التركيب (بالتواصل) ─────────────────────────────────────

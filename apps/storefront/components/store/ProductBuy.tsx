@@ -12,6 +12,7 @@ import {
   widthOptionsOf,
   withWidth,
   type InstallationConfig,
+  type ProductSizeEntry,
   type StoreProduct,
 } from '@zell/core'
 import { useCart } from '../../lib/cart'
@@ -22,6 +23,7 @@ import { SizePanel } from './SizePanel'
 import { AddonsPicker } from './AddonsPicker'
 import { currentInstallModeLine, revealToolsOnChange, showToolSuggestions } from '../../lib/install/installChoice'
 import { InstallChoice } from './InstallChoice'
+import type { SizeDecision } from '../../lib/size/sizeEntry'
 
 /** gift: «نص العرض» لو ظاهر — بيظهر كهدية فوق زرار الإضافة. */
 export function ProductBuy({
@@ -30,6 +32,7 @@ export function ProductBuy({
   addons = [],
   addonsTitle = '',
   installation = null,
+  sizeEntry = 'cm',
 }: {
   product: StoreProduct
   gift?: string
@@ -38,6 +41,8 @@ export function ProductBuy({
   addonsTitle?: string
   /** PR4 — إعداد الفني (0018). null = من غير «هتركّبه إزاي؟». */
   installation?: InstallationConfig | null
+  /** LENGTH-INPUT — الطريقة الأولى لإدخال المقاس من «المحتوى» (الغايب = سنتيمتر). */
+  sizeEntry?: ProductSizeEntry
 }) {
   const cart = useCart()
   const router = useRouter()
@@ -70,6 +75,13 @@ export function ProductBuy({
   const [lengthCm, setLengthCm] = useState(product.min_length_cm)
   const [justAdded, setJustAdded] = useState(false)
   const [blocked, setBlocked] = useState(false)
+  // LENGTH-INPUT — قرار الطلب من لقطة المقاس الحالية وقت الضغط (SizePanel بيحدّث الدالة بعد كل commit، قبل أي ضغطة):
+  // السنتيمتر الفاضي أو الغلط أو تحت الحد = إظهار الخطأ من غير إضافة (ومن أول render)، والطول المضاف من نفس اللقطة.
+  const decisionRef = useRef<(() => SizeDecision) | null>(null)
+  const [attempt, setAttempt] = useState(0)
+  /** آخر سطر اتضاف (الطول والعرض) — «اطلب دلوقتي» مايضيفوش تاني لو هو هو. */
+  const lastAddedRef = useRef<string | null>(null)
+  const [addedLengthCm, setAddedLengthCm] = useState(product.min_length_cm)
   const [addonQty, setAddonQty] = useState<Record<number, number>>({})
   // عدد الأدوات اللي اتضافت فعلًا في آخر «ضيف للسلة» — للرسالة بس، بيتسجّل لحظة الإضافة (قبل ما addonQty يتصفّر)
   const [addedToolsCount, setAddedToolsCount] = useState(0)
@@ -79,12 +91,24 @@ export function ProductBuy({
   const effective = withWidth(product, widthCm) ?? product
   const chosenWidth = effective.width_cm === product.width_cm ? undefined : effective.width_cm
 
-  // حارس أخير قبل السلة — حتى لو حالة الواجهة اتلخبطت
+  // قفل الزرار (الفني · المقاس أكبر من المتاح · طول متر غير صالح). القرار الأخير وقت الضغط من decide() تحت.
   const canAdd = !blocked && !choiceRequired && validateLength(lengthCm, effective).ok
 
+  /** القرار وقت الضغط: الفني المطلوب = ولا حاجة، وغير كده من لقطة المقاس الحالية (sizeDecision). */
+  const decide = (): SizeDecision => {
+    if (choiceRequired) return { kind: 'disabled' }
+    const snapshot = decisionRef.current
+    return snapshot === null ? { kind: 'disabled' } : snapshot()
+  }
+  const lineKey = (length: number) => String(length) + '|' + String(effective.width_cm)
+
   const handleAdd = () => {
-    if (!canAdd) return
-    cart.add(product.id, lengthCm, chosenWidth)
+    const decision = decide()
+    if (decision.kind === 'reveal') setAttempt((value) => value + 1)
+    if (decision.kind !== 'add') return
+    cart.add(product.id, decision.lengthCm, chosenWidth)
+    lastAddedRef.current = lineKey(decision.lengthCm)
+    setAddedLengthCm(decision.lengthCm)
     setAddedToolsCount(addSelectedAddons())
     setJustAdded(true)
   }
@@ -109,10 +133,14 @@ export function ProductBuy({
   // «اطلب دلوقتي»: يضيف ويروح للبيانات على طول. لو نفس الاختيار اتضاف
   // لسه (justAdded) مابيضيفوش تاني — يروح بس، عشان مايتكررش في السلة.
   const handleBuyNow = () => {
-    if (!canAdd) return
-    if (!justAdded) {
-      cart.add(product.id, lengthCm, chosenWidth)
+    const decision = decide()
+    if (decision.kind === 'reveal') setAttempt((value) => value + 1)
+    if (decision.kind !== 'add') return
+    const key = lineKey(decision.lengthCm)
+    if (!(justAdded && lastAddedRef.current === key)) {
+      cart.add(product.id, decision.lengthCm, chosenWidth)
       addSelectedAddons()
+      lastAddedRef.current = key
     }
     router.push('/checkout')
   }
@@ -136,6 +164,9 @@ export function ProductBuy({
           setBlocked(next)
           if (next) setJustAdded(false)
         }}
+        sizeEntry={sizeEntry}
+        decisionRef={decisionRef}
+        attempt={attempt}
       />
 
       <GiftNote text={gift} />
@@ -215,7 +246,7 @@ export function ProductBuy({
         <div className="space-y-3 rounded-lg border border-accent/40 bg-card p-4">
           <p className="flex items-center gap-2 text-sm font-semibold text-fg">
             <Check className="h-4 w-4 text-accent" />
-            اتضاف للسلة — <Num>{formatLength(lengthCm)}</Num>
+            اتضاف للسلة — <Num>{formatLength(addedLengthCm)}</Num>
             {options.length > 1 ? (
               <>
                 {' · عرض '}
