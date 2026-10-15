@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useState } from 'react'
 import { AlertTriangle, Lock, Maximize, Minus, Plus, Ruler } from 'lucide-react'
 import {
   areRulesUsable,
@@ -24,7 +24,10 @@ import {
   meterLengthOf,
   modeOfEntry,
   restoreSizeDraft,
+  sizeDecision,
+  sizeDraftOf,
   switchToMetersParts,
+  type SizeDecision,
   type SizeMode,
 } from '../../lib/size/sizeEntry'
 import { inputClasses } from '../ui/Field'
@@ -47,7 +50,7 @@ import { Num } from './Num'
  *
  * LENGTH-INPUT (docs/contracts/LENGTH-INPUT.md — المنطق في lib/size/sizeEntry.ts):
  *   • الطريقة الأولى من إعداد «المحتوى» (sizeEntry)، والمسودة ببصمة القواعد الحالية ليها الأولوية. الإعداد بيحدد البداية بس.
- *   • طريقة السنتيمتر الفاضية أو الغلط أو تحت الحد (الشرايح × الارتفاع < الحد الأدنى) = الطلب ممنوع (onOrderBlockedChange)
+ *   • طريقة السنتيمتر الفاضية أو الغلط أو تحت الحد (الشرايح × الارتفاع < الحد الأدنى) = الطلب ممنوع (قرار الطلب من لقطة واحدة وقت الضغط: decisionRef ← sizeDecision)
  *     من غير ما الزرار يتقفل، ومفيش رفع صامت للحد الأدنى ولا طول قديم. الكتابة حرة؛ الأحمر والرسالة والهزة بعد الخروج من
  *     الخانة أو محاولة الطلب (attempt)، ومع reduced motion مفيش هزة. الرقم المكتوب بيفضل زي ما هو.
  *   • التحويل للمتر بضغطة العميل بس، والطول = آخر طول صالح بالمتر أو الحد الأدنى.
@@ -72,7 +75,7 @@ export function SizePanel({
   onLengthChange,
   onBlockedChange,
   sizeEntry = 'cm',
-  onOrderBlockedChange,
+  decisionRef,
   attempt = 0,
 }: {
   /** المنتج الأساسي — العروض التانية بتتحسب منه. */
@@ -86,8 +89,11 @@ export function SizePanel({
   onBlockedChange: (blocked: boolean) => void
   /** LENGTH-INPUT — الطريقة الأولى من إعداد «المحتوى» (الغايب = سنتيمتر). */
   sizeEntry?: ProductSizeEntry
-  /** LENGTH-INPUT — الطلب ممنوع من غير قفل الزرار (السنتيمتر فاضي أو غلط أو تحت الحد). */
-  onOrderBlockedChange?: (blocked: boolean) => void
+  /**
+   * LENGTH-INPUT — دالة قرار الطلب من لقطة المقاس الحالية (الطريقة + الخانات + العرض + طول المتر). بتتحدّث بعد كل commit
+   * (useLayoutEffect) قبل أي ضغطة، و«ضيف للسلة» و«اطلب دلوقتي» بيناديها وقت الضغط — مفيش اعتماد على مزامنة بالـ effects.
+   */
+  decisionRef?: { current: (() => SizeDecision) | null }
   /** LENGTH-INPUT — بيزيد مع كل ضغطة على زرار الطلب والإدخال ممنوع: بيظهر الخطأ والهزة. */
   attempt?: number
 }) {
@@ -118,9 +124,12 @@ export function SizePanel({
   useEffect(() => {
     onBlockedChange(exceeds)
   }, [exceeds])
-  useEffect(() => {
-    onOrderBlockedChange?.(orderBlocked)
-  }, [orderBlocked])
+  // لقطة القرار من نفس الـ render اللي اتعمل له commit (الخانات والعرض والطريقة وطول المتر)
+  useLayoutEffect(() => {
+    if (!decisionRef) return
+    decisionRef.current = () =>
+      sizeDecision({ mode, widthText: windowWidthFor(current), heightText: height, rules: current, meterLengthCm: lengthCm })
+  })
   useEffect(() => {
     if (okLength !== null && okLength !== lengthCm) onLengthChange(okLength)
   }, [okLength])
@@ -168,7 +177,7 @@ export function SizePanel({
   /**
    * مسودة المقاس (sessionStorage، للمنتج ده في التاب ده): لو العميل راح للسلة ورجع يلاقي اللي كتبه.
    * بترجع بس لو بصمة القواعد زي ما هي. مسودة السنتيمتر بترجع بخاناتها زي ما هي (حتى لو ناقصة أو تحت الحد) والطلب
-   * ممنوع لحد التصحيح؛ طول المتر بيرجع بس لو صالح. القراءة بعد التركيب (السيرفر مالوش sessionStorage)، والحفظ بعدها بس.
+   * ممنوع لحد التصحيح؛ آخر اختيار بالمتر (meterCm) محفوظ لوحده وبيرجع بس لو صالح، وطول السنتيمتر مابيبقاش اختيار متر. القراءة بعد التركيب (السيرفر مالوش sessionStorage)، والحفظ بعدها بس.
    */
   const rulesKey = sizeRulesKey(product)
   const [draftLoaded, setDraftLoaded] = useState(false)
@@ -198,13 +207,15 @@ export function SizePanel({
       productWidthCm: product.width_cm,
       lengthCm,
       minLengthCm: product.min_length_cm,
+      meterCm,
     })
     if (untouched) {
       clearSizeDraft(product.id)
       return
     }
-    saveSizeDraft(product.id, { rules: rulesKey, widthCm, mode, windowWidth: width, windowHeight: height, lengthCm })
-  }, [draftLoaded, mode, width, height, widthCm, lengthCm, rulesKey, product.id, product.width_cm, product.min_length_cm, initialMode])
+    // اختيار المتر (meterCm) بيتحفظ لوحده، منفصل عن ناتج السنتيمتر
+    saveSizeDraft(product.id, sizeDraftOf({ rulesKey, widthCm, mode, width, height, lengthCm, meterCm }))
+  }, [draftLoaded, mode, width, height, widthCm, lengthCm, rulesKey, product.id, product.width_cm, product.min_length_cm, initialMode, meterCm])
 
   if (!areRulesUsable(current)) {
     return (
