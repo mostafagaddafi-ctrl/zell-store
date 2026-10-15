@@ -122,7 +122,7 @@ export function runTrackViewCases(): { passed: number; failures: Failure[] } {
     trackEta(orderOf({ status: 'new', history: history(['new', T0]) }))?.line,
     trackEta(orderOf({ delivery: { kind: 'preferred', date: '2026-11-01', period: 'morning' } }))?.line,
   ], [TRACK_TEXT.etaNone, TRACK_TEXT.etaNone, TRACK_TEXT.etaNone, TRACK_TEXT.etaNone])
-  check('E10 no ETA for delivered / cancelled / refused (exception documented in §17-1, pending owner approval)', ['delivered', 'cancelled', 'refused'].map((status) => trackEta(orderOf({ status, shipment: shipment({ expected_on: '2026-11-07' }) }))),
+  check('E10 no ETA for delivered / cancelled / refused (exception in §17-1, approved by the owner 2026-10-15)', ['delivered', 'cancelled', 'refused'].map((status) => trackEta(orderOf({ status, shipment: shipment({ expected_on: '2026-11-07' }) }))),
     [null, null, null])
   check('D01 calendar days and the Cairo day', [addCalendarDays('2026-10-30', 3), addCalendarDays('2026-12-31', 1), cairoDate('2026-10-20T23:30:00+00:00'), cairoDate('2026-10-20T10:00:00+00:00')],
     ['2026-11-02', '2027-01-01', '2026-10-21', '2026-10-20'])
