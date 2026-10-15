@@ -13,6 +13,9 @@
  *
  * EXPRESS-SHIPPING W2 — حفظ إعداد مدة الشحن والشحن السريع: نفس قاعدة D2 (المالك بس، zell.orders.payments_admin،
  * OWNER_ONLY_MESSAGE)، والقرار النهائي في zell_shipping_options_save (45402).
+ *
+ * TRACK-ORDER v2 W2-B — بيانات الشحنة ← zell.orders.status_edit · رسائل العميل (إضافة · تعديل · إخفاء/إظهار) ← zell.orders.note_edit
+ * (الأدمن والمالك). النداء بالطلب برقمه، والقرار النهائي في zell_shipment_save و zell_customer_update_* (النسخة 45404 · التحقق 45433/45434).
  */
 
 import { actionWithAccess } from './access/instance'
@@ -21,10 +24,12 @@ import { OWNER_ONLY_MESSAGE } from './coupons/form'
 import type { MutationResult } from './mutations'
 import { saveDeliverySettings } from './mutations/deliverySettings'
 import { saveShippingOptions } from './mutations/shippingOptions'
+import { addCustomerUpdate, editCustomerUpdate, saveOrderShipment, setCustomerUpdateHidden } from './mutations/orderTrack'
 import { editOrderDetails, recordOrderCall, setOrderDelivery, setOrderFollowUp } from './mutations/orders'
 import type { CallOutcome, DeliveryValue, DetailsChanges } from './orders/cycle'
 import type { DeliverySettingsInput } from './orders/deliverySettings'
 import type { ShippingOptionsInput } from './orders/shippingOptions'
+import type { ShipmentForm, TrackWriteOutcome } from './orders/trackUpdates'
 
 export const recordOrderCallAction = actionWithAccess(
   'zell.orders.status_edit',
@@ -75,4 +80,46 @@ export const saveShippingOptionsAction = actionWithAccess(
   'zell.orders.payments_admin',
   { mutates: true, forbiddenMessage: OWNER_ONLY_MESSAGE },
   async (_ctx: AccessContext, input: ShippingOptionsInput): Promise<MutationResult<null>> => saveShippingOptions(input),
+)
+
+export const saveOrderShipmentAction = actionWithAccess(
+  'zell.orders.status_edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    orderNumber: string,
+    expectedUpdatedAt: string | null,
+    form: ShipmentForm,
+  ): Promise<MutationResult<TrackWriteOutcome>> => saveOrderShipment(orderNumber, expectedUpdatedAt, form),
+)
+
+export const addCustomerUpdateAction = actionWithAccess(
+  'zell.orders.note_edit',
+  { mutates: true },
+  async (_ctx: AccessContext, orderNumber: string, expectedLastId: number | null, text: string): Promise<MutationResult<TrackWriteOutcome>> =>
+    addCustomerUpdate(orderNumber, expectedLastId, text),
+)
+
+export const editCustomerUpdateAction = actionWithAccess(
+  'zell.orders.note_edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    orderNumber: string,
+    updateId: number,
+    expectedUpdatedAt: string,
+    text: string,
+  ): Promise<MutationResult<TrackWriteOutcome>> => editCustomerUpdate(orderNumber, updateId, expectedUpdatedAt, text),
+)
+
+export const setCustomerUpdateHiddenAction = actionWithAccess(
+  'zell.orders.note_edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    orderNumber: string,
+    updateId: number,
+    expectedUpdatedAt: string,
+    hidden: boolean,
+  ): Promise<MutationResult<TrackWriteOutcome>> => setCustomerUpdateHidden(orderNumber, updateId, expectedUpdatedAt, hidden),
 )

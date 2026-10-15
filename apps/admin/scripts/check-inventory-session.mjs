@@ -10,7 +10,7 @@
  *      ومافيهوش restRpc ولا SUPABASE_SERVICE_ROLE_KEY. يعني صفر نداء مخزون بـ service_role.
  *   D. sessionCall.ts فيه 21 اسم zell_inv_session_* مختلفين.
  *   E. رسالة UNAUTHENTICATED في sessionCall.ts = UNAUTHENTICATED_MESSAGE في lib/access/wrappers.ts بالحرف.
- *   F. lib/access/manifest.ts زي ما هو بالظبط (blob hash متثبت؛ اتحدّث في 0021-A A2 بإضافة 4 actions دورة الطلب، وفي 0021-A P2 بإضافة 8 actions الدفع وصفحة الدفع، وفي 0021-D2 W2 بإضافة action حفظ إعداد موعد التسليم، وفي EXPRESS-SHIPPING W2 بإضافة action حفظ إعداد الشحن السريع).
+ *   F. lib/access/manifest.ts زي ما هو بالظبط (blob hash متثبت؛ اتحدّث في 0021-A A2 بإضافة 4 actions دورة الطلب، وفي 0021-A P2 بإضافة 8 actions الدفع وصفحة الدفع، وفي 0021-D2 W2 بإضافة action حفظ إعداد موعد التسليم، وفي EXPRESS-SHIPPING W2 بإضافة action حفظ إعداد الشحن السريع، وفي TRACK-ORDER v2 W2-B بإضافة 4 actions الشحنة ورسائل العميل).
  *
  * الاستخدام: node apps/admin/scripts/check-inventory-session.mjs [--selftest]
  * سطر النتيجة: ZELL_INVENTORY_SESSION_CHECK ... findings=<n>   (خروج 1 لو findings > 0)
@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url'
 
 const ADMIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const ACTOR_TOKEN = 'p_' + 'actor'
-const MANIFEST_BLOB = '0dffa20a854162d13087a13148e6edeb4dac8613'
+const MANIFEST_BLOB = '254119bdb066fdd685c6a817e333209eea181c52'
 const SESSION_FILE = 'lib/inventory/sessionCall.ts'
 const SELF_FILE = 'scripts/check-inventory-session.mjs'
 const RPC_FILE = 'lib/inventory/rpc.ts'

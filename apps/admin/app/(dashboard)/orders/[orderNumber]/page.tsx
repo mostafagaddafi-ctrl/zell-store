@@ -18,6 +18,9 @@ import { OrderTimeline } from '../../../../components/orders/OrderTimeline'
 import { getOrderCycleView } from '../../../../lib/data/orderCycle'
 import { OrderPaymentsCard } from '../../../../components/orders/OrderPayments'
 import { getOrderPaymentsView } from '../../../../lib/data/orderPayments'
+import { OrderShipmentCard } from '../../../../components/orders/OrderShipmentCard'
+import { OrderCustomerUpdatesCard } from '../../../../components/orders/OrderCustomerUpdatesCard'
+import { getOrderTrackAdminView } from '../../../../lib/data/orderTrack'
 import { shippingSnapshotLine } from '@zell/core'
 
 type PageProps = { params: Promise<{ orderNumber: string }> }
@@ -32,6 +35,8 @@ export default pageWithAccess('zell.orders.view', async function OrderDetailPage
   const cycle = await getOrderCycleView(order.id)
   // 0021-A P2 — الدفع بجلسة المستخدم (أي فشل = «مش متاح دلوقتي» من غير ما الصفحة تقع)
   const payments = await getOrderPaymentsView(order.id)
+  // TRACK-ORDER v2 W2-B — الشحنة ورسائل العميل بجلسة المستخدم بالطلب برقمه (أي فشل = «غير متاح حاليًا» من غير ما الصفحة تقع)
+  const track = await getOrderTrackAdminView(order.orderNumber, order.createdAt)
 
   const waHref = 'https://wa.me/2' + order.customerPhone
 
@@ -249,6 +254,10 @@ export default pageWithAccess('zell.orders.view', async function OrderDetailPage
             periods={cycle.periods}
             expectedUpdatedAt={order.updatedAt}
           />
+
+          <OrderShipmentCard orderNumber={order.orderNumber} view={track.shipment} bounds={track.bounds} />
+
+          <OrderCustomerUpdatesCard orderNumber={order.orderNumber} view={track.updates} />
 
           <Card title="الإشعار">
             {order.notifiedAt ? (

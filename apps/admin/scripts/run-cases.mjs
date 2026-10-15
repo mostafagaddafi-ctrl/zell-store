@@ -37,6 +37,8 @@ const SUITES = [
   { name: 'payments', dir: 'lib/orders', entry: 'payments.cases.ts', run: 'runPaymentCases' },
   { name: 'delivery', dir: 'lib/orders', entry: 'deliverySettings.cases.ts', run: 'runDeliverySettingsCases' },
   { name: 'shipping-options', dir: 'lib/orders', entry: 'shippingOptions.cases.ts', run: 'runShippingOptionsCases' },
+  { name: 'track-updates', dir: 'lib/orders', entry: 'trackUpdates.cases.ts', run: 'runTrackUpdatesCases' },
+  { name: 'track-drafts', dir: 'lib/orders', entry: 'trackDrafts.cases.ts', run: 'runTrackDraftsCases' },
   { name: 'home', dir: 'lib/content', entry: 'homeMobile.cases.ts', run: 'runHomeMobileCases' },
   { name: 'storefront-link', dir: 'lib/storefront', entry: 'link.cases.ts', run: 'runStorefrontLinkCases' },
 ]
