@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { AlertTriangle, Lock, Maximize, Minus, Plus, Ruler } from 'lucide-react'
 import {
   areRulesUsable,
@@ -8,18 +8,27 @@ import {
   formatLength,
   formatPiastres,
   lengthOptions,
-  requiredLength,
-  validateLength,
   widthOptionsOf,
   withWidth,
+  type ProductSizeEntry,
   type StoreProduct,
 } from '@zell/core'
 import { cn } from '../../lib/cn'
 import { clearSizeDraft, readSizeDraft, saveSizeDraft } from '../../lib/drafts'
+import {
+  cmEntryState,
+  cmErrorVisible,
+  entryBlocksOrder,
+  entryDisablesOrder,
+  isUntouchedSize,
+  meterLengthOf,
+  modeOfEntry,
+  restoreSizeDraft,
+  switchToMetersParts,
+  type SizeMode,
+} from '../../lib/size/sizeEntry'
 import { inputClasses } from '../ui/Field'
 import { Num } from './Num'
-
-type Mode = 'window' | 'length'
 
 /**
  * اختيار المقاس — كارت واحد بالترتيب: عرض الرول ← المقاس ← النتيجة.
@@ -29,12 +38,19 @@ type Mode = 'window' | 'length'
  *
  * العروض (0015): أزرار جوه نفس الكارت لو المنتج ليه أكتر من عرض. تغيير
  * العرض **بيحتفظ** بمقاس الشباك المكتوب وبيعيد الحساب على العرض الجديد
- * على طول — قبل كده الخانات كانت بتتمسح والطول بيفضل على العرض القديم.
+ * على طول.
  *
  * العرض المتثبّت (0013): خانة عرض الشباك مقفولة على العرض المختار.
  *
  * 🔒 سلوك محفوظ: لو المقاس أكبر من الحد المتاح بنقول كده صراحة
  * وبنمنع الإضافة للسلة. ممنوع القص الصامت للحد الأقصى.
+ *
+ * LENGTH-INPUT (docs/contracts/LENGTH-INPUT.md — المنطق في lib/size/sizeEntry.ts):
+ *   • الطريقة الأولى من إعداد «المحتوى» (sizeEntry)، والمسودة ببصمة القواعد الحالية ليها الأولوية. الإعداد بيحدد البداية بس.
+ *   • طريقة السنتيمتر الفاضية أو الغلط أو تحت الحد (الشرايح × الارتفاع < الحد الأدنى) = الطلب ممنوع (onOrderBlockedChange)
+ *     من غير ما الزرار يتقفل، ومفيش رفع صامت للحد الأدنى ولا طول قديم. الكتابة حرة؛ الأحمر والرسالة والهزة بعد الخروج من
+ *     الخانة أو محاولة الطلب (attempt)، ومع reduced motion مفيش هزة. الرقم المكتوب بيفضل زي ما هو.
+ *   • التحويل للمتر بضغطة العميل بس، والطول = آخر طول صالح بالمتر أو الحد الأدنى.
  */
 /** بصمة قواعد المقاس — أي تغيير فيها من اللوحة بيلغي مسودة المقاس القديمة. */
 function sizeRulesKey(product: StoreProduct): string {
@@ -55,6 +71,9 @@ export function SizePanel({
   lengthCm,
   onLengthChange,
   onBlockedChange,
+  sizeEntry = 'cm',
+  onOrderBlockedChange,
+  attempt = 0,
 }: {
   /** المنتج الأساسي — العروض التانية بتتحسب منه. */
   product: StoreProduct
@@ -63,14 +82,24 @@ export function SizePanel({
   onWidthChange: (next: number) => void
   lengthCm: number
   onLengthChange: (next: number) => void
+  /** قفل الزرار (المقاس أكبر من الحد المتاح) — زي النهارده. */
   onBlockedChange: (blocked: boolean) => void
+  /** LENGTH-INPUT — الطريقة الأولى من إعداد «المحتوى» (الغايب = سنتيمتر). */
+  sizeEntry?: ProductSizeEntry
+  /** LENGTH-INPUT — الطلب ممنوع من غير قفل الزرار (السنتيمتر فاضي أو غلط أو تحت الحد). */
+  onOrderBlockedChange?: (blocked: boolean) => void
+  /** LENGTH-INPUT — بيزيد مع كل ضغطة على زرار الطلب والإدخال ممنوع: بيظهر الخطأ والهزة. */
+  attempt?: number
 }) {
-  const [mode, setMode] = useState<Mode>('window')
+  const initialMode = modeOfEntry(sizeEntry)
+  const [mode, setMode] = useState<SizeMode>(initialMode)
   const [width, setWidth] = useState('')
   const [height, setHeight] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [strips, setStrips] = useState(0)
-  const [neededCm, setNeededCm] = useState(0)
+  const [touched, setTouched] = useState(false)
+  const [shaking, setShaking] = useState(false)
+  /** آخر طول صالح اختاره العميل بالمتر (أو من المسودة) — null = الحد الأدنى. */
+  const [meterCm, setMeterCm] = useState<number | null>(null)
+  const errorId = useId()
 
   const widths = widthOptionsOf(product)
   const current = withWidth(product, widthCm) ?? product
@@ -78,82 +107,81 @@ export function SizePanel({
   const price = computeSubtotalPiastres(current.price_per_meter_piastres, lengthCm)
   const widthLocked = product.lock_width === true
 
-  const block = (message: string | null) => {
-    setError(message)
-    onBlockedChange(message !== null)
-  }
-
-  /** الحساب دايمًا على العرض اللي جاي في النداء — مش على قيمة render قديمة. */
-  const applyWindow = (rules: StoreProduct, nextWidth: string, nextHeight: string) => {
-    if (nextWidth.trim() === '' || nextHeight.trim() === '') {
-      setStrips(0)
-      setNeededCm(0)
-      block(null)
-      return
-    }
-
-    const result = requiredLength(Number(nextWidth), Number(nextHeight), rules)
-
-    if (!result.ok) {
-      setStrips(0)
-      setNeededCm(0)
-      // وإحنا بنكتب لسه ما نزعّقش — بس المقاس الكبير لازم يتقال بوضوح
-      block(result.code === 'invalid_input' ? null : result.message)
-      return
-    }
-
-    setStrips(result.strips)
-    setNeededCm(result.neededCm)
-    block(null)
-    onLengthChange(result.lengthCm)
-  }
-
   const windowWidthFor = (rules: StoreProduct) => (widthLocked ? String(rules.width_cm) : width)
+  const cmState = cmEntryState(windowWidthFor(current), height, current)
+  const exceeds = entryDisablesOrder(mode, cmState)
+  const orderBlocked = entryBlocksOrder(mode, cmState)
+  const showCmError = mode === 'window' && cmErrorVisible(cmState, touched)
+  const okLength = mode === 'window' && cmState.kind === 'ok' ? cmState.lengthCm : null
+
+  // الحالة بتتحسب مع كل تغيير (الخانات · العرض · الطريقة · المسودة)، والأب بيعرف بيها على طول.
+  useEffect(() => {
+    onBlockedChange(exceeds)
+  }, [exceeds])
+  useEffect(() => {
+    onOrderBlockedChange?.(orderBlocked)
+  }, [orderBlocked])
+  useEffect(() => {
+    if (okLength !== null && okLength !== lengthCm) onLengthChange(okLength)
+  }, [okLength])
+
+  const shake = () => {
+    setShaking(false)
+    window.requestAnimationFrame(() => setShaking(true))
+  }
+
+  /** الخروج من خانة سنتيمتر: الخطأ يبان (لو فيه) مع هزة خفيفة مرة واحدة. */
+  const reveal = () => {
+    setTouched(true)
+    if (orderBlocked) shake()
+  }
+
+  // ضغطة على «ضيف للسلة» أو «اطلب دلوقتي» والإدخال ممنوع
+  useEffect(() => {
+    if (attempt === 0 || mode !== 'window') return
+    setTouched(true)
+    shake()
+  }, [attempt])
 
   const pickWidth = (next: number) => {
     const rules = withWidth(product, next)
     if (!rules) return
     onWidthChange(next)
-    if (mode === 'window') applyWindow(rules, windowWidthFor(rules), height)
   }
 
-  const switchMode = (next: Mode) => {
+  const switchMode = (next: SizeMode) => {
     setMode(next)
-    if (next === 'length') block(null)
-    else applyWindow(current, windowWidthFor(current), height)
+    if (next === 'length') onLengthChange(meterLengthOf(meterCm, current))
+  }
+
+  const setMeter = (next: number) => {
+    setMeterCm(next)
+    onLengthChange(next)
   }
 
   const stepBy = (delta: number) => {
     const next = lengthCm + delta * current.step_cm
     if (next < current.min_length_cm || next > current.max_length_cm) return
-    onLengthChange(next)
+    setMeter(next)
   }
 
   /**
    * مسودة المقاس (sessionStorage، للمنتج ده في التاب ده): لو العميل راح للسلة ورجع يلاقي اللي كتبه.
-   * بترجع بس لو بصمة القواعد زي ما هي والمقاس لسه صالح على قواعد المنتج الحالية؛ غير كده بتتجاهل
-   * والقيم الافتراضية بتفضل. مابتلمسش السلة، ومثال «500 سم» يفضل placeholder بس.
-   * القراءة بعد التركيب (السيرفر مالوش sessionStorage)، والحفظ بعد القراءة بس.
+   * بترجع بس لو بصمة القواعد زي ما هي. مسودة السنتيمتر بترجع بخاناتها زي ما هي (حتى لو ناقصة أو تحت الحد) والطلب
+   * ممنوع لحد التصحيح؛ طول المتر بيرجع بس لو صالح. القراءة بعد التركيب (السيرفر مالوش sessionStorage)، والحفظ بعدها بس.
    */
   const rulesKey = sizeRulesKey(product)
   const [draftLoaded, setDraftLoaded] = useState(false)
   useEffect(() => {
-    const draft = readSizeDraft(product.id)
-    const rules = draft !== null && draft.rules === rulesKey ? withWidth(product, draft.widthCm) : null
-    if (draft !== null && rules && areRulesUsable(rules)) {
-      const windowWidth = widthLocked ? String(rules.width_cm) : draft.windowWidth
-      const complete = windowWidth.trim() !== '' && draft.windowHeight.trim() !== ''
-      const usable =
-        draft.mode === 'window' && complete
-          ? requiredLength(Number(windowWidth), Number(draft.windowHeight), rules).ok
-          : validateLength(draft.lengthCm, rules).ok
-      if (usable) {
-        onWidthChange(rules.width_cm)
-        setMode(draft.mode)
-        setWidth(draft.windowWidth)
-        setHeight(draft.windowHeight)
-        if (draft.mode === 'window' && complete) applyWindow(rules, windowWidth, draft.windowHeight)
-        else onLengthChange(draft.lengthCm)
+    const restored = restoreSizeDraft(readSizeDraft(product.id), rulesKey, product)
+    if (restored !== null) {
+      onWidthChange(restored.widthCm)
+      setMode(restored.mode)
+      setWidth(restored.windowWidth)
+      setHeight(restored.windowHeight)
+      setMeterCm(restored.meterLengthCm)
+      if (restored.mode === 'length') {
+        onLengthChange(meterLengthOf(restored.meterLengthCm, withWidth(product, restored.widthCm) ?? product))
       }
     }
     setDraftLoaded(true)
@@ -161,18 +189,22 @@ export function SizePanel({
 
   useEffect(() => {
     if (!draftLoaded) return
-    const untouched =
-      mode === 'window' &&
-      width === '' &&
-      height === '' &&
-      widthCm === product.width_cm &&
-      lengthCm === product.min_length_cm
+    const untouched = isUntouchedSize({
+      mode,
+      initialMode,
+      width,
+      height,
+      widthCm,
+      productWidthCm: product.width_cm,
+      lengthCm,
+      minLengthCm: product.min_length_cm,
+    })
     if (untouched) {
       clearSizeDraft(product.id)
       return
     }
     saveSizeDraft(product.id, { rules: rulesKey, widthCm, mode, windowWidth: width, windowHeight: height, lengthCm })
-  }, [draftLoaded, mode, width, height, widthCm, lengthCm, rulesKey, product.id, product.width_cm, product.min_length_cm])
+  }, [draftLoaded, mode, width, height, widthCm, lengthCm, rulesKey, product.id, product.width_cm, product.min_length_cm, initialMode])
 
   if (!areRulesUsable(current)) {
     return (
@@ -182,6 +214,9 @@ export function SizePanel({
       </p>
     )
   }
+
+  const switchParts = switchToMetersParts(current.min_length_cm)
+  const cmMessage = cmState.kind !== 'ok' ? cmState.message : ''
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
@@ -221,9 +256,11 @@ export function SizePanel({
         </div>
       ) : null}
 
-
       {mode === 'window' ? (
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div
+          className={cn('mt-4 grid grid-cols-2 gap-3', shaking && 'motion-safe:animate-size-shake')}
+          onAnimationEnd={() => setShaking(false)}
+        >
           {/* متثبّت: خانة مقفولة على الرول المختار — بتبيّن للزبون إن ده أقصى عرض */}
           {widthLocked ? (
             <LockedCm
@@ -238,10 +275,10 @@ export function SizePanel({
               label="عرض المكان"
               placeholder="120"
               value={width}
-              onChange={(next) => {
-                setWidth(next)
-                applyWindow(current, next, height)
-              }}
+              invalid={showCmError}
+              describedBy={showCmError ? errorId : undefined}
+              onBlur={reveal}
+              onChange={setWidth}
             />
           )}
           <CmInput
@@ -250,10 +287,10 @@ export function SizePanel({
             placeholder="500"
             hint="مثال: 500 سم"
             value={height}
-            onChange={(next) => {
-              setHeight(next)
-              applyWindow(current, windowWidthFor(current), next)
-            }}
+            invalid={showCmError}
+            describedBy={showCmError ? errorId : undefined}
+            onBlur={reveal}
+            onChange={setHeight}
           />
         </div>
       ) : (
@@ -290,7 +327,7 @@ export function SizePanel({
               <select
                 id="exact-length"
                 value={String(lengthCm)}
-                onChange={(event) => onLengthChange(Number(event.target.value))}
+                onChange={(event) => setMeter(Number(event.target.value))}
                 className={inputClasses}
               >
                 {options.map((option) => (
@@ -305,9 +342,9 @@ export function SizePanel({
       )}
 
       {/* المكان أعرض من الرول = شرايح — بيتقال على طول عشان مايبانش تناقض */}
-      {mode === 'window' && !widthLocked && !error && strips > 1 ? (
+      {mode === 'window' && !widthLocked && cmState.kind === 'ok' && cmState.strips > 1 ? (
         <p className="mt-2 rounded-lg border border-brand/30 bg-brand/5 px-3 py-2 text-xs text-fg">
-          المكان أعرض من الرول — هيتقسم <Num>{String(strips)}</Num> شرايح، كل واحدة <Num>{String(current.width_cm)}</Num> سم.
+          المكان أعرض من الرول — هيتقسم <Num>{String(cmState.strips)}</Num> شرايح، كل واحدة <Num>{String(current.width_cm)}</Num> سم.
         </p>
       ) : null}
 
@@ -332,12 +369,36 @@ export function SizePanel({
 
       {/* نتيجة الحساب */}
       <div className="mt-4">
-        {error ? (
+        {exceeds ? (
           <p className="flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/5 p-3 text-sm font-medium text-danger">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            {error}
+            {cmMessage}
           </p>
-        ) : (
+        ) : showCmError ? (
+          <div
+            id={errorId}
+            role="alert"
+            className="flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/5 p-3 text-sm font-medium text-danger"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="space-y-1">
+              <p>{cmMessage}</p>
+              {cmState.kind === 'below_min' ? (
+                <p className="text-xs font-normal leading-relaxed text-fg">
+                  {switchParts.before}
+                  <button
+                    type="button"
+                    onClick={() => switchMode('length')}
+                    className="font-semibold text-brand underline underline-offset-2"
+                  >
+                    {switchParts.link}
+                  </button>
+                  {switchParts.after}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        ) : mode === 'length' || cmState.kind === 'ok' ? (
           <dl className="divide-y divide-border rounded-lg bg-bg px-3">
             <SummaryRow
               label="عرض الرول"
@@ -347,8 +408,8 @@ export function SizePanel({
                 </>
               }
             />
-            {mode === 'window' && strips > 0 && !widthLocked ? (
-              <SummaryRow label="عدد الشرايح" value={<Num>{String(strips)}</Num>} />
+            {mode === 'window' && cmState.kind === 'ok' && !widthLocked ? (
+              <SummaryRow label="عدد الشرايح" value={<Num>{String(cmState.strips)}</Num>} />
             ) : null}
             <SummaryRow
               label="الطول المطلوب"
@@ -363,24 +424,24 @@ export function SizePanel({
             />
             <SummaryRow label="السعر" value={<Num>{formatPiastres(price)}</Num>} strong />
           </dl>
-        )}
+        ) : null}
       </div>
 
-      {mode === 'window' && !error && strips > 0 ? (
+      {mode === 'window' && cmState.kind === 'ok' ? (
         <p className="mt-2 text-xs text-muted">
-          <Num>{String(strips)}</Num> {strips === 1 ? 'شريحة' : 'شرايح'} × <Num>{height}</Num> سم ={' '}
-          <Num>{String(neededCm)}</Num> سم
-          {lengthCm > neededCm ? (
+          <Num>{String(cmState.strips)}</Num> {cmState.strips === 1 ? 'شريحة' : 'شرايح'} × <Num>{height}</Num> سم ={' '}
+          <Num>{String(cmState.neededCm)}</Num> سم
+          {cmState.lengthCm > cmState.neededCm ? (
             <>
               {' ← بنقرّبها لـ '}
-              <Num>{String(lengthCm)}</Num>
+              <Num>{String(cmState.lengthCm)}</Num>
               {' سم'}
             </>
           ) : null}
         </p>
       ) : null}
 
-      {mode === 'window' && !error && strips === 0 ? (
+      {mode === 'window' && cmState.kind !== 'ok' && !exceeds && !showCmError ? (
         <p className="mt-2 text-xs text-muted">
           {widthLocked
             ? 'اكتب الارتفاع بالسنتيمتر وإحنا نحسب الطول المطلوب.'
@@ -440,6 +501,9 @@ function CmInput({
   placeholder,
   value,
   onChange,
+  onBlur,
+  invalid = false,
+  describedBy,
   hint,
 }: {
   id: string
@@ -449,6 +513,10 @@ function CmInput({
   hint?: string
   value: string
   onChange: (next: string) => void
+  onBlur?: () => void
+  /** LENGTH-INPUT — الخطأ ظاهر: الرقم والإطار أحمر، والرقم المكتوب زي ما هو. */
+  invalid?: boolean
+  describedBy?: string | undefined
 }) {
   return (
     <div className="space-y-1.5">
@@ -465,7 +533,10 @@ function CmInput({
           placeholder={placeholder}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className={cn(inputClasses, 'pl-12')}
+          onBlur={onBlur}
+          aria-invalid={invalid ? true : undefined}
+          aria-describedby={describedBy}
+          className={cn(inputClasses, 'pl-12', invalid && 'border-danger text-danger focus:border-danger focus:ring-danger/30')}
         />
         <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-muted">
           سم
