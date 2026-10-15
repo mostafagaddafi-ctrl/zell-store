@@ -5,6 +5,8 @@
 
 import { T0, T1, T2, T3, T4, history, money, orderOf } from './trackOrder.fixtures'
 import {
+  ORDER_NUMBER_KEEP,
+  TRACK_PAGE_HREF,
   TRACK_TEXT,
   addCalendarDays,
   cairoDate,
@@ -12,6 +14,7 @@ import {
   trackMoneyLines,
   trackNextStep,
   trackShippingView,
+  trackSegments,
   trackStages,
   trackWhatsappHref,
   type TrackStagesView,
@@ -55,7 +58,6 @@ export function runTrackViewCases(): { passed: number; failures: Failure[] } {
   check('S05 confirmed → shipped (gate closed): preparing stays grey with «لم تُسجَّل», never completed', brief(skipped), [
     'received:done:1:' + T0 + ':-', 'confirmed:done:1:' + T1 + ':-', 'preparing:upcoming:0:-:' + TRACK_TEXT.skipped, 'shipped:current:1:' + T3 + ':-', 'delivered:upcoming:0:-:-',
   ])
-  check('S06 the green line only reaches completed stages (segment into preparing is off in S05)', skipped.stages.map((s) => s.completed), [true, true, false, true, false])
   const delivered = trackStages(orderOf({ status: 'delivered', history: history(['new', T0], ['confirmed', T1], ['preparing', T2], ['shipped', T3], ['delivered', T4]) }))
   check('S07 delivered: all five completed, delivery is current', brief(delivered), [
     'received:done:1:' + T0 + ':-', 'confirmed:done:1:' + T1 + ':-', 'preparing:done:1:' + T3 + ':-', 'shipped:done:1:' + T3 + ':-', 'delivered:current:1:' + T4 + ':-',
@@ -78,6 +80,9 @@ export function runTrackViewCases(): { passed: number; failures: Failure[] } {
   ])
   check('S12 preparing then cancelled: preparing not completed and not «skipped»', brief(trackStages(orderOf({ status: 'cancelled', history: history(['new', T0], ['confirmed', T1], ['preparing', T2], ['cancelled', T3]) })))[2],
     'preparing:upcoming:0:-:-')
+  check('S13 segments are green only between two completed stages (skipped preparing · before the history · full path)', [
+    trackSegments(skipped.stages), trackSegments(old.stages), trackSegments(delivered.stages), trackSegments(cancelled.stages),
+  ], [[true, false, false, false], [false, false, false, false], [true, true, true, true], [true, false, false, false]])
 
   // ── الخطوة التالية (§٧) ──
   const fee = { confirmation_fee_piastres: 5000 }
@@ -117,7 +122,7 @@ export function runTrackViewCases(): { passed: number; failures: Failure[] } {
     trackEta(orderOf({ status: 'new', history: history(['new', T0]) }))?.line,
     trackEta(orderOf({ delivery: { kind: 'preferred', date: '2026-11-01', period: 'morning' } }))?.line,
   ], [TRACK_TEXT.etaNone, TRACK_TEXT.etaNone, TRACK_TEXT.etaNone, TRACK_TEXT.etaNone])
-  check('E10 no ETA for delivered / cancelled / refused', ['delivered', 'cancelled', 'refused'].map((status) => trackEta(orderOf({ status, shipment: shipment({ expected_on: '2026-11-07' }) }))),
+  check('E10 no ETA for delivered / cancelled / refused (exception documented in §17-1, pending owner approval)', ['delivered', 'cancelled', 'refused'].map((status) => trackEta(orderOf({ status, shipment: shipment({ expected_on: '2026-11-07' }) }))),
     [null, null, null])
   check('D01 calendar days and the Cairo day', [addCalendarDays('2026-10-30', 3), addCalendarDays('2026-12-31', 1), cairoDate('2026-10-20T23:30:00+00:00'), cairoDate('2026-10-20T10:00:00+00:00')],
     ['2026-11-02', '2027-01-01', '2026-10-21', '2026-10-20'])
@@ -171,6 +176,11 @@ export function runTrackViewCases(): { passed: number; failures: Failure[] } {
     'https://wa.me/201234567890?text=' + encodeURIComponent('مرحبًا\nرقم الطلب: FLM-MRFVB3'),
     'https://wa.me/201234567890?text=' + encodeURIComponent('رقم الطلب: FLM-MRFVB3'),
     [null, null, null, null, null],
+  ])
+
+  check('K01 keep-number block: fixed /track link (no number in the URL) and the exact texts', [TRACK_PAGE_HREF, ORDER_NUMBER_KEEP], [
+    '/track',
+    { text: 'احتفظ برقم طلبك، وتقدر تتابع طلبك من «تتبّع طلبك»', copy: 'نسخ رقم الطلب', copied: 'اتنسخ رقم الطلب.', copyFailed: 'مقدرناش ننسخ الرقم. حدّده من فوق وانسخه بنفسك.' },
   ])
 
   return { passed, failures }
