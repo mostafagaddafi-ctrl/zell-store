@@ -1,5 +1,6 @@
 -- EXPRESS-SHIPPING W1 — الرجوع لـ 0021ex_express_shipping.sql في معاملة واحدة (العقد §٥).
--- الترتيب الإجباري: revert كود W2 الأول، وبعدين الملف ده.
+-- الترتيب الإجباري: revert كود W2 الأول، وبعدين الملف ده. وبيرفض طول ما TRACK-ORDER v2 متطبّق (دالة التتبّع v2 بتقرا أعمدة
+-- اللقطة) — ZELL_0021EX_RB_TR2_APPLIED: رجوع 0021tr2_track_order_v2_rollback.sql الأول.
 -- • بيرجّع zell_create_order (14 معامل) بالحرف = التعريف الحي قبل EXPRESS (قراءة R1: md5(prosrc)
 --   811d4d573d750db9c7e5164799536aa6 · md5(pg_get_functiondef) 1e639ee0c856c267a40135fbe384fa5d · sha256
 --   211b03008c671d710030b2636684ba2e3b4043237048b3ff5fd028c4c8ddc5a2 — CI بيثبت التلاتة)، بنفس المالك والصلاحيات بالظبط،
@@ -28,6 +29,9 @@ begin
      or pg_catalog.to_regclass('public.zell_shipping_options_log') is null
      or v_co is null then
     raise exception 'ZELL_0021EX_RB_NOT_APPLIED';
+  end if;
+  if pg_catalog.to_regclass('public.zell_order_shipments') is not null then
+    raise exception 'ZELL_0021EX_RB_TR2_APPLIED';
   end if;
   if (select count(*) from pg_catalog.pg_proc p
        where p.pronamespace = 'public'::regnamespace and p.proname = 'zell_create_order') <> 1
