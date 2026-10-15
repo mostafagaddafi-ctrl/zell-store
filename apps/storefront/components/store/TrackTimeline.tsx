@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react'
 import { cn } from '../../lib/cn'
-import { TRACK_TEXT, trackTime, type TrackStage } from '../../lib/orders/trackView'
+import { TRACK_TEXT, trackSegments, trackTime, type TrackStage } from '../../lib/orders/trackView'
 import { Num } from './Num'
 
 /**
@@ -8,15 +8,16 @@ import { Num } from './Num'
  *
  *   • خط عليه ٥ نقط: المكتملة أخضر بعلامة صح ووقتها، والخط لحدها ملوّن · الحالية مميزة (حلقة + نص «الحالة الحالية») ·
  *     الجاية رمادي. رأسي على الموبايل وأفقي من sm.
- *   • الخط الأخضر بيوصل لمرحلة **مكتملة** بس؛ مرحلة ماحصلتش بتفضل رمادي حتى لو اللي بعدها حصل.
+ *   • الوصلة خضرا بس بين مرحلتين مكتملين (trackSegments)؛ مرحلة ماحصلتش ووصلاتها بيفضلوا رمادي حتى لو اللي بعدها حصل.
  *   • التمييز بالنص والعلامات (مش اللون بس): علامة صح · «الحالة الحالية» · نص مخفي للقارئ بحالة كل مرحلة.
  */
 export function TrackTimeline({ stages }: { stages: TrackStage[] }) {
+  const segments = trackSegments(stages)
   return (
     <ol className="flex flex-col sm:flex-row sm:items-start" aria-label="مراحل الطلب">
       {stages.map((stage, index) => {
         const next = stages[index + 1]
-        const lineOn = next !== undefined && next.completed
+        const lineOn = segments[index] === true
         return (
           <li
             key={stage.key}
