@@ -2,7 +2,7 @@
 
 كل ملف في الريبو حجمه 20 KB أو أكتر (SQL · shell · Markdown)، وأقسامه بأرقام سطورها، ومعاهم ملفات 0021-A P1/P2 و0021-D2 الأصغر علشان المرحلة تبقى كاملة. الهدف إن أي شات يقرا الجزء اللي محتاجه بس، من غير ما يفتح ملف فيه آلاف السطور.
 
-- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR. ملفات 0021-D2 W1 (`0021d2_*`) اتضافت في PR W1 فوق main `6f3df51` (صفوفها وأقسامها من الـ head بتاعه)، وباقي الجدول زي ما هو. و`docs/plans/ADMIN-LANG-LIST.md` اتضاف في PR الحصر فوق main `c760822`. وملفات 0021-TR W1 (`0021tr_*`) اتضافت في PR W1 (#145) فوق main `3658906` (صفوفها وأقسامها من الـ head بتاعه)، وقسم `docs/maps/db-map.md` اتولّد من جديد من نفس الـ head (كان قديم: من غير §٧-ج و§٩). وعقدي `EXPRESS-SHIPPING.md` و`TRACK-ORDER-v2.md` اتضافوا في PR العقود (#147) فوق main `c825ce3` (صفوفهم وأقسامهم من الـ head بتاعه). وملفات EXPRESS-SHIPPING W1 (`0021ex_*`) اتضافت في PR W1 فوق main `30971d2` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021a_p1_payments_verify.sql` و`docs/maps/db-map.md` و`docs/contracts/EXPRESS-SHIPPING.md` اتحدّثت من نفس الـ head. وفي PR W2 فوق main `baa66a5`: صفوف وأقسام `backend/db/ci/0021ex_sql_ci.sh` (S46) و`docs/contracts/EXPRESS-SHIPPING.md` (§٧-٣) اتحدّثت من الـ head بتاعه. وملفات TRACK-ORDER v2 W1 (`0021tr2_*`) اتضافت في PR W1 فوق main `7c68bb5` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021tr_track_order_verify.sql` و`0021tr_track_order_rollback.sql` و`0021ex_express_shipping_rollback.sql` و`docs/contracts/TRACK-ORDER-v2.md` و`docs/maps/db-map.md` اتحدّثت من نفس الـ head. وفي PR W2-B (#153) فوق main `e6629a4`: صفوف وأقسام `backend/db/ci/0021tr2_sql_ci.sh` (S47) و`docs/contracts/TRACK-ORDER-v2.md` (§١٥ و§١٧) اتحدّثت من الـ head بتاعه.
+- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR. ملفات 0021-D2 W1 (`0021d2_*`) اتضافت في PR W1 فوق main `6f3df51` (صفوفها وأقسامها من الـ head بتاعه)، وباقي الجدول زي ما هو. و`docs/plans/ADMIN-LANG-LIST.md` اتضاف في PR الحصر فوق main `c760822`. وملفات 0021-TR W1 (`0021tr_*`) اتضافت في PR W1 (#145) فوق main `3658906` (صفوفها وأقسامها من الـ head بتاعه)، وقسم `docs/maps/db-map.md` اتولّد من جديد من نفس الـ head (كان قديم: من غير §٧-ج و§٩). وعقدي `EXPRESS-SHIPPING.md` و`TRACK-ORDER-v2.md` اتضافوا في PR العقود (#147) فوق main `c825ce3` (صفوفهم وأقسامهم من الـ head بتاعه). وملفات EXPRESS-SHIPPING W1 (`0021ex_*`) اتضافت في PR W1 فوق main `30971d2` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021a_p1_payments_verify.sql` و`docs/maps/db-map.md` و`docs/contracts/EXPRESS-SHIPPING.md` اتحدّثت من نفس الـ head. وفي PR W2 فوق main `baa66a5`: صفوف وأقسام `backend/db/ci/0021ex_sql_ci.sh` (S46) و`docs/contracts/EXPRESS-SHIPPING.md` (§٧-٣) اتحدّثت من الـ head بتاعه. وملفات TRACK-ORDER v2 W1 (`0021tr2_*`) اتضافت في PR W1 فوق main `7c68bb5` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021tr_track_order_verify.sql` و`0021tr_track_order_rollback.sql` و`0021ex_express_shipping_rollback.sql` و`docs/contracts/TRACK-ORDER-v2.md` و`docs/maps/db-map.md` اتحدّثت من نفس الـ head. وفي PR W2-B (#153) فوق main `e6629a4`: صفوف وأقسام `backend/db/ci/0021tr2_sql_ci.sh` (S47) و`docs/contracts/TRACK-ORDER-v2.md` (§١٥ و§١٧) اتحدّثت من الـ head بتاعه. وفي PR إضافة §١٢ لعقد EXPRESS-SHIPPING (#154) فوق main `d356ea8`: صف وقسم `docs/contracts/EXPRESS-SHIPPING.md` اتحدّثوا من الـ head بتاعه.
 - **القراية بالسطور:** على GitHub ضيف `#L100-L200` للرابط، أو اقرا الـ blob وقطّع السطور من القسم لحد القسم اللي بعده.
 - **الـ ptest:** جسم الـ migration منسوخ جواه بالحرف بين «بداية/نهاية الجسم المنسوخ»، فمش محتاج تقراه هناك. اقراه من ملف الـ migration.
 - الجداول متولّدة من عناوين الملفات نفسها: `-- (N)` · الفواصل · `DO $…$` · `create function/table/role` · `BEGIN/COMMIT/ROLLBACK` · `#` في Markdown · `name() {` و`X=$(cat <<'SQL'` في shell.
@@ -76,7 +76,7 @@
 | `docs/contracts/0021-A.md` | 94 KB | 438 | عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر |
 | `docs/contracts/0021-P-code.md` | 29 KB | 249 | عقد كود 0021-P: أ ← ب1 ← ب2 · الأوضاع · الفاحص · التعديلات بعد الاعتماد |
 | `docs/contracts/0021-P.md` | 22 KB | 252 | عقد 0021-P (الداتابيز): المحرك والمحوّل والهوية من الجلسة |
-| `docs/contracts/EXPRESS-SHIPPING.md` | 37 KB | 194 | عقد الشحن السريع ومدة الشحن: الإعداد `zell_shipping_options` · `zell_create_order` (15) واللقطة · Checkout والـ canonical · فحوص التحقق المتأثرة · قراءات R1–R6 ونتايجها · تفاصيل W1 و W2 |
+| `docs/contracts/EXPRESS-SHIPPING.md` | 42 KB | 221 | عقد الشحن السريع ومدة الشحن: الإعداد `zell_shipping_options` · `zell_create_order` (15) واللقطة · Checkout والـ canonical · فحوص التحقق المتأثرة · قراءات R1–R6 ونتايجها · تفاصيل W1 و W2 |
 | `docs/contracts/TRACK-ORDER-v2.md` | 49 KB | 248 | عقد التتبّع الكامل: حقول v1 + v2 · المبالغ (المدفوع · المردود · الصافي · المتبقي) · خط المراحل · الشحنة · رسايل العميل · الموعد · قراءات T1–T5 ونتايجها · W1 (الأسماء والأكواد النهائية) · W2 (التقسيم: W2-A المتجر · W2-B اللوحة) |
 | `docs/maps/db-map.md` | 51 KB | 373 | خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف |
 | `docs/plans/ADMIN-LANG-LIST.md` | 62 KB | 224 | حصر نصوص اللوحة العامية مع مقترح فصحى مبسّطة لكل نص (أ · ب · ج · د)، للمالك يختار منه |
@@ -1749,7 +1749,7 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 
 ## `docs/contracts/EXPRESS-SHIPPING.md`
 
-عقد الشحن السريع ومدة الشحن: الإعداد `zell_shipping_options` · `zell_create_order` (15) واللقطة · Checkout والـ canonical · فحوص التحقق المتأثرة · قراءات R1–R6 ونتايجها · تفاصيل W1 و W2 · 194 سطر
+عقد الشحن السريع ومدة الشحن: الإعداد `zell_shipping_options` · `zell_create_order` (15) واللقطة · Checkout والـ canonical · فحوص التحقق المتأثرة · قراءات R1–R6 ونتايجها · تفاصيل W1 و W2 · 221 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -1775,6 +1775,7 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 177 | ## ٩) برّه النطاق |
 | 180 | ## ١٠) قرارات المالك (2026-10-14 — كانت أسئلة واتحسمت) |
 | 188 | ## ١١) سجل التعديلات |
+| 197 | ## ١٢) إضافة 2026-10-15 — علامة وفلتر نوع الشحن في قايمة الطلبات (اللوحة) |
 ## `docs/contracts/TRACK-ORDER-v2.md`
 
 عقد التتبّع الكامل: حقول v1 + v2 · المبالغ (المدفوع · المردود · الصافي · المتبقي) · خط المراحل · الشحنة · رسايل العميل · الموعد · قراءات T1–T5 ونتايجها · W1 (الأسماء والأكواد النهائية) · W2 (التقسيم: W2-A المتجر · W2-B اللوحة) · 248 سطر
