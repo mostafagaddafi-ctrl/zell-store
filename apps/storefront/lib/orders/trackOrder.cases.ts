@@ -1,6 +1,6 @@
 /**
  * TRACK-ORDER — حالات «تتبّع طلبك» (pnpm --filter @zell/storefront cases، suite track).
- * العقود: docs/contracts/TRACK-ORDER.md §٣ (أمثلة التظبيط بالحرف) و§٤ · TRACK-ORDER-v2.md §٢ و§١٧-١ (حارس v2).
+ * العقود: docs/contracts/TRACK-ORDER.md §٣ (أمثلة التظبيط بالحرف) و§٤ · TRACK-ORDER-v2.md §٢ و§١٧-١ (حارس v2 بقيود الداتابيز).
  * الـ suite بتجمّع كمان trackView.cases.ts (العرض) وtrackLookup.cases.ts (الـ Server Action بنداءات وهمية).
  */
 
@@ -8,6 +8,7 @@ import { CUSTOMER_STATUS_LABELS, ORDER_STATUSES, PREFERRED_DELIVERY_PENDING, STA
 import {
   TRACK_INPUT_MAX,
   TRACK_NOT_FOUND_MESSAGE,
+  charCount,
   customerStatusLabel,
   normalizeTrackCode,
   parseTrackedOrder,
@@ -154,11 +155,52 @@ export async function runTrackOrderCases(): Promise<{ passed: number; failures: 
     parseTrackedOrder(sample({ money: money({ shipping_piastres: 1.5 }) })),
     parseTrackedOrder(sample({ money: { ...money(), items_piastres: undefined } })),
   ], [null, null, null, null, null])
-  check('G11 empty area -> null · empty tracking number -> null · overpaid order keeps remaining 0', [
+  check('G11 empty area -> null · empty tracking number -> null', [
     parseTrackedOrder(sample({ customer: { name: 'n', phone: 'p', address: 'a', governorate: 'g', area: '' } }))?.customer.area,
     parseTrackedOrder(sample({ shipment: { carrier: 'بوسطة', tracking_number: '', tracking_url: null, shipped_on: null, expected_on: null } }))?.shipment?.trackingNumber,
-    parseTrackedOrder(sample({ money: money({ paid_piastres: 200000 }) }))?.money.remainingPiastres,
-  ], [null, null, 0])
+  ], [null, null])
+  check('G13 net above the total -> null · paid above the total after a refund and re-payment is fine (net is what is bounded)', [
+    parseTrackedOrder(sample({ money: money({ paid_piastres: 200000 }) })),
+    parseTrackedOrder(sample({ money: money({ paid_piastres: 200000, refunded_piastres: 20000 }) }))?.money.netPaidPiastres,
+    parseTrackedOrder(sample({ money: money({ paid_piastres: 191000 }) }))?.money.remainingPiastres,
+  ], [null, 180000, 0])
+  check('G14 money equation and bounds: total breakdown · discount ≤ items · deposit ≤ total', [
+    parseTrackedOrder(sample({ money: money({ shipping_piastres: 6000 }) })),
+    parseTrackedOrder(sample({ money: money({ items_piastres: 1000, discount_piastres: 2000, shipping_piastres: 192000 }) })),
+    parseTrackedOrder(sample({ money: money({ confirmation_fee_piastres: 191001 }) })),
+    parseTrackedOrder(sample({ money: money({ items_piastres: 190000, discount_piastres: 4000, shipping_piastres: 5000 }) }))?.money.discountPiastres,
+  ], [null, null, null, 4000])
+  check('G15 real calendar dates and safe integers only', [
+    parseTrackedOrder(sample({ delivery: { kind: 'preferred', date: '2026-02-30', period: null } })),
+    parseTrackedOrder(sample({ delivery: { kind: 'preferred', date: '2026-13-01', period: null } })),
+    parseTrackedOrder(sample({ confirmed_delivery: { date: '2026-02-29', period: null } })),
+    parseTrackedOrder(sample({ shipment: { carrier: 'بوسطة', tracking_number: null, tracking_url: null, shipped_on: '2026-04-31', expected_on: null } })),
+    parseTrackedOrder(sample({ total_piastres: 1e100 })),
+    parseTrackedOrder(sample({ updates: [{ id: 2 ** 53, at: T1, text: 'x', edited: false }] })),
+    parseTrackedOrder(sample({ items: [{ ...meterItem, line_total_piastres: 2 ** 53 }] })),
+    parseTrackedOrder(sample({ confirmed_delivery: { date: '2028-02-29', period: null } }))?.confirmedDelivery?.date,
+  ], [null, null, null, null, null, null, null, '2028-02-29'])
+  const ship = (over: Record<string, unknown>) => ({ carrier: 'بوسطة', tracking_number: null, tracking_url: null, shipped_on: null, expected_on: null, ...over })
+  check('G16 shipping days complete or empty · valid https link · expected ≥ shipped', [
+    parseTrackedOrder(sample({ shipping: { method: 'standard', days_min: 2, days_max: null } })),
+    parseTrackedOrder(sample({ shipping: { method: 'express', days_min: null, days_max: 1 } })),
+    parseTrackedOrder(sample({ shipment: ship({ tracking_url: 'https://' }) })),
+    parseTrackedOrder(sample({ shipment: ship({ tracking_url: 'https://localhost/track' }) })),
+    parseTrackedOrder(sample({ shipment: ship({ tracking_url: 'https://bosta .co/x' }) })),
+    parseTrackedOrder(sample({ shipment: ship({ shipped_on: '2026-10-20', expected_on: '2026-10-19' }) })),
+    parseTrackedOrder(sample({ shipment: ship({ tracking_url: 'https://bosta.co/track?id=1' }) }))?.shipment?.trackingUrl,
+    parseTrackedOrder(sample({ shipment: ship({ shipped_on: '2026-10-20', expected_on: '2026-10-20' }) }))?.shipment?.expectedOn,
+  ], [null, null, null, null, null, null, 'https://bosta.co/track?id=1', '2026-10-20'])
+  const emoji = '\u{1F600}'
+  check('G17 lengths counted like char_length (code points): 300 / 60 accepted, 301 / 61 rejected', [
+    parseTrackedOrder(sample({ updates: [{ id: 1, at: T1, text: emoji.repeat(300), edited: false }] })) !== null,
+    parseTrackedOrder(sample({ updates: [{ id: 1, at: T1, text: emoji.repeat(301), edited: false }] })) !== null,
+    parseTrackedOrder(sample({ shipment: ship({ carrier: emoji.repeat(60) }) })) !== null,
+    parseTrackedOrder(sample({ shipment: ship({ carrier: emoji.repeat(61) }) })) !== null,
+    parseTrackedOrder(sample({ shipment: ship({ tracking_number: emoji.repeat(60) }) })) !== null,
+    parseTrackedOrder(sample({ shipment: ship({ tracking_number: emoji.repeat(61) }) })) !== null,
+    charCount(emoji.repeat(300)),
+  ], [true, false, true, false, true, false, 300])
   check('G12 history kept in order (created first)', parseTrackedOrder(sample({ history: history(['new', T0], ['confirmed', T1], ['cancelled', '2026-10-14T00:00:00+00:00']) }))?.history.map((h) => h.status),
     ['new', 'confirmed', 'cancelled'])
 
