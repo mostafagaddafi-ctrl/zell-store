@@ -27,6 +27,7 @@ import {
   type StoreSettings,
   type WidthOption,
 } from '@zell/core'
+import { readProductSizeEntry } from '../size/sizeEntry'
 
 /** صف جدول products. */
 export type ProductRow = {
@@ -492,7 +493,10 @@ function settingContent(map: Map<string, unknown>): StoreContent {
   // HOME-MOBILE — من عنصر hero في settings.sections (غايب أو غلط = compact)
   const heroMobileLayout = heroMobileLayoutOf(map.get('sections'))
 
-  return { hero, homeSections, orderSteps, faqs, footerLinks, trustLine, heroMobileLayout }
+  // LENGTH-INPUT — الطريقة الأولى لإدخال المقاس من settings.hero.productSizeEntry ('m' بس = متر، وأي حاجة تانية = سنتيمتر)
+  const productSizeEntry = readProductSizeEntry(heroRaw ? heroRaw['productSizeEntry'] : undefined)
+
+  return { hero, homeSections, orderSteps, faqs, footerLinks, trustLine, heroMobileLayout, productSizeEntry }
 }
 
 /**
