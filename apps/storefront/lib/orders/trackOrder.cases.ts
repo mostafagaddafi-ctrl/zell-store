@@ -6,6 +6,7 @@
 
 import { CUSTOMER_STATUS_LABELS, ORDER_STATUSES, PREFERRED_DELIVERY_PENDING, STATUS_LABELS } from '@zell/core'
 import {
+  SHIPPING_DAYS_MAX,
   TRACK_INPUT_MAX,
   TRACK_NOT_FOUND_MESSAGE,
   charCount,
@@ -191,6 +192,18 @@ export async function runTrackOrderCases(): Promise<{ passed: number; failures: 
     parseTrackedOrder(sample({ shipment: ship({ tracking_url: 'https://bosta.co/track?id=1' }) }))?.shipment?.trackingUrl,
     parseTrackedOrder(sample({ shipment: ship({ shipped_on: '2026-10-20', expected_on: '2026-10-20' }) }))?.shipment?.expectedOn,
   ], [null, null, null, null, null, null, 'https://bosta.co/track?id=1', '2026-10-20'])
+  check('G18 shipping days like the DB check: max 60 · standard may have none · express must have days', [
+    parseTrackedOrder(sample({ shipping: { method: 'standard', days_min: 0, days_max: 60 } }))?.shipping,
+    parseTrackedOrder(sample({ shipping: { method: 'standard', days_min: 1, days_max: 61 } })),
+    parseTrackedOrder(sample({ shipping: { method: 'express', days_min: 1, days_max: Number.MAX_SAFE_INTEGER } })),
+    parseTrackedOrder(sample({ shipping: { method: 'standard', days_min: null, days_max: null } }))?.shipping,
+    parseTrackedOrder(sample({ shipping: { method: 'express', days_min: null, days_max: null } })),
+    parseTrackedOrder(sample({ shipping: { method: 'express', days_min: 0, days_max: 1 } }))?.shipping,
+    SHIPPING_DAYS_MAX,
+  ], [
+    { method: 'standard', daysMin: 0, daysMax: 60 }, null, null, { method: 'standard', daysMin: null, daysMax: null }, null,
+    { method: 'express', daysMin: 0, daysMax: 1 }, 60,
+  ])
   const emoji = '\u{1F600}'
   check('G17 lengths counted like char_length (code points): 300 / 60 accepted, 301 / 61 rejected', [
     parseTrackedOrder(sample({ updates: [{ id: 1, at: T1, text: emoji.repeat(300), edited: false }] })) !== null,
