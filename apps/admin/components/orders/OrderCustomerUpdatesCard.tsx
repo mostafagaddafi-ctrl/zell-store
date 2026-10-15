@@ -1,11 +1,25 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Pencil } from 'lucide-react'
 import { useSaveAction } from '../../lib/client/useSaveAction'
 import { addCustomerUpdateAction, editCustomerUpdateAction, setCustomerUpdateHiddenAction } from '../../lib/orderActions'
 import { formatCairoDateTime } from '../../lib/orders/cycle'
+import {
+  addIntentOf,
+  adoptEditLatest,
+  boundSend,
+  editDraftOf,
+  editDraftStale,
+  editIntentOf,
+  hideIntentOf,
+  syncEditDraft,
+  type AddIntent,
+  type EditIntent,
+  type HideIntent,
+  type UpdateEditDraft,
+} from '../../lib/orders/trackDrafts'
 import {
   UPDATES_TEXT,
   UPDATE_TEXT_MAX,
@@ -22,9 +36,10 @@ import { FailureBanner } from '../ui/FailureBanner'
 
 /**
  * TRACK-ORDER v2 W2-B — كارت «رسائل للعميل» في صفحة الطلب (العقد TRACK-ORDER-v2 §٦ · §١٧-٢): إضافة · تعديل النص · إخفاء/إظهار.
- * الإضافة بنسخة القايمة (last_id)، والتعديل والإخفاء بنسخة الرسالة (updated_at). القرار النهائي في zell_customer_update_*.
- * التعارض (45404): إعادة قراية تلقائية (router.refresh) مع الاحتفاظ بالنص اللي لسه ماتحفظش، ومفيش إعادة إرسال تلقائية.
- * الرسايل بتتعرض كنص (من غير HTML). السجل الداخلي للتغييرات مابيظهرش هنا ولا للعميل.
+ * التعديل ليه نسخة بداية منفصلة عن أحدث نسخة معروضة (lib/orders/trackDrafts.ts): لو الرسالة اتغيّرت أثناء التعديل، النص
+ * بيفضل، والنص المحفوظ حاليًا بيظهر للمراجعة، والحفظ بيتقفل لحد «اعتماد أحدث نسخة مع الاحتفاظ بما كتبته» أو «تجاهل ما كتبته».
+ * كل إجراء بنية ثابتة لحظة الضغط (النسخة + النص/الحالة)، وإعادة المحاولة بتبعتها بالحرف. التعارض (45404): إعادة قراية
+ * تلقائية (router.refresh) مع الاحتفاظ بالنص، ومفيش إعادة إرسال تلقائية. الرسايل بتتعرض كنص (من غير HTML).
  */
 type RowDone = 'edit' | 'unchanged' | 'hidden' | 'shown'
 
@@ -42,13 +57,15 @@ export function OrderCustomerUpdatesCard({ orderNumber, view }: { orderNumber: s
   const rows = useSaveAction()
   const [draft, setDraft] = useState('')
   const [addIssue, setAddIssue] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [editText, setEditText] = useState('')
+  const [edit, setEdit] = useState<UpdateEditDraft | null>(null)
   const [editIssue, setEditIssue] = useState<string | null>(null)
   const [rowDone, setRowDone] = useState<RowDone | null>(null)
-  const viewRef = useRef(view)
-  viewRef.current = view
   const busy = adder.state === 'saving' || rows.state === 'saving'
+
+  // props جديدة: التعديل اللي فيه نص متغيّر بيفضل على نسخته، واللي ماتغيّرش بيتبع السيرفر.
+  useEffect(() => {
+    setEdit((current) => (current === null ? current : syncEditDraft(current, view)))
+  }, [view])
 
   // 45404: نقرا أحدث نسخة من غير ما نمسح النص اللي اتكتب.
   useEffect(() => {
@@ -63,13 +80,10 @@ export function OrderCustomerUpdatesCard({ orderNumber, view }: { orderNumber: s
     )
   }
 
+  const latest = view
   const disabled = !mutationsOn || busy
-  const full = !canAddUpdate(view)
-
-  function versionOf(id: number): string | null {
-    const row = viewRef.current?.updates.find((u) => u.id === id)
-    return row === undefined ? null : row.updatedAt
-  }
+  const full = !canAddUpdate(latest)
+  const editStale = edit !== null && editDraftStale(edit, latest)
 
   function add() {
     const checked = updateText(draft)
@@ -78,54 +92,77 @@ export function OrderCustomerUpdatesCard({ orderNumber, view }: { orderNumber: s
       return
     }
     setAddIssue(null)
-    const lastId = viewRef.current?.lastId ?? null
-    const text = checked.value
-    void adder.run(() => addCustomerUpdateAction(orderNumber, lastId, text), {
-      onSuccess: () => {
-        setDraft('')
-        router.refresh()
+    const intent = addIntentOf(latest, checked.value)
+    void adder.run(
+      boundSend(intent, (i: AddIntent) => addCustomerUpdateAction(orderNumber, i.expectedLastId, i.text)),
+      {
+        onSuccess: () => {
+          setDraft('')
+          router.refresh()
+        },
       },
-    })
+    )
   }
 
-  function startEdit(id: number, text: string) {
-    setEditingId(id)
-    setEditText(text)
+  function startEdit(id: number) {
+    setEdit(editDraftOf(latest, id))
     setEditIssue(null)
     setRowDone(null)
     rows.reset()
   }
 
-  function saveEdit(id: number) {
-    const checked = updateText(editText)
+  function closeEdit() {
+    setEdit(null)
+    setEditIssue(null)
+    rows.reset()
+  }
+
+  function adoptEdit() {
+    setEdit((current) => (current === null ? current : adoptEditLatest(current, latest)))
+    setEditIssue(null)
+    rows.reset()
+  }
+
+  function discardEdit() {
+    setEdit((current) => (current === null ? current : editDraftOf(latest, current.id)))
+    setEditIssue(null)
+    rows.reset()
+  }
+
+  function saveEdit() {
+    if (edit === null || editStale) return
+    const checked = updateText(edit.text)
     if (!checked.ok) {
       setEditIssue(checked.message)
       return
     }
-    const version = versionOf(id)
-    if (version === null) return
     setEditIssue(null)
-    const text = checked.value
-    void rows.run(() => editCustomerUpdateAction(orderNumber, id, version, text), {
-      onSuccess: (data) => {
-        setRowDone(data.changed ? 'edit' : 'unchanged')
-        setEditingId(null)
-        setEditText('')
-        router.refresh()
+    const intent = editIntentOf(edit, checked.value)
+    void rows.run(
+      boundSend(intent, (i: EditIntent) => editCustomerUpdateAction(orderNumber, i.id, i.expectedUpdatedAt, i.text)),
+      {
+        onSuccess: (data) => {
+          setRowDone(data.changed ? 'edit' : 'unchanged')
+          setEdit(null)
+          router.refresh()
+        },
       },
-    })
+    )
   }
 
   function toggleHidden(id: number, hidden: boolean) {
     if (hidden && !window.confirm(UPDATES_TEXT.hideConfirm)) return
-    const version = versionOf(id)
-    if (version === null) return
-    void rows.run(() => setCustomerUpdateHiddenAction(orderNumber, id, version, hidden), {
-      onSuccess: (data) => {
-        setRowDone(data.changed ? (hidden ? 'hidden' : 'shown') : 'unchanged')
-        router.refresh()
+    const intent = hideIntentOf(latest, id, hidden)
+    if (intent === null) return
+    void rows.run(
+      boundSend(intent, (i: HideIntent) => setCustomerUpdateHiddenAction(orderNumber, i.id, i.expectedUpdatedAt, i.hidden)),
+      {
+        onSuccess: (data) => {
+          setRowDone(data.changed ? (hidden ? 'hidden' : 'shown') : 'unchanged')
+          router.refresh()
+        },
       },
-    })
+    )
   }
 
   return (
@@ -163,13 +200,13 @@ export function OrderCustomerUpdatesCard({ orderNumber, view }: { orderNumber: s
           </div>
         )}
 
-        <p className="text-xs text-muted">{updatesCountLine(view.updates.length)}</p>
+        <p className="text-xs text-muted">{updatesCountLine(latest.updates.length)}</p>
 
-        {view.updates.length === 0 ? (
+        {latest.updates.length === 0 ? (
           <p className="text-sm text-fg">{UPDATES_TEXT.empty}</p>
         ) : (
           <ul className="space-y-2">
-            {view.updates.map((u) => (
+            {latest.updates.map((u) => (
               <li key={u.id} className={'rounded border border-border p-2 text-xs ' + (u.hidden ? 'bg-bg text-muted' : 'bg-surface text-fg')}>
                 <div className="mb-1 flex flex-wrap items-center gap-1.5">
                   {u.hidden ? (
@@ -181,15 +218,31 @@ export function OrderCustomerUpdatesCard({ orderNumber, view }: { orderNumber: s
                   <span className="text-muted">{UPDATES_TEXT.addedAt + formatCairoDateTime(u.createdAt)}</span>
                 </div>
 
-                {editingId === u.id ? (
+                {edit !== null && edit.id === u.id ? (
                   <div className="space-y-2">
-                    <Field htmlFor={'customer-update-' + String(u.id)} label={UPDATES_TEXT.edit} error={editIssue ?? undefined} hint={charsLine(editText)}>
+                    {editStale ? (
+                      <div role="alert" className="space-y-2 rounded border-s-2 border-gold bg-gold/10 p-2 text-fg">
+                        <p>{UPDATES_TEXT.stale}</p>
+                        <p className="font-semibold">{UPDATES_TEXT.currentSaved}</p>
+                        <p className="whitespace-pre-wrap break-words">{u.text}</p>
+                        <div className="flex flex-wrap gap-2">
+                          <Button size="sm" variant="secondary" disabled={busy} onClick={adoptEdit}>
+                            {UPDATES_TEXT.adopt}
+                          </Button>
+                          <Button size="sm" variant="ghost" disabled={busy} onClick={discardEdit}>
+                            {UPDATES_TEXT.discard}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                    <Field htmlFor={'customer-update-' + String(u.id)} label={UPDATES_TEXT.edit} error={editIssue ?? undefined} hint={charsLine(edit.text)}>
                       <textarea
                         id={'customer-update-' + String(u.id)}
-                        value={editText}
+                        value={edit.text}
                         maxLength={UPDATE_TEXT_MAX * 2}
                         onChange={(event) => {
-                          setEditText(event.target.value)
+                          const text = event.target.value
+                          setEdit((current) => (current === null ? current : { ...current, text }))
                           setEditIssue(null)
                           if (rows.state !== 'idle' && rows.state !== 'saving') rows.markDirty()
                         }}
@@ -198,20 +251,10 @@ export function OrderCustomerUpdatesCard({ orderNumber, view }: { orderNumber: s
                       />
                     </Field>
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" disabled={disabled} onClick={() => saveEdit(u.id)}>
+                      <Button size="sm" disabled={disabled || editStale} onClick={saveEdit}>
                         {UPDATES_TEXT.saveEdit}
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() => {
-                          setEditingId(null)
-                          setEditText('')
-                          setEditIssue(null)
-                          rows.reset()
-                        }}
-                      >
+                      <Button size="sm" variant="ghost" disabled={busy} onClick={closeEdit}>
                         {UPDATES_TEXT.cancel}
                       </Button>
                     </div>
@@ -220,11 +263,11 @@ export function OrderCustomerUpdatesCard({ orderNumber, view }: { orderNumber: s
                   <>
                     <p className="whitespace-pre-wrap break-words text-sm">{u.text}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <Button size="sm" variant="secondary" disabled={disabled || editingId !== null} onClick={() => startEdit(u.id, u.text)}>
+                      <Button size="sm" variant="secondary" disabled={disabled || edit !== null} onClick={() => startEdit(u.id)}>
                         <Pencil className="h-3.5 w-3.5" />
                         {UPDATES_TEXT.edit}
                       </Button>
-                      <Button size="sm" variant="ghost" disabled={disabled || editingId !== null} onClick={() => toggleHidden(u.id, !u.hidden)}>
+                      <Button size="sm" variant="ghost" disabled={disabled || edit !== null} onClick={() => toggleHidden(u.id, !u.hidden)}>
                         {u.hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                         {u.hidden ? UPDATES_TEXT.show : UPDATES_TEXT.hide}
                       </Button>
