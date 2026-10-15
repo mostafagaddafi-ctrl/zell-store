@@ -139,19 +139,141 @@ export const FALLBACK_SETTINGS: StoreSettings = {
  */
 export const FALLBACK_COLLECTIONS: StoreCollection[] = []
 
-export function getFallbackCollections(): StoreCollection[] {
+// ════════════════════════════════════════════════════════════════════
+// ⚠️ PREVIEW FIXTURES — مؤقت لمعاينة STORE-MENU (#159) في Codespaces بس.
+//    فرع chore/store-menu-preview-fixtures فوق head الـ PR (c669df3). **مش للدمج ولا للنشر.**
+//    من غير أي مفتاح أو اتصال: كله بيانات مكتوبة هنا، والروابط example.com، واللوجو ملف اختبار محلي.
+//
+//    ZELL_PREVIEW_SCENARIO : غايب = الأقسام والإعدادات زي الكتالوج بالحرف · long · four · empty
+//    ZELL_PREVIEW_LOGO=1   : لوجو مرفوع = /preview-logo.png (320×80، صورة اختبار في public)
+//    ZELL_PREVIEW_TOOLS=1  : منتج أدوات (قطعة، مخفي من القوايم) مربوط بالفيلم 1 + صفحة الأدوات مفعّلة
+//    المتغيرات بتتقري وقت البناء (الصفحات static)، فأي تغيير = build جديد.
+// ════════════════════════════════════════════════════════════════════
+type PreviewScenario = 'none' | 'long' | 'four' | 'empty'
+
+function previewScenario(): PreviewScenario {
+  const raw = (process.env['ZELL_PREVIEW_SCENARIO'] ?? '').trim()
+  return raw === 'long' || raw === 'four' || raw === 'empty' ? raw : 'none'
+}
+
+function previewFlag(name: 'ZELL_PREVIEW_LOGO' | 'ZELL_PREVIEW_TOOLS'): boolean {
+  return (process.env[name] ?? '').trim() === '1'
+}
+
+function previewCollection(id: number, slug: string, title: string, showInNav = true): StoreCollection {
+  return { id, slug, title, subtitle: '', productIds: [1, 2, 3], showOnHome: false, showInNav, image: null, hasCover: false, catalogLayout: 'cards' }
+}
+
+/** 5 أقسام في القائمة بأسامي طويلة (overflow في هيدر الكمبيوتر) + slug عربي + قسم مخفي من القائمة. */
+const PREVIEW_LONG_COLLECTIONS: StoreCollection[] = [
+  previewCollection(101, 'heat-nano-ceramic', 'عازل حرارة نانو سيراميك للشبابيك'),
+  previewCollection(102, 'خصوصية-ومصنفر', 'أفلام خصوصية ومصنفر للحمامات والمطابخ'),
+  previewCollection(103, 'blackout', 'فاميه وتعتيم كامل للبلكونات'),
+  previewCollection(104, 'safety', 'أفلام أمان ضد الكسر للأبواب الزجاجية'),
+  previewCollection(105, 'decor', 'أفلام ديكور ورخام للزجاج الداخلي'),
+  previewCollection(106, 'hidden-from-nav', 'قسم مخفي من القائمة', false),
+]
+
+const PREVIEW_SOCIAL: StoreSettings['socialLinks'] = [
+  { platform: 'facebook', url: 'https://example.com/facebook' },
+  { platform: 'instagram', url: 'https://example.com/instagram' },
+  { platform: 'tiktok', url: 'https://example.com/tiktok' },
+  { platform: 'youtube', url: 'https://example.com/youtube' },
+  { platform: 'snapchat', url: 'https://example.com/snapchat' },
+  { platform: 'x', url: 'https://example.com/x' },
+]
+
+const PREVIEW_LOGO: StoreSettings['logo'] = {
+  id: 900,
+  url: '/preview-logo.png',
+  alt: 'شعار اختبار',
+  width: 320,
+  height: 80,
+  kind: 'gallery',
+  isPrimary: true,
+}
+
+/** أداة تركيب (قطعة، مخفية من القوايم) — بيانات اختبار بس. */
+const PREVIEW_TOOL: StoreProduct = {
+  id: 90,
+  name_ar: 'طقم أدوات التركيب (اختبار)',
+  name_en: null,
+  brand: null,
+  description_ar: 'بيانات اختبار للمعاينة.',
+  gallery: [],
+  image_url: null,
+  images: [],
+  before_image: null,
+  after_image: null,
+  price_per_meter_piastres: 15000,
+  width_cm: 50,
+  min_length_cm: 300,
+  step_cm: 50,
+  max_length_cm: 3000,
+  sale_unit: 'piece',
+  is_listed: false,
+  max_quantity: 5,
+}
+
+function previewProducts(): StoreProduct[] {
+  if (!previewFlag('ZELL_PREVIEW_TOOLS')) return FALLBACK_PRODUCTS
+  return [...FALLBACK_PRODUCTS.map((product) => (product.id === 1 ? { ...product, addon_ids: [PREVIEW_TOOL.id] } : product)), PREVIEW_TOOL]
+}
+
+function previewCollections(): StoreCollection[] {
+  const scenario = previewScenario()
+  if (scenario === 'long') return PREVIEW_LONG_COLLECTIONS
+  if (scenario === 'four') return PREVIEW_LONG_COLLECTIONS.slice(0, 4)
   return FALLBACK_COLLECTIONS
+}
+
+function previewScenarioSettings(): StoreSettings {
+  const scenario = previewScenario()
+  if (scenario === 'long' || scenario === 'four') {
+    return {
+      ...FALLBACK_SETTINGS,
+      socialLinks: PREVIEW_SOCIAL,
+      homeProducts: { ...FALLBACK_SETTINGS.homeProducts, allLabel: scenario === 'long' ? 'كل الأفلام والمنتجات المتاحة' : FALLBACK_SETTINGS.homeProducts.allLabel },
+    }
+  }
+  if (scenario === 'empty') {
+    return {
+      ...FALLBACK_SETTINGS,
+      whatsappNumber: '',
+      socialLinks: [],
+      homeProducts: { ...FALLBACK_SETTINGS.homeProducts, allLabel: '' },
+      content: {
+        ...DEFAULT_STORE_CONTENT,
+        homeSections: DEFAULT_STORE_CONTENT.homeSections.map((section) =>
+          section.key === 'how_it_works' || section.key === 'faq' ? { ...section, visible: false } : section,
+        ),
+      },
+    }
+  }
+  return FALLBACK_SETTINGS
+}
+
+function previewSettings(): StoreSettings {
+  const base = previewScenarioSettings()
+  const withLogo = previewFlag('ZELL_PREVIEW_LOGO') ? { ...base, logo: PREVIEW_LOGO } : base
+  return previewFlag('ZELL_PREVIEW_TOOLS')
+    ? { ...withLogo, installationToolsPage: { ...withLogo.installationToolsPage, enabled: true } }
+    : withLogo
+}
+
+export function getFallbackCollections(): StoreCollection[] {
+  return previewCollections()
 }
 
 /** الأسماء مكتوبة بـ Fallback عن قصد — عشان مكان الاستدعاء يفضح إنها مؤقتة. */
 export function getFallbackProducts(): StoreProduct[] {
-  return FALLBACK_PRODUCTS
+  return previewProducts()
 }
 
 export function getFallbackProductById(id: number): StoreProduct | undefined {
-  return FALLBACK_PRODUCTS.find((product) => product.id === id)
+  return previewProducts().find((product) => product.id === id)
 }
 
 export function getFallbackSettings(): StoreSettings {
-  return FALLBACK_SETTINGS
+  return previewSettings()
 }
