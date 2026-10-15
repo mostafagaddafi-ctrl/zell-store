@@ -3,7 +3,7 @@
  * بتتشغّل فعليًا بـ: pnpm --filter @zell/admin cases  (suite: manifest)
  * العقد: docs/contracts/0021-P-code.md §٧ و§١٠.
  *
- * لكل رمز من الـ 83 (79 من ب2 + 4 actions من 0021-A A2): نتيجة الغلاف في legacy لـ (anonymous · forbidden · unavailable · owner · admin) × (العلم مفتوح · مقفول)
+ * لكل رمز من الـ 98 (79 من ب2 + 4 actions من 0021-A A2 + 9 من 0021-A P2 + 1 من 0021-D2 W2 + 1 من EXPRESS-SHIPPING W2 + 4 من TRACK-ORDER v2 W2-B): نتيجة الغلاف في legacy لـ (anonymous · forbidden · unavailable · owner · admin) × (العلم مفتوح · مقفول)
  * = نتيجة النهارده (قبل ب2)، المحسوبة من عمودي todayGuard و todayFlag في الجدول — ماعدا الفرق المعتمد ٢ (zell.unimplemented).
  * وفي legacy مفيش ولا نداء zell_erp_* (sessionUser · myAccessRaw · recordShadow = صفر في كل الحالات).
  * التطابق بين الجدول والكود نفسه (الغلاف · الصلاحية · mutates · الرسالة): scripts/check-access-manifest.mjs في CI.
@@ -194,8 +194,8 @@ export async function runManifestCases(): Promise<ManifestCasesReport> {
   const count = (kind: ManifestEntry['kind']) => all.filter((e) => e.kind === kind).length
 
   // ── M. الجدول نفسه ──────────────────────────────────────
-  check('M1 94 symbols: 65 action · 25 page · 1 layout · 3 route (79 من ب2 + 4 من 0021-A A2 + 9 من 0021-A P2 + 1 من 0021-D2 W2 + 1 من EXPRESS-SHIPPING W2)', [all.length, count('action'), count('page'), count('layout'), count('route')], [94, 65, 25, 1, 3])
-  check('M2 file + symbol unique', new Set(all.map((e) => e.file + '#' + e.symbol)).size, 94)
+  check('M1 98 symbols: 69 action · 25 page · 1 layout · 3 route (79 من ب2 + 4 من 0021-A A2 + 9 من 0021-A P2 + 1 من 0021-D2 W2 + 1 من EXPRESS-SHIPPING W2 + 4 من TRACK-ORDER v2 W2-B)', [all.length, count('action'), count('page'), count('layout'), count('route')], [98, 69, 25, 1, 3])
+  check('M2 file + symbol unique', new Set(all.map((e) => e.file + '#' + e.symbol)).size, 98)
   check(
     'M3 capability is one of the 29 (layout = null only)',
     all.filter((e) => (e.kind === 'layout' ? e.capability !== null : e.capability === null || !isCapability(e.capability))).map((e) => e.symbol + '@' + e.file),
