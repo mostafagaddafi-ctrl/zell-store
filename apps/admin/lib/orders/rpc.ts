@@ -35,6 +35,14 @@ export const ORDER_FUNCTIONS = {
   // EXPRESS-SHIPPING W2 — إعداد مدة الشحن والشحن السريع في صفحة الشحن: القراية لأي أدمن شغّال، والحفظ للمالك (القرار في الداتابيز).
   shippingOptions: 'zell_shipping_options_get',
   saveShippingOptions: 'zell_shipping_options_save',
+  // TRACK-ORDER v2 W2-B — الشحنة ورسائل العميل في صفحة الطلب (zell_shipment_* و zell_customer_update_*، W1): أي أدمن شغّال أو
+  // المالك (الهوية جوه الداتابيز)، والطلب برقمه (p_order_number). الصلاحية في اللوحة: الشحنة status_edit · الرسايل note_edit.
+  shipment: 'zell_shipment_get',
+  saveShipment: 'zell_shipment_save',
+  customerUpdates: 'zell_customer_update_list',
+  addCustomerUpdate: 'zell_customer_update_add',
+  editCustomerUpdate: 'zell_customer_update_edit',
+  setCustomerUpdateHidden: 'zell_customer_update_set_hidden',
 } as const
 
 export type OrderFunction = keyof typeof ORDER_FUNCTIONS
