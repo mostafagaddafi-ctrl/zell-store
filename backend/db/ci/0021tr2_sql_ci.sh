@@ -5,7 +5,7 @@
 # بيغطي: شكل المعاملة · md5 الجسم · الأكواد · جسم T1 بالحرف في الرجوع والمقارنة · ptest (production و ci) · رفض التطبيق من غير
 # موافقة ومن متصل تاني · التطبيق · بصمة دالة التتبّع (T1 قبل · v2 بعد · الصلاحيات زي ما هي) · استعلام الأثر (مفيش خانة بتتغيّر) ·
 # كل الـ verify (A1 · D · P1 · P2 · 0021-P · D2 · TR بالحالتين · EX · TR2) ورفض البصمة المجهولة والخليط · السيناريوهات
-# (0021tr2_flows.sql) · بيانات حقيقية + رفض الرجوع (TR2 · TR · EX) · التزامن بجلستين (الشحنة والتعديل) · الرجوع (بصمات T1
+# (0021tr2_flows.sql) · بيانات حقيقية + رفض الرجوع (TR2 · TR · EX) · التزامن بجلستين (الشحنة والتعديل والإضافة) · الرجوع (بصمات T1
 # التلاتة) وإعادة التطبيق · حراس الـ preflight · توافق حارس v1 (parseTrackedOrder من c825ce3d4c4896943d94209a5a382d934229f97e) مع رد v2 على طلبات حقيقية.
 # ممنوع يتشغّل على أي داتابيز غير الحاوية المؤقتة.
 set -uo pipefail
@@ -450,6 +450,23 @@ wait "$BG"; E1=$?
 ROW=$(q "select u.text || '|' || (select count(*) from public.zell_order_customer_updates_log l where l.update_id = u.id) from public.zell_order_customer_updates u where u.id = $UID1")
 ok=no; if [ "$E1" -eq 0 ] && printf '%s' "$R2" | grep -q '45404' && [ "$ROW" = "نص الجلسة الأولى|2" ] && [ "$(rf "$(verify_tr2)" 7)" = "PASS" ]; then ok=yes; fi
 record "S46 concurrent edit of one update (two sessions, same version) -> the second waits and gets 45404, one edit log row, TR2 verify PASS" "$ok" "E1=$E1 c2=$(tr '\n' ' ' < "$TMP/c2.out" | cut -c1-200) r2=$(printf '%s' "$R2" | tr '\n' ' ' | cut -c1-200) row=$ROW"
+# W2-B (اللوحة): إضافتين متزامنتين على طلب من غير رسايل، الاتنين بنسخة null (last_id). الأولى بتمسك قفل صف الطلب 3 ثواني،
+# والتانية بتستنى وبعدين بتاخد 45404 (مفيش رسالة مكررة ولا سطر سجل زيادة). اختبار SQL بس — مفيش migration ولا Production.
+psql -X -q -tA -v ON_ERROR_STOP=1 -U postgres -d "$DB" > "$TMP/c3.out" 2>&1 <<SQL &
+begin;
+set local request.jwt.claims = '{"sub": "$ADMIN_ID", "role": "authenticated"}';
+set local role authenticated;
+select public.zell_customer_update_add('$N2', null, 'إضافة الجلسة الأولى') ->> 'changed';
+select pg_sleep(3);
+commit;
+SQL
+BG=$!
+sleep 1
+R2=$(as_user "$OWNER_ID" "select public.zell_customer_update_add('$N2', null, 'إضافة الجلسة التانية') ->> 'changed'")
+wait "$BG"; E1=$?
+ROW=$(q "select count(u.id) || '|' || (select count(*) from public.zell_order_customer_updates_log l where l.order_id = o.id) || '|' || coalesce(max(u.text), '-') from public.orders o left join public.zell_order_customer_updates u on u.order_id = o.id where o.order_number = '$N2' group by o.id")
+ok=no; if [ "$E1" -eq 0 ] && printf '%s' "$R2" | grep -q '45404' && [ "$ROW" = "1|1|إضافة الجلسة الأولى" ] && [ "$(rf "$(verify_tr2)" 7)" = "PASS" ]; then ok=yes; fi
+record "S47 concurrent add on an order without updates (two sessions, both expecting last_id null) -> the second waits and gets 45404, one update + one log row, TR2 verify PASS" "$ok" "E1=$E1 c3=$(tr '\n' ' ' < "$TMP/c3.out" | cut -c1-200) r2=$(printf '%s' "$R2" | tr '\n' ' ' | cut -c1-200) row=$ROW"
 
 # ── S5: الرجوع ──
 if ! prep full; then record "S50 prep" "no" "see output"; fi
