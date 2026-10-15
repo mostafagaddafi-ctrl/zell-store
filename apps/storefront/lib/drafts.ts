@@ -15,6 +15,7 @@
 
 import { normalizeCouponCode } from '@zell/core'
 import { parseDraftShippingMethod } from './orders/shippingChoice'
+import { parseSizeDraftRecord, type SizeDraft } from './size/sizeEntry'
 
 const CHECKOUT_KEY = 'zell-checkout-draft-v1'
 const SIZE_KEY_PREFIX = 'zell-size-draft-v1:'
@@ -136,39 +137,13 @@ export function clearCheckoutDraft(): void {
 }
 
 // ── المقاس (لكل منتج) ────────────────────────────────────────
-export type SizeDraft = {
-  /** بصمة قواعد المقاس وقت الحفظ — لو اتغيّرت من اللوحة المسودة بتتجاهل. */
-  rules: string
-  widthCm: number
-  mode: 'window' | 'length'
-  windowWidth: string
-  windowHeight: string
-  lengthCm: number
-}
-
-/** خانة سم زي ما المتصفح بيدّيها: فاضية، أو رقم موجب صغير بكسر عشري اختياري. */
-const CM_TEXT = /^(?:[0-9]{1,4}(?:\.[0-9]{1,2})?)?$/
-const MAX_RULES = 300
-const MAX_CM = 100000
-
-function positiveInt(value: unknown): number | null {
-  return typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= MAX_CM ? value : null
-}
+// LENGTH-INPUT — شكل مسودة المقاس وفحصها في lib/size/sizeEntry.ts (منطق خالص + حالات): آخر اختيار بالمتر (meterCm)
+// منفصل عن ناتج السنتيمتر، والمسودة القديمة من غير meterCm بتتقري بتوافق واضح.
+export type { SizeDraft }
 
 export function readSizeDraft(productId: number): SizeDraft | null {
   const record = readJson(SIZE_KEY_PREFIX + String(productId))
-  if (record === null) return null
-  const rules = boundedText(record['rules'], MAX_RULES)
-  const widthCm = positiveInt(record['widthCm'])
-  const lengthCm = positiveInt(record['lengthCm'])
-  const mode = record['mode']
-  const windowWidth = record['windowWidth']
-  const windowHeight = record['windowHeight']
-  if (rules === null || widthCm === null || lengthCm === null) return null
-  if (mode !== 'window' && mode !== 'length') return null
-  if (typeof windowWidth !== 'string' || !CM_TEXT.test(windowWidth)) return null
-  if (typeof windowHeight !== 'string' || !CM_TEXT.test(windowHeight)) return null
-  return { rules, widthCm, mode, windowWidth, windowHeight, lengthCm }
+  return record === null ? null : parseSizeDraftRecord(record)
 }
 
 export function saveSizeDraft(productId: number, draft: SizeDraft): void {
