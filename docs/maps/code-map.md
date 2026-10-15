@@ -57,18 +57,18 @@
 | `app/products` · `app/product/[productId]` | كل المنتجات، وصفحة المنتج |
 | `app/collections` · `app/collection/[slug]` | الأقسام، وصفحة القسم |
 | `app/cart` · `app/checkout` | السلة وإتمام الطلب |
-| `app/order/[orderNumber]` | الإيصال (بكوكي `HttpOnly`) |
-| `app/track` | «تتبّع طلبك» (TRACK-ORDER): `page.tsx` (noindex, nofollow، ومش في الـ sitemap) + `actions.ts` (Server Action ← `zell_checkout_track_order` بمفتاح الخدمة؛ الكود في body الفورم مش في الرابط، والإدخال الغلط من غير نداء) |
+| `app/order/[orderNumber]` | الإيصال (بكوكي `HttpOnly`) — وهو نفسه صفحة نجاح الطلب (Checkout بيحوّل عليه) — + «احتفظ برقم طلبك» (`OrderNumberKeep`) |
+| `app/track` | «تتبّع طلبك» (TRACK-ORDER): `page.tsx` (noindex, nofollow، ومش في الـ sitemap) + `actions.ts` (Server Action بيوصّل `lib/orders/trackLookup.ts` بـ `zell_checkout_track_order` بمفتاح الخدمة وبإعداد واتساب بعد ما الطلب يتلاقي؛ الكود في body الفورم مش في الرابط، والإدخال الغلط من غير نداء) |
 | `app/installation-tools` | صفحة أدوات التركيب |
 | `app/api/orders` | إنشاء الطلب ← `zell_create_order` (مفتاح `ORDERS_ENABLED`) |
 | `app/api/coupons/preview` | معاينة الكوبون ← `zell_preview_coupon` |
 | `app/api/revalidate` | تحديث الكاش (بتناديه اللوحة بعد الحفظ) |
 | `app/api/health` | فحص صحة |
-| `components/store` | مكونات المتجر: الهيدر والفوتر، والهيرو، وكارت المنتج، والمقاس والعرض، والقطعة والإضافات، والسلة والدفع، والكوبون، وواتساب … · `Logo` (العلامة والاسم الكامل) · `TrackOrderForm` (فورم «تتبّع طلبك» والنتيجة) |
+| `components/store` | مكونات المتجر: الهيدر والفوتر، والهيرو، وكارت المنتج، والمقاس والعرض، والقطعة والإضافات، والسلة والدفع، والكوبون، وواتساب … · `Logo` (العلامة والاسم الكامل) · `TrackOrderForm` (فورم «تتبّع طلبك») + `TrackOrderView` (النتيجة: الحالة والخطوة التالية والموعد والشحن والشحنة والرسايل وبيانات التوصيل والحساب وواتساب) + `TrackTimeline` (خط المراحل) · `OrderNumberKeep` («احتفظ برقم طلبك» + نسخ الرقم + لينك `/track`) |
 | `components/ui` | مكونات مشتركة: `Button` · `Field` · `Container` · `ImageSlot` · `BackButton` |
 | `lib/` (الجذر) | `cart.tsx` (السلة) · `catalog.ts` · `drafts.ts` · `productCopy.ts` · `useCheckoutCoupon.ts` · `cn.ts` · `install/installChoice.ts` («هتركّبه إزاي؟» في صفحة المنتج: سطر الاختيار الحالي وظهور الأدوات، + حالات) · `home/homeLayout.ts` (HOME-MOBILE: قرارات عرض الرئيسية، + حالات) · `site.ts` (عنوان المتجر العام) · `brand/logo.ts` و`brand/logoImage.tsx` (أرقام اللوجو وصورته وخط Cairo للأيقونات) |
 | `lib/data` | القراءة: `queries.ts` · `mappers.ts` · `rpc.ts` · `source.ts` · `supabaseServer.ts` · `deliverySettings.ts` (إعداد موعد التسليم — 0021-D2) · `shippingOptions.ts` (إعداد الشحن السريع ومدة الشحن — EXPRESS-SHIPPING) |
-| `lib/orders` | مسار الطلب: `contracts.ts` · `canonical.ts` + `requestHash.ts` + `hash.ts` (idempotency) · `checkoutSession.ts` · `receiptToken.ts` · `requestGuards.ts` · `coupon*.ts` (+ حالات) · `notify.ts` (تليجرام) · `result.ts` · `errors.ts` · `placeOrder.ts` (ترتيب إنشاء الطلب: الهاش ← إعداد الموعد ← النداء) + `deliverySettings.ts` (+ حالات بتتشغّل في CI — 0021-D2) · `trackOrder.ts` (+ `trackOrder.cases.ts`، suite `track` — TRACK-ORDER: تظبيط الكود · حارس الرد · نصوص العرض) · `shippingChoice.ts` (+ `shipping.cases.ts`، suite `shipping` — EXPRESS-SHIPPING: اختيار «شحن عادي / شحن سريع» · الهاش · الـ retry · المسودة) · `receiptMoney.ts` (المبالغ ونوع الشحن بعد تحقق الإيصال) |
+| `lib/orders` | مسار الطلب: `contracts.ts` · `canonical.ts` + `requestHash.ts` + `hash.ts` (idempotency) · `checkoutSession.ts` · `receiptToken.ts` · `requestGuards.ts` · `coupon*.ts` (+ حالات) · `notify.ts` (تليجرام) · `result.ts` · `errors.ts` · `placeOrder.ts` (ترتيب إنشاء الطلب: الهاش ← إعداد الموعد ← النداء) + `deliverySettings.ts` (+ حالات بتتشغّل في CI — 0021-D2) · `trackOrder.ts` (تظبيط الكود · حارس رد v2 بالمفاتيح المعروفة بس وبقيود الداتابيز؛ رد v1 لوحده = «مش موجود») + `trackView.ts` (خط المراحل · الخطوة التالية · الموعد · الحساب · الشحن · واتساب — TRACK-ORDER v2 W2-A) + `trackLookup.ts` (منطق الـ Server Action من غير I/O) + `trackOrder.fixtures.ts` (بيانات تجربة) — حالاتهم suite `track` (`trackOrder.cases.ts` بيجمّع `trackView.cases.ts` و`trackLookup.cases.ts`) · `shippingChoice.ts` (+ `shipping.cases.ts`، suite `shipping` — EXPRESS-SHIPPING: اختيار «شحن عادي / شحن سريع» · الهاش · الـ retry · المسودة) · `receiptMoney.ts` (المبالغ ونوع الشحن بعد تحقق الإيصال) |
 
 ## packages/core — منطق صافي مشترك (`@zell/core`)
 

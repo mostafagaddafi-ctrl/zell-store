@@ -2,30 +2,18 @@
 
 import { useActionState } from 'react'
 import { Search } from 'lucide-react'
-import { formatPiastres } from '@zell/core'
 import { trackOrderAction } from '../../app/track/actions'
-import {
-  TRACK_INITIAL_STATE,
-  TRACK_INPUT_MAX,
-  customerStatusLabel,
-  trackDeliveryView,
-  trackItemSpec,
-  type TrackedOrder,
-} from '../../lib/orders/trackOrder'
+import { TRACK_INITIAL_STATE, TRACK_INPUT_MAX } from '../../lib/orders/trackOrder'
 import { Field, inputClasses } from '../ui/Field'
 import { Button } from '../ui/Button'
-import { Num } from './Num'
+import { TrackOrderView } from './TrackOrderView'
 
 /**
- * TRACK-ORDER W2 — فورم «تتبّع طلبك» والنتيجة (العقد docs/contracts/TRACK-ORDER.md §٤).
+ * TRACK-ORDER — فورم «تتبّع طلبك» (العقود docs/contracts/TRACK-ORDER.md §٤ · TRACK-ORDER-v2.md §١٧-١).
  *
  *   • الفورم بيبعت الكود للـ Server Action في body الطلب (POST)، فالكود مابيدخلش الرابط.
- *   • المعروض: الحالة (أسماء العميل) · رقم الطلب والتاريخ · الموعد · المنتجات · الإجمالي — من غير أي بيانات عميل.
+ *   • النتيجة في TrackOrderView (خط المراحل والتفاصيل)، وكلها من الحارس.
  */
-
-// توقيت ثابت للعميل، زي الإيصال — مش توقيت السيرفر.
-const TIME_ZONE = 'Africa/Cairo'
-
 export function TrackOrderForm() {
   const [state, formAction, pending] = useActionState(trackOrderAction, TRACK_INITIAL_STATE)
 
@@ -59,69 +47,7 @@ export function TrackOrderForm() {
             {state.message}
           </p>
         ) : null}
-        {state.status === 'found' ? <TrackedOrderView order={state.order} /> : null}
-      </div>
-    </div>
-  )
-}
-
-function TrackedOrderView({ order }: { order: TrackedOrder }) {
-  const delivery = trackDeliveryView(order.delivery)
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-lg border border-border bg-card p-5">
-        <p className="text-xs text-muted">حالة الطلب</p>
-        <p className="mt-1 text-lg font-bold text-fg">{customerStatusLabel(order.status)}</p>
-      </div>
-
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
-        <div className="bg-card p-4">
-          <dt className="text-xs text-muted">رقم الطلب</dt>
-          <dd className="mt-1 font-mono text-sm font-bold text-fg" dir="ltr">
-            {order.orderNumber}
-          </dd>
-        </div>
-        <div className="bg-card p-4">
-          <dt className="text-xs text-muted">تاريخ الطلب</dt>
-          <dd className="mt-1 text-sm font-semibold text-fg">
-            <Num>{new Date(order.createdAt).toLocaleDateString('ar-EG', { timeZone: TIME_ZONE })}</Num>
-          </dd>
-        </div>
-      </dl>
-
-      {delivery !== null ? (
-        <div className="rounded-lg border border-border bg-card p-4">
-          {delivery.note !== null ? <p className="text-xs text-muted">{delivery.note}</p> : null}
-          <p className={delivery.note !== null ? 'mt-1 text-sm font-semibold text-fg' : 'text-sm font-semibold text-fg'}>
-            <Num>{delivery.line}</Num>
-          </p>
-        </div>
-      ) : null}
-
-      {order.items.length > 0 ? (
-        <ul className="divide-y divide-border rounded-lg border border-border bg-card px-4">
-          {order.items.map((item, index) => (
-            <li key={index} className="flex items-center justify-between gap-3 py-3 text-sm">
-              <div className="min-w-0">
-                <p className="truncate font-semibold text-fg">{item.productName}</p>
-                <p className="text-xs text-muted">
-                  <Num>{trackItemSpec(item)}</Num>
-                </p>
-              </div>
-              <span className="shrink-0 font-semibold text-fg">
-                <Num>{formatPiastres(item.lineTotalPiastres)}</Num>
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
-      <div className="flex justify-between rounded-lg border border-border bg-card p-4 text-base font-bold text-fg">
-        <span>الإجمالي</span>
-        <span>
-          <Num>{formatPiastres(order.totalPiastres)}</Num>
-        </span>
+        {state.status === 'found' ? <TrackOrderView order={state.order} whatsappHref={state.whatsappHref} /> : null}
       </div>
     </div>
   )
