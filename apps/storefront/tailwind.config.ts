@@ -48,6 +48,17 @@ const config: Config = {
       boxShadow: {
         card: '0 1px 2px 0 rgb(18 35 58 / 0.04), 0 1px 3px 0 rgb(18 35 58 / 0.06)',
       },
+      // LENGTH-INPUT — هزة خفيفة مرة واحدة لخانات المقاس (بتتستخدم بـ motion-safe بس، فمع reduced motion مفيش حركة)
+      keyframes: {
+        'size-shake': {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '20%, 60%': { transform: 'translateX(-4px)' },
+          '40%, 80%': { transform: 'translateX(4px)' },
+        },
+      },
+      animation: {
+        'size-shake': 'size-shake 0.35s ease-in-out 1',
+      },
     },
   },
   plugins: [],
