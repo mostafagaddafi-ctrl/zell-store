@@ -10,7 +10,7 @@
  *   • الحارس بيبني كائن جديد من المفاتيح المعروفة بس، ومنها الكائنات المتداخلة بتاعة v2 — أي مفتاح زيادة في الرد
  *     مابيوصلش للمتصفح. أي شكل أو قيمة غير صالحة (ومنها مبالغ مش متسقة) = null، فالصفحة بتعرض «مش موجود».
  *   • الحدود زي قيود الداتابيز: عدّ الحروف بالـ code points (زي char_length) · تواريخ تقويمية حقيقية · أعداد آمنة ·
- *     المبالغ ومعادلة الإجمالي · مدد الشحن · رابط https صالح · الوصول المتوقع ≥ تاريخ الشحن.
+ *     المبالغ ومعادلة الإجمالي · مدد الشحن (≤ ٦٠، والسريع لازم له مدة) · رابط https صالح · الوصول المتوقع ≥ تاريخ الشحن.
  *   • من W2-A الرد لازم يكون v2 (W1 متطبّق على Production 2026-10-15). رجوع W1 لازم يسبقه revert W2-A (العقد §١٧-١).
  */
 
@@ -36,6 +36,9 @@ export const TRACK_NOT_FOUND_MESSAGE = 'مالقيناش طلب بالكود د�
 
 const ORDER_NUMBER_RE = /^FLM-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** أقصى مدة شحن في لقطة الطلب (قيد orders_shipping_snapshot_shape). */
+export const SHIPPING_DAYS_MAX = 60
 
 /** اللي العميل كتبه ← «FLM-XXXXXX»، أو null لو غلط (ومفيش نداء). */
 export function normalizeTrackCode(raw: string): string | null {
@@ -290,9 +293,11 @@ function parseShipping(raw: unknown): TrackedShipping | null | undefined {
   if (max !== null && max !== undefined && !isCount(max)) return undefined
   const daysMin = isCount(min) ? min : null
   const daysMax = isCount(max) ? max : null
-  // المدة الاتنين أو ولا واحدة (مدة ناقصة = شكل غلط).
+  // زي قيد orders_shipping_snapshot_shape (0021ex_express_shipping.sql): المدة الاتنين NULL أو 0 ≤ min ≤ max ≤ 60 ·
+  // والسريع لازم يكون له مدة. مدة ناقصة أو أكبر من ٦٠ أو سريع من غير مدة = شكل غلط.
   if ((daysMin === null) !== (daysMax === null)) return undefined
-  if (daysMin !== null && daysMax !== null && daysMin > daysMax) return undefined
+  if (daysMin !== null && daysMax !== null && (daysMin > daysMax || daysMax > SHIPPING_DAYS_MAX)) return undefined
+  if (method === 'express' && daysMin === null) return undefined
   return { method, daysMin, daysMax }
 }
 
