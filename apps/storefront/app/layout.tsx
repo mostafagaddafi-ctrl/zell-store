@@ -9,6 +9,7 @@ import { WhatsAppFab } from '../components/store/WhatsAppFab'
 import { NavHistory } from '../components/ui/BackButton'
 import { CartProvider } from '../lib/cart'
 import { getStorefrontData } from '../lib/data/source'
+import { homeHelpVisibility } from '../lib/nav/storeNav'
 import { SITE_URL } from '../lib/site'
 import './globals.css'
 
@@ -51,6 +52,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // لينك «أدوات التركيب» في قائمة الموبايل: الصفحة مفعّلة وفيه أداة نشطة مربوطة بفيلم نشط
   const toolsPage = settings.installationToolsPage
   const toolsLink = toolsPage.enabled && hasInstallationTools(products) ? { href: '/installation-tools', label: toolsPage.title } : null
+  // STORE-MENU §٥ — «إزاي أطلب» و«الأسئلة المتكررة» في قائمة الموبايل بنفس شرط الرئيسية (من نفس settings، من غير قراية جديدة)
+  const help = homeHelpVisibility(settings.content)
 
   return (
     <html lang="ar" dir="rtl" className={cairo.variable}>
@@ -69,6 +72,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             whatsappNumber={settings.whatsappNumber}
             whatsappMessage={settings.whatsappMessage}
             toolsLink={toolsLink}
+            help={help}
           />
           {/*
             ⚠️ الحشو السفلي على الموبايل مش تزيين: الزرار العائم fixed،
