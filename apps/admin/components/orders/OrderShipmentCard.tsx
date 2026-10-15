@@ -1,18 +1,29 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ExternalLink } from 'lucide-react'
 import { useSaveAction } from '../../lib/client/useSaveAction'
 import { saveOrderShipmentAction } from '../../lib/orderActions'
 import { formatCairoDateTime } from '../../lib/orders/cycle'
 import {
+  adoptShipmentLatest,
+  boundSend,
+  editShipmentDraft,
+  refreshBounds,
+  shipmentDraftAfterSave,
+  shipmentDraftOf,
+  shipmentDraftStale,
+  shipmentIntentOf,
+  syncShipmentDraft,
+  type ShipmentIntent,
+} from '../../lib/orders/trackDrafts'
+import {
   CARRIER_MAX,
   SHIPMENT_TEXT,
   TRACKING_NUMBER_MAX,
   TRACKING_URL_MAX,
   expectedMax,
-  shipmentFormOf,
   shipmentPayload,
   type ShipmentBounds,
   type ShipmentField,
@@ -26,8 +37,10 @@ import { FailureBanner } from '../ui/FailureBanner'
 
 /**
  * TRACK-ORDER v2 W2-B — كارت «بيانات الشحنة» في صفحة الطلب (العقد TRACK-ORDER-v2 §٥ · §١٧-٢). بيان لوحده، مش تغيير حالة.
- * الحفظ بنسخة الشحنة (null لأول حفظ)، والقرار النهائي في zell_shipment_save. التعارض (45404): إعادة قراية تلقائية (router.refresh)
- * مع الاحتفاظ باللي اتكتب في الفورم، ومفيش إعادة إرسال تلقائية. النصوص كلها من lib/orders/trackUpdates.ts.
+ * المسودة ليها نسخة بداية منفصلة عن أحدث نسخة معروضة (lib/orders/trackDrafts.ts): وصول props أحدث مابيربطش المسودة المتعدّلة
+ * بالنسخة الجديدة، والكارت بيعرض إن البيانات اتغيّرت ويقفل الحفظ لحد ما المستخدم يختار «اعتماد أحدث نسخة مع الاحتفاظ بما كتبته»
+ * أو «تجاهل ما كتبته». كل حفظ بنية ثابتة (النسخة + المدخلات)، وإعادة المحاولة بتبعتها بالحرف. التعارض (45404): إعادة قراية
+ * تلقائية (router.refresh) مع الاحتفاظ بالفورم، ومفيش إعادة إرسال تلقائية. القرار النهائي في zell_shipment_save.
  */
 export function OrderShipmentCard({
   orderNumber,
@@ -40,13 +53,16 @@ export function OrderShipmentCard({
 }) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
-  const { state, failure, run, retry, markDirty } = useSaveAction()
-  const [form, setForm] = useState<ShipmentForm>(() => shipmentFormOf(view))
+  const { state, failure, run, retry, markDirty, reset } = useSaveAction()
+  const [draft, setDraft] = useState(() => shipmentDraftOf(view))
   const [issue, setIssue] = useState<{ field: ShipmentField; message: string } | null>(null)
   const [changed, setChanged] = useState(true)
-  const versionRef = useRef<string | null>(view?.shipment?.updatedAt ?? null)
-  versionRef.current = view?.shipment?.updatedAt ?? null
   const busy = state === 'saving'
+
+  // props جديدة: المسودة المتعدّلة بتفضل على نسختها، واللي ماتعدّلتش بتتبع السيرفر.
+  useEffect(() => {
+    setDraft((current) => syncShipmentDraft(current, view))
+  }, [view])
 
   // 45404: نقرا أحدث نسخة من غير ما نمسح الفورم.
   useEffect(() => {
@@ -61,29 +77,49 @@ export function OrderShipmentCard({
     )
   }
 
-  const current = view.shipment
+  const latest = view
+  const current = latest.shipment
+  const stale = shipmentDraftStale(draft, latest)
   const disabled = !mutationsOn || busy
+  const form = draft.form
 
   function update(key: keyof ShipmentForm, value: string) {
-    setForm((prev) => ({ ...prev, [key]: value }))
+    setDraft((prev) => editShipmentDraft(prev, key, value))
     setIssue(null)
     if (state !== 'idle' && state !== 'saving') markDirty()
   }
 
+  function adopt() {
+    setDraft((prev) => adoptShipmentLatest(prev, latest))
+    setIssue(null)
+    reset()
+  }
+
+  function discard() {
+    setDraft(shipmentDraftOf(latest))
+    setIssue(null)
+    reset()
+  }
+
   function save() {
-    const checked = shipmentPayload(form, bounds)
+    if (stale) return
+    const checked = shipmentPayload(draft.form, bounds === null ? null : refreshBounds(bounds, Date.now()))
     if (!checked.ok) {
       setIssue({ field: checked.field, message: checked.message })
       return
     }
     setIssue(null)
-    const draft = form
-    void run(() => saveOrderShipmentAction(orderNumber, versionRef.current, draft), {
-      onSuccess: (data) => {
-        setChanged(data.changed)
-        router.refresh()
+    const intent = shipmentIntentOf(draft)
+    void run(
+      boundSend(intent, (i: ShipmentIntent) => saveOrderShipmentAction(orderNumber, i.expectedUpdatedAt, i.form)),
+      {
+        onSuccess: (data) => {
+          setChanged(data.changed)
+          setDraft(shipmentDraftAfterSave(intent, data.version))
+          router.refresh()
+        },
       },
-    })
+    )
   }
 
   const errorOf = (field: ShipmentField) => (issue !== null && issue.field === field ? issue.message : undefined)
@@ -120,8 +156,21 @@ export function OrderShipmentCard({
           </div>
         )}
 
-        {view.editable ? (
+        {latest.editable ? (
           <>
+            {stale ? (
+              <div role="alert" className="space-y-2 rounded border-s-2 border-gold bg-gold/10 p-2 text-xs text-fg">
+                <p>{SHIPMENT_TEXT.stale}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="secondary" disabled={busy} onClick={adopt}>
+                    {SHIPMENT_TEXT.adopt}
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={busy} onClick={discard}>
+                    {SHIPMENT_TEXT.discard}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             <Field htmlFor="shipment-carrier" label={SHIPMENT_TEXT.carrier} error={errorOf('carrier')}>
               <input
                 id="shipment-carrier"
@@ -169,7 +218,6 @@ export function OrderShipmentCard({
                   type="date"
                   value={form.shippedOn}
                   min={bounds?.orderDay}
-                  max={bounds?.today}
                   onChange={(event) => update('shippedOn', event.target.value)}
                   className={inputClasses}
                   disabled={disabled}
@@ -195,7 +243,7 @@ export function OrderShipmentCard({
                 {changed ? SHIPMENT_TEXT.saved : SHIPMENT_TEXT.unchanged}
               </p>
             ) : null}
-            <Button size="sm" disabled={disabled} onClick={save}>
+            <Button size="sm" disabled={disabled || stale} onClick={save}>
               {busy ? SHIPMENT_TEXT.saving : SHIPMENT_TEXT.save}
             </Button>
             <FailureBanner failure={failure} onRetry={retry} />
