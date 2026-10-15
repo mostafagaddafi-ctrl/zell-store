@@ -206,7 +206,7 @@ function dateOnly(date: string): string {
 
 /**
  * الموعد (العقد §٨) — من غير أي تخمين. null للطلب اللي اتسلّم أو اتلغى أو اترفض (استثناء من §٨ متوثّق في §١٧-١،
- * بانتظار اعتماد المالك: مفيش وصول جاي في الحالات دي).
+ * معتمد من المالك 2026-10-15: مفيش وصول جاي في الحالات دي).
  * 'confirmed' المؤكد · 'expected' تاريخ الأدمن · 'range' الشحن الفعلي + المدة · 'none' لسه.
  */
 export function trackEta(order: TrackedOrder): { kind: 'confirmed' | 'expected' | 'range' | 'none'; line: string } | null {
