@@ -12,6 +12,7 @@ import {
   widthOptionsOf,
   withWidth,
   type InstallationConfig,
+  type ProductSizeEntry,
   type StoreProduct,
 } from '@zell/core'
 import { useCart } from '../../lib/cart'
@@ -22,6 +23,7 @@ import { SizePanel } from './SizePanel'
 import { AddonsPicker } from './AddonsPicker'
 import { currentInstallModeLine, revealToolsOnChange, showToolSuggestions } from '../../lib/install/installChoice'
 import { InstallChoice } from './InstallChoice'
+import { orderAttempt, orderBlockedAtStart } from '../../lib/size/sizeEntry'
 
 /** gift: «نص العرض» لو ظاهر — بيظهر كهدية فوق زرار الإضافة. */
 export function ProductBuy({
@@ -30,6 +32,7 @@ export function ProductBuy({
   addons = [],
   addonsTitle = '',
   installation = null,
+  sizeEntry = 'cm',
 }: {
   product: StoreProduct
   gift?: string
@@ -38,6 +41,8 @@ export function ProductBuy({
   addonsTitle?: string
   /** PR4 — إعداد الفني (0018). null = من غير «هتركّبه إزاي؟». */
   installation?: InstallationConfig | null
+  /** LENGTH-INPUT — الطريقة الأولى لإدخال المقاس من «المحتوى» (الغايب = سنتيمتر). */
+  sizeEntry?: ProductSizeEntry
 }) {
   const cart = useCart()
   const router = useRouter()
@@ -70,6 +75,9 @@ export function ProductBuy({
   const [lengthCm, setLengthCm] = useState(product.min_length_cm)
   const [justAdded, setJustAdded] = useState(false)
   const [blocked, setBlocked] = useState(false)
+  // LENGTH-INPUT — السنتيمتر فاضي أو غلط أو تحت الحد: الطلب ممنوع من أول ظهور للصفحة (قبل رجوع المسودة)، من غير قفل الزرار.
+  const [orderBlocked, setOrderBlocked] = useState(() => orderBlockedAtStart(sizeEntry))
+  const [attempt, setAttempt] = useState(0)
   const [addonQty, setAddonQty] = useState<Record<number, number>>({})
   // عدد الأدوات اللي اتضافت فعلًا في آخر «ضيف للسلة» — للرسالة بس، بيتسجّل لحظة الإضافة (قبل ما addonQty يتصفّر)
   const [addedToolsCount, setAddedToolsCount] = useState(0)
@@ -83,7 +91,9 @@ export function ProductBuy({
   const canAdd = !blocked && !choiceRequired && validateLength(lengthCm, effective).ok
 
   const handleAdd = () => {
-    if (!canAdd) return
+    const outcome = orderAttempt(canAdd, orderBlocked)
+    if (outcome === 'reveal') setAttempt((value) => value + 1)
+    if (outcome !== 'add') return
     cart.add(product.id, lengthCm, chosenWidth)
     setAddedToolsCount(addSelectedAddons())
     setJustAdded(true)
@@ -109,7 +119,9 @@ export function ProductBuy({
   // «اطلب دلوقتي»: يضيف ويروح للبيانات على طول. لو نفس الاختيار اتضاف
   // لسه (justAdded) مابيضيفوش تاني — يروح بس، عشان مايتكررش في السلة.
   const handleBuyNow = () => {
-    if (!canAdd) return
+    const outcome = orderAttempt(canAdd, orderBlocked)
+    if (outcome === 'reveal') setAttempt((value) => value + 1)
+    if (outcome !== 'add') return
     if (!justAdded) {
       cart.add(product.id, lengthCm, chosenWidth)
       addSelectedAddons()
@@ -136,6 +148,12 @@ export function ProductBuy({
           setBlocked(next)
           if (next) setJustAdded(false)
         }}
+        sizeEntry={sizeEntry}
+        onOrderBlockedChange={(next) => {
+          setOrderBlocked(next)
+          if (next) setJustAdded(false)
+        }}
+        attempt={attempt}
       />
 
       <GiftNote text={gift} />
