@@ -36,6 +36,17 @@ export const TRACK_TEXT = {
   etaNone: 'موعد الوصول لم يتحدد بعد',
 } as const
 
+/** رابط صفحة التتبّع — ثابت ومن غير رقم الطلب (لا query ولا path). */
+export const TRACK_PAGE_HREF = '/track'
+
+/** «احتفظ برقم طلبك» في صفحة الإيصال (العقد §١٧-١). */
+export const ORDER_NUMBER_KEEP = {
+  text: 'احتفظ برقم طلبك، وتقدر تتابع طلبك من «تتبّع طلبك»',
+  copy: 'نسخ رقم الطلب',
+  copied: 'اتنسخ رقم الطلب.',
+  copyFailed: 'مقدرناش ننسخ الرقم. حدّده من فوق وانسخه بنفسك.',
+} as const
+
 /**
  * state: 'done' مكتملة · 'current' المرحلة الحالية (مكتملة أو، في التجهيز، شغالة) · 'upcoming' رمادي.
  * completed = حصلت فعلًا (علامة صح ولون أخضر والخط لحدها ملوّن).
@@ -146,6 +157,13 @@ export function trackStages(order: TrackedOrder): TrackStagesView {
   return { stages, banner, historyNote: null }
 }
 
+/** وصلات الخط بين كل مرحلتين: خضرا بس لو المرحلتين مكتملين (مرحلة متخطّاة أو طلب قبل السجل = وصلة رمادي). */
+export function trackSegments(stages: TrackStage[]): boolean[] {
+  const out: boolean[] = []
+  for (let i = 0; i + 1 < stages.length; i++) out.push((stages[i]?.completed ?? false) && (stages[i + 1]?.completed ?? false))
+  return out
+}
+
 /** الخطوة التالية للعميل (العقد §٧). النصوص ثابتة في الكود. */
 export function trackNextStep(order: TrackedOrder): { text: string; remainingPiastres: number | null } | null {
   const fee = order.money.confirmationFeePiastres
@@ -187,7 +205,8 @@ function dateOnly(date: string): string {
 }
 
 /**
- * الموعد (العقد §٨) — من غير أي تخمين. null للطلب اللي اتسلّم أو اتلغى أو اترفض.
+ * الموعد (العقد §٨) — من غير أي تخمين. null للطلب اللي اتسلّم أو اتلغى أو اترفض (استثناء من §٨ متوثّق في §١٧-١،
+ * بانتظار اعتماد المالك: مفيش وصول جاي في الحالات دي).
  * 'confirmed' المؤكد · 'expected' تاريخ الأدمن · 'range' الشحن الفعلي + المدة · 'none' لسه.
  */
 export function trackEta(order: TrackedOrder): { kind: 'confirmed' | 'expected' | 'range' | 'none'; line: string } | null {
