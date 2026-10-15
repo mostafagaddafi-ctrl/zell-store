@@ -20,6 +20,7 @@ import { fetchOrderMoney, fetchOrderShipping } from '../../../lib/orders/receipt
 import { Container } from '../../../components/ui/Container'
 import { buttonClasses } from '../../../components/ui/Button'
 import { Num } from '../../../components/store/Num'
+import { OrderNumberKeep } from '../../../components/store/OrderNumberKeep'
 
 /**
  * صفحة الإيصال — ORDER-FLOW-PLAN.md §6.5.
@@ -205,6 +206,8 @@ export default async function OrderReceiptPage({
             </dd>
           </div>
         </dl>
+
+        <OrderNumberKeep orderNumber={receipt.order_number} />
 
         {preferred !== null ? (
           <div className="rounded-lg border border-border bg-card p-4">
