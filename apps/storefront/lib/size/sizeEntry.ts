@@ -14,9 +14,11 @@ import {
  *
  *   • الحساب من @zell/core زي ما هو بالحرف (requiredLength). الملف ده بيصنّف النتيجة بس: المقارنة بالحد الأدنى على
  *     neededCm (الشرايح × الارتفاع) قبل التقريب والرفع للحد الأدنى، والمساوي للحد مسموح.
- *   • طريقة السنتيمتر الفاضية أو الغلط أو تحت الحد = الطلب ممنوع، من غير ما الزرار يتقفل (الضغط بيظهر الخطأ)، ومفيش
- *     طول قديم أو افتراضي بيتستعمل. exceeds_max زي النهارده (منع وقفل ورسالة على طول).
- *   • الإعداد (hero.productSizeEntry) بيحدد الطريقة الأولى بس، والمسودة ببصمة القواعد الحالية ليها الأولوية.
+ *   • قرار الطلب (sizeDecision) من **لقطة واحدة حالية** وقت الضغط: الطريقة + الخانات + العرض (القواعد) + طول المتر.
+ *     السنتيمتر الصالح = الطول من نفس اللقطة · الفاضي أو الغلط أو تحت الحد = إظهار الخطأ من غير إضافة · exceeds_max = قفل.
+ *     مفيش طول قديم أو افتراضي بيتستعمل، ومفيش اعتماد على مزامنة حالة بين المكونات.
+ *   • الإعداد (hero.productSizeEntry) بيحدد الطريقة الأولى بس، والمسودة ببصمة القواعد الحالية ليها الأولوية. آخر طول
+ *     اختاره العميل بالمتر بيتحفظ لوحده (meterCm)، وطول السنتيمتر عمره ما بيتحوّل لاختيار متر.
  */
 
 export type SizeMode = 'window' | 'length'
@@ -29,11 +31,6 @@ export function readProductSizeEntry(raw: unknown): ProductSizeEntry {
 /** الطريقة اللي بتظهر أولًا من الإعداد. */
 export function modeOfEntry(entry: ProductSizeEntry): SizeMode {
   return entry === 'm' ? 'length' : 'window'
-}
-
-/** من أول ظهور للصفحة: طريقة السنتيمتر خاناتها فاضية = الطلب ممنوع. */
-export function orderBlockedAtStart(entry: ProductSizeEntry): boolean {
-  return modeOfEntry(entry) === 'window'
 }
 
 export type CmEntryState =
@@ -87,24 +84,111 @@ export function cmErrorVisible(state: CmEntryState, touched: boolean): boolean {
   return touched && (state.kind === 'empty' || state.kind === 'invalid' || state.kind === 'below_min')
 }
 
-/** الضغط على «ضيف للسلة» أو «اطلب دلوقتي»: قفل = ولا حاجة · ممنوع = إظهار الخطأ من غير إضافة · غير كده = إضافة. */
-export function orderAttempt(canAdd: boolean, orderBlocked: boolean): 'none' | 'reveal' | 'add' {
-  if (!canAdd) return 'none'
-  return orderBlocked ? 'reveal' : 'add'
+/** لقطة المقاس الحالية وقت الضغط على «ضيف للسلة» أو «اطلب دلوقتي». */
+export type SizeSnapshot = {
+  mode: SizeMode
+  /** خانة العرض زي ما هي (أو عرض الرول نفسه لو العرض مقفول). */
+  widthText: string
+  heightText: string
+  /** قواعد المنتج بالعرض المختار في نفس اللقطة. */
+  rules: StoreProduct
+  /** الطول المعروض في طريقة المتر. */
+  meterLengthCm: number
 }
 
-/** طول طريقة المتر بعد التحويل: آخر طول صالح، وإلا الحد الأدنى. */
+export type SizeDecision = { kind: 'add'; lengthCm: number } | { kind: 'reveal' } | { kind: 'disabled' }
+
+/**
+ * قرار الطلب من لقطة واحدة: السنتيمتر الصالح = الطول المحسوب من نفس اللقطة · الفاضي أو الغلط أو تحت الحد = reveal
+ * (مفيش إضافة ولا انتقال) · exceeds_max أو قواعد ناقصة أو طول متر غير صالح = disabled.
+ */
+export function sizeDecision(snapshot: SizeSnapshot): SizeDecision {
+  if (!areRulesUsable(snapshot.rules)) return { kind: 'disabled' }
+  if (snapshot.mode === 'length') {
+    return validateLength(snapshot.meterLengthCm, snapshot.rules).ok ? { kind: 'add', lengthCm: snapshot.meterLengthCm } : { kind: 'disabled' }
+  }
+  const state = cmEntryState(snapshot.widthText, snapshot.heightText, snapshot.rules)
+  if (state.kind === 'ok') return { kind: 'add', lengthCm: state.lengthCm }
+  if (state.kind === 'exceeds_max') return { kind: 'disabled' }
+  return { kind: 'reveal' }
+}
+
+/** طول طريقة المتر بعد التحويل: آخر اختيار صالح بالمتر، وإلا الحد الأدنى. */
 export function meterLengthOf(last: number | null, rules: StoreProduct): number {
   return last !== null && validateLength(last, rules).ok ? last : rules.min_length_cm
 }
 
-export type SizeDraftLike = {
+// ── المسودة ───────────────────────────────────────────────────────────
+export type SizeDraft = {
+  /** بصمة قواعد المقاس وقت الحفظ — لو اتغيّرت من اللوحة المسودة بتتجاهل. */
   rules: string
   widthCm: number
   mode: SizeMode
   windowWidth: string
   windowHeight: string
+  /** الطول المعروض وقت الحفظ (مشترك) — مابيتستعملش كاختيار متر غير في المسودات القديمة لطريقة المتر. */
   lengthCm: number
+  /**
+   * LENGTH-INPUT — آخر طول اختاره العميل بالمتر، منفصل عن ناتج السنتيمتر. null = ماختارش بالمتر.
+   * غايب = مسودة قديمة (قبل LENGTH-INPUT): طريقة المتر = lengthCm، وطريقة السنتيمتر = null.
+   */
+  meterCm?: number | null
+}
+
+/** خانة سم زي ما المتصفح بيدّيها: فاضية، أو رقم موجب صغير بكسر عشري اختياري. */
+const CM_TEXT = /^(?:[0-9]{1,4}(?:\.[0-9]{1,2})?)?$/
+const MAX_RULES = 300
+const MAX_CM = 100000
+
+function positiveInt(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= MAX_CM ? value : null
+}
+
+/** فحص المسودة المخزّنة: أي حقل غلط = المسودة كلها بتتجاهل (من غير تصليح قيم). */
+export function parseSizeDraftRecord(record: Record<string, unknown>): SizeDraft | null {
+  const rulesRaw = record['rules']
+  const rules = typeof rulesRaw === 'string' && rulesRaw.length <= MAX_RULES ? rulesRaw : null
+  const widthCm = positiveInt(record['widthCm'])
+  const lengthCm = positiveInt(record['lengthCm'])
+  const mode = record['mode']
+  const windowWidth = record['windowWidth']
+  const windowHeight = record['windowHeight']
+  if (rules === null || widthCm === null || lengthCm === null) return null
+  if (mode !== 'window' && mode !== 'length') return null
+  if (typeof windowWidth !== 'string' || !CM_TEXT.test(windowWidth)) return null
+  if (typeof windowHeight !== 'string' || !CM_TEXT.test(windowHeight)) return null
+  const draft: SizeDraft = { rules, widthCm, mode, windowWidth, windowHeight, lengthCm }
+  if ('meterCm' in record) {
+    const raw = record['meterCm']
+    if (raw === null) draft.meterCm = null
+    else {
+      const meterCm = positiveInt(raw)
+      if (meterCm === null) return null
+      draft.meterCm = meterCm
+    }
+  }
+  return draft
+}
+
+/** شكل المسودة اللي بتتحفظ (دايمًا فيها meterCm). */
+export function sizeDraftOf(input: {
+  rulesKey: string
+  widthCm: number
+  mode: SizeMode
+  width: string
+  height: string
+  lengthCm: number
+  meterCm: number | null
+}): SizeDraft {
+  return {
+    rules: input.rulesKey,
+    widthCm: input.widthCm,
+    mode: input.mode,
+    windowWidth: input.width,
+    windowHeight: input.height,
+    lengthCm: input.lengthCm,
+    meterCm: input.meterCm,
+  }
 }
 
 export type SizeDraftRestore = {
@@ -112,24 +196,26 @@ export type SizeDraftRestore = {
   mode: SizeMode
   windowWidth: string
   windowHeight: string
-  /** طول المتر من المسودة لو صالح بس (وإلا null = الحد الأدنى). مابيتستعملش في طريقة السنتيمتر أبدًا. */
+  /** آخر اختيار صالح بالمتر (وإلا null = الحد الأدنى). مابيتستعملش في طريقة السنتيمتر أبدًا. */
   meterLengthCm: number | null
 }
 
 /**
  * رجوع المسودة: لازم بصمة القواعد الحالية. مسودة السنتيمتر بترجع بخاناتها زي ما هي (حتى لو ناقصة أو تحت الحد)،
- * والطول بيتحسب من الخانات. طول المتر بيرجع بس لو صالح. بصمة مختلفة أو عرض مش متاح = null (الإعداد هو اللي بيحدد).
+ * والطول بيتحسب من الخانات. اختيار المتر = meterCm (أو lengthCm لمسودة متر قديمة من غير meterCm) لو صالح بس.
+ * بصمة مختلفة أو عرض مش متاح = null (الإعداد هو اللي بيحدد).
  */
-export function restoreSizeDraft(draft: SizeDraftLike | null, rulesKey: string, product: StoreProduct): SizeDraftRestore | null {
+export function restoreSizeDraft(draft: SizeDraft | null, rulesKey: string, product: StoreProduct): SizeDraftRestore | null {
   if (draft === null || draft.rules !== rulesKey) return null
   const rules = withWidth(product, draft.widthCm)
   if (!rules || !areRulesUsable(rules)) return null
+  const meterSource = draft.meterCm !== undefined ? draft.meterCm : draft.mode === 'length' ? draft.lengthCm : null
   return {
     widthCm: rules.width_cm,
     mode: draft.mode,
     windowWidth: draft.windowWidth,
     windowHeight: draft.windowHeight,
-    meterLengthCm: validateLength(draft.lengthCm, rules).ok ? draft.lengthCm : null,
+    meterLengthCm: meterSource !== null && validateLength(meterSource, rules).ok ? meterSource : null,
   }
 }
 
@@ -143,12 +229,14 @@ export function isUntouchedSize(input: {
   productWidthCm: number
   lengthCm: number
   minLengthCm: number
+  meterCm: number | null
 }): boolean {
   return (
     input.mode === input.initialMode &&
     input.width === '' &&
     input.height === '' &&
     input.widthCm === input.productWidthCm &&
-    input.lengthCm === input.minLengthCm
+    input.lengthCm === input.minLengthCm &&
+    input.meterCm === null
   )
 }
