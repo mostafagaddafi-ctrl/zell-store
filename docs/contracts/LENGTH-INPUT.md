@@ -1,6 +1,6 @@
 # عقد LENGTH-INPUT — طريقة إدخال المقاس وتنبيه الحد الأدنى في صفحة المنتج
 
-> **الحالة: مسودة للمراجعة (PR #156).** مبنية على main `e85e059`. قرارات المالك 2026-10-15 (§٠). توثيق قبل الكود؛ التنفيذ في PR لوحده بعد دمج العقد.
+> **الحالة: معتمد (#156، main `f262b68`) · التنفيذ في PR #157 تحت المراجعة (§١٢).** مبنية على main `e85e059`. قرارات المالك 2026-10-15 (§٠). توثيق قبل الكود؛ التنفيذ في PR لوحده بعد دمج العقد.
 > الترتيب: العقد ← مراجعة ← دمج بأمر المالك ← PR التنفيذ ← مراجعة ← دمج بأمر المالك ← تجربة المالك.
 
 | | |
@@ -130,3 +130,11 @@
 ## ١١) سجل التعديلات
 - **2026-10-15 · المسودة الأولى** على main `e85e059` (PR #156).
 - **2026-10-15 · مراجعة #156 (B1 + ملاحظتين):** استثناء محدود في core للنوع والافتراضي بس (§٢-١)، والقراية محلية في كل تطبيق بنفس القاعدة · صلاحية المسودة محددة (§٣) · المنع من أول ظهور للصفحة، وقفل الفني و`exceeds_max` قائم (§٤-٢) · الحالات (§٧).
+- **2026-10-15 · التنفيذ (PR #157):** التفاصيل في §١٢. مفيش SQL ولا Production.
+
+## ١٢) تفاصيل التنفيذ (PR #157)
+- **core (النوع والافتراضي بس):** `packages/core/src/types.ts` — `ProductSizeEntry` · `StoreContent.productSizeEntry` · `DEFAULT_STORE_CONTENT.productSizeEntry = 'cm'`. مفيش دالة جديدة ولا تعديل في أي حساب.
+- **المتجر — المنطق الخالص:** `apps/storefront/lib/size/sizeEntry.ts` (suite `size`): `readProductSizeEntry` · `modeOfEntry` · `orderBlockedAtStart` · `cmEntryState` (تصنيف نتيجة `requiredLength` بالحرف: `ok` · `empty` · `invalid` · `below_min` (`neededCm < min_length_cm`) · `exceeds_max`) · `entryBlocksOrder` (منع من غير قفل) · `entryDisablesOrder` (قفل زي النهارده) · `cmErrorVisible` · `orderAttempt` · `meterLengthOf` · `restoreSizeDraft` · `isUntouchedSize` · الرسايل بالحرف.
+- **المتجر — الواجهة:** `SizePanel.tsx` بيحسب الحالة من الخانات مع كل تغيير (والعرض والطريقة والمسودة)، وبيبلّغ `ProductBuy` بالمنع (`onOrderBlockedChange`) والقفل (`onBlockedChange`). `ProductBuy.tsx` بيبدأ ممنوع في طريقة السنتيمتر من أول render، والضغط وهو ممنوع بيزوّد `attempt` (الخطأ والهزة) من غير إضافة ولا انتقال. الملخص والسعر بيظهروا في السنتيمتر بس لما الإدخال صالح. الإعداد من `settings.content.productSizeEntry` في صفحة المنتج. الهزة `motion-safe:animate-size-shake` (`tailwind.config.ts`).
+- **المتجر — القراية:** `lib/data/mappers.ts` (`settingContent`) بيقرا `hero.productSizeEntry` بـ `readProductSizeEntry`.
+- **اللوحة:** `lib/content/sizeEntry.ts` (suite `size-entry`): النصوص · `readProductSizeEntry` (نفس قاعدة المتجر) · `checkProductSizeEntry` (التحقق: الغايب = `'cm'`، والغلط = رفض) · `HeroContent.productSizeEntry` · `readHero` و`validateHero` (الحقل بيتكتب دايمًا) · كارت «طريقة إدخال المقاس في صفحة المنتج» في `ContentEditor.tsx` بعد «الواجهة الرئيسية»، بيتحفظ بنفس زرار المحتوى.
