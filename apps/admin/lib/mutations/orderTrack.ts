@@ -33,7 +33,7 @@ import { invalid } from '../validation/shared'
  * zell.orders.note_edit)، والقرار النهائي في الداتابيز. التحقق هنا مبدئي بنفس القواعد (lib/orders/trackUpdates.ts).
  *
  * كل نداء بنسخة: إعادة نفس النداء بعد ما كتب فعلًا = 45404 (مفيش تكرار)، والكارت بيعيد القراية ومابيبعتش تاني لوحده.
- * الحفظ بنفس القيم = changed = false من غير كتابة. رد غير متوقع = INTERNAL (الكتابة ممكن تكون حصلت، والكارت بيعمل تحديث).
+ * الحفظ بنفس القيم = changed = false من غير كتابة. النتيجة { changed, version } (النسخة بعد الكتابة، لنسخة بداية المسودة). رد غير متوقع = INTERNAL (الكتابة ممكن تكون حصلت، والكارت بيعمل تحديث).
  */
 
 function internalFailure(): MutationResult<never> {
@@ -85,8 +85,8 @@ export async function saveOrderShipment(
   if (response === null) return internalFailure()
   if (failed(response)) return failureFrom(shipmentFailureKind(response.error, response.status), ORDER_NOT_FOUND_MESSAGE)
   const saved = parseShipmentSaved(response.data)
-  if (saved === null || saved.view.orderNumber !== orderNumber) return internalFailure()
-  return { ok: true, data: { changed: saved.changed } }
+  if (saved === null || saved.view.orderNumber !== orderNumber || saved.view.shipment === null) return internalFailure()
+  return { ok: true, data: { changed: saved.changed, version: saved.view.shipment.updatedAt } }
 }
 
 async function writeUpdate(fn: OrderFunction, orderNumber: string, args: Record<string, unknown>): Promise<MutationResult<TrackWriteOutcome>> {
@@ -95,7 +95,9 @@ async function writeUpdate(fn: OrderFunction, orderNumber: string, args: Record<
   if (failed(response)) return failureFrom(updateFailureKind(response.error, response.status), UPDATE_NOT_FOUND_MESSAGE)
   const written = parseUpdatesWritten(response.data)
   if (written === null || written.view.orderNumber !== orderNumber) return internalFailure()
-  return { ok: true, data: { changed: written.changed } }
+  const row = written.view.updates.find((u) => u.id === written.id)
+  if (row === undefined) return internalFailure()
+  return { ok: true, data: { changed: written.changed, version: row.updatedAt } }
 }
 
 /** الإضافة: النسخة = last_id من آخر قراية (null من غير رسايل). */
