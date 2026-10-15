@@ -15,6 +15,7 @@ import type {
 } from '../adminData'
 import { readHeroMobileLayout } from '../content/homeMobile'
 import { orderCouponSnapshot } from '../coupons/form'
+import { orderShippingType } from '../orders/listFilters'
 import { ORDER_STATUSES, SECTION_KEYS, type ImageFit, type OrderStatus, type SectionKey } from '../enums'
 
 // ── صفوف الداتابيز ───────────────────────────────────────────
@@ -317,6 +318,8 @@ export function toAdminOrder(row: OrderRow, itemCount: number): AdminOrder {
     discountPiastres: orderCouponSnapshot(row)?.discountPiastres ?? 0,
     // 0021-A — null للأوردرات القديمة
     nextFollowUpAt: typeof row.next_follow_up_at === 'string' ? row.next_follow_up_at : null,
+    // EXPRESS-SHIPPING §١٢ — من لقطة الطلب بس؛ null للطلب القديم
+    shippingType: orderShippingType(row.shipping_method),
   }
 }
 

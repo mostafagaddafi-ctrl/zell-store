@@ -10,6 +10,8 @@ import { Table, TD, TH, THead, TR } from '../../../components/ui/Table'
 import { ORDER_STATUSES, adminData, type OrderStatus } from '../../../lib/adminData'
 import { FOLLOW_UP_FILTER_LABELS, readFollowUpFilter } from '../../../lib/orders/cycle'
 import { FollowUpBadge } from '../../../components/orders/FollowUpBadge'
+import { ShippingTypeBadge } from '../../../components/orders/ShippingTypeBadge'
+import { readShippingTypeFilter } from '../../../lib/orders/listFilters'
 import { formatDateTime, formatPiastres } from '../../../lib/format'
 import { pageWithAccess } from '../../../lib/access/instance'
 
@@ -31,6 +33,8 @@ export default pageWithAccess('zell.orders.view', async function OrdersPage(_ctx
   const search = typeof params['search'] === 'string' ? params['search'] : ''
   // 0021-A A2 — فلتر المتابعة (الطلبات الجديدة بس، بتوقيت القاهرة)
   const followUp = readFollowUpFilter(params['followup'])
+  // EXPRESS-SHIPPING §١٢ — فلتر نوع الشحن من قايمة ثابتة (القيمة المجهولة أو المتكررة = الكل)
+  const shipping = readShippingTypeFilter(params['shipping'])
 
   const result = await adminData.listOrders({
     page,
@@ -38,6 +42,7 @@ export default pageWithAccess('zell.orders.view', async function OrdersPage(_ctx
     status: readStatus(params['status']),
     search,
     followUp,
+    shipping,
   })
   const followUpCounts = await adminData.getFollowUpCounts()
   const now = Date.now()
@@ -93,6 +98,7 @@ export default pageWithAccess('zell.orders.view', async function OrdersPage(_ctx
                           </span>
                         ) : null}
                         <FollowUpBadge at={order.nextFollowUpAt} status={order.status} now={now} className="mt-1 flex w-fit" />
+                        <ShippingTypeBadge type={order.shippingType} className="mt-1 flex w-fit" />
                         {order.couponCode ? (
                           <span className="mt-1 block w-fit">
                             <Badge tone="info">{'كوبون ' + order.couponCode}</Badge>
@@ -151,6 +157,7 @@ export default pageWithAccess('zell.orders.view', async function OrdersPage(_ctx
                     <TD className="text-xs">
                       {order.governorate}
                       {order.shippingArea ? <span className="block text-muted">{order.shippingArea}</span> : null}
+                      <ShippingTypeBadge type={order.shippingType} className="mt-1" />
                     </TD>
                     <TD className="text-xs">{order.itemCount}</TD>
                     <TD className="font-semibold">{formatPiastres(order.totalPiastres)}</TD>

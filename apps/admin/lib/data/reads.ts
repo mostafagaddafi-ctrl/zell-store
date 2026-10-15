@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { followUpQueryParts, isDeliveryPeriod } from '../orders/cycle'
+import { shippingTypeQueryPart } from '../orders/listFilters'
 import { parseShippingSnapshot } from '@zell/core'
 
 import type {
@@ -211,6 +212,11 @@ export const supabaseAdminData: AdminDataSource = {
     ]
 
     if (followUp === null && query.status && query.status !== 'all') parts.push('status=eq.' + query.status)
+
+    // EXPRESS-SHIPPING §١٢ — نوع الشحن من لقطة الطلب، والجزء من قايمة ثابتة بس (القيمة الخام ماتدخلش الاستعلام).
+    // في نفس الاستعلام اللي بيرجّع العدد الكامل، فالعدد والصفحات بعد الفلتر. NULL مابيطلعش في سريع ولا عادي.
+    const shippingPart = shippingTypeQueryPart(query.shipping)
+    if (shippingPart !== null) parts.push(shippingPart)
 
     const search = sanitizeSearch(query.search ?? '')
     if (search !== '') {

@@ -12,6 +12,7 @@ import type { DeliveryPeriod, FollowUpFilter } from './orders/cycle'
 import type { CatalogLayout, ShippingDays, ShippingMethod } from '@zell/core'
 import type { OrderCouponSnapshot } from './coupons/form'
 import type { HomeMobileLayout } from './content/homeMobile'
+import type { OrderShippingType, ShippingTypeFilter } from './orders/listFilters'
 
 export * from './enums'
 
@@ -41,6 +42,8 @@ export type AdminOrder = {
   discountPiastres: number
   /** 0021-A — معاد المتابعة (timestamptz) أو null. */
   nextFollowUpAt: string | null
+  /** EXPRESS-SHIPPING §١٢ — نوع الشحن من لقطة الطلب للعلامة في القايمة؛ null للطلب القديم أو أي قيمة غير معروفة. */
+  shippingType: OrderShippingType | null
 }
 
 export type AdminOrderItem = {
@@ -84,6 +87,8 @@ export type OrdersQuery = {
   search?: string
   /** 0021-A — فلتر المتابعة (الطلبات الجديدة بس، بالأقرب). */
   followUp?: FollowUpFilter | null
+  /** EXPRESS-SHIPPING §١٢ — فلتر نوع الشحن (الكل = من غير شرط). بيتطبّق قبل العدد والصفحات. */
+  shipping?: ShippingTypeFilter
   page: number
   pageSize: number
 }

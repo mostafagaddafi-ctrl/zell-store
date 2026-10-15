@@ -5,12 +5,23 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Search } from 'lucide-react'
 import { ORDER_STATUSES, ORDER_STATUS_LABELS } from '../../lib/enums'
 import { FOLLOW_UP_FILTERS, FOLLOW_UP_FILTER_LABELS } from '../../lib/orders/cycle'
+import {
+  SHIPPING_TYPE_FILTERS,
+  SHIPPING_TYPE_FILTER_ARIA,
+  SHIPPING_TYPE_FILTER_LABELS,
+  nextOrdersQuery,
+  readShippingTypeFilter,
+  shippingFilterFromQuery,
+  type OrdersFilterChange,
+} from '../../lib/orders/listFilters'
 import { Button } from '../ui/Button'
 import { inputClasses } from '../ui/Field'
 
 /**
  * الفلترة في الرابط — عشان الصفحة تتشارك وترجع بنفس الحالة.
  * 0021-A A2: فلتر المتابعة (followup) بيخص الطلبات الجديدة بس، فاختياره بيشيل فلتر الحالة والعكس.
+ * EXPRESS-SHIPPING §١٢: فلتر نوع الشحن (shipping) مستقل عنهم. القواعد كلها في nextOrdersQuery (lib/orders/listFilters.ts):
+ * تغيير أي فلتر بيرجّع لأول صفحة ويحافظ على الباقي.
  */
 export function OrdersFilters() {
   const router = useRouter()
@@ -18,26 +29,10 @@ export function OrdersFilters() {
   const [search, setSearch] = useState(params.get('search') ?? '')
   const status = params.get('status') ?? 'all'
   const followUp = params.get('followup') ?? ''
+  const shipping = shippingFilterFromQuery(params.toString())
 
-  const apply = (next: { search?: string; status?: string; followUp?: string }) => {
-    const query = new URLSearchParams(params.toString())
-    const nextSearch = next.search ?? search
-    let nextStatus = next.status ?? status
-    let nextFollowUp = next.followUp ?? followUp
-    if (next.followUp !== undefined && next.followUp !== '') nextStatus = 'all'
-    if (next.status !== undefined && next.status !== 'all') nextFollowUp = ''
-
-    if (nextSearch.trim() === '') query.delete('search')
-    else query.set('search', nextSearch.trim())
-
-    if (nextStatus === 'all') query.delete('status')
-    else query.set('status', nextStatus)
-
-    if (nextFollowUp === '') query.delete('followup')
-    else query.set('followup', nextFollowUp)
-
-    query.delete('page')
-    router.push('/orders?' + query.toString())
+  const apply = (next: OrdersFilterChange) => {
+    router.push('/orders?' + nextOrdersQuery(params.toString(), search, next))
   }
 
   return (
@@ -83,6 +78,19 @@ export function OrdersFilters() {
         {FOLLOW_UP_FILTERS.map((value) => (
           <option key={value} value={value}>
             {FOLLOW_UP_FILTER_LABELS[value]}
+          </option>
+        ))}
+      </select>
+
+      <select
+        value={shipping}
+        onChange={(event) => apply({ shipping: readShippingTypeFilter(event.target.value) })}
+        className={inputClasses + ' w-36'}
+        aria-label={SHIPPING_TYPE_FILTER_ARIA}
+      >
+        {SHIPPING_TYPE_FILTERS.map((value) => (
+          <option key={value} value={value}>
+            {SHIPPING_TYPE_FILTER_LABELS[value]}
           </option>
         ))}
       </select>
