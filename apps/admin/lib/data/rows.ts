@@ -14,6 +14,7 @@ import type {
   StoreSection,
 } from '../adminData'
 import { readHeroMobileLayout } from '../content/homeMobile'
+import { readProductSizeEntry } from '../content/sizeEntry'
 import { orderCouponSnapshot } from '../coupons/form'
 import { orderShippingType } from '../orders/listFilters'
 import { ORDER_STATUSES, SECTION_KEYS, type ImageFit, type OrderStatus, type SectionKey } from '../enums'
@@ -415,6 +416,8 @@ export function readHero(map: Map<string, unknown>): HeroContent {
     accent: text(raw['accent']),
     subtitle: text(raw['subtitle']),
     ctaLabel: text(raw['ctaLabel'], text(raw['cta_label'])),
+    // LENGTH-INPUT — لازم يتقري علشان مايضيعش مع حفظ باقي المحتوى
+    productSizeEntry: readProductSizeEntry(raw['productSizeEntry']),
   }
 }
 
