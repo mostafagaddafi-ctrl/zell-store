@@ -75,11 +75,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             help={help}
           />
           {/*
-            ⚠️ الحشو السفلي على الموبايل مش تزيين: الزرار العائم fixed،
-               فمن غير الحشو ده بيقعد فوق آخر عنصر في الصفحة. على
-               الديسكتوب الزرار مخفي فالحشو بيتشال.
+            مفيش حشو سفلي هنا: حماية آخر الصفحة من زرار واتساب العائم في آخر الفوتر (SiteFooter: pb-24)،
+            والحشو اللي كان هنا كان مكرر وبيعمل فراغ قبل الفوتر على الموبايل (قرار المالك 2026-10-16).
+            زرار واتساب نفسه (WhatsAppFab) ومكانه زي ما هم.
           */}
-          <div className="flex-1 pb-20 md:pb-0">{children}</div>
+          <div className="flex-1">{children}</div>
           <WhatsAppFab number={settings.whatsappNumber} message={settings.whatsappMessage} />
           <SiteFooter
             storeName={settings.storeName}
