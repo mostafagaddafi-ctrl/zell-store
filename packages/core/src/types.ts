@@ -4,6 +4,7 @@
  */
 
 import type { InstallationConfig } from './installation'
+import type { PublishedPolicies } from './policies'
 
 export type ProductRules = {
   price_per_meter_piastres: number
@@ -103,6 +104,8 @@ export type StoreSettings = {
   /** 0019 — مفتاح «أكواد الخصم» (settings.coupons_enabled). ناقص أو مش true = مقفولة. السيرفر والداتابيز هما الحكم. */
   couponsEnabled: boolean
   announcement: Announcement
+  /** POLICY-PAGES — صفحات السياسات المنشورة بس (settings.policy_pages؛ الغايب أو الفاسد = مقفولة، من غير نص افتراضي). */
+  policies: PublishedPolicies
   /** محتوى الصفحة من «المحتوى» في اللوحة. */
   content: StoreContent
 }
