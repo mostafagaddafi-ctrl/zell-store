@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, MessageCircle, PackageSearch, ShoppingBag, X } from 'lucide-react'
+import { ChevronDown, Menu, MessageCircle, PackageSearch, ShoppingBag, X } from 'lucide-react'
 import type { SocialLink, StoreCollection } from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { cn } from '../../lib/cn'
@@ -27,7 +27,7 @@ import { SocialLinks } from './SocialLinks'
  *    لوحده بـEscape. عشان كده بنسمع onClose ونزامن منه.
  *
  * STORE-MENU (docs/contracts/STORE-MENU.md §٢): أربع أجزاء — الاختصارات (السلة · تتبّع طلبك) ← التصفّح
- * (كل المنتجات · «الأقسام» · الأدوات تحتها على طول) ← «المساعدة» ← الرئيسية والسوشيال تحت. الأجزاء والشروط والتمييز
+ * (الرئيسية · كل المنتجات · «الأقسام»: أول 6 + «عرض كل الأقسام» · الأدوات تحتها على طول) ← «المساعدة» ← السوشيال تحت (§١٥). الأجزاء والشروط والتمييز
  * من `lib/nav/storeNav.ts` (منطق خالص). التقسيم بمسافات وفواصل وأوزان خط، مش كروت. القائمة وزرارها من غير
  * `lg` (شكل الكمبيوتر من lg — §٣ و§١٥).
  */
@@ -55,6 +55,9 @@ export function MobileMenu({
   const titleId = useId()
   const collectionsTitleId = useId()
   const helpTitleId = useId()
+  const sectionsListId = useId()
+  // STORE-MENU §١٥ — «عرض كل الأقسام»: null = حسب الصفحة (مفتوح لوحده لو القسم الحالي من المخفيين)
+  const [showAllSections, setShowAllSections] = useState<boolean | null>(null)
 
   function openMenu() {
     dialogRef.current?.showModal()
@@ -101,10 +104,16 @@ export function MobileMenu({
     closeMenu()
   }, [pathname])
 
+  // صفحة جديدة = «عرض كل الأقسام» يرجع لحالته الافتراضية
+  useEffect(() => {
+    setShowAllSections(null)
+  }, [pathname])
+
   const menu = buildMobileMenu({ pathname, allLabel, collections, toolsLink, help, whatsappHref })
   const badge = cartBadge(cart.ready, cart.itemCount)
   const { cart: cartItem, track: trackItem } = menu.shortcuts
-  const hasBrowse = menu.all !== null || menu.collections.length > 0 || menu.tools !== null
+  const sectionsOpen = showAllSections ?? menu.moreSections.startExpanded
+  const shownCollections = sectionsOpen ? menu.collections : menu.collections.slice(0, menu.moreSections.visibleCount)
 
   const focusRing = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
   const rowLink = 'flex min-h-11 items-center rounded-lg px-3 transition-colors hover:bg-border/50 ' + focusRing
@@ -192,62 +201,91 @@ export function MobileMenu({
               </li>
             </ul>
 
-            {/* ٢) التصفّح — كل المنتجات أتقل، الأقسام بترتيب اللوحة، الأدوات تحت الأقسام على طول وأخف، من غير فاصل ولا أيقونة (قرار المالك بعد المعاينة — STORE-MENU §١٥) */}
-            {hasBrowse ? (
-              <div className="mt-4 border-t border-border pt-3">
+            {/* ٢) التصفّح — الرئيسية وكل المنتجات أتقل، والأقسام بترتيب اللوحة (أول 6 وبعدهم «عرض كل الأقسام»)، والأدوات تحتهم على طول وأخف، من غير فاصل ولا أيقونة (قرار المالك بعد المعاينة — STORE-MENU §١٥) */}
+            <div className="mt-4 border-t border-border pt-3">
+              <ul>
+                <li className="zell-drawer-item" style={itemStyle(menu.home)}>
+                  <Link
+                    href={menu.home.href}
+                    onClick={closeMenu}
+                    {...currentProps(menu.home)}
+                    className={cn(rowLink, 'text-base font-bold', menu.home.current ? 'text-brand' : 'text-fg')}
+                  >
+                    {menu.home.label}
+                  </Link>
+                </li>
                 {menu.all !== null ? (
-                  <ul>
-                    <li className="zell-drawer-item" style={itemStyle(menu.all)}>
-                      <Link
-                        href={menu.all.href}
-                        onClick={closeMenu}
-                        {...currentProps(menu.all)}
-                        className={cn(rowLink, 'text-base font-bold', menu.all.current ? 'text-brand' : 'text-fg')}
-                      >
-                        {menu.all.label}
-                      </Link>
-                    </li>
-                  </ul>
+                  <li className="zell-drawer-item" style={itemStyle(menu.all)}>
+                    <Link
+                      href={menu.all.href}
+                      onClick={closeMenu}
+                      {...currentProps(menu.all)}
+                      className={cn(rowLink, 'text-base font-bold', menu.all.current ? 'text-brand' : 'text-fg')}
+                    >
+                      {menu.all.label}
+                    </Link>
+                  </li>
                 ) : null}
+              </ul>
 
-                {menu.collections.length > 0 ? (
-                  <div className={cn(menu.all !== null && 'mt-2')}>
-                    <p id={collectionsTitleId} className="px-3 pb-1 pt-1 text-xs font-semibold text-muted">
-                      الأقسام
-                    </p>
-                    <ul aria-labelledby={collectionsTitleId}>
-                      {menu.collections.map((item) => (
-                        <li key={item.key} className="zell-drawer-item" style={itemStyle(item)}>
-                          <Link
-                            href={item.href}
-                            onClick={closeMenu}
-                            {...currentProps(item)}
-                            className={cn(rowLink, 'text-base', item.current ? 'font-bold text-brand' : 'font-normal text-fg')}
-                          >
-                            {item.label}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-
-                {menu.tools !== null ? (
-                  <ul className={cn((menu.all !== null || menu.collections.length > 0) && 'mt-1')}>
-                    <li className="zell-drawer-item" style={itemStyle(menu.tools)}>
-                      <Link
-                        href={menu.tools.href}
-                        onClick={closeMenu}
-                        {...currentProps(menu.tools)}
-                        className={cn(rowLink, 'text-sm', menu.tools.current ? 'font-bold text-brand' : 'font-normal text-muted hover:text-fg')}
-                      >
-                        {menu.tools.label}
-                      </Link>
-                    </li>
+              {menu.collections.length > 0 ? (
+                <div className="mt-2">
+                  <p id={collectionsTitleId} className="px-3 pb-1 pt-1 text-xs font-semibold text-muted">
+                    الأقسام
+                  </p>
+                  <ul id={sectionsListId} aria-labelledby={collectionsTitleId}>
+                    {shownCollections.map((item) => (
+                      <li key={item.key} className="zell-drawer-item" style={itemStyle(item)}>
+                        <Link
+                          href={item.href}
+                          onClick={closeMenu}
+                          {...currentProps(item)}
+                          className={cn(rowLink, 'text-base', item.current ? 'font-bold text-brand' : 'font-normal text-fg')}
+                        >
+                          {item.label}
+                        </Link>
+                      </li>
+                    ))}
                   </ul>
-                ) : null}
-              </div>
-            ) : null}
+                  {menu.moreSections.hiddenCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllSections(!sectionsOpen)}
+                      aria-expanded={sectionsOpen}
+                      aria-controls={sectionsListId}
+                      className={cn(rowLink, 'w-full gap-1 text-sm font-semibold text-accent')}
+                    >
+                      {sectionsOpen ? (
+                        'عرض أقل'
+                      ) : (
+                        <>
+                          عرض كل الأقسام (<Num>{menu.collections.length}</Num>)
+                        </>
+                      )}
+                      <ChevronDown
+                        className={cn('h-4 w-4 shrink-0 motion-safe:transition-transform', sectionsOpen && 'rotate-180')}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {menu.tools !== null ? (
+                <ul className="mt-1">
+                  <li className="zell-drawer-item" style={itemStyle(menu.tools)}>
+                    <Link
+                      href={menu.tools.href}
+                      onClick={closeMenu}
+                      {...currentProps(menu.tools)}
+                      className={cn(rowLink, 'text-sm', menu.tools.current ? 'font-bold text-brand' : 'font-normal text-muted hover:text-fg')}
+                    >
+                      {menu.tools.label}
+                    </Link>
+                  </li>
+                </ul>
+              ) : null}
+            </div>
 
             {/* ٣) المساعدة — بتختفي هي وعنوانها لو مفيش ولا رابط */}
             {menu.showHelp ? (
@@ -289,22 +327,12 @@ export function MobileMenu({
             ) : null}
           </nav>
 
-          {/* ٤) تحت — الرئيسية والسوشيال، سطر واحد هادي (أسماء المنصات لقارئ الشاشة من SocialLinks) */}
-          <div className="safe-bottom flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2">
-            <Link
-              href={menu.home.href}
-              onClick={closeMenu}
-              {...currentProps(menu.home)}
-              className={cn(
-                'flex min-h-11 items-center rounded-lg px-2 text-sm transition-colors hover:text-accent',
-                focusRing,
-                menu.home.current ? 'font-bold text-brand' : 'font-medium text-muted',
-              )}
-            >
-              {menu.home.label}
-            </Link>
-            {social.length > 0 ? <SocialLinks links={social} /> : null}
-          </div>
+          {/* ٤) تحت — السوشيال بس (الرئيسية بقت أول التصفّح — STORE-MENU §١٥)، وأسماء المنصات لقارئ الشاشة من SocialLinks */}
+          {social.length > 0 ? (
+            <div className="safe-bottom flex shrink-0 flex-wrap items-center gap-2 border-t border-border px-3 py-2">
+              <SocialLinks links={social} />
+            </div>
+          ) : null}
         </div>
       </dialog>
     </>
