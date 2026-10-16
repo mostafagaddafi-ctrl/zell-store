@@ -30,7 +30,7 @@ export function SiteFooter({
   const year = new Date().getFullYear()
 
   return (
-    <footer className="mt-20 border-t border-border bg-card">
+    <footer className="mt-10 border-t border-border bg-card md:mt-20">
       <Container className="grid gap-8 py-10 sm:grid-cols-2">
         <div className="space-y-3">
           <p className="text-sm font-semibold text-fg">{storeName}</p>
