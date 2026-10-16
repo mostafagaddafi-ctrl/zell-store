@@ -40,7 +40,7 @@ export default async function HomePage() {
   const view = homeMobileView(content.heroMobileLayout)
 
   return (
-    <Container className="pb-8">
+    <Container className="pb-4 md:pb-8">
       {view.mobileTopNav ? <CollectionNav collections={collections} className={view.mobileTopNavClassName} /> : null}
       {content.homeSections.map((section) => {
         if (section.key === 'hero') {
@@ -96,7 +96,7 @@ export default async function HomePage() {
         }
 
         return isHomeHelpSectionShown(section, content) ? (
-          <section key="faq" id="faq" className="scroll-mt-20 py-10 md:py-14">
+          <section key="faq" id="faq" className="scroll-mt-20 pb-6 pt-10 md:py-14">
             <h2 className="text-xl font-bold text-fg md:text-2xl">{section.title}</h2>
             {section.subtitle ? <p className="mt-1 text-sm text-muted">{section.subtitle}</p> : null}
             <div className="mt-5">
