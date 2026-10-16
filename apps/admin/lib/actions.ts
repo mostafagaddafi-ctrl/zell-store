@@ -56,9 +56,11 @@ import {
 import type { InstallationRecord } from './data/installation'
 import { saveInstallationToolsPage } from './mutations/installationToolsPage'
 import type { ToolsPageRecord } from './data/installationToolsPage'
+import { savePolicyPages } from './mutations/policyPages'
+import type { PolicyPagesRecord } from './data/policyPages'
 import { saveShippingAreas } from './mutations/shippingAreas'
 import { saveHomeProducts } from './mutations/homeProducts'
-import type { HomeProducts, InstallationToolsPage } from '@zell/core'
+import type { HomeProducts, InstallationToolsPage, PolicyPages } from '@zell/core'
 import { saveSocialLinks } from './mutations/socialLinks'
 import type { SocialLinksInput } from './data/socialLinks'
 import { saveProductWidths } from './mutations/productWidths'
@@ -511,5 +513,19 @@ export const saveInstallationToolsPageAction = actionWithAccess(
     expectedUpdatedAt: string | null,
   ): Promise<MutationResult<ToolsPageRecord>> => {
     return refreshAfter(await saveInstallationToolsPage(input, expectedUpdatedAt))
+  },
+)
+
+// ── «السياسات» (POLICY-PAGES) ────────────────────────────────
+/** الأربع صفحات وبيانات البائع (صف settings واحد بـ updated_at). الحفظ والتفعيل بصلاحية «المحتوى». */
+export const savePolicyPagesAction = actionWithAccess(
+  'zell.content.edit',
+  { mutates: true },
+  async (
+    _ctx: AccessContext,
+    input: PolicyPages,
+    expectedUpdatedAt: string | null,
+  ): Promise<MutationResult<PolicyPagesRecord>> => {
+    return refreshAfter(await savePolicyPages(input, expectedUpdatedAt))
   },
 )
