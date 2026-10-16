@@ -82,8 +82,9 @@ export function SiteFooter({
       </Container>
 
       <div className="border-t border-border">
-        {/* pb-24: مكان زرار واتساب العائم (٥٢px + ١rem + safe-area) — مايغطّيش آخر الفوتر */}
-        <Container className="pb-24 pt-4">
+        {/* مكان زرار واتساب العائم تحت: على الموبايل pb-8 بس — الزرار دايرة على الشمال وسطر «©» على اليمين، فمابيغطّيهوش
+            (قرار المالك 2026-10-16). من md: pb-24 زي قبل كده، لأن الزرار هناك أعرض وبنصّه. */}
+        <Container className="pb-8 pt-4 md:pb-24">
           <p className="text-xs text-muted">
             © {year} {storeName}
           </p>
