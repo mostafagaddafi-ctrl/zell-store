@@ -32,6 +32,7 @@ const SUITES = [
   { name: 'shipping', dir: 'lib/orders', entry: 'shipping.cases.ts', run: 'runShippingCases' },
   { name: 'size', dir: 'lib/size', entry: 'sizeEntry.cases.ts', run: 'runSizeCases' },
   { name: 'nav', dir: 'lib/nav', entry: 'storeNav.cases.ts', run: 'runStoreNavCases' },
+  { name: 'gallery', dir: 'lib/gallery', entry: 'swipe.cases.ts', run: 'runGallerySwipeCases' },
 ]
 
 const COMPILER_OPTIONS = {
