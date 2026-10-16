@@ -27,7 +27,7 @@ import { SocialLinks } from './SocialLinks'
  *    لوحده بـEscape. عشان كده بنسمع onClose ونزامن منه.
  *
  * STORE-MENU (docs/contracts/STORE-MENU.md §٢): أربع أجزاء — الاختصارات (السلة · تتبّع طلبك) ← التصفّح
- * (كل المنتجات · «الأقسام» · الأدوات بعد فاصل) ← «المساعدة» ← الرئيسية والسوشيال تحت. الأجزاء والشروط والتمييز
+ * (كل المنتجات · «الأقسام» · الأدوات تحتها على طول) ← «المساعدة» ← الرئيسية والسوشيال تحت. الأجزاء والشروط والتمييز
  * من `lib/nav/storeNav.ts` (منطق خالص). التقسيم بمسافات وفواصل وأوزان خط، مش كروت. القائمة وزرارها من غير
  * `lg` (شكل الكمبيوتر من lg — §٣ و§١٥).
  */
@@ -192,7 +192,7 @@ export function MobileMenu({
               </li>
             </ul>
 
-            {/* ٢) التصفّح — كل المنتجات أتقل، الأقسام بترتيب اللوحة، الأدوات بعد فاصل وأخف */}
+            {/* ٢) التصفّح — كل المنتجات أتقل، الأقسام بترتيب اللوحة، الأدوات تحت الأقسام على طول وأخف، من غير فاصل ولا أيقونة (قرار المالك بعد المعاينة — STORE-MENU §١٥) */}
             {hasBrowse ? (
               <div className="mt-4 border-t border-border pt-3">
                 {menu.all !== null ? (
@@ -233,7 +233,7 @@ export function MobileMenu({
                 ) : null}
 
                 {menu.tools !== null ? (
-                  <ul className={cn((menu.all !== null || menu.collections.length > 0) && 'mt-2 border-t border-border pt-2')}>
+                  <ul className={cn((menu.all !== null || menu.collections.length > 0) && 'mt-1')}>
                     <li className="zell-drawer-item" style={itemStyle(menu.tools)}>
                       <Link
                         href={menu.tools.href}
