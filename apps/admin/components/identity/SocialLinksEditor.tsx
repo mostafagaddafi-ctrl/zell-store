@@ -11,13 +11,14 @@ import { FailureBanner } from '../ui/FailureBanner'
 import { Card, Field, inputClasses } from '../ui/Field'
 import { SaveBar } from '../ui/SaveBar'
 
+/** أمثلة عامة داخل الحقول الفارغة فقط — لا تُحفظ ولا تظهر في المتجر. */
 const PLACEHOLDERS: Record<SocialPlatform, string> = {
-  facebook: 'facebook.com/zell',
-  instagram: 'instagram.com/zell',
-  tiktok: 'tiktok.com/@zell',
-  youtube: 'youtube.com/@zell',
-  snapchat: 'snapchat.com/add/zell',
-  x: 'x.com/zell',
+  facebook: 'facebook.com/اسم-الصفحة',
+  instagram: 'instagram.com/اسم-الحساب',
+  tiktok: 'tiktok.com/@اسم-الحساب',
+  youtube: 'youtube.com/@اسم-القناة',
+  snapchat: 'snapchat.com/add/اسم-الحساب',
+  x: 'x.com/اسم-الحساب',
 }
 
 /**
