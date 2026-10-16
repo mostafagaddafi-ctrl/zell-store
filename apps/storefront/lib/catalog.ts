@@ -12,7 +12,7 @@
  * الروابط الحقيقية بتتبنى في طبقة القراءة المعتمدة على السيرفر.
  */
 import type { StoreProduct, StoreCollection, StoreSettings } from '@zell/core'
-import { DEFAULT_INSTALLATION_TOOLS_PAGE, DEFAULT_STORE_CONTENT } from '@zell/core'
+import { DEFAULT_INSTALLATION_TOOLS_PAGE, DEFAULT_STORE_CONTENT, NO_PUBLISHED_POLICIES } from '@zell/core'
 
 export const FALLBACK_PRODUCTS: StoreProduct[] = [
   {
@@ -122,6 +122,8 @@ export const FALLBACK_SETTINGS: StoreSettings = {
   socialLinks: [],
   addonsTitle: 'أدوات التركيب',
   installationToolsPage: DEFAULT_INSTALLATION_TOOLS_PAGE,
+  // الكتالوج المؤقت مافيهوش صفحات سياسات منشورة
+  policies: NO_PUBLISHED_POLICIES,
   // الكتالوج المؤقت مافيهوش أكواد خصم
   couponsEnabled: false,
   // الكتالوج المؤقت مابيعرضش شريط — الشريط بيانات حقيقية من settings بس
