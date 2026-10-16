@@ -12,6 +12,9 @@ import type { HomeSection, HomeSectionKey, StoreContent } from '@zell/core'
 /** عدد روابط الأقسام في هيدر الكمبيوتر قبل «كل الأقسام» (نفس القيمة اللي كانت في SiteHeader). */
 export const DESKTOP_LINKS = 4
 
+/** عدد الأقسام الظاهرة في قائمة الموبايل قبل «عرض كل الأقسام» (قرار المالك بعد المعاينة — STORE-MENU §١٥). */
+export const MENU_VISIBLE_SECTIONS = 6
+
 export const CART_HREF = '/cart'
 export const TRACK_HREF = '/track'
 export const HOW_HREF = '/#how'
@@ -93,7 +96,7 @@ export function menuActiveKey(
   return match === null ? null : 'collection:' + match.slug
 }
 
-/** index = ترتيب حركة الظهور (--i)؛ -1 = برّه الحركة. */
+/** index = ترتيب حركة الظهور (--i)، متتالي من 0. */
 export type MenuItem = { key: string; href: string; label: string; current: boolean; index: number }
 
 export type MobileMenuModel = {
@@ -104,7 +107,10 @@ export type MobileMenuModel = {
   help: { how: MenuItem | null; faq: MenuItem | null; whatsapp: MenuItem | null }
   /** عنوان «المساعدة» والجزء كله بيختفوا لو مفيش ولا رابط. */
   showHelp: boolean
+  /** أول عنصر في التصفّح (§١٥). */
   home: MenuItem
+  /** «عرض كل الأقسام»: أول visibleCount ظاهرين، والباقي ورا الزرار؛ startExpanded = القسم الحالي من المخفيين. */
+  moreSections: { visibleCount: number; hiddenCount: number; startExpanded: boolean }
 }
 
 export function buildMobileMenu(input: {
@@ -125,6 +131,8 @@ export function buildMobileMenu(input: {
 
   const cart = item('cart', CART_HREF, 'السلة')
   const track = item('track', TRACK_HREF, 'تتبّع طلبك')
+  // الرئيسية أول التصفّح (قرار المالك بعد المعاينة — STORE-MENU §١٥)
+  const home = item('home', '/', 'الرئيسية')
   const all = input.allLabel ? item('all', '/products', input.allLabel) : null
   const collections = input.collections.map((collection) =>
     item('collection:' + collection.slug, '/collection/' + collection.slug, collection.title),
@@ -134,7 +142,12 @@ export function buildMobileMenu(input: {
   const how = input.help.how ? item('how', HOW_HREF, 'إزاي أطلب') : null
   const faq = input.help.faq ? item('faq', FAQ_HREF, 'الأسئلة المتكررة') : null
   const whatsapp = input.whatsappHref ? item('whatsapp', input.whatsappHref, 'تواصل على واتساب') : null
-  const home: MenuItem = { key: 'home', href: '/', label: 'الرئيسية', current: active === 'home', index: -1 }
+  const hiddenCount = Math.max(0, collections.length - MENU_VISIBLE_SECTIONS)
+  const moreSections = {
+    visibleCount: hiddenCount > 0 ? MENU_VISIBLE_SECTIONS : collections.length,
+    hiddenCount,
+    startExpanded: collections.slice(MENU_VISIBLE_SECTIONS).some((section) => section.current),
+  }
 
   return {
     shortcuts: { cart, track },
@@ -144,6 +157,7 @@ export function buildMobileMenu(input: {
     help: { how, faq, whatsapp },
     showHelp: how !== null || faq !== null || whatsapp !== null,
     home,
+    moreSections,
   }
 }
 
