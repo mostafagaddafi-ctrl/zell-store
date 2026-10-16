@@ -9,6 +9,7 @@ import {
   Boxes,
   ClipboardList,
   Factory,
+  FileText,
   Receipt,
   Image as ImageIcon,
   Layers,
@@ -81,6 +82,7 @@ export function AdminShell({
       title: 'المتجر',
       items: [
         { href: '/content', label: 'المحتوى', icon: ImageIcon },
+        { href: '/policies', label: 'السياسات', icon: FileText },
         { href: '/shipping', label: 'الشحن', icon: Truck },
         { href: '/installation', label: 'فني التركيب', icon: Wrench },
         { href: '/installation-tools', label: 'أدوات التركيب', icon: PackageOpen },
