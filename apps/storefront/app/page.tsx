@@ -11,6 +11,7 @@ import { ProductCard } from '../components/store/ProductCard'
 import { Container } from '../components/ui/Container'
 import { getStorefrontData } from '../lib/data/source'
 import { homeMobileView } from '../lib/home/homeLayout'
+import { isHomeHelpSectionShown } from '../lib/nav/storeNav'
 
 /**
  * الرئيسية — الأجزاء وترتيبها وظهورها ونصوصها من «المحتوى» في اللوحة.
@@ -20,7 +21,8 @@ import { homeMobileView } from '../lib/home/homeLayout'
  *
  * أقسام الرئيسية (CollectionStrip) بتيجي مكان جزء المنتجات بعده على طول،
  * حتى لو الجزء نفسه مخفي — الأقسام ليها مفتاحها الخاص في صفحة الأقسام.
- * «إزاي أطلب» و«أسئلة متكررة» بيستخبوا لوحدهم لو قايمتهم فاضية.
+ * «إزاي أطلب» و«أسئلة متكررة» بيستخبوا لوحدهم لو قايمتهم فاضية — الشرط في `lib/nav/storeNav.ts` (STORE-MENU §٥)،
+ * وهو نفسه شرط روابطهم في قائمة الموبايل.
  *
  * HOME-MOBILE (docs/contracts/HOME-MOBILE.md §٣): في compact شريط الأقسام للموبايل برّه اللوب تحت الهيدر على طول
  * (sm:hidden، من غير عنوان)، والنسخة اللي في اللوب hidden sm:block — نسخة واحدة ظاهرة في أي مقاس، ومهما الترتيب.
@@ -86,14 +88,14 @@ export default async function HomePage() {
         }
 
         if (section.key === 'how_it_works') {
-          return section.visible && content.orderSteps.length > 0 ? (
+          return isHomeHelpSectionShown(section, content) ? (
             <div key="how" id="how" className="scroll-mt-20">
               <HowItWorks title={section.title} steps={content.orderSteps} />
             </div>
           ) : null
         }
 
-        return section.visible && content.faqs.length > 0 ? (
+        return isHomeHelpSectionShown(section, content) ? (
           <section key="faq" id="faq" className="scroll-mt-20 py-10 md:py-14">
             <h2 className="text-xl font-bold text-fg md:text-2xl">{section.title}</h2>
             {section.subtitle ? <p className="mt-1 text-sm text-muted">{section.subtitle}</p> : null}
