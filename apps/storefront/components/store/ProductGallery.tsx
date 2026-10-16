@@ -12,7 +12,7 @@ import {
 import { ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react'
 import { galleryImages, type StoreProduct } from '@zell/core'
 import { cn } from '../../lib/cn'
-import { IDLE_SWIPE, isSwipeIdle, reduceSwipe, swipeEnabled, type SwipeCommand, type SwipeEvent, type SwipeState } from '../../lib/gallery/swipe'
+import { createSwipeController, swipeEnabled, type SwipeCommand, type SwipeController } from '../../lib/gallery/swipe'
 import { ImageSlot, type ImageFit } from '../ui/ImageSlot'
 
 type Shot = { src: string | null; fit: ImageFit; alt: string }
@@ -33,96 +33,109 @@ function startsOnControl(target: EventTarget | null, surface: HTMLElement): bool
 }
 
 /**
- * GALLERY-SWIPE (docs/contracts/GALLERY-SWIPE.md §٣–§٦) — غلاف رفيع حوالين reduceSwipe لسطح واحد.
+ * GALLERY-SWIPE (docs/contracts/GALLERY-SWIPE.md §٣–§٦ و§١٢) — غلاف رفيع حوالين createSwipeController لسطح واحد.
  *
- * - الحالة في ref (من غير re-render). down على السطح بيبدأ، ومتابعة document (capture) للـ pointerdown/up/cancel
- *   وkeydown بتتركّب أول ما الحالة تبقى مش فاضية وبتتشال أول ما ترجع فاضية. الحدث ممكن يوصل مرتين (document + السطح)
- *   والـ reducer بيتجاهل التكرار.
+ * - الـ controller بيتعمل أول مرة يتحتاج (في ref، من غير re-render)، والـ host هنا هو المتصفح: setPointerCapture على
+ *   السطح · متابعة document (capture) للـ pointerdown بكل أنواعه وpointerup/cancel وkeydown · مؤقت window.setTimeout.
+ * - الـ controller هو اللي بيقرر إمتى يلتقط ويفك ويركّب المتابعة ويشيلها؛ الغلاف بينفّذ بس.
  * - مفيش preventDefault على اللمس خالص؛ المنع للـ click اللي جاي من نفس السحبة بس (onClickCapture).
- * - reset (وفك الالتقاط والمتابعة) لما السحب يتقفل أو يتفتح، أو resetKey يتغيّر، أو الـ unmount.
+ * - reset (وفك الالتقاط والمتابعة والمؤقت) لما السحب يتقفل أو يتفتح، أو resetKey يتغيّر، أو الـ unmount.
  */
 function useGallerySwipe(enabled: boolean, resetKey: unknown, onCommand: (command: SwipeCommand) => void) {
   const surfaceRef = useRef<HTMLDivElement | null>(null)
-  const stateRef = useRef<SwipeState>(IDLE_SWIPE)
   const commandRef = useRef(onCommand)
-  const detachRef = useRef<(() => void) | null>(null)
-  const dispatchRef = useRef<(event: SwipeEvent) => boolean>(() => false)
+  const controllerRef = useRef<SwipeController | null>(null)
 
   useEffect(() => {
     commandRef.current = onCommand
   }, [onCommand])
 
-  const detach = useCallback(() => {
-    detachRef.current?.()
-    detachRef.current = null
+  const controller = useCallback((): SwipeController => {
+    if (controllerRef.current !== null) return controllerRef.current
+    let timer: number | null = null
+    let detach: (() => void) | null = null
+
+    const swipe: SwipeController = createSwipeController({
+      capture: (id) => {
+        try {
+          surfaceRef.current?.setPointerCapture(id)
+        } catch {
+          // المتصفح رفض الالتقاط — السحبة لسه بتتحسب من متابعة document
+        }
+      },
+      release: (id) => {
+        const surface = surfaceRef.current
+        if (surface === null || !surface.hasPointerCapture(id)) return
+        try {
+          surface.releasePointerCapture(id)
+        } catch {
+          // الالتقاط اتفك لوحده
+        }
+      },
+      listen: (on) => {
+        if (!on) {
+          detach?.()
+          detach = null
+          return
+        }
+        if (detach !== null) return
+        const onDown = (event: PointerEvent) => {
+          const surface = surfaceRef.current
+          swipe.documentDown({
+            id: event.pointerId,
+            pointerType: event.pointerType,
+            x: event.clientX,
+            y: event.clientY,
+            isPrimary: event.isPrimary,
+            onSurface: surface !== null && event.target instanceof Node && surface.contains(event.target),
+            onControl: surface !== null && startsOnControl(event.target, surface),
+            pageZoomed: pageIsZoomed(),
+          })
+        }
+        const onUp = (event: PointerEvent) => {
+          swipe.up({ id: event.pointerId, pointerType: event.pointerType, x: event.clientX, y: event.clientY })
+        }
+        const onCancel = (event: PointerEvent) => {
+          swipe.cancel({ id: event.pointerId, pointerType: event.pointerType })
+        }
+        const onKey = () => {
+          swipe.key()
+        }
+        document.addEventListener('pointerdown', onDown, true)
+        document.addEventListener('pointerup', onUp, true)
+        document.addEventListener('pointercancel', onCancel, true)
+        document.addEventListener('keydown', onKey, true)
+        detach = () => {
+          document.removeEventListener('pointerdown', onDown, true)
+          document.removeEventListener('pointerup', onUp, true)
+          document.removeEventListener('pointercancel', onCancel, true)
+          document.removeEventListener('keydown', onKey, true)
+        }
+      },
+      command: (command) => {
+        commandRef.current(command)
+      },
+      now: () => performance.now(),
+      schedule: (ms) => {
+        if (timer !== null) window.clearTimeout(timer)
+        timer = window.setTimeout(() => {
+          timer = null
+          swipe.expire()
+        }, ms)
+      },
+      cancelSchedule: () => {
+        if (timer !== null) window.clearTimeout(timer)
+        timer = null
+      },
+    })
+
+    controllerRef.current = swipe
+    return swipe
   }, [])
-
-  const attach = useCallback(() => {
-    if (detachRef.current !== null) return
-    const onDown = (event: PointerEvent) => {
-      const surface = surfaceRef.current
-      const onSurface = surface !== null && event.target instanceof Node && surface.contains(event.target)
-      dispatchRef.current({
-        type: 'down',
-        id: event.pointerId,
-        pointerType: event.pointerType,
-        x: event.clientX,
-        y: event.clientY,
-        onSurface,
-        onControl: surface !== null && startsOnControl(event.target, surface),
-        pageZoomed: pageIsZoomed(),
-      })
-    }
-    const onUp = (event: PointerEvent) => {
-      dispatchRef.current({ type: 'up', id: event.pointerId, pointerType: event.pointerType, x: event.clientX, y: event.clientY, now: performance.now() })
-    }
-    const onCancel = (event: PointerEvent) => {
-      dispatchRef.current({ type: 'cancel', id: event.pointerId, pointerType: event.pointerType })
-    }
-    const onKey = () => {
-      dispatchRef.current({ type: 'key' })
-    }
-    document.addEventListener('pointerdown', onDown, true)
-    document.addEventListener('pointerup', onUp, true)
-    document.addEventListener('pointercancel', onCancel, true)
-    document.addEventListener('keydown', onKey, true)
-    detachRef.current = () => {
-      document.removeEventListener('pointerdown', onDown, true)
-      document.removeEventListener('pointerup', onUp, true)
-      document.removeEventListener('pointercancel', onCancel, true)
-      document.removeEventListener('keydown', onKey, true)
-    }
-  }, [])
-
-  const dispatch = useCallback(
-    (event: SwipeEvent): boolean => {
-      const out = reduceSwipe(stateRef.current, event)
-      stateRef.current = out.state
-      if (isSwipeIdle(out.state)) detach()
-      else attach()
-      if (out.command !== null) commandRef.current(out.command)
-      return out.preventClick
-    },
-    [attach, detach],
-  )
-
-  useEffect(() => {
-    dispatchRef.current = dispatch
-  }, [dispatch])
 
   const reset = useCallback(() => {
-    const surface = surfaceRef.current
-    const tracking = stateRef.current.tracking
-    if (surface !== null && tracking !== null && surface.hasPointerCapture(tracking.id)) {
-      try {
-        surface.releasePointerCapture(tracking.id)
-      } catch {
-        // الالتقاط اتفك لوحده
-      }
-    }
-    stateRef.current = IDLE_SWIPE
-    detach()
-  }, [detach])
+    controllerRef.current?.reset()
+  }, [])
 
   useEffect(() => {
     reset()
@@ -131,39 +144,30 @@ function useGallerySwipe(enabled: boolean, resetKey: unknown, onCommand: (comman
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!enabled) return
-    const surface = event.currentTarget
-    dispatch({
-      type: 'down',
+    controller().surfaceDown({
       id: event.pointerId,
       pointerType: event.pointerType,
       x: event.clientX,
       y: event.clientY,
-      onSurface: true,
-      onControl: startsOnControl(event.target, surface),
+      isPrimary: event.isPrimary,
+      onControl: startsOnControl(event.target, event.currentTarget),
       pageZoomed: pageIsZoomed(),
     })
-    if (stateRef.current.tracking?.id === event.pointerId) {
-      try {
-        surface.setPointerCapture(event.pointerId)
-      } catch {
-        // المتصفح رفض الالتقاط — السحبة لسه بتتحسب من متابعة document
-      }
-    }
   }
   const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!enabled) return
-    dispatch({ type: 'up', id: event.pointerId, pointerType: event.pointerType, x: event.clientX, y: event.clientY, now: performance.now() })
+    controller().up({ id: event.pointerId, pointerType: event.pointerType, x: event.clientX, y: event.clientY })
   }
   const onPointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!enabled) return
-    dispatch({ type: 'cancel', id: event.pointerId, pointerType: event.pointerType })
+    controller().cancel({ id: event.pointerId, pointerType: event.pointerType })
   }
   const onLostPointerCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!enabled) return
-    dispatch({ type: 'lost', id: event.pointerId })
+    controller().lost(event.pointerId)
   }
   const onClickCapture = (event: ReactMouseEvent<HTMLElement>) => {
-    if (dispatch({ type: 'click', now: performance.now(), detail: event.detail })) {
+    if (controllerRef.current?.click(event.detail) === true) {
       event.preventDefault()
       event.stopPropagation()
     }
