@@ -5,6 +5,7 @@
 
 import {
   DESKTOP_LINKS,
+  MENU_VISIBLE_SECTIONS,
   buildDesktopNav,
   buildMobileMenu,
   cartBadge,
@@ -149,7 +150,7 @@ export function runStoreNavCases(): { passed: number; failures: NavCaseFailure[]
   check('B04 collections keep the input order and titles', menu('/', { collections: [col('z', 'زد'), col('a', 'ألف')] }).collections.map((item) => item.label), ['زد', 'ألف'])
   check('B05 empty allLabel = no all link', menu('/', { allLabel: '' }).all, null)
   check('B06 no collections = empty list (no heading)', menu('/', { collections: [] }).collections.length, 0)
-  check('B07 no tools link = no tools (no divider)', menu('/', { toolsLink: null }).tools, null)
+  check('B07 no tools link = no tools', menu('/', { toolsLink: null }).tools, null)
   check('B08 help conditions', [
     [menu('/', { help: { how: true, faq: false } }).help.how !== null, menu('/', { help: { how: true, faq: false } }).help.faq !== null],
     [menu('/', { help: { how: false, faq: true } }).help.how !== null, menu('/', { help: { how: false, faq: true } }).help.faq !== null],
@@ -173,6 +174,7 @@ export function runStoreNavCases(): { passed: number; failures: NavCaseFailure[]
   const indexes = [
     full.shortcuts.cart.index,
     full.shortcuts.track.index,
+    full.home.index,
     full.all?.index,
     ...full.collections.map((item) => item.index),
     full.tools?.index,
@@ -180,12 +182,36 @@ export function runStoreNavCases(): { passed: number; failures: NavCaseFailure[]
     full.help.faq?.index,
     full.help.whatsapp?.index,
   ]
-  check('A01 animation indexes sequential from 0 with no duplicates', indexes, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+  check('A01 animation indexes sequential from 0 with no duplicates', indexes, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
   const sparse = menu('/', { allLabel: '', toolsLink: null, help: { how: false, faq: true } })
-  check('A02 sequential even with hidden parts', [sparse.shortcuts.cart.index, sparse.shortcuts.track.index, ...sparse.collections.map((item) => item.index), sparse.help.faq?.index, sparse.help.whatsapp?.index], [
-    0, 1, 2, 3, 4, 5, 6,
+  check('A02 sequential even with hidden parts', [sparse.shortcuts.cart.index, sparse.shortcuts.track.index, sparse.home.index, ...sparse.collections.map((item) => item.index), sparse.help.faq?.index, sparse.help.whatsapp?.index], [
+    0, 1, 2, 3, 4, 5, 6, 7,
   ])
-  check('A03 home row is outside the animation', full.home.index, -1)
+  check('A03 home is first in browse (right after the shortcuts)', full.home.index, 2)
+
+  // ── «عرض كل الأقسام» (§١٥) ──
+  const sections = (count: number, pathname = '/') => menu(pathname, { collections: cols(count) }).moreSections
+  check('S00 MENU_VISIBLE_SECTIONS', MENU_VISIBLE_SECTIONS, 6)
+  check('S01 0 and 6 sections: no show-all button', [sections(0), sections(6)], [
+    { visibleCount: 0, hiddenCount: 0, startExpanded: false },
+    { visibleCount: 6, hiddenCount: 0, startExpanded: false },
+  ])
+  check('S02 7 and 10 sections: first 6 + the rest behind the button', [sections(7), sections(10)], [
+    { visibleCount: 6, hiddenCount: 1, startExpanded: false },
+    { visibleCount: 6, hiddenCount: 4, startExpanded: false },
+  ])
+  check('S03 current section among the first 6 = collapsed', sections(10, '/collection/c6').startExpanded, false)
+  check('S04 current section hidden = starts expanded', [sections(10, '/collection/c7').startExpanded, sections(10, '/collection/c10').startExpanded], [true, true])
+  check('S05 all sections kept in order (nothing dropped)', menu('/', { collections: cols(8) }).collections.map((item) => item.href.replace('/collection/', '')), [
+    'c1',
+    'c2',
+    'c3',
+    'c4',
+    'c5',
+    'c6',
+    'c7',
+    'c8',
+  ])
 
   // ── شرط الرئيسية (§٥) ──
   const content = (how: { visible: boolean; steps: number } | null, faq: { visible: boolean; items: number } | null) => ({
