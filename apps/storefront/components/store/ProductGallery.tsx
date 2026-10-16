@@ -1,18 +1,189 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import { ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react'
 import { galleryImages, type StoreProduct } from '@zell/core'
 import { cn } from '../../lib/cn'
+import { IDLE_SWIPE, isSwipeIdle, reduceSwipe, swipeEnabled, type SwipeCommand, type SwipeEvent, type SwipeState } from '../../lib/gallery/swipe'
 import { ImageSlot, type ImageFit } from '../ui/ImageSlot'
 
 type Shot = { src: string | null; fit: ImageFit; alt: string }
+
+/** GALLERY-SWIPE §٥ — السكرول الرأسي والتكبير بصباعين للمتصفح، والسحب الأفقي لينا. على السطحين بس. */
+const SWIPE_SURFACE = '[touch-action:pan-y_pinch-zoom]'
+
+function pageIsZoomed(): boolean {
+  const viewport = typeof window === 'undefined' ? null : window.visualViewport
+  return viewport !== null && viewport !== undefined && viewport.scale > 1
+}
+
+/** بداية اللمس على زرار أو رابط جوه السطح (الأسهم · «تكبير» · الإغلاق) = مش سحبة. */
+function startsOnControl(target: EventTarget | null, surface: HTMLElement): boolean {
+  if (!(target instanceof Element)) return false
+  const control = target.closest('button, a')
+  return control !== null && surface.contains(control)
+}
+
+/**
+ * GALLERY-SWIPE (docs/contracts/GALLERY-SWIPE.md §٣–§٦) — غلاف رفيع حوالين reduceSwipe لسطح واحد.
+ *
+ * - الحالة في ref (من غير re-render). down على السطح بيبدأ، ومتابعة document (capture) للـ pointerdown/up/cancel
+ *   وkeydown بتتركّب أول ما الحالة تبقى مش فاضية وبتتشال أول ما ترجع فاضية. الحدث ممكن يوصل مرتين (document + السطح)
+ *   والـ reducer بيتجاهل التكرار.
+ * - مفيش preventDefault على اللمس خالص؛ المنع للـ click اللي جاي من نفس السحبة بس (onClickCapture).
+ * - reset (وفك الالتقاط والمتابعة) لما السحب يتقفل أو يتفتح، أو resetKey يتغيّر، أو الـ unmount.
+ */
+function useGallerySwipe(enabled: boolean, resetKey: unknown, onCommand: (command: SwipeCommand) => void) {
+  const surfaceRef = useRef<HTMLDivElement | null>(null)
+  const stateRef = useRef<SwipeState>(IDLE_SWIPE)
+  const commandRef = useRef(onCommand)
+  const detachRef = useRef<(() => void) | null>(null)
+  const dispatchRef = useRef<(event: SwipeEvent) => boolean>(() => false)
+
+  useEffect(() => {
+    commandRef.current = onCommand
+  }, [onCommand])
+
+  const detach = useCallback(() => {
+    detachRef.current?.()
+    detachRef.current = null
+  }, [])
+
+  const attach = useCallback(() => {
+    if (detachRef.current !== null) return
+    const onDown = (event: PointerEvent) => {
+      const surface = surfaceRef.current
+      const onSurface = surface !== null && event.target instanceof Node && surface.contains(event.target)
+      dispatchRef.current({
+        type: 'down',
+        id: event.pointerId,
+        pointerType: event.pointerType,
+        x: event.clientX,
+        y: event.clientY,
+        onSurface,
+        onControl: surface !== null && startsOnControl(event.target, surface),
+        pageZoomed: pageIsZoomed(),
+      })
+    }
+    const onUp = (event: PointerEvent) => {
+      dispatchRef.current({ type: 'up', id: event.pointerId, pointerType: event.pointerType, x: event.clientX, y: event.clientY, now: performance.now() })
+    }
+    const onCancel = (event: PointerEvent) => {
+      dispatchRef.current({ type: 'cancel', id: event.pointerId, pointerType: event.pointerType })
+    }
+    const onKey = () => {
+      dispatchRef.current({ type: 'key' })
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    document.addEventListener('pointerup', onUp, true)
+    document.addEventListener('pointercancel', onCancel, true)
+    document.addEventListener('keydown', onKey, true)
+    detachRef.current = () => {
+      document.removeEventListener('pointerdown', onDown, true)
+      document.removeEventListener('pointerup', onUp, true)
+      document.removeEventListener('pointercancel', onCancel, true)
+      document.removeEventListener('keydown', onKey, true)
+    }
+  }, [])
+
+  const dispatch = useCallback(
+    (event: SwipeEvent): boolean => {
+      const out = reduceSwipe(stateRef.current, event)
+      stateRef.current = out.state
+      if (isSwipeIdle(out.state)) detach()
+      else attach()
+      if (out.command !== null) commandRef.current(out.command)
+      return out.preventClick
+    },
+    [attach, detach],
+  )
+
+  useEffect(() => {
+    dispatchRef.current = dispatch
+  }, [dispatch])
+
+  const reset = useCallback(() => {
+    const surface = surfaceRef.current
+    const tracking = stateRef.current.tracking
+    if (surface !== null && tracking !== null && surface.hasPointerCapture(tracking.id)) {
+      try {
+        surface.releasePointerCapture(tracking.id)
+      } catch {
+        // الالتقاط اتفك لوحده
+      }
+    }
+    stateRef.current = IDLE_SWIPE
+    detach()
+  }, [detach])
+
+  useEffect(() => {
+    reset()
+    return reset
+  }, [enabled, resetKey, reset])
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!enabled) return
+    const surface = event.currentTarget
+    dispatch({
+      type: 'down',
+      id: event.pointerId,
+      pointerType: event.pointerType,
+      x: event.clientX,
+      y: event.clientY,
+      onSurface: true,
+      onControl: startsOnControl(event.target, surface),
+      pageZoomed: pageIsZoomed(),
+    })
+    if (stateRef.current.tracking?.id === event.pointerId) {
+      try {
+        surface.setPointerCapture(event.pointerId)
+      } catch {
+        // المتصفح رفض الالتقاط — السحبة لسه بتتحسب من متابعة document
+      }
+    }
+  }
+  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!enabled) return
+    dispatch({ type: 'up', id: event.pointerId, pointerType: event.pointerType, x: event.clientX, y: event.clientY, now: performance.now() })
+  }
+  const onPointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!enabled) return
+    dispatch({ type: 'cancel', id: event.pointerId, pointerType: event.pointerType })
+  }
+  const onLostPointerCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!enabled) return
+    dispatch({ type: 'lost', id: event.pointerId })
+  }
+  const onClickCapture = (event: ReactMouseEvent<HTMLElement>) => {
+    if (dispatch({ type: 'click', now: performance.now(), detail: event.detail })) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+  }
+
+  return {
+    surfaceRef,
+    surfaceProps: enabled ? { onPointerDown, onPointerUp, onPointerCancel, onLostPointerCapture } : {},
+    onClickCapture,
+  }
+}
 
 /**
  * معرض مضغوط — الإطار مربع ثابت فمفيش layout shift وقت التبديل.
  *
  * الصورة الأولى (is_primary) هي مشهد الشباك ← cover.
  * باقي صور الرول ← contain عشان الخامة ما تتقصّش.
+ *
+ * GALLERY-SWIPE: سحب باللمس على الصورة الكبيرة وجوه شاشة «تكبير» (لو فيه أكتر من صورة). الصباع لليمين = التالية
+ * زي السهم الشمال، من غير حركة انزلاق. الأسهم والصور الصغيرة و«تكبير» والإغلاق وEscape زي ما هم.
  */
 export function ProductGallery({ product }: { product: StoreProduct }) {
   const shots = useMemo<Shot[]>(() => {
@@ -30,7 +201,7 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
 
   const count = shots.length
   const active = shots[index] ?? shots[0]
-  const hasMany = count > 1
+  const hasMany = swipeEnabled(count)
   const canZoom = Boolean(active?.src)
 
   const go = useCallback(
@@ -39,6 +210,10 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
     },
     [count],
   )
+
+  const onSwipe = useCallback((command: SwipeCommand) => go(command === 'next' ? 1 : -1), [go])
+  const pageSwipe = useGallerySwipe(hasMany && !zoomed, shots, onSwipe)
+  const zoomSwipe = useGallerySwipe(hasMany && zoomed, shots, onSwipe)
 
   // في RTL السهم اليمين معناه «السابق»
   useEffect(() => {
@@ -63,7 +238,12 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
     <div className="space-y-3">
       {/* الموبايل: إطار 4:3 بحد ٥٠vh والصورة كاملة (contain) — مفيش قص، والاسم والسعر بيطلعوا أسرع.
           من sm: نفس الشكل القديم (مربع، والصورة الأولى cover). زرار التكبير زي ما هو. */}
-      <div className="relative mx-auto w-full max-w-[560px]">
+      <div
+        ref={pageSwipe.surfaceRef}
+        {...pageSwipe.surfaceProps}
+        onClickCapture={pageSwipe.onClickCapture}
+        className={cn('relative mx-auto w-full max-w-[560px]', hasMany && SWIPE_SURFACE)}
+      >
         <ImageSlot
           ratio="1/1"
           fit={active.fit}
@@ -131,9 +311,15 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
           aria-modal="true"
           aria-label={active.alt}
           className="fixed inset-0 z-50 flex items-center justify-center bg-fg/80 p-4"
+          onClickCapture={zoomSwipe.onClickCapture}
           onClick={() => setZoomed(false)}
         >
-          <div className="relative w-full max-w-2xl" onClick={(event) => event.stopPropagation()}>
+          <div
+            ref={zoomSwipe.surfaceRef}
+            {...zoomSwipe.surfaceProps}
+            className={cn('relative w-full max-w-2xl', hasMany && SWIPE_SURFACE)}
+            onClick={(event) => event.stopPropagation()}
+          >
             <ImageSlot
               ratio="1/1"
               fit={active.fit}
