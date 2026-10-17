@@ -24,6 +24,7 @@
 | `app/(dashboard)/identity` | الهوية والسوشيال وصور الموقع |
 | `app/(dashboard)/shipping` | المحافظات والمناطق والأسعار · كارت «مدة الشحن والشحن السريع» (EXPRESS-SHIPPING W2) |
 | `app/(dashboard)/installation` · `installation-tools` | فني التركيب، وصفحة أدوات التركيب |
+| `app/(dashboard)/policies` | POLICY-PAGES: «السياسات» — الأربع صفحات وبيانات البائع (قراءة `zell.content.view` · حفظ وتفعيل `zell.content.edit`)؛ المحرر `components/content/PolicyPagesEditor.tsx` · القراءة `lib/data/policyPages.ts` · الحفظ `lib/mutations/policyPages.ts` (تزامن تفاؤلي) |
 | `app/(dashboard)/coupons` | أكواد الخصم (المالك) |
 | `app/(dashboard)/inventory/{suppliers,purchases,openings,lots}` | المخزون والمشتريات (0020): الموردين، ومستندات الشراء، وأول المدة، والـ lots |
 | `app/(dashboard)/settings` | الإعدادات وحالة النظام |
@@ -60,6 +61,7 @@
 | `app/order/[orderNumber]` | الإيصال (بكوكي `HttpOnly`) — وهو نفسه صفحة نجاح الطلب (Checkout بيحوّل عليه) — + «احتفظ برقم طلبك» (`OrderNumberKeep`) |
 | `app/track` | «تتبّع طلبك» (TRACK-ORDER): `page.tsx` (noindex, nofollow، ومش في الـ sitemap) + `actions.ts` (Server Action بيوصّل `lib/orders/trackLookup.ts` بـ `zell_checkout_track_order` بمفتاح الخدمة وبإعداد واتساب بعد ما الطلب يتلاقي؛ الكود في body الفورم مش في الرابط، والإدخال الغلط من غير نداء) |
 | `app/installation-tools` | صفحة أدوات التركيب |
+| `app/policies/[key]` | POLICY-PAGES: صفحة سياسة (`terms` · `shipping` · `returns` · `privacy`)، منشورة بس لو مفعّلة وصالحة (غير كده 404)، والمنشورة بس في الـ sitemap |
 | `app/api/orders` | إنشاء الطلب ← `zell_create_order` (مفتاح `ORDERS_ENABLED`) |
 | `app/api/coupons/preview` | معاينة الكوبون ← `zell_preview_coupon` |
 | `app/api/revalidate` | تحديث الكاش (بتناديه اللوحة بعد الحفظ) |
@@ -69,6 +71,7 @@
 | `lib/` (الجذر) | `cart.tsx` (السلة) · `catalog.ts` · `drafts.ts` · `productCopy.ts` · `useCheckoutCoupon.ts` · `cn.ts` · `install/installChoice.ts` («هتركّبه إزاي؟» في صفحة المنتج: سطر الاختيار الحالي وظهور الأدوات، + حالات) · `home/homeLayout.ts` (HOME-MOBILE: قرارات عرض الرئيسية، + حالات) · `site.ts` (عنوان المتجر العام) · `brand/logo.ts` و`brand/logoImage.tsx` (أرقام اللوجو وصورته وخط Cairo للأيقونات) |
 | `lib/size` | LENGTH-INPUT: `sizeEntry.ts` (الطريقة الأولى من الإعداد · حالة خانات السنتيمتر والحد الأدنى والرسايل · المنع ومحاولة الطلب · المسودة) + `sizeEntry.cases.ts` (suite `size`)، والواجهة في `components/store/SizePanel.tsx` و`ProductBuy.tsx` |
 | `lib/nav` | STORE-MENU: `storeNav.ts` (توحيد المسار وتمييز الصفحة الحالية للقائمة والهيدر · «كل الأقسام» و`DESKTOP_LINKS` · أجزاء قائمة الموبايل وشروطها · الشرط الوحيد لظهور «إزاي أطلب» و«الأسئلة المتكررة» اللي الرئيسية بتستخدمه كمان · عدد السلة وصياغته) + `storeNav.cases.ts` (suite `nav`) |
+| `lib/policies` | POLICY-PAGES: `policyView.ts` (تاريخ «آخر تحديث» بتوقيت القاهرة) + `policies.cases.ts` (suite `policies`: قراية المتجر والمحرر وتحقق الحفظ من `@zell/core`) |
 | `lib/data` | القراءة: `queries.ts` · `mappers.ts` · `rpc.ts` · `source.ts` · `supabaseServer.ts` · `deliverySettings.ts` (إعداد موعد التسليم — 0021-D2) · `shippingOptions.ts` (إعداد الشحن السريع ومدة الشحن — EXPRESS-SHIPPING) |
 | `lib/orders` | مسار الطلب: `contracts.ts` · `canonical.ts` + `requestHash.ts` + `hash.ts` (idempotency) · `checkoutSession.ts` · `receiptToken.ts` · `requestGuards.ts` · `coupon*.ts` (+ حالات) · `notify.ts` (تليجرام) · `result.ts` · `errors.ts` · `placeOrder.ts` (ترتيب إنشاء الطلب: الهاش ← إعداد الموعد ← النداء) + `deliverySettings.ts` (+ حالات بتتشغّل في CI — 0021-D2) · `trackOrder.ts` (تظبيط الكود · حارس رد v2 بالمفاتيح المعروفة بس وبقيود الداتابيز؛ رد v1 لوحده = «مش موجود») + `trackView.ts` (خط المراحل · الخطوة التالية · الموعد · الحساب · الشحن · واتساب — TRACK-ORDER v2 W2-A) + `trackLookup.ts` (منطق الـ Server Action من غير I/O) + `trackOrder.fixtures.ts` (بيانات تجربة) — حالاتهم suite `track` (`trackOrder.cases.ts` بيجمّع `trackView.cases.ts` و`trackLookup.cases.ts`) · `shippingChoice.ts` (+ `shipping.cases.ts`، suite `shipping` — EXPRESS-SHIPPING: اختيار «شحن عادي / شحن سريع» · الهاش · الـ retry · المسودة) · `receiptMoney.ts` (المبالغ ونوع الشحن بعد تحقق الإيصال) |
 
@@ -82,6 +85,7 @@
 | `src/installation.ts` | حساب فني التركيب |
 | `src/coupons.ts` (+ `coupons.cases.ts`) | حساب الكوبون |
 | `src/home.ts` | HOME-MOBILE: قراية «أول الصفحة على الموبايل» من عنصر `hero` في `settings.sections` (غايب أو غلط = `compact`) |
+| `src/policies.ts` · `src/policyDrafts.ts` | POLICY-PAGES: المفاتيح والحدود · قراية المتجر (`parsePublishedPolicies`: المنشورة بس، من غير نص افتراضي) · قراية المحرر (`readPolicyDrafts`) · تحقق الحفظ و«آخر تحديث» لكل صفحة (`buildPolicyPages`) · تقسيم النص · والنص المعتمد كبداية في المحرر بس (`policyDrafts.ts`) |
 | `src/orderNumber.ts` | شكل رقم الطلب |
 | `src/images.ts` · `src/imageUrl.ts` | الصور وروابطها |
 | `src/validation.ts` · `src/types.ts` · `src/index.ts` | التحقق والأنواع والتصدير (في `types.ts`: `STATUS_LABELS` لأسماء اللوحة، و`CUSTOMER_STATUS_LABELS` لأسماء العميل في «تتبّع طلبك» — TRACK-ORDER) |

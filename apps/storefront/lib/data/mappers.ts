@@ -13,6 +13,7 @@ import {
   parseSocialLinks,
   catalogLayoutOf,
   parseInstallationToolsPage,
+  parsePublishedPolicies,
   parseInstallationConfig,
   DEFAULT_ADDONS_TITLE,
   DEFAULT_STORE_CONTENT,
@@ -293,6 +294,8 @@ export const PUBLIC_SETTING_KEYS = [
   'addons_title',
   // صفحة «أدوات التركيب» — المحتوى بس، الربط من product_addons
   'installation_tools_page',
+  // POLICY-PAGES — صفحات السياسات (كلها عامة؛ المنشورة بس بتوصل للصفحة)
+  'policy_pages',
   // 0019 — مفتاح «أكواد الخصم» بس (true/false)، مش الأكواد نفسها
   'coupons_enabled',
   'whatsapp_number',
@@ -397,6 +400,8 @@ export function toStoreSettings(rows: SettingRow[], logo: StoreImage | null = nu
     socialLinks: parseSocialLinks(map.get('social_links')),
     addonsTitle: settingString(map, 'addons_title').trim() || DEFAULT_ADDONS_TITLE,
     installationToolsPage: parseInstallationToolsPage(map.get('installation_tools_page')),
+    // POLICY-PAGES — المنشورة بس؛ الغايب أو الفاسد = مقفولة
+    policies: parsePublishedPolicies(map.get('policy_pages')),
     // 0019 — jsonb true بالظبط (نفس فحص الداتابيز)؛ ناقص أو أي قيمة تانية = مقفولة
     couponsEnabled: map.get('coupons_enabled') === true,
     announcement: settingAnnouncement(map),
