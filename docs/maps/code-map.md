@@ -24,7 +24,7 @@
 | `app/(dashboard)/identity` | الهوية والسوشيال وصور الموقع |
 | `app/(dashboard)/shipping` | المحافظات والمناطق والأسعار · كارت «مدة الشحن والشحن السريع» (EXPRESS-SHIPPING W2) |
 | `app/(dashboard)/installation` · `installation-tools` | فني التركيب، وصفحة أدوات التركيب |
-| `app/(dashboard)/policies` | POLICY-PAGES: «السياسات» — الأربع صفحات وبيانات البائع (قراءة `zell.content.view` · حفظ وتفعيل `zell.content.edit`)؛ المحرر `components/content/PolicyPagesEditor.tsx` · القراءة `lib/data/policyPages.ts` · الحفظ `lib/mutations/policyPages.ts` (تزامن تفاؤلي) |
+| `app/(dashboard)/policies` | POLICY-PAGES: «السياسات» — الأربع صفحات وبيانات البائع (قراءة `zell.content.view` · حفظ وتفعيل `zell.content.edit`)؛ المحرر `components/content/PolicyPagesEditor.tsx` · القراءة `lib/data/policyPages.ts` · الحفظ `lib/mutations/policyPages.ts` (غلاف server-only) ← منطقه الخالص `lib/content/policySave.ts` (تزامن تفاؤلي) + `policySave.cases.ts` (suite `policy-save`) |
 | `app/(dashboard)/coupons` | أكواد الخصم (المالك) |
 | `app/(dashboard)/inventory/{suppliers,purchases,openings,lots}` | المخزون والمشتريات (0020): الموردين، ومستندات الشراء، وأول المدة، والـ lots |
 | `app/(dashboard)/settings` | الإعدادات وحالة النظام |
