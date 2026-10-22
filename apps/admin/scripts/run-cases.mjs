@@ -43,6 +43,7 @@ const SUITES = [
   { name: 'home', dir: 'lib/content', entry: 'homeMobile.cases.ts', run: 'runHomeMobileCases' },
   { name: 'size-entry', dir: 'lib/content', entry: 'sizeEntry.cases.ts', run: 'runSizeEntryCases' },
   { name: 'storefront-link', dir: 'lib/storefront', entry: 'link.cases.ts', run: 'runStorefrontLinkCases' },
+  { name: 'policy-save', dir: 'lib/content', entry: 'policySave.cases.ts', run: 'runPolicySaveCases' },
 ]
 
 const COMPILER_OPTIONS = {
