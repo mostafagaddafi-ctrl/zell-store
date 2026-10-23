@@ -97,7 +97,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const code = await sendTelegram(
-    '🧪 <b>رسالة تجربة من لوحة ZELL</b>\nلو الرسالة دي وصلتك، إشعارات الطلبات شغّالة.',
+    '🧪 <b>رسالة تجربة من لوحة myzill</b>\nلو الرسالة دي وصلتك، إشعارات الطلبات شغّالة.',
   )
   return NextResponse.json({ ok: code === null, code }, { headers: { 'Cache-Control': 'no-store' } })
 }
