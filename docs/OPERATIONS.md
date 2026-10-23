@@ -22,7 +22,7 @@ Vercel و Supabase والمتغيرات والكاش وإدارة الأدمن.
 | Build / Install | افتراضي | افتراضي |
 | Node.js | **20.x** (نفس `ci.yml`) | **20.x** |
 | Ignored Build Step | `bash scripts/vercel-ignore-build.sh storefront` | `bash scripts/vercel-ignore-build.sh admin` |
-| الرابط | `zellnow.me` (و`www.zellnow.me` بيحوّل عليه) | مضبوط في Vercel — مش مكرر هنا |
+| الرابط | `myzill.com` (و`www.myzill.com` بيحوّل عليه؛ الدومين القديم `zellnow.me` بيتشال بعد النقل) | مضبوط في Vercel — مش مكرر هنا |
 
 🔒 **رابط لوحة الإدارة مضبوط داخل Vercel ولا يُكرر عمدًا داخل مستودع**
 **الكود.** هذا إجراء تنظيمي وليس حدًا أمنيًا؛ Supabase Auth وفحص الدور
@@ -81,8 +81,8 @@ middleware هيشوفه **فاضي**، وكل طلب هيروح `/login?error=un
 كل نسخة (أي محل) بتضبط رابط متجرها من غير أي تعديل في الكود:
 
 1. مشروع **اللوحة** في Vercel ← Settings ← Environment Variables (Production).
-2. `STOREFRONT_URL` = رابط المتجر، مثلًا `https://zellnow.me` — `https` بس، من غير مسار ولا استعلام ولا بيانات دخول.
-3. `STOREFRONT_HOST` = نفس المضيف بالحرف، مثلًا `zellnow.me`.
+2. `STOREFRONT_URL` = رابط المتجر، مثلًا `https://myzill.com` — `https` بس، من غير مسار ولا استعلام ولا بيانات دخول.
+3. `STOREFRONT_HOST` = نفس المضيف بالحرف، مثلًا `myzill.com`.
 4. **Redeploy للوحة** علشان القيم الجديدة تتقري.
 
 - المتغيرين دول بيشغّلوا: التحديث الفوري بعد الحفظ (`lib/revalidateStorefront.ts`) · فحص المتجر في «حالة النظام» (`lib/systemHealth.ts`) · لينكين «معاينة المتجر» و«شوف المتجر» (`lib/storefrontLink.ts`).
