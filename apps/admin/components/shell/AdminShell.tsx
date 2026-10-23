@@ -119,7 +119,7 @@ export function AdminShell({
         <p className="text-sm font-extrabold text-brand">
           <span dir="ltr" className="inline-flex items-center gap-1.5">
             <LogoMark size={20} letter={LOGO_LETTER} />
-            ZELL
+            myzill
           </span>
         </p>
         <p className="text-xs text-muted">لوحة التحكم</p>
@@ -213,7 +213,7 @@ export function AdminShell({
           </button>
           <span dir="ltr" className="inline-flex items-center gap-1.5 text-sm font-bold text-brand">
             <LogoMark size={20} letter={LOGO_LETTER} />
-            ZELL
+            myzill
           </span>
         </header>
 
