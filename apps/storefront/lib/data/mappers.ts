@@ -372,7 +372,7 @@ export function toStoreSettings(rows: SettingRow[], logo: StoreImage | null = nu
   const disabled = new Set(Array.isArray(disabledRaw) ? disabledRaw.filter((item): item is string => typeof item === 'string') : [])
 
   return {
-    storeName: settingString(map, 'store_name', 'ZELL'),
+    storeName: settingString(map, 'store_name', 'myzill'),
     logo,
     /**
      * القيمة الحقيقية بتتحط في fetchStorefrontFromSupabase بعد ما
