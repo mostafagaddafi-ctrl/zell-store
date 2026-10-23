@@ -22,7 +22,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <p className="text-lg font-extrabold text-brand">ZELL</p>
+        <p className="text-lg font-extrabold text-brand">myzill</p>
         <p className="text-xs text-muted">لوحة التحكم</p>
       </div>
 

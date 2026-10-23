@@ -104,7 +104,7 @@ const FALLBACK_SHIPPING_RATES: Record<string, number> = {
 }
 
 export const FALLBACK_SETTINGS: StoreSettings = {
-  storeName: 'ZELL',
+  storeName: 'myzill',
   logo: null,
   heroImage: null,
   logoUrl: '',
@@ -112,7 +112,7 @@ export const FALLBACK_SETTINGS: StoreSettings = {
   offerEnabled: true,
   installation: { enabled: false, note: '', feePerMeterPiastres: null, areas: {} },
   whatsappNumber: '201000000000',
-  whatsappMessage: 'مرحباً ZELL، عايز أستفسر عن فيلم زجاج للبيت',
+  whatsappMessage: 'مرحباً myzill، عايز أستفسر عن فيلم زجاج للبيت',
   shippingRates: FALLBACK_SHIPPING_RATES,
   shippingDefaultPiastres: 8000,
   freeShippingThresholdPiastres: 0,

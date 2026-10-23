@@ -17,8 +17,8 @@ export const dynamic = 'force-dynamic'
 const cairo = Cairo({ subsets: ['arabic', 'latin'], display: 'swap', variable: '--font-cairo' })
 
 export const metadata: Metadata = {
-  title: { default: 'لوحة تحكم ZELL', template: '%s · لوحة تحكم ZELL' },
-  description: 'إدارة متجر ZELL',
+  title: { default: 'لوحة تحكم myzill', template: '%s · لوحة تحكم myzill' },
+  description: 'إدارة متجر myzill',
   robots: { index: false, follow: false },
 }
 

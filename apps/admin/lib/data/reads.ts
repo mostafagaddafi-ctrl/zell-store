@@ -495,7 +495,7 @@ export const supabaseAdminData: AdminDataSource = {
     ])
 
     const map = settingsMap(rows.rows)
-    const storeName = readString(map, 'store_name', 'ZELL')
+    const storeName = readString(map, 'store_name', 'myzill')
     const logoRow = siteImages.rows.find((row) => row.kind === 'logo')
     const heroRow = siteImages.rows.find((row) => row.kind === 'hero')
 
