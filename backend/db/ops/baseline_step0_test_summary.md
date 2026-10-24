@@ -1,10 +1,22 @@
-# BASELINE-OUTSIDE step 0 — isolated test (2026-10-24 12:41 UTC)
+# BASELINE-OUTSIDE step 0 — isolated test, review 2 fixes (2026-10-24)
 
-- Engine: PostgreSQL 17.10 (embedded-postgres 17.10.0-beta.17) on the QA server, localhost only, unprivileged OS user, synthetic data only (`baseline_step0_test_setup.sql`), data dir deleted after. No connection to Production.
-- Driver: node-pg simple protocol. Statements returned: BEGIN, SET x5, SELECT, ROLLBACK.
-- Final limits are inlined (no placeholders): the execution transport interpolates double-brace text, so the Production text must contain none.
-- Result: 12,119 bytes; `transaction_read_only = on`; identical output across two runs (excluding `at_utc`).
-- Sections: q1 6 complete (`missing`: zell_set_primary_product_image; `overloaded`: zell_reorder_products — both intentional in the setup) · q2 columns 5 (column ACL), constraints 2, indexes 2, sequences 1 (identity, dep=i, no counter value), policies 1, triggers 1, table owner/RLS/FORCE RLS/ACL with grantor+grantable · q2_benefits_constraint scoped to public.products · q3 default ACL rows 2 (grantor/grantable) + hard-wired defaults 15 · q4 roles 5, members 2 with inherit_option/set_option (NOINHERIT case: inherit=false set=true) · q5 functions 7, relations 3.
-- Limits test (objects=2, inventory=3, def_bytes=120): q1 count=6 complete=false items=2 · q5 count=7 complete=false items=3 · oversized definitions return def=null with def_oversize=true.
+- Engine: PostgreSQL 17.10 (embedded-postgres 17.10.0-beta.17) on the QA server, localhost only, unprivileged OS user, synthetic data only (`baseline_step0_test_setup.sql`), data dir and package deleted after. No connection to Production.
+- Statements returned: BEGIN, SET x5, SELECT, ROLLBACK. `transaction_read_only = on`. Output identical across two runs (excluding `at_utc`). payload_bytes 20,166 (cap 1,000,000), complete=true.
+
+## B1 — sequence code mapping
+- Explicit map catalog->acldefault: r->r, S->s, f->f, T->T, n->n (`objmap`); `acldefault_code` is returned with each item.
+- Test: hard-wired defaults for creator `postgres`, catalog objtype S = SELECT, UPDATE, USAGE (via `s`) — matches expected.
+
+## B2 — empty default ACL rows and creators
+- New section `q3_default_acl_rows`: one item per pg_default_acl row with `acl_items` (cardinality), independent of exploded items. `q3_default_acl` uses LEFT JOIN LATERAL, so an empty ACL keeps one item with grantee/privilege null.
+- `postgres` and `supabase_admin` are always included as creators for the hard-wired defaults.
+- Test: `creator_empty` (global functions row with empty ACL) -> row present, acl_items=0, item grantee=null; `creator_none` (no rows) -> 0 rows, so hard-wired defaults apply. Two different results.
+
+## B3 — total size cap inside the result
+- The whole data object is built first, then measured (`payload_bytes`). Over `payload_cap_bytes` -> a small result with complete=false, stop_reason=payload_over_cap, data=null.
+- `complete` at the top = every section complete and no def_oversize; otherwise stop_reason=section_incomplete_or_oversize.
+- Tests: cap=3,000 -> payload_over_cap, data=null, 382 bytes received. Limits objects=2/inventory=3/def_bytes=120 -> complete=false, section_incomplete_or_oversize, q1 count=6 items=2 any_oversize=true.
+- Rule: complete=false, any stop_reason, or any def_oversize=true = stop; the snapshot is not used and nothing is dropped silently.
+
 - Read-only probe: CREATE TABLE inside a READ ONLY transaction rejected; probe table absent afterwards.
-- Open point: the Production channel is the Retool postgres resource `.query()`. Whether it returns the SELECT result of a multi-statement text (BEGIN; SET; SELECT; ROLLBACK) is not verified; needs a tiny approved channel check (e.g. `begin transaction read only; select 1 as ok; rollback;`) or an agreed alternative before step 0.
+- Channel: historical evidence in 04-DB-SAFETY.md:92-93 (BEGIN; SELECT; ROLLBACK returned rows on 2026-10-07). Same-channel proof for the current `.query()` is not established; a limited channel check needs a separate owner approval.
