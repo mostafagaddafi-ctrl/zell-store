@@ -117,19 +117,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -139,6 +126,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: psql client
         run: psql --version
@@ -184,19 +176,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -206,6 +185,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       # node 22 علشان --experimental-strip-types (حساب الرسوم من packages/core بالحرف، من غير build).
       - name: Setup Node
@@ -262,19 +246,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -284,6 +255,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: psql client
         run: psql --version
@@ -329,19 +305,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -351,6 +314,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: psql client
         run: psql --version
@@ -399,19 +367,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -423,6 +378,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: psql client
         run: psql --version
@@ -467,19 +427,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -489,6 +436,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: psql client
         run: psql --version
@@ -533,19 +485,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -555,6 +494,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: psql client
         run: psql --version
@@ -599,19 +543,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -621,6 +552,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: psql client
         run: psql --version
@@ -671,19 +607,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -696,6 +619,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -754,19 +682,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -776,6 +691,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: Setup Node
         uses: actions/setup-node@v4
