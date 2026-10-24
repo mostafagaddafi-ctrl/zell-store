@@ -1,0 +1,51 @@
+# backend/db/ci/build_from_scratch.list — BASELINE-OUTSIDE §4-1. Explicit, ordered build list (NOT a glob).
+# kind|path relative to backend/db|reason
+# kinds: apply = historical file as written · baseline = BASELINE-OUTSIDE drawing (CI only) · fixture = synthetic CI data ·
+#        check = read-only assertion · exclude = not built (reason). Run by ci/build_from_scratch.sh as postgres (not superuser),
+#        after ci/platform_shim.sql + ci/platform_default_privileges.sql (CI superuser).
+# Not listed by design: *_ptest, *_verify, *_rollback, *_dryrun, *.md, ops/*, ci/* (other than fixtures).
+apply|schema.sql|base tables (products, orders, order_items, settings)
+baseline|baseline/b0_orders_internal_notes.sql|orders.internal_notes + orders_internal_notes_length (live position 16: right after schema.sql, before 0006a adds the next orders columns)
+apply|migrations/0002_security_rls_grants.sql|RLS + grants + storage bucket
+apply|migrations/0003_product_images.sql|product_images
+exclude|migrations/0004_harden_default_privileges.sql|not matching the 2026-10-24 snapshot; application date unresolved (§9-2)
+exclude|migrations/0005a_generate_order_number.sql|excluded from observed-state reconstruction: step-0 snapshot has no generate_order_number; historical execution unresolved (§١١-5)
+exclude|migrations/0005b_order_idempotency.sql|excluded from observed-state reconstruction: orders snapshot has no orders_idempotency_key_idx and matches the 0006a btrim constraint; historical execution unresolved (§١١-5)
+exclude|migrations/0005c_create_order_function.sql|old draft: header says not executed (§4-1)
+apply|migrations/0006_site_images.sql|site_images + storage_orphans
+apply|migrations/0006a_order_columns.sql|order columns
+apply|migrations/0006b_order_functions.sql|zell_order_writer + zell_create_order
+apply|migrations/0006c_order_receipt_expiry.sql|receipt expiry
+apply|migrations/0007_cleanup_notify_secrets.sql|settings cleanup
+apply|migrations/0008_announcement_bar.sql|announcement + zell_save_content
+fixture|ci/fixtures/before_0008a_content.sql|0008a needs content rows; synthetic, fixed timestamps (§9-4)
+apply|migrations/0008a_align_announcement_version.sql|announcement version
+check|ci/fixtures/check_0008a_timestamp.sql|timestamp normalization test (§9-4)
+apply|migrations/0009_site_image_kinds.sql|hero kind
+apply|migrations/0010_collections.sql|collections
+apply|migrations/0011_fix_collection_products_check.sql|collections fix
+apply|migrations/0012_collections_placement_cover.sql|placement + cover
+baseline|baseline/b1_products_columns.sql|zell_valid_benefits + products columns 15..20 + product_images.fit + 3 constraints (before 0013: lock_width is column 21)
+baseline|baseline/b2_admin_functions.sql|five admin RPC functions (after b1: set_primary writes fit)
+apply|migrations/0013_products_lock_width.sql|lock_width
+apply|migrations/0014_products_compare_at.sql|compare_at
+apply|migrations/0015_product_widths.sql|product widths
+apply|migrations/0016_piece_products.sql|piece products
+apply|migrations/0017_collections_catalog_layout.sql|catalog layout
+apply|migrations/0018_installation_fee.sql|installation fee
+apply|migrations/0019_coupons.sql|coupons
+baseline|baseline/b3_admin_users.sql|admin_users (0020 is the first file that requires it)
+fixture|ci/fixtures/before_0020_owner.sql|synthetic active owner (@example.invalid) required by 0020 / 0021p (§4-3)
+apply|migrations/0020_inventory_purchasing.sql|inventory
+apply|migrations/0020s_inv_session.sql|inventory session
+apply|migrations/0020s_pr3_revoke_service_role.sql|inventory PR-3
+apply|migrations/0021p_erp_access.sql|access engine
+apply|migrations/0021p_zell_erp_access.sql|access adapter
+apply|migrations/0021a_a1_order_cycle.sql|order cycle
+apply|migrations/0021d_preferred_delivery.sql|preferred delivery
+apply|migrations/0021a_p1_payments.sql|payments
+apply|migrations/0021a_p2_checkout_fee.sql|checkout fee
+apply|migrations/0021d2_delivery_settings.sql|delivery settings
+apply|migrations/0021tr_track_order.sql|track order
+apply|migrations/0021ex_express_shipping.sql|express shipping
+apply|migrations/0021tr2_track_order_v2.sql|track order v2

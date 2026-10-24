@@ -4,7 +4,7 @@
 
 - **«اتعرّف في»** = أول ملف عمل الحاجة. الملفات اللي غيّرتها بعد كده مكتوبة جنبها.
 - **حالة التطبيق على Production:** المرجع `08-HANDOFF-NOW.md` في zell-skills. ⚠ سطور «الحالة» اللي في راس الملفات و`migrations/README.md` اتكتبت وقت كتابة الملف، وفيها حاجات قديمة.
-- **برّه الـ migrations:** فيه حاجات اتعملت من لوحة Supabase / SQL Editor ومالهاش ملف هنا. متعلّم عليها **(برّه الملفات)**، ووصفها في `docs/OPERATIONS.md` و`docs/ADMIN-AUTH.md`.
+- **برّه الـ migrations:** فيه حاجات اتعملت من لوحة Supabase / SQL Editor ومالهاش ملف هنا. متعلّم عليها **(برّه الملفات)**، ووصفها في `docs/OPERATIONS.md` و`docs/ADMIN-AUTH.md`. الحاجات دي مرسومة دلوقتي في `backend/db/baseline/` للبناء من الصفر في CI بس (`ci/build_from_scratch.list`، عقد BASELINE-OUTSIDE §١٠)، ومابتتطبّقش على Production.
 - أي PR بيضيف أو بيغيّر جدول أو دالة أو دور **يحدّث الملف ده في نفس الـ PR.**
 - الأقسام وأرقام السطور في الملفات الكبيرة: `docs/maps/big-files.md`.
 
@@ -32,8 +32,8 @@
 
 | الجدول | اتعرّف في | بيعمل إيه | اتغيّر في |
 | --- | --- | --- | --- |
-| `products` | `schema.sql` | المنتجات: سعر المتر والعرض والطول، والقطعة | 0013 `lock_width` · 0014 `compare_at_piastres` · 0016 `sale_unit` `is_listed` `max_quantity` · 0020 trigger بيحمي `sale_unit` |
-| `orders` | `schema.sql` | راس الطلب: الزبون والعنوان والإجماليات والحالة | 0005b/0006a idempotency والجلسة والإيصال · 0018 المنطقة والتركيب · 0019 الكوبون والخصم + trigger `orders_cancelled_final` · 0021-A A1: `preparing` و`refused` في قيد الحالة (القديم في تعليق القيد) + `next_follow_up_at` و`delivery_confirmed_date/period/note` + triggers `orders_status_guard` و`orders_created_event` · 0021-D: `preferred_delivery_date/period/note` (لقطة موعد العميل المفضّل) · 0021-A P1: `paid_piastres` (الدفعات − الردود، بتكتبه دوال الدفعات بس) و`confirmation_fee_piastres` (لقطة) + trigger `orders_money_guard` · EXPRESS-SHIPPING W1: `shipping_method` و`shipping_days_min/max` (لقطة الطريقة والمدة، nullable) + قيد `orders_shipping_snapshot_shape` (§١٠) |
+| `products` | `schema.sql` | المنتجات: سعر المتر والعرض والطول، والقطعة | 0013 `lock_width` · 0014 `compare_at_piastres` · 0016 `sale_unit` `is_listed` `max_quantity` · 0020 trigger بيحمي `sale_unit` · **(برّه الملفات)** أعمدة `brand` · `images` · `before_image` · `after_image` · `short_benefit` · `benefits` (15–20) + `products_benefits_shape` · `products_short_benefit_length`: `baseline/b1_products_columns.sql` |
+| `orders` | `schema.sql` | راس الطلب: الزبون والعنوان والإجماليات والحالة | 0005b/0006a idempotency والجلسة والإيصال · 0018 المنطقة والتركيب · 0019 الكوبون والخصم + trigger `orders_cancelled_final` · 0021-A A1: `preparing` و`refused` في قيد الحالة (القديم في تعليق القيد) + `next_follow_up_at` و`delivery_confirmed_date/period/note` + triggers `orders_status_guard` و`orders_created_event` · 0021-D: `preferred_delivery_date/period/note` (لقطة موعد العميل المفضّل) · 0021-A P1: `paid_piastres` (الدفعات − الردود، بتكتبه دوال الدفعات بس) و`confirmation_fee_piastres` (لقطة) + trigger `orders_money_guard` · EXPRESS-SHIPPING W1: `shipping_method` و`shipping_days_min/max` (لقطة الطريقة والمدة، nullable) + قيد `orders_shipping_snapshot_shape` (§١٠) · **(برّه الملفات)** `internal_notes` (الترتيب الحي 16) + `orders_internal_notes_length`: `baseline/b0_orders_internal_notes.sql` |
 | `order_payments` | `0021a_p1` | الدفعات والردود (append-only، `command_id` فريد، لقطة اسم الطريقة، FK restrict على الطلب) | RLS لـ `zell_order_definer` بس |
 | `zell_payment_methods` | `0021a_p1` | طرق الدفع (كاش · فودافون كاش · إنستاباي · تحويل بنكي، قابلة للإدارة) | الحذف بس لو مااتستخدمتش |
 | `zell_payment_settings` | `0021a_p1` | صف واحد: إعداد رسوم التأكيد (مقفول) · الآجل (مقفول) · أرقام الدفع · السياسة · قالب واتساب | الحفظ للمالك بدالة |
@@ -41,7 +41,7 @@
 | `zell_payment_commands` | `0021a_p1` | أوامر الدفع (مراجعة #122): أمر لكل `record` / `refund` / `deliver_order` ناجح، ومعاه لقطة النتيجة الأصلية اللي الإعادة بترجّعها (append-only، `command_id` primary key، FK restrict على الطلب) | RLS لـ `zell_order_definer` بس |
 | `order_items` | `schema.sql` | سطور الطلب | 0016 `sale_unit` `quantity` · 0021-TR: SELECT لـ `zell_order_definer` على ٨ أعمدة + policy `zell_order_definer_select` (قراية بس، §٩) |
 | `settings` | `schema.sql` | إعدادات ومحتوى بمفتاح (hero · sections · faqs · shipping_rates …) | 0007 شال أسرار تليجرام · 0008 مفتاح `announcement` · 0019 مفتاح `coupons_enabled` |
-| `product_images` | `0003` | صور معرض المنتج (`bucket` + `object_path`)، والترتيب والرئيسية | |
+| `product_images` | `0003` | صور معرض المنتج (`bucket` + `object_path`)، والترتيب والرئيسية | · **(برّه الملفات)** `fit` (16) + `product_images_fit_check`: `baseline/b1_products_columns.sql` |
 | `site_images` | `0006` | اللوجو وصور الموقع | 0009 نوع `hero` + صورة نشطة واحدة لكل نوع فردي |
 | `storage_orphans` | `0006` | ملفات Storage محتاجة تنظيف | 0012 سبب `removed` |
 | `collections` | `0010` | الأقسام | 0012 `show_on_home` `show_in_nav` والغلاف · 0017 `catalog_layout` |
@@ -49,7 +49,7 @@
 | `product_widths` | `0015` | عروض الرول الإضافية لكل منتج بسعر المتر بتاعها | |
 | `product_addons` | `0016` | الإضافات (منتجات القطعة) لكل فيلم | |
 | `coupons` | `0019` | أكواد الخصم | |
-| `admin_users` | **(برّه الملفات)** · `docs/ADMIN-AUTH.md` | مين يدخل اللوحة: `user_id` (← `auth.users`، on delete cascade) · `role` owner/admin · `is_active`. RLS من غير policies | 0021-P: ٤ triggers (§٥) |
+| `admin_users` | **(برّه الملفات)** · `baseline/b3_admin_users.sql` (رسم BASELINE-OUTSIDE للبناء من الصفر في CI بس، مابيتطبّقش على Production) · `docs/ADMIN-AUTH.md` | مين يدخل اللوحة: `user_id` (← `auth.users`، on delete cascade) · `role` owner/admin · `is_active`. RLS من غير policies | 0021-P: ٤ triggers (§٥) |
 
 ### دورة الطلب (0021-A A1)
 
@@ -144,12 +144,12 @@
 | الدالة | اتعرّف في | بتعمل إيه |
 | --- | --- | --- |
 | `zell_save_content(…)` | **(برّه الملفات)**، واتعادت في `0008` | مفاتيح المحتوى + شريط الإعلان، بفحص نسخة (٨ معاملات) |
-| `zell_save_shipping(…)` | **(برّه الملفات)** | مفاتيح الشحن |
-| `zell_save_identity(…)` | **(برّه الملفات)** | مفاتيح الهوية (من غير `logo_url`) |
-| `zell_reorder_products(…)` | **(برّه الملفات)** | ترتيب المنتجات (من ١) |
-| `zell_reorder_product_images(…)` | **(برّه الملفات)** | ترتيب صور المعرض (من ٠) |
-| `zell_set_primary_product_image(…)` | **(برّه الملفات)** | الصورة الرئيسية |
-| `zell_valid_benefits(…)` | **(برّه الملفات)** | فحص شكل `products.benefits` (قيد `products_benefits_shape`) |
+| `zell_save_shipping(…)` | **(برّه الملفات)** · `baseline/b2_admin_functions.sql` | مفاتيح الشحن |
+| `zell_save_identity(…)` | **(برّه الملفات)** · `baseline/b2_admin_functions.sql` | مفاتيح الهوية (من غير `logo_url`) |
+| `zell_reorder_products(…)` | **(برّه الملفات)** · `baseline/b2_admin_functions.sql` | ترتيب المنتجات (من ١) |
+| `zell_reorder_product_images(…)` | **(برّه الملفات)** · `baseline/b2_admin_functions.sql` | ترتيب صور المعرض (من ٠) |
+| `zell_set_primary_product_image(…)` | **(برّه الملفات)** · `baseline/b2_admin_functions.sql` | الصورة الرئيسية |
+| `zell_valid_benefits(…)` | **(برّه الملفات)** · `baseline/b1_products_columns.sql` | فحص شكل `products.benefits` (قيد `products_benefits_shape`) |
 | `zell_activate_site_image(…)` | `0009` | تبديل صورة الموقع ذرّيًا (القديمة بتروح `storage_orphans`) |
 | `zell_reorder_collections(…)` | `0010`، واتعدّلت في `0012` | ترتيب الأقسام |
 | `zell_set_collection_products(…)` | `0010`، واتصلّحت في `0011` | منتجات القسم وترتيبها |

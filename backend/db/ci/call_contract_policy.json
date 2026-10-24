@@ -1,0 +1,80 @@
+{
+  "note": "BASELINE-OUTSIDE §5 call-contract policy. excluded_paths and exceptions are reviewed; forbidden roles cite their source.",
+  "limits": [
+    "Static text scan of restRpc(...) and .rpc(...) in apps/** only (minus excluded_paths). Names built at run time, calls through other helpers, direct table reads/writes (restGet / restPatch / restInsert) and references inside SQL function bodies are NOT seen.",
+    "An exception checks only that the function exists, that the calling role has EXECUTE and that forbidden roles have none — NOT the argument names.",
+    "A map-based call (ORDER_FUNCTIONS / INVENTORY_SESSION_FUNCTIONS) is checked for EVERY name in the map, even if a given call site uses a subset.",
+    "Any new non-parseable site, or an exception that no longer matches a site, fails until reviewed."
+  ],
+  "excluded_paths": [
+    {
+      "pattern": "\\.cases\\.tsx?$",
+      "reason": "pure case runners against fake databases; no real call"
+    },
+    {
+      "pattern": "\\.selftest\\.",
+      "reason": "checker self-tests"
+    },
+    {
+      "pattern": "^apps/[^/]+/scripts/",
+      "reason": "repository checkers run in CI, not app runtime calls"
+    }
+  ],
+  "forbidden": [
+    {
+      "names": [
+        "zell_valid_benefits",
+        "zell_save_shipping",
+        "zell_save_identity",
+        "zell_reorder_products",
+        "zell_reorder_product_images",
+        "zell_set_primary_product_image"
+      ],
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "source": "step 0 ACL (2026-10-24): EXECUTE = postgres + service_role only"
+    },
+    {
+      "map": "ORDER_FUNCTIONS",
+      "roles": [
+        "service_role"
+      ],
+      "source": "apps/admin/lib/orders/rpc.ts header: session client only, no service_role (0021-A)"
+    },
+    {
+      "map": "INVENTORY_SESSION_FUNCTIONS",
+      "roles": [
+        "service_role"
+      ],
+      "source": "apps/admin/lib/inventory/rpc.ts header + 0020-S PR-3: no service_role on zell_inv_*"
+    }
+  ],
+  "exceptions": [
+    {
+      "file": "apps/admin/lib/inventory/rpc.ts",
+      "first_arg": "INVENTORY_SESSION_FUNCTIONS[fn]",
+      "kind": "params_unknown",
+      "reason": "typed wrapper callInventory(fn, args): names come from the INVENTORY_SESSION_FUNCTIONS map (all checked here for existence, EXECUTE for authenticated, none for service_role); per-function argument names are TypeScript types in sessionCall.ts, not statically parsed. Session contract also checked by apps/admin/scripts/check-inventory-session.mjs in CI."
+    },
+    {
+      "file": "apps/admin/lib/orders/rpc.ts",
+      "first_arg": "ORDER_FUNCTIONS[fn]",
+      "kind": "params_unknown",
+      "reason": "typed wrapper over the ORDER_FUNCTIONS map (all names checked here for existence, EXECUTE for authenticated, none for service_role); argument names are TypeScript types per action, not statically parsed."
+    },
+    {
+      "file": "apps/storefront/app/api/orders/route.ts",
+      "first_arg": "'zell_create_order'",
+      "kind": "params_unknown",
+      "reason": "args object assembled by the checkout route from the validated cart; zell_create_order has its own full protocol (04-DB-SAFETY, 0021-A §٦-١) and SQL suites. Existence and service_role EXECUTE are still checked here."
+    },
+    {
+      "file": "apps/storefront/lib/orders/couponPreview.ts",
+      "first_arg": "parsed.code",
+      "kind": "name_unparsed",
+      "reason": "not a database call: deps.rpc is an injected function (PreviewDeps.rpc). The real call is apps/storefront/app/api/coupons/preview/route.ts restRpc('zell_preview_coupon', { p_code }), which is parsed and checked."
+    }
+  ]
+}

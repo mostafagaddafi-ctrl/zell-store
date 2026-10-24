@@ -117,19 +117,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -139,6 +126,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: psql client
         run: psql --version
@@ -184,19 +176,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -206,6 +185,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       # node 22 علشان --experimental-strip-types (حساب الرسوم من packages/core بالحرف، من غير build).
       - name: Setup Node
@@ -262,19 +246,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -284,6 +255,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: psql client
         run: psql --version
@@ -329,19 +305,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -351,6 +314,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: psql client
         run: psql --version
@@ -399,19 +367,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -423,6 +378,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: psql client
         run: psql --version
@@ -467,19 +427,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -489,6 +436,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: psql client
         run: psql --version
@@ -533,19 +485,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -555,6 +494,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: psql client
         run: psql --version
@@ -599,19 +543,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -621,6 +552,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: psql client
         run: psql --version
@@ -671,19 +607,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    services:
-      postgres:
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_USER: supabase_admin
-          POSTGRES_PASSWORD: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U supabase_admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
     env:
       PGHOST: localhost
       PGPORT: '5432'
@@ -696,6 +619,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -714,3 +642,68 @@ jobs:
 
       - name: SQL suite (TRACK-ORDER v2 on the Production shape A1 + D + P1 + P2 + D2 + TR + EXPRESS)
         run: bash backend/db/ci/0021tr2_sql_ci.sh
+
+  sql-baseline-changes:
+    name: "sql BASELINE-OUTSIDE: detect changes"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # حارس عقد الاستدعاء (§٥) بيقرا apps/**، فأي تغيير في backend/db أو التطبيقين بيشغّل البناء.
+      - name: Detect database / app changes
+        id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$EVENT" = "pull_request" ]; then range="$BASE_SHA...HEAD"; else range="$BEFORE_SHA..HEAD"; fi
+          if ! changed=$(git diff --name-only "$range" 2>/dev/null); then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if printf '%s\n' "$changed" | grep -Eq '^(backend/db/|apps/|\.github/workflows/ci\.yml$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # BASELINE-OUTSIDE §٤ — بناء الداتابيز كلها من الصفر على Postgres 17 مؤقت، وpostgres مش superuser. مفيش أي اتصال بـ Supabase.
+  # كلمة السر دي لحاوية مؤقتة بتتمسح مع نهاية الـ job.
+  sql-baseline:
+    name: "sql BASELINE-OUTSIDE: build from scratch + compare + guards + smoke + call contract (postgres 17)"
+    needs: sql-baseline-changes
+    if: needs.sql-baseline-changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGPASSWORD: ci
+      CI_SUPERUSER: supabase_admin
+      ZELL_CI_DISPOSABLE_DB: 'yes'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات، بدل صورة Docker
+      # (public.ecr.aws رفض التنزيل: toomanyrequests). أي فشل بيوقف الـ job. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: psql client
+        run: psql --version
+
+      - name: Build from scratch (explicit list) + compare + guard tests + smoke + call contract
+        run: bash backend/db/ci/build_from_scratch.sh
