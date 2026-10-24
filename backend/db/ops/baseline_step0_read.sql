@@ -1,5 +1,6 @@
 -- BASELINE-OUTSIDE step 0 (docs/contracts/BASELINE-OUTSIDE.md §2) — FOR REVIEW. Not executed on Production.
--- Catalog-only, single READ ONLY transaction, limits inlined (objects=200, inventory=3000, def_bytes=200000).
+-- Catalog-only, single READ ONLY transaction. Limits inlined: objects=200, inventory=3000, def_bytes=200000, payload_cap_bytes=1000000.
+-- Stop and do not use the snapshot if complete=false, stop_reason is set, or any def_oversize=true.
 begin transaction isolation level repeatable read read only;
 set local statement_timeout = '10s';
 set local lock_timeout = '2s';
@@ -62,25 +63,33 @@ p2 as (select polname as name, polcmd as cmd, polpermissive as permissive,
   from pg_catalog.pg_policy where polrelid = (select oid from au)),
 t2 as (select tgname as name, tgenabled as enabled, pg_catalog.pg_get_triggerdef(oid) as def, row_number() over (order by tgname) as rn
   from pg_catalog.pg_trigger where tgrelid = (select oid from au) and not tgisinternal),
+d3r as (
+  select pg_catalog.pg_get_userbyid(d.defaclrole) as creator, coalesce(n.nspname, '(global)') as schema, d.defaclobjtype as objtype,
+    pg_catalog.cardinality(d.defaclacl) as acl_items,
+    row_number() over (order by pg_catalog.pg_get_userbyid(d.defaclrole), coalesce(n.nspname, '(global)'), d.defaclobjtype) as rn
+  from pg_catalog.pg_default_acl d left join pg_catalog.pg_namespace n on n.oid = d.defaclnamespace),
 d3 as (
   select pg_catalog.pg_get_userbyid(d.defaclrole) as creator, coalesce(n.nspname, '(global)') as schema, d.defaclobjtype as objtype,
-    pg_catalog.pg_get_userbyid(a.grantor) as grantor, case when a.grantee = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(a.grantee) end as grantee,
+    pg_catalog.pg_get_userbyid(a.grantor) as grantor,
+    case when a.grantee is null then null when a.grantee = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(a.grantee) end as grantee,
     a.privilege_type as privilege, a.is_grantable as grantable,
     row_number() over (order by pg_catalog.pg_get_userbyid(d.defaclrole), coalesce(n.nspname, '(global)'), d.defaclobjtype,
-      case when a.grantee = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(a.grantee) end, a.privilege_type) as rn
+      case when a.grantee is null then '' when a.grantee = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(a.grantee) end, coalesce(a.privilege_type, '')) as rn
   from pg_catalog.pg_default_acl d left join pg_catalog.pg_namespace n on n.oid = d.defaclnamespace
-  cross join lateral pg_catalog.aclexplode(d.defaclacl) a),
+  left join lateral pg_catalog.aclexplode(d.defaclacl) a on true),
 creators as (
   select distinct r from (
     select c.relowner as r from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public'
     union select p.proowner from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public'
-    union select defaclrole from pg_catalog.pg_default_acl) z),
+    union select defaclrole from pg_catalog.pg_default_acl
+    union select oid from pg_catalog.pg_roles where rolname in ('postgres', 'supabase_admin')) z),
+objmap(catalog_code, fn_code) as (values ('r', 'r'), ('S', 's'), ('f', 'f'), ('T', 'T'), ('n', 'n')),
 h3 as (
-  select pg_catalog.pg_get_userbyid(c.r) as creator, t.objtype,
+  select pg_catalog.pg_get_userbyid(c.r) as creator, m.catalog_code as objtype, m.fn_code as acldefault_code,
     case when a.grantee = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(a.grantee) end as grantee, a.privilege_type as privilege, a.is_grantable as grantable,
-    row_number() over (order by pg_catalog.pg_get_userbyid(c.r), t.objtype, case when a.grantee = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(a.grantee) end, a.privilege_type) as rn
-  from creators c cross join (values ('r'), ('S'), ('f'), ('T'), ('n')) t(objtype)
-  cross join lateral pg_catalog.aclexplode(pg_catalog.acldefault(t.objtype::"char", c.r)) a),
+    row_number() over (order by pg_catalog.pg_get_userbyid(c.r), m.catalog_code, case when a.grantee = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(a.grantee) end, a.privilege_type) as rn
+  from creators c cross join objmap m
+  cross join lateral pg_catalog.aclexplode(pg_catalog.acldefault(m.fn_code::"char", c.r)) a),
 r4 as (select rolname as name, rolsuper as super, rolinherit as inherit, rolcreaterole as createrole, rolcreatedb as createdb,
     rolcanlogin as login, rolreplication as replication, rolbypassrls as bypassrls, row_number() over (order by rolname) as rn
   from pg_catalog.pg_roles where rolname !~ '^pg_'),
@@ -97,14 +106,16 @@ r5 as (select c.relname as name, c.relkind as kind,
       coalesce((select pg_catalog.string_agg(a.attname || ':' || pg_catalog.format_type(a.atttypid, a.atttypmod) || ':' || a.attnotnull, ',' order by a.attnum)
         from pg_catalog.pg_attribute a where a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped), '')) as md5,
     row_number() over (order by c.relname) as rn
-  from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r', 'v', 'm', 'p'))
-select pg_catalog.json_build_object(
-  'meta', pg_catalog.json_build_object('at_utc', pg_catalog.to_char(pg_catalog.now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+  from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r', 'v', 'm', 'p')),
+meta as (select pg_catalog.json_build_object('at_utc', pg_catalog.to_char(pg_catalog.now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
     'version', pg_catalog.version(), 'database', pg_catalog.current_database(), 'user', current_user,
-    'read_only', pg_catalog.current_setting('transaction_read_only'), 'limits', pg_catalog.json_build_object('objects', 200, 'inventory', 3000, 'def_bytes', 200000)),
+    'read_only', pg_catalog.current_setting('transaction_read_only'),
+    'limits', pg_catalog.json_build_object('objects', 200, 'inventory', 3000, 'def_bytes', 200000, 'payload_cap_bytes', 1000000)) as j),
+data as (select pg_catalog.json_build_object(
   'q1_functions', (select pg_catalog.json_build_object('count', count(*), 'limit', 200, 'complete', count(*) <= 200,
       'missing', (select pg_catalog.json_agg(t.name order by t.name) from target t where not exists (select 1 from f1 where f1.name = t.name)),
       'overloaded', (select pg_catalog.json_agg(z.name order by z.name) from (select name from f1 group by name having count(*) > 1) z),
+      'any_oversize', coalesce(bool_or(pg_catalog.octet_length(def) > 200000), false),
       'items', coalesce(pg_catalog.json_agg(pg_catalog.json_build_object('schema', schema, 'name', name, 'identity_args', identity_args, 'args', args,
         'result', result, 'kind', kind, 'volatility', volatility, 'strict', strict, 'security_definer', security_definer, 'parallel', parallel,
         'leakproof', leakproof, 'config', config, 'owner', owner, 'acl', acl, 'def_bytes', pg_catalog.octet_length(def),
@@ -135,12 +146,15 @@ select pg_catalog.json_build_object(
       filter (where rn <= 200), '[]'::json)) from p2),
   'q2_triggers', (select pg_catalog.json_build_object('count', count(*), 'complete', count(*) <= 200, 'items', coalesce(pg_catalog.json_agg(
       pg_catalog.json_build_object('name', name, 'enabled', enabled, 'def', def) order by rn) filter (where rn <= 200), '[]'::json)) from t2),
-  'q3_default_acl', (select pg_catalog.json_build_object('count', count(*), 'complete', count(*) <= 200, 'items', coalesce(pg_catalog.json_agg(
+  'q3_default_acl_rows', (select pg_catalog.json_build_object('note', 'one item per pg_default_acl row; acl_items = 0 means the row exists with an empty ACL',
+      'count', count(*), 'complete', count(*) <= 200, 'items', coalesce(pg_catalog.json_agg(
+      pg_catalog.json_build_object('creator', creator, 'schema', schema, 'objtype', objtype, 'acl_items', acl_items) order by rn) filter (where rn <= 200), '[]'::json)) from d3r),
+  'q3_default_acl', (select pg_catalog.json_build_object('count', count(*), 'complete', count(*) <= 3000, 'items', coalesce(pg_catalog.json_agg(
       pg_catalog.json_build_object('creator', creator, 'schema', schema, 'objtype', objtype, 'grantor', grantor, 'grantee', grantee, 'privilege', privilege,
-        'grantable', grantable) order by rn) filter (where rn <= 200), '[]'::json)) from d3),
-  'q3_hardwired', (select pg_catalog.json_build_object('note', 'built-in defaults per creator/objtype; a (global) row replaces them, a schema row adds to them',
+        'grantable', grantable) order by rn) filter (where rn <= 3000), '[]'::json)) from d3),
+  'q3_hardwired', (select pg_catalog.json_build_object('note', 'built-in defaults per creator and catalog objtype (r S f T n -> acldefault r s f T n); a (global) row replaces them, a schema row adds to them',
       'count', count(*), 'complete', count(*) <= 3000, 'items', coalesce(pg_catalog.json_agg(
-      pg_catalog.json_build_object('creator', creator, 'objtype', objtype, 'grantee', grantee, 'privilege', privilege, 'grantable', grantable) order by rn)
+      pg_catalog.json_build_object('creator', creator, 'objtype', objtype, 'acldefault_code', acldefault_code, 'grantee', grantee, 'privilege', privilege, 'grantable', grantable) order by rn)
       filter (where rn <= 3000), '[]'::json)) from h3),
   'q4_roles', (select pg_catalog.json_build_object('count', count(*), 'complete', count(*) <= 200, 'items', coalesce(pg_catalog.json_agg(
       pg_catalog.json_build_object('name', name, 'super', super, 'inherit', inherit, 'createrole', createrole, 'createdb', createdb, 'login', login,
@@ -152,5 +166,15 @@ select pg_catalog.json_build_object(
       pg_catalog.json_build_object('name', name, 'identity_args', identity_args, 'kind', kind, 'md5', md5) order by rn) filter (where rn <= 3000), '[]'::json)) from f5),
   'q5_relations', (select pg_catalog.json_build_object('count', count(*), 'complete', count(*) <= 3000, 'items', coalesce(pg_catalog.json_agg(
       pg_catalog.json_build_object('name', name, 'kind', kind, 'md5', md5) order by rn) filter (where rn <= 3000), '[]'::json)) from r5)
-) as step0;
+) as j),
+sized as (select d.j, pg_catalog.octet_length(d.j::text) as bytes,
+    (select bool_and(coalesce((v ->> 'complete')::boolean, true)) from pg_catalog.json_each(d.j) e(k, v) where pg_catalog.json_typeof(v) = 'object')
+    and not coalesce((d.j -> 'q1_functions' ->> 'any_oversize')::boolean, false) as sections_ok
+  from data d)
+select case when s.bytes <= 1000000 then
+    pg_catalog.json_build_object('meta', m.j, 'payload_bytes', s.bytes, 'complete', s.sections_ok,
+      'stop_reason', case when s.sections_ok then null else 'section_incomplete_or_oversize' end, 'data', s.j)
+  else pg_catalog.json_build_object('meta', m.j, 'payload_bytes', s.bytes, 'complete', false, 'stop_reason', 'payload_over_cap', 'data', null)
+  end as step0
+from sized s cross join meta m;
 rollback;
