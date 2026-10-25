@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react'
 import { galleryImages, type StoreProduct } from '@zell/core'
 import { cn } from '../../lib/cn'
@@ -33,11 +33,36 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
   const hasMany = count > 1
   const canZoom = Boolean(active?.src)
 
+  /**
+   * التقليب من غير مشهد مخلوط (فحص 2026-10-25): `index` = الصورة المطلوبة (المصغّرات والأسهم والتكبير)،
+   * و`shown` = الصورة الظاهرة في الإطار. كل صورة طبقة بشكلها الثابت (cover/contain والمسافة)،
+   * والصورة الحالية بتفضل ظاهرة لحد ما المطلوبة تتحمّل وتتفك (decode) أو يفشل تحميلها.
+   * الضغط السريع: آخر طلب بس هو اللي بيظهر. الباقي بيتحمّل بأولوية منخفضة بعد ما الأولى تجهز.
+   */
+  const [shown, setShown] = useState(0)
+  const [preloadRest, setPreloadRest] = useState(false)
+  const [, setSettledVersion] = useState(0)
+  const requested = useRef(0)
+  const settled = useRef<Map<number, 'ready' | 'failed'>>(new Map())
+
+  const select = useCallback((next: number) => {
+    requested.current = next
+    setIndex(next)
+    if (settled.current.has(next)) setShown(next)
+  }, [])
+
+  const settle = useCallback((shotIndex: number, state: 'ready' | 'failed') => {
+    settled.current.set(shotIndex, state)
+    setSettledVersion((version) => version + 1)
+    if (shotIndex === 0) setPreloadRest(true)
+    if (requested.current === shotIndex) setShown(shotIndex)
+  }, [])
+
   const go = useCallback(
     (delta: number) => {
-      setIndex((current) => (current + delta + count) % count)
+      select((requested.current + delta + count) % count)
     },
-    [count],
+    [count, select],
   )
 
   // في RTL السهم اليمين معناه «السابق»
@@ -64,17 +89,56 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
       {/* الموبايل: إطار 4:3 بحد ٥٠vh والصورة كاملة (contain) — مفيش قص، والاسم والسعر بيطلعوا أسرع.
           من sm: نفس الشكل القديم (مربع، والصورة الأولى cover). زرار التكبير زي ما هو. */}
       <div className="relative mx-auto w-full max-w-[560px]">
-        <ImageSlot
-          ratio="1/1"
-          fit={active.fit}
-          src={active.src}
-          alt={active.alt}
-          sizes="(min-width: 1024px) 560px, 100vw"
-          priority
-          label="صورة المنتج"
-          className="aspect-[4/3] max-h-[50vh] border border-border max-sm:bg-bg sm:aspect-square sm:max-h-none"
-          imageClassName="max-sm:object-contain"
-        />
+        {hasMany ? (
+          <div className="relative">
+            {shots.map((shot, shotIndex) => {
+              const isShown = shotIndex === shown
+              const state = settled.current.get(shotIndex)
+              // الأولى دايمًا · الباقي بعد ما الأولى تجهز · أو لو العميل طلبها قبل كده
+              const mounted = shotIndex === 0 || preloadRest || shotIndex === index || state !== undefined
+              return (
+                <div
+                  key={shotIndex}
+                  aria-hidden={isShown ? undefined : true}
+                  className={cn(shotIndex === 0 ? 'relative' : 'absolute inset-0', isShown ? '' : 'pointer-events-none opacity-0')}
+                >
+                  <ImageSlot
+                    ratio="1/1"
+                    fit={shot.fit}
+                    src={mounted && state !== 'failed' ? shot.src : null}
+                    alt={isShown ? shot.alt : ''}
+                    sizes="(min-width: 1024px) 560px, 100vw"
+                    priority={shotIndex === 0}
+                    fetchPriority={shotIndex === 0 ? undefined : shotIndex === index ? 'auto' : 'low'}
+                    onLoad={(event) => {
+                      const image = event.currentTarget
+                      void image
+                        .decode()
+                        .catch(() => undefined)
+                        .then(() => settle(shotIndex, 'ready'))
+                    }}
+                    onError={() => settle(shotIndex, 'failed')}
+                    label="صورة المنتج"
+                    className="aspect-[4/3] max-h-[50vh] border border-border max-sm:bg-bg sm:aspect-square sm:max-h-none"
+                    imageClassName="max-sm:object-contain"
+                  />
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <ImageSlot
+            ratio="1/1"
+            fit={active.fit}
+            src={active.src}
+            alt={active.alt}
+            sizes="(min-width: 1024px) 560px, 100vw"
+            priority
+            label="صورة المنتج"
+            className="aspect-[4/3] max-h-[50vh] border border-border max-sm:bg-bg sm:aspect-square sm:max-h-none"
+            imageClassName="max-sm:object-contain"
+          />
+        )}
 
         {canZoom ? (
           <button
@@ -102,7 +166,7 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
             <li key={shotIndex} className="shrink-0">
               <button
                 type="button"
-                onClick={() => setIndex(shotIndex)}
+                onClick={() => select(shotIndex)}
                 aria-label={'صورة رقم ' + String(shotIndex + 1)}
                 aria-current={shotIndex === index}
                 className={cn(
