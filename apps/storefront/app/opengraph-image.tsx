@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og'
-import { LOGO_LETTER, logoHex, logoLetter } from '../lib/brand/logo'
+import { LOGO_LETTER, logoHex } from '../lib/brand/logo'
 import { MarkImage, WordmarkImage, loadLogoFont } from '../lib/brand/logoImage'
 import { getStorefrontSettings } from '../lib/data/source'
 import { SITE_NAME_FALLBACK } from '../lib/site'
@@ -23,7 +23,8 @@ export default async function OpengraphImage() {
     name = SITE_NAME_FALLBACK
   }
   const latin = !ARABIC.test(name)
-  const letter = latin ? logoLetter(name) : LOGO_LETTER
+  // العلامة هنا Z الثابتة، مش أول حرف من الاسم (قرار المالك 2026-10-25). لوجو الهيدر والأيقونات زي ما هم
+  const letter = LOGO_LETTER
   return new ImageResponse(
     (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: logoHex('page') }}>
