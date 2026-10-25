@@ -25,6 +25,12 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
     }))
   }, [product])
 
+  // منتج تاني أو صور اتغيّرت = معرض جديد من الأول، فمفيش حالة بتعدّي من منتج للتاني
+  const galleryKey = String(product.id) + ':' + shots.map((shot) => shot.src ?? '').join('|')
+  return <GalleryView key={galleryKey} shots={shots} />
+}
+
+function GalleryView({ shots }: { shots: Shot[] }) {
   const [index, setIndex] = useState(0)
   const [zoomed, setZoomed] = useState(false)
 
@@ -39,6 +45,8 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
     },
     [count],
   )
+
+  const frame = useHeldSwitch(index, 0)
 
   // في RTL السهم اليمين معناه «السابق»
   useEffect(() => {
@@ -64,17 +72,30 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
       {/* الموبايل: إطار 4:3 بحد ٥٠vh والصورة كاملة (contain) — مفيش قص، والاسم والسعر بيطلعوا أسرع.
           من sm: نفس الشكل القديم (مربع، والصورة الأولى cover). زرار التكبير زي ما هو. */}
       <div className="relative mx-auto w-full max-w-[560px]">
-        <ImageSlot
-          ratio="1/1"
-          fit={active.fit}
-          src={active.src}
-          alt={active.alt}
-          sizes="(min-width: 1024px) 560px, 100vw"
-          priority
-          label="صورة المنتج"
-          className="aspect-[4/3] max-h-[50vh] border border-border max-sm:bg-bg sm:aspect-square sm:max-h-none"
-          imageClassName="max-sm:object-contain"
-        />
+        {hasMany ? (
+          <HeldLayers
+            shots={shots}
+            requested={index}
+            held={frame}
+            sizes="(min-width: 1024px) 560px, 100vw"
+            priorityFirst
+            label="صورة المنتج"
+            className="aspect-[4/3] max-h-[50vh] border border-border max-sm:bg-bg sm:aspect-square sm:max-h-none"
+            imageClassName="max-sm:object-contain"
+          />
+        ) : (
+          <ImageSlot
+            ratio="1/1"
+            fit={active.fit}
+            src={active.src}
+            alt={active.alt}
+            sizes="(min-width: 1024px) 560px, 100vw"
+            priority
+            label="صورة المنتج"
+            className="aspect-[4/3] max-h-[50vh] border border-border max-sm:bg-bg sm:aspect-square sm:max-h-none"
+            imageClassName="max-sm:object-contain"
+          />
+        )}
 
         {canZoom ? (
           <button
@@ -134,14 +155,7 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
           onClick={() => setZoomed(false)}
         >
           <div className="relative w-full max-w-2xl" onClick={(event) => event.stopPropagation()}>
-            <ImageSlot
-              ratio="1/1"
-              fit={active.fit}
-              src={active.src}
-              alt={active.alt}
-              sizes="(min-width: 768px) 672px, 100vw"
-              className="bg-card"
-            />
+            <ZoomImage shots={shots} requested={index} startShown={frame.shown} />
 
             <button
               type="button"
@@ -162,6 +176,120 @@ export function ProductGallery({ product }: { product: StoreProduct }) {
         </div>
       ) : null}
     </div>
+  )
+}
+
+type SettleState = 'ready' | 'failed'
+type Held = {
+  shown: number
+  settled: ReadonlyMap<number, SettleState>
+  settle: (shotIndex: number, state: SettleState) => void
+}
+
+/**
+ * التقليب من غير مشهد مخلوط (فحص 2026-10-25): الصورة الظاهرة بتفضل زي ما هي لحد ما المطلوبة
+ * تتحمّل وتتفك (decode) أو يفشل تحميلها. الضغط السريع: آخر طلب بس هو اللي بيظهر.
+ * مفيش تحميل مسبق: بيتحمّل بس الظاهرة والمطلوبة، واللي اتحمّلت بتفضل موجودة للرجوع ليها.
+ */
+function useHeldSwitch(requested: number, initialShown: number): Held {
+  const [settled, setSettled] = useState<ReadonlyMap<number, SettleState>>(() => new Map())
+  const [held, setHeld] = useState(initialShown)
+  const shown = settled.has(requested) ? requested : held
+  // الظاهرة دلوقتي هي اللي هتفضل ثابتة لو الطلب الجاي لسه ماجهزش
+  if (shown !== held) setHeld(shown)
+
+  const settle = useCallback((shotIndex: number, state: SettleState) => {
+    setSettled((current) =>
+      current.get(shotIndex) === state ? current : new Map(current).set(shotIndex, state),
+    )
+  }, [])
+
+  return { shown, settled, settle }
+}
+
+/** كل صورة طبقة بشكلها الثابت (cover/contain والمسافة)، والظاهرة بس هي اللي ليها مكان في الإطار. */
+function HeldLayers({
+  shots,
+  requested,
+  held,
+  sizes,
+  priorityFirst = false,
+  label,
+  className,
+  imageClassName,
+}: {
+  shots: Shot[]
+  requested: number
+  held: Held
+  sizes: string
+  priorityFirst?: boolean
+  label?: string
+  className?: string
+  imageClassName?: string
+}) {
+  return (
+    <div className="relative">
+      {shots.map((shot, shotIndex) => {
+        const state = held.settled.get(shotIndex)
+        if (shotIndex !== held.shown && shotIndex !== requested && state === undefined) return null
+        const isShown = shotIndex === held.shown
+        return (
+          <div
+            key={shotIndex}
+            aria-hidden={isShown ? undefined : true}
+            className={isShown ? 'relative' : 'pointer-events-none absolute inset-0 opacity-0'}
+          >
+            <ImageSlot
+              ratio="1/1"
+              fit={shot.fit}
+              src={state === 'failed' ? null : shot.src}
+              alt={isShown ? shot.alt : ''}
+              sizes={sizes}
+              priority={priorityFirst && shotIndex === 0}
+              onLoad={(event) => {
+                // جاهزة = اتحمّلت واتفكّت. رفض decode() فشل واضح، مش نجاح
+                event.currentTarget.decode().then(
+                  () => held.settle(shotIndex, 'ready'),
+                  () => held.settle(shotIndex, 'failed'),
+                )
+              }}
+              onError={() => held.settle(shotIndex, 'failed')}
+              label={label}
+              className={className}
+              imageClassName={imageClassName}
+            />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** التكبير بنفس الضمان: بيبدأ بالصورة الظاهرة في الإطار، وبيحمّل نسخة التكبير للمطلوبة بس. */
+function ZoomImage({ shots, requested, startShown }: { shots: Shot[]; requested: number; startShown: number }) {
+  const held = useHeldSwitch(requested, startShown)
+  const active = shots[requested] ?? shots[0]
+  if (!active) return null
+  if (shots.length < 2) {
+    return (
+      <ImageSlot
+        ratio="1/1"
+        fit={active.fit}
+        src={active.src}
+        alt={active.alt}
+        sizes="(min-width: 768px) 672px, 100vw"
+        className="bg-card"
+      />
+    )
+  }
+  return (
+    <HeldLayers
+      shots={shots}
+      requested={requested}
+      held={held}
+      sizes="(min-width: 768px) 672px, 100vw"
+      className="bg-card"
+    />
   )
 }
 
