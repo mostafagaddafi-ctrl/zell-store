@@ -113,6 +113,25 @@ export function runStoreNavCases(): { passed: number; failures: NavCaseFailure[]
     menuActiveKey(null, opts),
   ], [null, null, null, null, null])
 
+  // ── `/index` = الرئيسية (§١٨) ──
+  check('I01 /index exactly = / (slash · query · hash)', [normalizePath('/index'), normalizePath('/index/'), normalizePath('/index?x=1'), normalizePath('/index#faq')], [
+    '/',
+    '/',
+    '/',
+    '/',
+  ])
+  check('I02 other index-like paths unchanged', [normalizePath('/indexes'), normalizePath('/index/x'), normalizePath('/collection/index'), normalizePath('/Index'), normalizePath('/products/index')], [
+    '/indexes',
+    '/index/x',
+    '/collection/index',
+    '/Index',
+    '/products/index',
+  ])
+  check('I03 /index = home · /indexes and /index/x = nothing', [menuActiveKey('/index', opts), menuActiveKey('/indexes', opts), menuActiveKey('/index/x', opts)], ['home', null, null])
+  check('I04 /collection/index stays that collection', menuActiveKey('/collection/index', { ...opts, collections: [...opts.collections, col('index')] }), 'collection:index')
+  check('I05 menu model at /index = home only', currentKeys(menu('/index')), ['home'])
+  check('I06 desktop nav at /index = desktop nav at /', desktop('/index', 5), desktop('/', 5))
+
   // ── نموذج القائمة ──
   const atHome = menu('/')
   check('B01 /#how and /#faq never current (home is the current page)', [atHome.help.how?.current, atHome.help.faq?.current, atHome.home.current], [false, false, true])

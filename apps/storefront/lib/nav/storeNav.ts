@@ -52,7 +52,10 @@ export function normalizePath(pathname: string | null | undefined): string {
   const bare = (pathname.split('#')[0] ?? '').split('?')[0] ?? ''
   if (bare === '') return ''
   const trimmed = bare.replace(/\/+$/, '')
-  return trimmed === '' ? '/' : trimmed
+  if (trimmed === '') return '/'
+  // `/index` بالظبط = الرئيسية (STORE-MENU §١٨): رندر السيرفر على النشر بيوصله مسار `/index`
+  // والمتصفح `/`، فالتمييز كان بيختلف. `/indexes` و`/index/…` و`/collection/index` زي ما هم.
+  return trimmed === '/index' ? '/' : trimmed
 }
 
 function safeDecode(value: string): string {
