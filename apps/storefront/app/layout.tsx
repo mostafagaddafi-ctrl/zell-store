@@ -22,9 +22,9 @@ const cairo = Cairo({
 
 export async function generateMetadata(): Promise<Metadata> {
   const { settings } = await getStorefrontData()
-  const title = settings.storeName + ' — أفلام حماية الزجاج بالمتر'
-  const description =
-    'أفلام حماية وعزل للزجاج للبيوت والشقق، تتباع بالمتر الطولي. عازل حرارة، مصنفر للخصوصية، وفاميه أسود. الدفع عند الاستلام وتوصيل لكل محافظات مصر.'
+  const title = settings.storeName + ' — اكتشف. اختار. جدّد.'
+  // النص المعتمد من المالك 2026-10-25: عام يستحمل أنواع منتجات تانية، والمقاس ميزة جزء منها بس
+  const description = 'تصفّح المنتجات والخامات والأدوات المتاحة على ' + settings.storeName + '، واطلب الخامات بالمقاس اللي تحتاجه.'
   return {
     title: {
       default: title,
