@@ -118,6 +118,8 @@ export function MobileMenu({
   const focusRing = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
   const rowLink = 'flex min-h-11 items-center rounded-lg px-3 transition-colors hover:bg-border/50 ' + focusRing
   const shortcutLink = 'flex min-h-12 items-center justify-center gap-2 rounded-lg border bg-card px-2 text-sm font-bold transition-colors hover:border-brand/40 ' + focusRing
+  // الصفحة الحالية في التصفّح: خلفية خفيفة + لون المتجر (قرار المالك 2026-10-25 — STORE-MENU §١٧). اللون لوحده كان قريب من لون الكلام فماكانش باين
+  const currentRow = 'bg-brand/10 text-brand hover:bg-brand/15'
   const itemStyle = (item: MenuItem) => ({ '--i': item.index }) as CSSProperties
   const currentProps = (item: MenuItem) => (item.current ? { 'aria-current': 'page' as const } : {})
 
@@ -209,7 +211,7 @@ export function MobileMenu({
                     href={menu.home.href}
                     onClick={closeMenu}
                     {...currentProps(menu.home)}
-                    className={cn(rowLink, 'text-base font-bold', menu.home.current ? 'text-brand' : 'text-fg')}
+                    className={cn(rowLink, 'text-base font-bold', menu.home.current ? currentRow : 'text-fg')}
                   >
                     {menu.home.label}
                   </Link>
@@ -220,7 +222,7 @@ export function MobileMenu({
                       href={menu.all.href}
                       onClick={closeMenu}
                       {...currentProps(menu.all)}
-                      className={cn(rowLink, 'text-base font-bold', menu.all.current ? 'text-brand' : 'text-fg')}
+                      className={cn(rowLink, 'text-base font-bold', menu.all.current ? currentRow : 'text-fg')}
                     >
                       {menu.all.label}
                     </Link>
@@ -240,7 +242,7 @@ export function MobileMenu({
                           href={item.href}
                           onClick={closeMenu}
                           {...currentProps(item)}
-                          className={cn(rowLink, 'text-base', item.current ? 'font-bold text-brand' : 'font-normal text-fg')}
+                          className={cn(rowLink, 'text-base', item.current ? 'font-bold ' + currentRow : 'font-normal text-fg')}
                         >
                           {item.label}
                         </Link>
@@ -278,7 +280,7 @@ export function MobileMenu({
                       href={menu.tools.href}
                       onClick={closeMenu}
                       {...currentProps(menu.tools)}
-                      className={cn(rowLink, 'text-sm', menu.tools.current ? 'font-bold text-brand' : 'font-normal text-muted hover:text-fg')}
+                      className={cn(rowLink, 'text-sm', menu.tools.current ? 'font-bold ' + currentRow : 'font-normal text-muted hover:text-fg')}
                     >
                       {menu.tools.label}
                     </Link>
