@@ -30,8 +30,13 @@ import { Num } from './Num'
 const DETAILS_CLASSES =
   'inline-flex h-10 w-full items-center justify-center gap-1 rounded-lg border border-brand/20 bg-brand/[0.04] px-2 text-xs font-bold text-brand transition-colors group-hover:bg-brand group-hover:text-brand-fg sm:text-sm'
 
-export function ProductCard({ product, density = 'regular' }: { product: StoreProduct; density?: 'regular' | 'compact' }) {
+/**
+ * headingLevel: مستوى عنوان الكارت. 3 (الافتراضي) تحت عنوان h2 زي أقسام الرئيسية؛ 2 في الصفحات اللي الكروت فيها
+ * تحت الـ h1 على طول (صفحة القسم و«كل المنتجات»)، عشان ترتيب العناوين مايقفزش (Lighthouse heading-order). الشكل زي ما هو.
+ */
+export function ProductCard({ product, density = 'regular', headingLevel = 3 }: { product: StoreProduct; density?: 'regular' | 'compact'; headingLevel?: 2 | 3 }) {
   const compact = density === 'compact'
+  const Heading = headingLevel === 2 ? 'h2' : 'h3'
   const preview = primaryImage(product)
   const multi = widthOptionsOf(product).length > 1
   const discount = multi ? null : discountInfo(product)
@@ -61,7 +66,7 @@ export function ProductCard({ product, density = 'regular' }: { product: StorePr
 
       <div className={compact ? 'flex flex-1 flex-col gap-2 p-2.5 sm:p-3' : 'flex flex-1 flex-col gap-2.5 p-3 sm:gap-3 sm:p-4'}>
         <div className="space-y-1">
-          <h3 className={compact ? 'line-clamp-2 min-h-10 text-sm font-bold leading-5 text-fg' : 'line-clamp-2 min-h-10 text-sm font-bold leading-5 text-fg sm:min-h-0 sm:text-base'}>{product.name_ar}</h3>
+          <Heading className={compact ? 'line-clamp-2 min-h-10 text-sm font-bold leading-5 text-fg' : 'line-clamp-2 min-h-10 text-sm font-bold leading-5 text-fg sm:min-h-0 sm:text-base'}>{product.name_ar}</Heading>
           {compact ? null : <p className="hidden text-sm leading-relaxed text-muted sm:block">{shortBenefit(product)}</p>}
         </div>
 
