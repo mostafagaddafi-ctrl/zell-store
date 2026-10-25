@@ -91,13 +91,13 @@ export default async function CollectionPage({ params }: { params: Promise<Param
       {compact ? (
         <div className="grid grid-cols-2 gap-2.5 pb-6 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
           {items.map((product) => (
-            <ProductCard key={product.id} product={product} density="compact" />
+            <ProductCard key={product.id} product={product} density="compact" headingLevel={2} />
           ))}
         </div>
       ) : (
         <div className="grid gap-5 pb-6 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard key={product.id} product={product} headingLevel={2} />
           ))}
         </div>
       )}
