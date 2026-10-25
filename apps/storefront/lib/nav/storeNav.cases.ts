@@ -82,6 +82,14 @@ export function runStoreNavCases(): { passed: number; failures: NavCaseFailure[]
     '/',
     '/',
   ])
+  check('P04 normalize: /index (prerendered home) = / — and nothing else changes', [normalizePath('/index'), normalizePath('/index/'), normalizePath('/index?x=1'), normalizePath('/indexes'), normalizePath('/collection/index')], [
+    '/',
+    '/',
+    '/',
+    '/indexes',
+    '/collection/index',
+  ])
+  check('M12 /index = home in the menu (prerendered home page)', [menuActiveKey('/index', { collections: [], hasAll: true, toolsHref: null }), currentKeys(menu('/index'))], ['home', ['home']])
   check('P02 normalize: empty / null / undefined = no path', [normalizePath(''), normalizePath(null), normalizePath(undefined)], ['', '', ''])
   check('P03 collection slug: one segment only', [collectionSlugOf('/collection/a'), collectionSlugOf('/collection/'), collectionSlugOf('/collection/a/b'), collectionSlugOf('/collections')], [
     'a',
