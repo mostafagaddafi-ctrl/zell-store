@@ -79,7 +79,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             والحشو اللي كان هنا كان مكرر وبيعمل فراغ قبل الفوتر على الموبايل (قرار المالك 2026-10-16).
             زرار واتساب نفسه (WhatsAppFab) ومكانه زي ما هم.
           */}
-          <div className="flex-1">{children}</div>
+          {/* علامة «الجزء الرئيسي» للصفحة كلها (Lighthouse landmark-one-main) — من غير أي تغيير في الشكل */}
+          <main className="flex-1">{children}</main>
           <WhatsAppFab number={settings.whatsappNumber} message={settings.whatsappMessage} />
           <SiteFooter
             storeName={settings.storeName}
