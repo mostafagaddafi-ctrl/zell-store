@@ -46,13 +46,18 @@ export function homeHelpVisibility(content: Pick<StoreContent, 'homeSections' | 
 
 // ── المسار ──────────────────────────────────────────────────────────
 
-/** من غير # ولا ? ولا الشرطة في الآخر. '' لو مفيش مسار. */
+/**
+ * من غير # ولا ? ولا الشرطة في الآخر. '' لو مفيش مسار.
+ * `/index` = `/`: صفحة الرئيسية المبنية مسبقًا (prerender) بتتخدم ومسارها المسجّل `index`، و«الرئيسية» ماكانتش بتتعلّم
+ * على الموقع (فحص 2026-10-25). مفيش صفحة `/index` في المتجر، فالتوحيد ده مايغطّيش على أي صفحة تانية.
+ */
 export function normalizePath(pathname: string | null | undefined): string {
   if (typeof pathname !== 'string') return ''
   const bare = (pathname.split('#')[0] ?? '').split('?')[0] ?? ''
   if (bare === '') return ''
   const trimmed = bare.replace(/\/+$/, '')
-  return trimmed === '' ? '/' : trimmed
+  if (trimmed === '' || trimmed === '/index') return '/'
+  return trimmed
 }
 
 function safeDecode(value: string): string {
