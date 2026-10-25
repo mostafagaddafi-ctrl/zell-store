@@ -1,3 +1,4 @@
+import type { ReactEventHandler } from 'react'
 import Image from 'next/image'
 import { cn } from '../../lib/cn'
 
@@ -39,6 +40,10 @@ export type ImageSlotProps = {
   labelClassName?: string
   className?: string
   imageClassName?: string
+  /** المعرض بس: يعرف إمتى الصورة اتحمّلت أو فشلت، وأولوية التحميل للصور اللي مش ظاهرة. */
+  onLoad?: ReactEventHandler<HTMLImageElement>
+  onError?: ReactEventHandler<HTMLImageElement>
+  fetchPriority?: 'high' | 'low' | 'auto'
 }
 
 export function ImageSlot({
@@ -54,6 +59,9 @@ export function ImageSlot({
   labelClassName,
   className,
   imageClassName,
+  onLoad,
+  onError,
+  fetchPriority,
 }: ImageSlotProps) {
   const fitClass = fit === 'contain' ? 'object-contain' : 'object-cover'
 
@@ -74,6 +82,9 @@ export function ImageSlot({
           width={width}
           height={height}
           priority={priority}
+          fetchPriority={fetchPriority}
+          onLoad={onLoad}
+          onError={onError}
           className={cn('h-full w-full', fitClass, imageClassName)}
         />
       ) : src ? (
@@ -83,6 +94,9 @@ export function ImageSlot({
           fill
           sizes={sizes}
           priority={priority}
+          fetchPriority={fetchPriority}
+          onLoad={onLoad}
+          onError={onError}
           className={cn(fitClass, fit === 'contain' ? 'p-3' : '', imageClassName)}
         />
       ) : (
