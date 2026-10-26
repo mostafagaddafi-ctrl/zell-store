@@ -4,7 +4,7 @@
  * القراية zell_product_delete_preview والحذف zell_product_delete (0022) بجلسة المستخدم، والقرار النهائي في الداتابيز:
  * المالك بس (45402) · المنتج مخفي (45503) · من غير طلبات (45504) ولا مخزون (45505) · النسخة (45502) · قفل مشغول (45508).
  * أعداد المعاينة معلومة لحظة قرايتها بس، والحذف بيعيد كل الفحوص على الحالة الحالية.
- * ومعاها ربط 45507 (trigger قايمة الرئيسية) في حفظ الرئيسية.
+ * ومعاها ربط 45507 (trigger قايمة الرئيسية) في حفظ الرئيسية، وقرار الكارت بعد الحذف (التحذير لو تحديث المتجر فشل).
  *
  * نصوص اللوحة الجديدة بالفصحى المبسّطة الرسمية (العقد §٦).
  */
@@ -49,6 +49,7 @@ export const PRODUCT_DELETE_TEXT = {
   cancel: 'إلغاء',
   deleting: 'جارٍ الحذف…',
   deleted: 'تم حذف المنتج.',
+  backToList: 'العودة إلى قائمة المنتجات',
 } as const
 
 export const PRODUCT_DELETE_BLOCKERS = {
@@ -227,4 +228,53 @@ export function productDeleteInputIssue(productId: unknown, expectedUpdatedAt: u
 /** حفظ الرئيسية: 45507 = رسالة تحقق واضحة بدل الخطأ العام. أي رمز تاني = null (الحفظ بيكمّل بسلوكه الحالي). */
 export function homeProductsSaveMessage(sentinel: string | null): string | null {
   return sentinel === HOME_PRODUCTS_MISSING_SENTINEL ? HOME_PRODUCTS_MISSING_MESSAGE : null
+}
+
+// ── بعد الحذف: تحديث المتجر والتحذير (من غير أي إعادة للحذف) ──────────────────────
+
+/** رسالة رفض غلاف اللوحة لـ deleteProductAction (حارس المالك نفسه، بصلاحية فئة المالك الموجودة). */
+export const PRODUCT_DELETE_OWNER_ONLY_MESSAGE = PRODUCT_DELETE_MESSAGES.forbidden
+
+/** الحذف نجح وتحديث المتجر الفوري (/api/revalidate) فشل: نجاح بتحذير، مش فشل حذف. */
+export const PRODUCT_DELETE_STOREFRONT_WARNING = 'حُذف المنتج، لكن تعذّر تحديث المتجر فورًا، وقد يتأخر ظهور التغيير في المتجر.'
+
+/** شكل نتيجة الحذف (نفس MutationResult، ورفض الغلاف بنفس شكل الفشل). */
+export type ProductDeleteCallResult =
+  | { ok: true; data: ProductDeleteResult; warning?: string }
+  | { ok: false; code: MutationErrorCode; message: string }
+
+/**
+ * بعد نداء الحذف (في الـ Server Action): تحديث المتجر مرة واحدة بس لو الحذف نجح. فشل التحديث أو استثناء فيه = نفس النجاح
+ * ومعاه التحذير. الحذف نفسه مابيتعادش هنا خالص.
+ */
+export async function finishProductDelete(result: ProductDeleteCallResult, refresh: () => Promise<boolean>): Promise<ProductDeleteCallResult> {
+  if (!result.ok) return result
+  let refreshed = false
+  try {
+    refreshed = await refresh()
+  } catch {
+    refreshed = false
+  }
+  return refreshed ? result : { ...result, warning: PRODUCT_DELETE_STOREFRONT_WARNING }
+}
+
+/** قرار الكارت بعد الرد: نجاح من غير تحذير = رجوع للقايمة فورًا · نجاح بتحذير = يفضل في الصفحة ويعرض التحذير · فشل = بانر الفشل. */
+export type ProductDeleteOutcome =
+  | { kind: 'deleted'; navigate: true; notice: null }
+  | { kind: 'deleted'; navigate: false; notice: string }
+  | { kind: 'failed'; code: MutationErrorCode; message: string }
+
+export function productDeleteOutcome(result: ProductDeleteCallResult): ProductDeleteOutcome {
+  if (!result.ok) return { kind: 'failed', code: result.code, message: result.message }
+  if (result.warning === undefined) return { kind: 'deleted', navigate: true, notice: null }
+  return { kind: 'deleted', navigate: false, notice: PRODUCT_DELETE_STOREFRONT_WARNING }
+}
+
+/** نداء الحذف من الكارت: مرة واحدة بالظبط ومن غير أي إعادة تلقائية. أي استثناء (الشبكة) = فشل عام. */
+export async function performProductDelete(call: () => Promise<ProductDeleteCallResult>): Promise<ProductDeleteOutcome> {
+  try {
+    return productDeleteOutcome(await call())
+  } catch {
+    return { kind: 'failed', code: 'INTERNAL', message: PRODUCT_DELETE_MESSAGES.internal }
+  }
 }
