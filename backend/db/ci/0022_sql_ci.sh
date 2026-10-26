@@ -155,6 +155,8 @@ su_f "$DB" "$CIDIR/platform_default_privileges.sql" > "$TMP/dp.log" 2>&1 || stop
 n=0
 while IFS='|' read -r kind rel _reason; do
   case "$kind" in ''|'#'*|exclude) continue ;; apply|baseline|fixture|check) ;; *) stop "B01 build list" "unknown kind $kind" ;; esac
+  # 0022 نفسها في القايمة من المرحلة C: هنا البناء لحد قبلها، والملف بيتطبّق ويتختبر تحت.
+  [ "$rel" = "migrations/0022_product_delete.sql" ] && { SKIPPED_0022=yes; continue; }
   f="$DBDIR/$rel"
   [ -f "$f" ] || stop "B01 build list" "missing $rel"
   n=$((n + 1))
@@ -166,8 +168,8 @@ while IFS='|' read -r kind rel _reason; do
   pg_f "$DB" "$runf" > "$TMP/build_$n.log" 2>&1 || stop "B01 build step $n $rel" "$(tailof "$TMP/build_$n.log")"
 done < "$LIST"
 shape=$(su_q "$DB" -c "select rolsuper::text || ',' || rolbypassrls::text from pg_catalog.pg_roles where rolname = 'postgres'")
-ok=no; [ "$n" -gt 10 ] && [ "$shape" = "false,true" ] && ok=yes
-record "B01 database built from build_from_scratch.list ($n steps), postgres not superuser" "$ok" "steps=$n postgres=$shape"
+ok=no; [ "$n" -gt 10 ] && [ "$shape" = "false,true" ] && [ "${SKIPPED_0022:-no}" = "yes" ] && ok=yes
+record "B01 database built from build_from_scratch.list up to before 0022 ($n steps, 0022 line skipped), postgres not superuser" "$ok" "steps=$n postgres=$shape skipped_0022=${SKIPPED_0022:-no}"
 [ "$ok" = yes ] || finish
 
 # ---- 3) بيانات CI (committed) ----
