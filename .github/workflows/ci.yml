@@ -643,6 +643,64 @@ jobs:
       - name: SQL suite (TRACK-ORDER v2 on the Production shape A1 + D + P1 + P2 + D2 + TR + EXPRESS)
         run: bash backend/db/ci/0021tr2_sql_ci.sh
 
+  sql-0022-changes:
+    name: "sql PRODUCT-DELETE: detect changes"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # الداتابيز بتتبني من القايمة الصريحة، فأي تغيير في backend/db بيشغّل الاختبار.
+      - name: Detect PRODUCT-DELETE SQL changes
+        id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$EVENT" = "pull_request" ]; then range="$BASE_SHA...HEAD"; else range="$BEFORE_SHA..HEAD"; fi
+          if ! changed=$(git diff --name-only "$range" 2>/dev/null); then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if printf '%s\n' "$changed" | grep -Eq '^(backend/db/|\.github/workflows/ci\.yml$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Postgres 17 مؤقت. مفيش أي اتصال بـ Supabase. كلمة السر دي لحاوية مؤقتة بتتمسح مع نهاية الـ job.
+  sql-0022:
+    name: "sql PRODUCT-DELETE: guards + ptest + apply + verify + flows + concurrency + rollback (postgres 17)"
+    needs: sql-0022-changes
+    if: needs.sql-0022-changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGPASSWORD: ci
+      CI_SUPERUSER: supabase_admin
+      ZELL_CI_DISPOSABLE_DB: 'yes'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي (التوقيع متحقق) في cluster مؤقت جديد للاختبارات. مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
+
+      - name: psql client
+        run: psql --version
+
+      - name: SQL suite (PRODUCT-DELETE on a database built from build_from_scratch.list)
+        run: bash backend/db/ci/0022_sql_ci.sh
+
   sql-baseline-changes:
     name: "sql BASELINE-OUTSIDE: detect changes"
     runs-on: ubuntu-latest
