@@ -221,7 +221,7 @@ width price~update public.product_widths set price_per_meter_piastres = price_pe
 addon order~update public.product_addons set sort_order = sort_order + 1 where product_id = $SEED1 and addon_id = $SEED2~update public.product_addons set sort_order = sort_order - 1 where product_id = $SEED1 and addon_id = $SEED2~21~20
 collection order~update public.product_collections set sort_order = sort_order + 1 where collection_id = $PRECOL~update public.product_collections set sort_order = sort_order - 1 where collection_id = $PRECOL~23~22
 settings value~update public.settings set value = pg_catalog.jsonb_set(value, '{allLabel}', '"ci"') where key = 'home_products'~update public.settings set value = pg_catalog.jsonb_set(value, '{allLabel}', '""') where key = 'home_products'~24~
-orphan cleaned_at~update public.storage_orphans set cleaned_at = '2026-01-01T00:00:00Z' where object_path = 'products/ci-pre/old.jpg'~update public.storage_orphans set cleaned_at = null where object_path = 'products/ci-pre/old.jpg'~29~28
+orphan row content~update public.storage_orphans set created_at = created_at + interval '1 second' where object_path = 'products/ci-pre/old.jpg'~update public.storage_orphans set created_at = created_at - interval '1 second' where object_path = 'products/ci-pre/old.jpg'~29~28
 EOF
 imp pre2
 d=$(idiff pre pre2 "$DATA_COLS")
