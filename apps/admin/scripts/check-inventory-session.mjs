@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url'
 
 const ADMIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const ACTOR_TOKEN = 'p_' + 'actor'
-const MANIFEST_BLOB = 'b4cbac139aa64271eb1ec1840faf52e4c4092246'
+const MANIFEST_BLOB = 'ddfe57a89086551b9c849837e3d22ea7f98c9202'
 const SESSION_FILE = 'lib/inventory/sessionCall.ts'
 const SELF_FILE = 'scripts/check-inventory-session.mjs'
 const RPC_FILE = 'lib/inventory/rpc.ts'
