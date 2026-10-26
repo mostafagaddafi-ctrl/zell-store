@@ -42,6 +42,7 @@ const SUITES = [
   { name: 'list-filters', dir: 'lib/orders', entry: 'listFilters.cases.ts', run: 'runListFiltersCases' },
   { name: 'home', dir: 'lib/content', entry: 'homeMobile.cases.ts', run: 'runHomeMobileCases' },
   { name: 'size-entry', dir: 'lib/content', entry: 'sizeEntry.cases.ts', run: 'runSizeEntryCases' },
+  { name: 'size-texts', dir: 'lib/content', entry: 'sizeTexts.cases.ts', run: 'runSizeTextsCases' },
   { name: 'storefront-link', dir: 'lib/storefront', entry: 'link.cases.ts', run: 'runStorefrontLinkCases' },
   { name: 'policy-save', dir: 'lib/content', entry: 'policySave.cases.ts', run: 'runPolicySaveCases' },
 ]

@@ -151,6 +151,7 @@ export default async function ProductPage({ params }: PageProps) {
               addonsTitle={settings.addonsTitle}
               installation={settings.installation}
               sizeEntry={settings.content.productSizeEntry}
+              sizeTexts={settings.content.productSizeTexts}
             />
           )}
         </div>

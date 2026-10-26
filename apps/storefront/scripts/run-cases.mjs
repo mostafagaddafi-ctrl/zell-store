@@ -31,6 +31,7 @@ const SUITES = [
   { name: 'track', dir: 'lib/orders', entry: 'trackOrder.cases.ts', run: 'runTrackOrderCases' },
   { name: 'shipping', dir: 'lib/orders', entry: 'shipping.cases.ts', run: 'runShippingCases' },
   { name: 'size', dir: 'lib/size', entry: 'sizeEntry.cases.ts', run: 'runSizeCases' },
+  { name: 'size-texts', dir: 'lib/size', entry: 'sizeTexts.cases.ts', run: 'runSizeTextsCases' },
   { name: 'nav', dir: 'lib/nav', entry: 'storeNav.cases.ts', run: 'runStoreNavCases' },
   { name: 'policies', dir: 'lib/policies', entry: 'policies.cases.ts', run: 'runPolicyCases' },
 ]

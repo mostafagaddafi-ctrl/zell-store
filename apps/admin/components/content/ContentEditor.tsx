@@ -8,6 +8,7 @@ import type { StoreContent } from '../../lib/adminData'
 import { useSaveAction } from '../../lib/client/useSaveAction'
 import { HOME_MOBILE_NOTE, HOME_MOBILE_OPTIONS, HOME_MOBILE_TITLE, type HomeMobileLayout } from '../../lib/content/homeMobile'
 import { SIZE_ENTRY_NOTE, SIZE_ENTRY_OPTIONS, SIZE_ENTRY_TITLE } from '../../lib/content/sizeEntry'
+import { SIZE_TEXTS_NOTE, SIZE_TEXTS_TITLE, SIZE_TEXT_FIELDS } from '../../lib/content/sizeTexts'
 import { SECTION_LABELS } from '../../lib/enums'
 import { STOREFRONT_LINK_NOT_SET } from '../../lib/storefront/link'
 import { useMutationsEnabled } from '../../lib/readiness'
@@ -179,6 +180,49 @@ export function ContentEditor({ content, storefrontHref }: { content: StoreConte
           ))}
           <p className="text-xs text-muted">{SIZE_ENTRY_NOTE}</p>
         </fieldset>
+      </Card>
+
+      {/* SIZE-TEXTS — نصوص «حدد المقاس» في صفحة المنتج (settings.hero.productSizeTexts)، وبتتحفظ مع المحتوى (نفس action). الفاضي = النص الافتراضي. */}
+      <Card title={SIZE_TEXTS_TITLE}>
+        <p className="mb-3 text-xs text-muted">{SIZE_TEXTS_NOTE}</p>
+        <div className="grid gap-3 lg:grid-cols-2">
+          {SIZE_TEXT_FIELDS.map((field) => {
+            const id = 'size-text-' + field.key
+            const value = draft.hero.productSizeTexts[field.key] ?? ''
+            const setValue = (next: string) =>
+              touch({
+                ...draft,
+                hero: { ...draft.hero, productSizeTexts: { ...draft.hero.productSizeTexts, [field.key]: next } },
+              })
+            return (
+              <Field
+                key={field.key}
+                htmlFor={id}
+                label={field.label}
+                hint={'حتى ' + String(field.max) + ' حرف'}
+                className={field.multiline ? 'lg:col-span-2' : ''}
+              >
+                {field.multiline ? (
+                  <textarea
+                    id={id}
+                    value={value}
+                    placeholder={field.defaultText}
+                    onChange={(e) => setValue(e.target.value)}
+                    className={textareaClasses}
+                  />
+                ) : (
+                  <input
+                    id={id}
+                    value={value}
+                    placeholder={field.defaultText}
+                    onChange={(e) => setValue(e.target.value)}
+                    className={inputClasses}
+                  />
+                )}
+              </Field>
+            )
+          })}
+        </div>
       </Card>
 
       <Card title="خطوات الطلب">
