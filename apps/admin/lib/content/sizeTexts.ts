@@ -39,7 +39,10 @@ export const SIZE_TEXT_MAX: Readonly<Record<ProductSizeTextKey, number>> = {
 /** نصوص الإعداد رسمية (فصحى مبسّطة، من غير كلام موجّه لصاحب المحل). */
 export const SIZE_TEXTS_TITLE = 'نصوص «حدد المقاس» في صفحة المنتج'
 
-export const SIZE_TEXTS_NOTE = 'اترك الخانة فارغة لاستخدام النص الافتراضي الظاهر داخلها. هذه النصوص للعرض فقط، ولا تؤثر على حساب المقاس أو الأسعار أو السلة.'
+export const SIZE_TEXTS_NOTE = 'يظهر النص الحالي داخل كل خانة ويمكن تعديله مباشرة. إذا تُركت الخانة فارغة عند الحفظ يُستخدم النص الافتراضي. هذه النصوص للعرض فقط، ولا تؤثر على حساب المقاس أو الأسعار أو السلة.'
+
+/** إرشاد عام يظهر فقط عندما تكون الخانة فارغة. */
+export const SIZE_TEXTS_EMPTY_HINT = 'اترك الخانة فارغة لاستخدام النص الافتراضي.'
 
 export const SIZE_TEXTS_INVALID = 'تعذّر حفظ نصوص «حدد المقاس». حدّث الصفحة وحاول مرة أخرى.'
 
@@ -70,6 +73,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/**
+ * قيمة الخانة في المحرر: النص المحفوظ لو موجود (حتى لو فاضي وقت الكتابة)، وإلا النص الافتراضي **كقيمة حقيقية قابلة
+ * للتعديل** (مش placeholder). دالة عرض بس: مابتغيّرش المسودة، ففتح الصفحة مش تعديل ومافيهوش حفظ.
+ */
+export function sizeTextFieldValue(texts: ProductSizeTexts, key: ProductSizeTextKey): string {
+  const value = texts[key]
+  return value === undefined ? DEFAULT_SIZE_TEXTS[key] : value
+}
+
 /** قراية الإعداد (نفس قاعدة المتجر بالحرف): الخانات الصالحة بس، وأي حاجة تانية بتتجاهل. */
 export function readProductSizeTexts(raw: unknown): ProductSizeTexts {
   if (!isRecord(raw)) return {}
@@ -85,7 +97,8 @@ export function readProductSizeTexts(raw: unknown): ProductSizeTexts {
 }
 
 /**
- * تحقق السيرفر قبل الحفظ: الغايب أو null = {} · الخانة الفاضية بتتشال · النص بيتعمله trim · الأطول من الحد مرفوض برسالة
+ * تحقق السيرفر قبل الحفظ: الغايب أو null = {} · الخانة الفاضية بتتشال · النص اللي يساوي الافتراضي بالحرف (بعد trim)
+ * بيتشال كمان (المحرر بيعرض الافتراضي كقيمة، فحفظ باقي المحتوى مايحوّلوش لنص محفوظ) · النص بيتعمله trim · الأطول من الحد مرفوض برسالة
  * (من غير قص صامت) · أي مفتاح غير معروف أو قيمة مش نص = مرفوض.
  */
 export function checkProductSizeTexts(value: unknown): { ok: true; value: ProductSizeTexts } | { ok: false; message: string } {
@@ -100,7 +113,7 @@ export function checkProductSizeTexts(value: unknown): { ok: true; value: Produc
     if (raw === undefined || raw === null) continue
     if (typeof raw !== 'string') return { ok: false, message: SIZE_TEXTS_INVALID }
     const text = raw.trim()
-    if (text === '') continue
+    if (text === '' || text === field.defaultText) continue
     if (text.length > field.max) return { ok: false, message: field.label + ' أطول من المسموح (' + String(field.max) + ' حرف)' }
     out[field.key] = text
   }
