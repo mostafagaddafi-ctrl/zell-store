@@ -11,6 +11,7 @@ import {
   SIZE_TEXT_MAX,
   checkProductSizeTexts,
   readProductSizeTexts,
+  sizeTextFieldValue,
 } from './sizeTexts'
 
 export type SizeTextsCaseFailure = { name: string; expected: string; actual: string }
@@ -69,6 +70,20 @@ export function runSizeTextsCases(): { passed: number; failures: SizeTextsCaseFa
   const stored = { title: 'قيس مكانك', widthLabel: 'العرض', meterNote: 'اسألنا على واتساب' }
   const reread = readProductSizeTexts(stored)
   check('A09 round trip: read then check = the stored value (saving the rest of the content keeps the texts)', checkProductSizeTexts(reread), { ok: true, value: stored })
+
+  // A10–A13 — النص الحالي بيظهر كقيمة حقيقية في الخانة، والفتح مش تعديل، والفاضي أو المساوي للافتراضي = الافتراضي
+  check(
+    'A10 field value: nothing saved = the default text as a real value · saved text shown · emptied while typing stays empty',
+    [sizeTextFieldValue({}, 'title'), sizeTextFieldValue({ title: 'قيس مكانك' }, 'title'), sizeTextFieldValue({ title: '' }, 'title'), sizeTextFieldValue({ title: 'قيس مكانك' }, 'intro')],
+    [OLD_TEXTS.title, 'قيس مكانك', '', OLD_TEXTS.intro],
+  )
+  const untouched = readProductSizeTexts(undefined)
+  const shown = SIZE_TEXT_FIELDS.map((f) => sizeTextFieldValue(untouched, f.key))
+  check('A11 opening the page is not an edit: showing the values leaves the draft as it was ({}) and saving it stores nothing', [untouched, checkProductSizeTexts(untouched)], [{}, { ok: true, value: {} }])
+  const asTyped: Record<string, string> = {}
+  SIZE_TEXT_FIELDS.forEach((f, i) => { asTyped[f.key] = shown[i] ?? '' })
+  check('A12 saving the shown defaults unchanged stores nothing (equal to default = removed, also after trim)', [checkProductSizeTexts(asTyped), checkProductSizeTexts({ title: '  ' + OLD_TEXTS.title + '  ' })], [{ ok: true, value: {} }, { ok: true, value: {} }])
+  check('A13 one word edited = only that key stored · emptied = removed (store shows the default)', checkProductSizeTexts({ ...asTyped, title: 'حدد المقاس المطلوب', intro: '' }), { ok: true, value: { title: 'حدد المقاس المطلوب' } })
 
   return { passed, failures }
 }
