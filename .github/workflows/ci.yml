@@ -656,7 +656,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # الداتابيز بتتبني من القايمة الصريحة، فأي تغيير في backend/db بيشغّل الاختبار.
+      # الداتابيز بتتبني من القايمة الصريحة، وK22 بيقرا نداءات apps/**، فأي تغيير في backend/db أو التطبيقات بيشغّل الاختبار.
       - name: Detect PRODUCT-DELETE SQL changes
         id: filter
         env:
@@ -667,7 +667,7 @@ jobs:
           if [ "$EVENT" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           if [ "$EVENT" = "pull_request" ]; then range="$BASE_SHA...HEAD"; else range="$BEFORE_SHA..HEAD"; fi
           if ! changed=$(git diff --name-only "$range" 2>/dev/null); then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if printf '%s\n' "$changed" | grep -Eq '^(backend/db/|\.github/workflows/ci\.yml$)'; then
+          if printf '%s\n' "$changed" | grep -Eq '^(backend/db/|apps/|\.github/workflows/ci\.yml$)'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -697,6 +697,12 @@ jobs:
 
       - name: psql client
         run: psql --version
+
+      # Node لـ K22 (call_contract.mjs، من غير أي dependency).
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       - name: SQL suite (PRODUCT-DELETE on a database built from build_from_scratch.list)
         run: bash backend/db/ci/0022_sql_ci.sh
