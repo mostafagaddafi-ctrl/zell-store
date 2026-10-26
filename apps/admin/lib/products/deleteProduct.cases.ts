@@ -1,5 +1,5 @@
 /**
- * PRODUCT-DELETE (المرحلة B) — حالات كارت حذف المنتج وربط 45507 (منطق خالص — pnpm --filter @zell/admin cases).
+ * PRODUCT-DELETE (المرحلة B) — حالات كارت حذف المنتج وربط 45507 وقرار الكارت بعد الحذف بنتايج محاكاة (منطق خالص — pnpm --filter @zell/admin cases).
  */
 
 import {
@@ -7,6 +7,11 @@ import {
   HOME_PRODUCTS_MISSING_SENTINEL,
   PRODUCT_DELETE_BLOCKERS,
   PRODUCT_DELETE_MESSAGES,
+  PRODUCT_DELETE_OWNER_ONLY_MESSAGE,
+  PRODUCT_DELETE_STOREFRONT_WARNING,
+  finishProductDelete,
+  performProductDelete,
+  productDeleteOutcome,
   homeProductsSaveMessage,
   parseProductDeletePreview,
   parseProductDeleteResult,
@@ -17,6 +22,7 @@ import {
   productDeleteInputIssue,
   productDeleteQuestion,
   productDeleteSummary,
+  type ProductDeleteCallResult,
   type ProductDeletePreview,
 } from './deleteProduct'
 
@@ -43,7 +49,7 @@ const CLEAN: ProductDeletePreview = {
 }
 const pre = (patch: Partial<ProductDeletePreview>): ProductDeletePreview => ({ ...CLEAN, ...patch })
 
-export function runProductDeleteCases(): { passed: number; failures: ProductDeleteCaseFailure[] } {
+export async function runProductDeleteCases(): Promise<{ passed: number; failures: ProductDeleteCaseFailure[] }> {
   // المعاينة
   check('D01 parse the preview reply', parseProductDeletePreview(RAW), CLEAN)
   check('D02 bad preview shapes = null', [
@@ -148,6 +154,43 @@ export function runProductDeleteCases(): { passed: number; failures: ProductDele
     homeProductsSaveMessage(null),
     homeProductsSaveMessage('ZELL_INVALID_ORDER'),
   ], [HOME_PRODUCTS_MISSING_MESSAGE, null, null])
+
+  // بعد الحذف: تحديث المتجر والتحذير — نتايج محاكاة (من غير داتابيز ولا شبكة)
+  const deleted: ProductDeleteCallResult = { ok: true, data: { productId: 12, imagesRegistered: 1, imagesAlreadyPending: 0, removedFromHome: false, addonLinks: 0, collectionLinks: 0 } }
+  async function chain(refreshResult: boolean | 'throws', deleteResult: ProductDeleteCallResult) {
+    let deleteCalls = 0
+    let refreshCalls = 0
+    const outcome = await performProductDelete(async () => {
+      deleteCalls += 1
+      const result = deleteResult
+      return finishProductDelete(result, async () => {
+        refreshCalls += 1
+        if (refreshResult === 'throws') throw new Error('network')
+        return refreshResult
+      })
+    })
+    return { outcome, deleteCalls, refreshCalls }
+  }
+  check('D70 delete ok + storefront refresh ok -> back to the list at once, no notice; delete called once, refresh once',
+    await chain(true, deleted), { outcome: { kind: 'deleted', navigate: true, notice: null }, deleteCalls: 1, refreshCalls: 1 })
+  check('D71 delete ok + storefront refresh failed -> success with the warning shown (no navigation away, not a failure); delete NOT repeated',
+    await chain(false, deleted), { outcome: { kind: 'deleted', navigate: false, notice: PRODUCT_DELETE_STOREFRONT_WARNING }, deleteCalls: 1, refreshCalls: 1 })
+  check('D72 delete ok + storefront refresh threw -> same warning; delete NOT repeated',
+    await chain('throws', deleted), { outcome: { kind: 'deleted', navigate: false, notice: PRODUCT_DELETE_STOREFRONT_WARNING }, deleteCalls: 1, refreshCalls: 1 })
+  check('D73 delete refused (45508) -> failure banner, storefront refresh never called',
+    await chain(false, { ok: false, code: 'VALIDATION', message: PRODUCT_DELETE_MESSAGES.busy }),
+    { outcome: { kind: 'failed', code: 'VALIDATION', message: PRODUCT_DELETE_MESSAGES.busy }, deleteCalls: 1, refreshCalls: 0 })
+  check('D74 the action call itself threw (network) -> one generic failure, no retry', await (async () => {
+    let calls = 0
+    const outcome = await performProductDelete(async () => {
+      calls += 1
+      throw new Error('offline')
+    })
+    return { outcome, calls }
+  })(), { outcome: { kind: 'failed', code: 'INTERNAL', message: PRODUCT_DELETE_MESSAGES.internal }, calls: 1 })
+  check('D75 the warning keeps the success data (only the warning field is added)', productDeleteOutcome({ ...deleted, warning: 'any text' }),
+    { kind: 'deleted', navigate: false, notice: PRODUCT_DELETE_STOREFRONT_WARNING })
+  check('D76 wrapper refusal message is about deleting products (owner only), not another feature', PRODUCT_DELETE_OWNER_ONLY_MESSAGE, 'حذف المنتجات متاح للمالك فقط.')
 
   return { passed, failures }
 }
