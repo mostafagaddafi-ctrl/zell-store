@@ -13,12 +13,14 @@ import { PreviewNotice } from '../../../../components/ui/PreviewNotice'
 import { adminData } from '../../../../lib/adminData'
 import { formatDateTime } from '../../../../lib/format'
 import { pageWithAccess } from '../../../../lib/access/instance'
+import { ProductDeleteCard } from '../../../../components/products/ProductDeleteCard'
+import { readProductDeletePreview } from '../../../../lib/data/productDelete'
 
 type PageProps = { params: Promise<{ id: string }> }
 
 export const metadata: Metadata = { title: 'المنتج' }
 
-export default pageWithAccess('zell.products.view', async function ProductPage(_ctx, { params }: PageProps) {
+export default pageWithAccess('zell.products.view', async function ProductPage(ctx, { params }: PageProps) {
   const { id } = await params
   const product = await adminData.getProduct(Number(id))
   if (!product) notFound()
@@ -32,6 +34,10 @@ export default pageWithAccess('zell.products.view', async function ProductPage(_
   // الأقسام اللي المنتج فيها — عرض بس، الربط من صفحة القسم
   const collections = await adminData.listCollections()
   const details = await Promise.all(collections.map((collection) => adminData.getCollection(collection.id)))
+  // PRODUCT-DELETE: كارت الحذف للمالك بس، والمعاينة بتتقرا بس لما المنتج مخفي.
+  const isOwner = ctx.identity.role === 'owner'
+  const deletePreview = isOwner && !product.isActive ? await readProductDeletePreview(product.id) : null
+
   const sections = details.filter(
     (detail): detail is NonNullable<typeof detail> => detail !== null && detail.productIds.includes(product.id),
   )
@@ -84,6 +90,12 @@ export default pageWithAccess('zell.products.view', async function ProductPage(_
         addonIds={addonIds}
         addonsTitle={addonsTitle}
       />
+
+      {isOwner ? (
+        <div className="mt-4">
+          <ProductDeleteCard productName={product.nameAr} isActive={product.isActive} preview={deletePreview} />
+        </div>
+      ) : null}
     </>
   )
 })
