@@ -167,7 +167,7 @@ begin
          and p.proname <> 'zell_inv_product_stock_ref_exists') <> 43
      or (select count(*) from pg_catalog.pg_proc p
           where p.pronamespace = 'public'::regnamespace and p.proname = 'zell_inv_product_stock_ref_exists')
-        <> case when v_0022 then 1 else 0 end
+        <> (case when v_0022 then 1 else 0 end)
      or (select count(*) from pg_catalog.pg_proc p
           where p.pronamespace = 'public'::regnamespace
             and (p.proname like 'zell\_inv\_session\_%' or p.proname = 'zell_inv_claims_actor')) not in (0, 24) then
