@@ -236,10 +236,28 @@ export type StoreContent = {
   heroMobileLayout: HomeMobileLayout
   /** LENGTH-INPUT — الطريقة الأولى لإدخال المقاس في صفحة المنتج، من settings.hero.productSizeEntry (الغايب أو الغلط = 'cm'). */
   productSizeEntry: ProductSizeEntry
+  /** SIZE-TEXTS — نصوص «حدد المقاس» المعدّلة من «المحتوى» (settings.hero.productSizeTexts). الخانة الغايبة = النص الافتراضي في المتجر. */
+  productSizeTexts: ProductSizeTexts
 }
 
 /** LENGTH-INPUT — 'cm' = مقاس المكان بالسنتيمتر (الافتراضي) · 'm' = الطول بالمتر. نوع وإعداد بس، مالوش دخل بالحساب. */
 export type ProductSizeEntry = 'cm' | 'm'
+
+/** SIZE-TEXTS — خانات «حدد المقاس» اللي بتتعدّل من اللوحة. نصوص عرض بس، مالهاش دخل بالحساب. */
+export type ProductSizeTextKey =
+  | 'title'
+  | 'intro'
+  | 'rollHint'
+  | 'widthLabel'
+  | 'heightLabel'
+  | 'heightExample'
+  | 'guide'
+  | 'toMeters'
+  | 'toCentimeters'
+  | 'meterNote'
+
+/** SIZE-TEXTS — النصوص المعدّلة بس (الغايب = الافتراضي). */
+export type ProductSizeTexts = Partial<Record<ProductSizeTextKey, string>>
 
 /**
  * القيم الافتراضية = نفس النصوص اللي كانت ثابتة في الكود قبل ما
@@ -280,6 +298,7 @@ export const DEFAULT_STORE_CONTENT: StoreContent = {
   // HOME-MOBILE — الجديد هو الافتراضي (قرار المالك 2026-10-12)
   heroMobileLayout: 'compact',
   productSizeEntry: 'cm',
+  productSizeTexts: {},
 }
 
 // ── فني التركيب (بالتواصل) ─────────────────────────────────────
