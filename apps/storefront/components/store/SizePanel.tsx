@@ -11,6 +11,7 @@ import {
   widthOptionsOf,
   withWidth,
   type ProductSizeEntry,
+  type ProductSizeTexts,
   type StoreProduct,
 } from '@zell/core'
 import { cn } from '../../lib/cn'
@@ -26,10 +27,12 @@ import {
   restoreSizeDraft,
   sizeDecision,
   sizeDraftOf,
+  sizeRulesKeyOf,
   switchToMetersParts,
   type SizeDecision,
   type SizeMode,
 } from '../../lib/size/sizeEntry'
+import { resolveSizeTexts } from '../../lib/size/sizeTexts'
 import { inputClasses } from '../ui/Field'
 import { Num } from './Num'
 
@@ -54,19 +57,10 @@ import { Num } from './Num'
  *     من غير ما الزرار يتقفل، ومفيش رفع صامت للحد الأدنى ولا طول قديم. الكتابة حرة؛ الأحمر والرسالة والهزة بعد الخروج من
  *     الخانة أو محاولة الطلب (attempt)، ومع reduced motion مفيش هزة. الرقم المكتوب بيفضل زي ما هو.
  *   • التحويل للمتر بضغطة العميل بس، والطول = آخر طول صالح بالمتر أو الحد الأدنى.
+ *
+ * SIZE-TEXTS (lib/size/sizeTexts.ts): النصوص من «المحتوى» (الغايب أو الفاضي = النص الافتراضي)، وبتتعرض كنص عادي.
+ *   مالهاش دخل بالحساب ولا بصمة المسودة (sizeRulesKeyOf). رسايل الأخطاء والأرقام والوحدات ثابتة.
  */
-/** بصمة قواعد المقاس — أي تغيير فيها من اللوحة بيلغي مسودة المقاس القديمة. */
-function sizeRulesKey(product: StoreProduct): string {
-  return [
-    product.width_cm,
-    product.min_length_cm,
-    product.step_cm,
-    product.max_length_cm,
-    product.lock_width === true ? 1 : 0,
-    widthOptionsOf(product).map((option) => option.width_cm).join(','),
-  ].join('|')
-}
-
 export function SizePanel({
   product,
   widthCm,
@@ -77,6 +71,7 @@ export function SizePanel({
   sizeEntry = 'cm',
   decisionRef,
   attempt = 0,
+  sizeTexts,
 }: {
   /** المنتج الأساسي — العروض التانية بتتحسب منه. */
   product: StoreProduct
@@ -96,7 +91,10 @@ export function SizePanel({
   decisionRef?: { current: (() => SizeDecision) | null }
   /** LENGTH-INPUT — بيزيد مع كل ضغطة على زرار الطلب والإدخال ممنوع: بيظهر الخطأ والهزة. */
   attempt?: number
+  /** SIZE-TEXTS — نصوص «حدد المقاس» من «المحتوى» (الغايب أو الفاضي = النص الافتراضي). نصوص عرض بس. */
+  sizeTexts?: ProductSizeTexts
 }) {
+  const t = resolveSizeTexts(sizeTexts)
   const initialMode = modeOfEntry(sizeEntry)
   const [mode, setMode] = useState<SizeMode>(initialMode)
   const [width, setWidth] = useState('')
@@ -179,7 +177,7 @@ export function SizePanel({
    * بترجع بس لو بصمة القواعد زي ما هي. مسودة السنتيمتر بترجع بخاناتها زي ما هي (حتى لو ناقصة أو تحت الحد) والطلب
    * ممنوع لحد التصحيح؛ آخر اختيار بالمتر (meterCm) محفوظ لوحده وبيرجع بس لو صالح، وطول السنتيمتر مابيبقاش اختيار متر. القراءة بعد التركيب (السيرفر مالوش sessionStorage)، والحفظ بعدها بس.
    */
-  const rulesKey = sizeRulesKey(product)
+  const rulesKey = sizeRulesKeyOf(product)
   const [draftLoaded, setDraftLoaded] = useState(false)
   useEffect(() => {
     const restored = restoreSizeDraft(readSizeDraft(product.id), rulesKey, product)
@@ -231,9 +229,9 @@ export function SizePanel({
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 sm:p-5">
-      <h2 className="text-base font-bold text-fg">حدد المقاس</h2>
+      <h2 className="text-base font-bold text-fg">{t.title}</h2>
       <p className="mt-1 text-xs leading-relaxed text-muted">
-        قيس المكان اللي هيتركّب عليه الفيلم — شباك، باب، قزاز، مراية — بالسنتيمتر، وإحنا نحسب كام متر محتاج.
+        {t.intro}
       </p>
 
       {widths.length > 1 ? (
@@ -263,7 +261,7 @@ export function SizePanel({
               )
             })}
           </div>
-          <p className="mt-1.5 text-xs text-muted">ده عرض الفيلم نفسه (الشريحة الواحدة). لو المكان أعرض منه، بنقسمه شرايح.</p>
+          <p className="mt-1.5 text-xs text-muted">{t.rollHint}</p>
         </div>
       ) : null}
 
@@ -276,14 +274,14 @@ export function SizePanel({
           {widthLocked ? (
             <LockedCm
               id="window-width"
-              label="عرض المكان"
+              label={t.widthLabel}
               value={String(current.width_cm)}
               hint={widths.length > 1 ? 'ثابت على عرض الرول اللي اخترته' : 'العرض ثابت للمنتج ده'}
             />
           ) : (
             <CmInput
               id="window-width"
-              label="عرض المكان"
+              label={t.widthLabel}
               placeholder="120"
               value={width}
               invalid={showCmError}
@@ -294,9 +292,9 @@ export function SizePanel({
           )}
           <CmInput
             id="window-height"
-            label="ارتفاع المكان"
+            label={t.heightLabel}
             placeholder="500"
-            hint="مثال: 500 سم"
+            hint={t.heightExample}
             value={height}
             invalid={showCmError}
             describedBy={showCmError ? errorId : undefined}
@@ -326,8 +324,7 @@ export function SizePanel({
           </div>
 
           <p className="rounded-lg bg-bg px-3 py-2 text-xs leading-relaxed text-muted">
-            الطول ده لشريط فيلم عرضه <Num>{String(current.width_cm)}</Num> سم. مش متأكد؟ ارجع للمقاس واكتبه
-            بالسنتيمتر وإحنا نحسب.
+            الطول ده لشريط فيلم عرضه <Num>{String(current.width_cm)}</Num> سم. {t.meterNote}
           </p>
 
           {options.length > 0 ? (
@@ -368,12 +365,12 @@ export function SizePanel({
         {mode === 'window' ? (
           <>
             <Ruler className="h-4 w-4" />
-            عارف الطول اللي محتاجه بالمتر؟
+            {t.toMeters}
           </>
         ) : (
           <>
             <Maximize className="h-4 w-4" />
-            ارجع للمقاس بالسنتيمتر
+            {t.toCentimeters}
           </>
         )}
       </button>
@@ -456,7 +453,7 @@ export function SizePanel({
         <p className="mt-2 text-xs text-muted">
           {widthLocked
             ? 'اكتب الارتفاع بالسنتيمتر وإحنا نحسب الطول المطلوب.'
-            : 'اكتب العرض والارتفاع بالسنتيمتر وإحنا نحسب عدد الشرايح والطول.'}
+            : t.guide}
         </p>
       ) : null}
     </div>
