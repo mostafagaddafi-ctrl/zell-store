@@ -26,6 +26,7 @@ VERIFY="$MIG/0022_product_delete_verify.sql"
 ROLLBACK="$MIG/0022_product_delete_rollback.sql"
 V0020="$MIG/0020_inventory_purchasing_verify.sql"
 FLOWS="$CIDIR/0022_flows.sql"
+IMPACT="$MIG/0022_product_delete_impact.sql"
 SHAPE="$CIDIR/0021p_txn_shape.py"
 SUPER="${CI_SUPERUSER:-supabase_admin}"
 DB=zell_ci_0022
@@ -38,7 +39,7 @@ OWNER_ID='00000000-0000-4000-8000-0000000000a1'
 ADMIN_ID='00000000-0000-4000-8000-0000000000a2'
 OFF_ID='00000000-0000-4000-8000-0000000000a3'
 USER_ID='00000000-0000-4000-8000-0000000000a4'
-EXPECTED="S01 S02 S03 S04 B01 X01 I01 G01 G02 G03 G04 T01 A01 A02 A03 V01 N01 N02 N03 N04 N05 I02 I03 I04 I05 I06 I07 I08 R01 R02 A04 F00
+EXPECTED="S01 S02 S03 S04 B01 X01 IMP0 IMP1 IMP2 I01 G01 G02 G03 G04 T01 A01 IMP3 A02 A03 V01 N01 N02 N03 N04 N05 I02 I03 I04 I05 I06 I07 I08 R01 IMP4 R02 A04 IMP5 F00
 C01 C02 C03 C04 C05 C06 C07 C08 C09 C10 C11 C12 C13 C14 C15 C16 C17 C18 C19 P01 P02 P03 P04 P05 P06 P07 P08 H01 H02 H03 H04 Z01 Z02 R03 V02 K22"
 APPLIED='1|4|1|17|1|1'
 CLEAN='0|0|0|0|0|0'
@@ -115,8 +116,8 @@ v20() { run_file "$V0020" "$TMP/i20.out"; }
 v20_line() { grep -oE 'ZELL_0020_[A-Z0-9_]+[^"]{0,160}' "$TMP/i20.out" | head -n 1; }
 
 # ---- 1) فحوص ثابتة ----
-if python3 "$SHAPE" --selftest > "$TMP/shape_self.out" 2>&1 && python3 "$SHAPE" "$PTEST" "$VERIFY" "$FLOWS" > "$TMP/shape.out" 2>&1; then ok=yes; else ok=no; fi
-record "S01 transaction shape: ptest / verify / flows = begin ... one SELECT ... rollback (checker self-test first)" "$ok" "$(tailof "$TMP/shape.out") $(tailof "$TMP/shape_self.out")"
+if python3 "$SHAPE" --selftest > "$TMP/shape_self.out" 2>&1 && python3 "$SHAPE" "$PTEST" "$VERIFY" "$FLOWS" "$IMPACT" > "$TMP/shape.out" 2>&1; then ok=yes; else ok=no; fi
+record "S01 transaction shape: ptest / verify / flows / impact = begin ... one SELECT ... rollback (checker self-test first)" "$ok" "$(tailof "$TMP/shape.out") $(tailof "$TMP/shape_self.out")"
 m_apply=$(body_md5 "$APPLY" "0022 BODY"); m_ptest=$(body_md5 "$PTEST" "0022 BODY")
 ok=no; [ "$m_apply" = "$m_ptest" ] && [ "$m_apply" != "$EMPTY_MD5" ] && ok=yes
 record "S02 ptest body = apply body (md5 $m_apply)" "$ok" "apply=$m_apply ptest=$m_ptest"
@@ -177,6 +178,68 @@ chk=$(q "select (select count(*) from public.admin_users where user_id in ('$ADM
 ok=no; [ "$chk" = "2|1|1|1" ] && ok=yes
 record "X01 CI data: admin ...a2, inactive admin ...a3, plain user ...a4, product $P_ORD in order_items, product $P_STK in opening_stock_lines" "$ok" "$chk $(tailof "$TMP/x1.log")"
 
+# ---- 3b) استعلام الأثر (0022_product_delete_impact.sql) — نفس الملف بالحرف قبل التطبيق وبعده ----
+# حالة CI قبل التطبيق شبه Production: صف home_products فيه id قديم لمنتج مش موجود، وصورة مستنية تنظيف، ورابط إضافة، ورابط قسم.
+SEED1=$(q "select min(id) from public.products where name_ar not like 'ci-0022-%'")
+SEED2=$(q "select max(id) from public.products where name_ar not like 'ci-0022-%'")
+PRECOL=$(q "insert into public.collections (slug, title_ar) values ('ci-0022-pre', 'CI 0022 pre') returning id")
+q "insert into public.settings (key, value) values ('home_products', '{\"mode\": \"selected\", \"ids\": [$SEED1, $SEED2, 999999], \"allLabel\": \"\"}')
+   on conflict (key) do update set value = excluded.value" > "$TMP/pre.log"
+q "insert into public.storage_orphans (object_path, reason) values ('products/ci-pre/old.jpg', 'replaced')" >> "$TMP/pre.log"
+q "insert into public.product_addons (product_id, addon_id) values ($SEED1, $SEED2)" >> "$TMP/pre.log"
+q "insert into public.product_collections (collection_id, product_id) values ($PRECOL, $SEED1)" >> "$TMP/pre.log"
+q "insert into public.product_images (product_id, object_path) values ($SEED1, 'products/ci-pre/a.jpg')" >> "$TMP/pre.log"
+q "insert into public.product_widths (product_id, width_cm, price_per_meter_piastres) values ($SEED1, 77, 1000)" >> "$TMP/pre.log"
+OLD_ORPH="CHECK ((reason = ANY (ARRAY['insert_failed'::text, 'delete_failed'::text, 'replaced'::text, 'removed'::text])))"
+NEW_ORPH="CHECK ((reason = ANY (ARRAY['insert_failed'::text, 'delete_failed'::text, 'replaced'::text, 'removed'::text, 'product_deleted'::text])))"
+DATA_COLS="10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31"
+imp() { run_file "$IMPACT" "$TMP/imp_$1.out"; IMP_RC=$?; grep -v '^[[:space:]]*$' "$TMP/imp_$1.out" | tail -n 1 > "$TMP/imp_$1.row"; }
+icol() { cut -d'|' -f"$2" "$TMP/imp_$1.row"; }
+inf() { awk -F'|' '{print NF}' "$TMP/imp_$1.row"; }
+# أول عمود مختلف بين نتيجتين (من القايمة $3)، وفاضي لو كله زي بعضه.
+idiff() { local f; for f in $3; do [ "$(icol "$1" "$f")" = "$(icol "$2" "$f")" ] || { printf '%s' "$f"; return; }; done; }
+ishow() { cut -d'|' -f2-14,16,18,20,22,26-28,30-34 "$TMP/imp_$1.row"; }
+
+imp pre
+ok=no
+[ "$IMP_RC" -eq 0 ] && [ "$(inf pre)" = "34" ] && icol pre 1 | grep -Eqx '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z' \
+  && [ "$(icol pre 2)|$(icol pre 3)|$(icol pre 4)|$(icol pre 5)|$(icol pre 6)|$(icol pre 8)" = "0|0|0|0|f|0" ] \
+  && [ "$(icol pre 7)" = "$OLD_ORPH" ] && [ "$(icol pre 26)" = "1" ] && [ "$(icol pre 32)|$(icol pre 33)" = "0|0" ] && ok=yes
+echo "IMPACT pre: $(ishow pre)"
+record "IMP0 impact query before apply: 34 columns, UTC time, 0022 objects absent, old reasons, 1 stale home id, idle_tx 0, stop_locks 0" "$ok" "rc=$IMP_RC nf=$(inf pre) $(tailof "$TMP/imp_pre.out")"
+
+# تغيير محتوى بنفس العدد في كل جدول لازم يظهر في بصمته بس (العدد زي ما هو)، والرجوع يرجّع الـ baseline بالظبط.
+ok=yes; miss=""
+while IFS='~' read -r label change revert fpc cntc; do
+  q "$change" > /dev/null; imp chg; q "$revert" > /dev/null
+  d=$(idiff pre chg "$DATA_COLS")
+  if [ "$d" != "$fpc" ] || { [ -n "$cntc" ] && [ "$(icol pre "$cntc")" != "$(icol chg "$cntc")" ]; }; then ok=no; miss="$miss [$label: first diff=$d]"; fi
+done <<EOF
+products name~update public.products set name_ar = name_ar || '+' where id = $SEED2~update public.products set name_ar = left(name_ar, -1) where id = $SEED2~15~12
+image alt text~update public.product_images set alt_text = 'ci' where object_path = 'products/ci-pre/a.jpg'~update public.product_images set alt_text = null where object_path = 'products/ci-pre/a.jpg'~17~16
+width price~update public.product_widths set price_per_meter_piastres = price_per_meter_piastres + 1 where product_id = $SEED1 and width_cm = 77~update public.product_widths set price_per_meter_piastres = price_per_meter_piastres - 1 where product_id = $SEED1 and width_cm = 77~19~18
+addon order~update public.product_addons set sort_order = sort_order + 1 where product_id = $SEED1 and addon_id = $SEED2~update public.product_addons set sort_order = sort_order - 1 where product_id = $SEED1 and addon_id = $SEED2~21~20
+collection order~update public.product_collections set sort_order = sort_order + 1 where collection_id = $PRECOL~update public.product_collections set sort_order = sort_order - 1 where collection_id = $PRECOL~23~22
+settings value~update public.settings set value = pg_catalog.jsonb_set(value, '{allLabel}', '"ci"') where key = 'home_products'~update public.settings set value = pg_catalog.jsonb_set(value, '{allLabel}', '""') where key = 'home_products'~24~
+orphan cleaned_at~update public.storage_orphans set cleaned_at = '2026-01-01T00:00:00Z' where object_path = 'products/ci-pre/old.jpg'~update public.storage_orphans set cleaned_at = null where object_path = 'products/ci-pre/old.jpg'~29~28
+EOF
+imp pre2
+d=$(idiff pre pre2 "$DATA_COLS")
+[ -z "$d" ] || { ok=no; miss="$miss [after the reverts column $d differs from the baseline]"; }
+record "IMP1 same-count content change in products / images / widths / addon links / collection links / settings / orphans changes that fingerprint (count unchanged); reverts give the baseline back" "$ok" "$miss"
+
+# الأقفال والمعاملات: القاعدة الحالية بس، والوقف بس للأقفال اللي بتعطّل التطبيق.
+ok=yes; why=""
+run_sql "select pg_catalog.pg_sleep(4) from public.products limit 1;" "$TMP/l1.out" & lp=$!; sleep 1; imp lk1; wait "$lp"
+[ "$(icol lk1 34)" -ge 1 ] && [ "$(icol lk1 33)" = "0" ] && [ "$(icol lk1 32)" = "0" ] || { ok=no; why="$why [active read: $(icol lk1 32)|$(icol lk1 33)|$(icol lk1 34)]"; }
+run_sql "$(printf '%s\n' 'begin;' 'lock table public.storage_orphans in share row exclusive mode;' 'select pg_catalog.pg_sleep(4);' 'commit;')" "$TMP/l2.out" & lp=$!; sleep 1; imp lk2; wait "$lp"
+[ "$(icol lk2 33)" -ge 1 ] && [ "$(icol lk2 32)" = "0" ] || { ok=no; why="$why [strong lock: $(icol lk2 32)|$(icol lk2 33)|$(icol lk2 34)]"; }
+run_sql "$(printf '%s\n' 'begin;' 'select count(*) from public.settings;' '\! sleep 4' 'commit;')" "$TMP/l3.out" & lp=$!; sleep 1.5; imp lk3; wait "$lp"
+[ "$(icol lk3 32)" -ge 1 ] && [ "$(icol lk3 33)" -ge 1 ] || { ok=no; why="$why [idle in transaction: $(icol lk3 32)|$(icol lk3 33)|$(icol lk3 34)]"; }
+printf '%s\n' 'begin;' 'select 1;' '\! sleep 4' 'commit;' | psql -X -q -tA -U postgres -d postgres -f - > "$TMP/l4.out" 2>&1 & lp=$!; sleep 1.5; imp lk4; wait "$lp"
+[ "$(icol lk4 32)" = "0" ] && [ "$(icol lk4 33)" = "0" ] || { ok=no; why="$why [other database: $(icol lk4 32)|$(icol lk4 33)]"; }
+record "IMP2 locks / idle: active read = info only · ShareRowExclusive = stop · idle in transaction = stop (idle_tx + its lock) · other database ignored" "$ok" "$why"
+
 # ---- 4) تحقق 0020 قبل 0022 (إلزامي) ----
 v20
 ok=no; has "$TMP/i20.out" 'ZELL_0020_VERIFY_RESULT part_a=ok' && ! has "$TMP/i20.out" '0022=applied' && ok=yes
@@ -214,6 +277,14 @@ run_approved "$APPLY" 'ci-0022' "$TMP/a1.out"; rc=$?
 ok=no; [ "$rc" -eq 0 ] && [ "$(state)" = "$APPLIED" ] && ok=yes
 record "A01 apply with the approval line" "$ok" "$(state) $(tailof "$TMP/a1.out")"
 [ "$ok" = yes ] || finish
+imp post
+ok=no
+[ "$IMP_RC" -eq 0 ] && [ "$(inf post)" = "34" ] \
+  && [ "$(icol post 2)|$(icol post 3)|$(icol post 4)|$(icol post 5)|$(icol post 6)|$(icol post 8)" = "1|4|17|1|t|3" ] \
+  && [ "$(icol post 7)" = "$NEW_ORPH" ] && [ "$(icol post 9)" = "$(( $(icol pre 9) + 1 ))" ] \
+  && [ -z "$(idiff pre post "$DATA_COLS")" ] && [ "$(icol post 32)|$(icol post 33)" = "0|0" ] && ok=yes
+echo "IMPACT post: $(ishow post)"
+record "IMP3 impact query right after apply: role 1 · functions 4 · policies 17 · trigger 1 · helper grant t · product_deleted · code users 3 · inv functions +1; columns 10-31 = baseline" "$ok" "first data diff=$(idiff pre post "$DATA_COLS") $(ishow post)"
 run_approved "$APPLY" 'ci-0022' "$TMP/a2.out"
 ok=no; has "$TMP/a2.out" 'ZELL_0022_ALREADY_APPLIED' && [ "$(state)" = "$APPLIED" ] && ok=yes
 record "A02 second apply -> ZELL_0022_ALREADY_APPLIED" "$ok" "$(tailof "$TMP/a2.out")"
@@ -293,12 +364,18 @@ ok=no
 [ "$rc" -eq 0 ] && [ "$(state)" = "$CLEAN" ] && [ "$(cat_fp)" = "$CF0" ] && fp_ok \
   && has "$TMP/i20.out" 'ZELL_0020_VERIFY_RESULT part_a=ok' && ! has "$TMP/i20.out" '0022=applied' && ok=yes
 record "R01 rollback before any delete: catalog fingerprint = before apply (ACLs, functions, policies, constraints, triggers, roles); 0020 verify ok" "$ok" "$(state) $(v20_line) $(tailof "$TMP/r1.out")"
+imp rb
+ok=no; [ "$IMP_RC" -eq 0 ] && [ -z "$(idiff pre rb "2 3 4 5 6 7 8 9 $DATA_COLS")" ] && ok=yes
+record "IMP4 impact query after rollback = the baseline exactly (columns 2-31)" "$ok" "first diff=$(idiff pre rb "2 3 4 5 6 7 8 9 $DATA_COLS")"
 run_file "$ROLLBACK" "$TMP/r2.out"
 ok=no; has "$TMP/r2.out" 'ZELL_0022_RB_NOT_APPLIED' && ok=yes
 record "R02 rollback when not applied -> ZELL_0022_RB_NOT_APPLIED" "$ok" "$(tailof "$TMP/r2.out")"
 run_approved "$APPLY" 'ci-0022-again' "$TMP/a4.out"; rc=$?
 ok=no; [ "$rc" -eq 0 ] && [ "$(state)" = "$APPLIED" ] && verify_ok && ok=yes
 record "A04 re-apply after rollback + verify PASS" "$ok" "$(state) $(summary_of "$TMP/v.out") $(tailof "$TMP/a4.out")"
+imp again
+ok=no; [ "$IMP_RC" -eq 0 ] && [ -z "$(idiff post again "2 3 4 5 6 7 8 9 $DATA_COLS")" ] && ok=yes
+record "IMP5 impact query after re-apply = the after-apply result (columns 2-31)" "$ok" "first diff=$(idiff post again "2 3 4 5 6 7 8 9 $DATA_COLS")"
 
 # ---- 10b) عقد استدعاء التطبيقات على البناء الكامل + 0022 (المرحلة B، العقد §٧-أ) ----
 # نفس حارس BASELINE (call_contract.mjs) بـ --pending require: نداءات zell_product_delete* بتتفحص فعليًا (الوجود · أسماء المعاملات ·
