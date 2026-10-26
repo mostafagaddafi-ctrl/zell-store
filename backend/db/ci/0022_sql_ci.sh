@@ -97,17 +97,17 @@ cat_fp() {
      (select n.nspacl::text from pg_catalog.pg_namespace n where n.nspname = 'public'),
      (select string_agg(p.oid::regprocedure::text || '=' || coalesce(p.proacl::text, '-') || '=' || pg_catalog.md5(p.prosrc), ','
                         order by p.oid::regprocedure::text) from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace),
-     (select string_agg(c.relname || '/' || p.polname || '/' || p.polcmd || '/' || pg_catalog.array_to_string(p.polroles, '+') || '/'
+     (select string_agg(c.relname || '/' || p.polname || '/' || p.polcmd::text || '/' || pg_catalog.array_to_string(p.polroles, '+') || '/'
                         || coalesce(pg_catalog.pg_get_expr(p.polqual, p.polrelid), '-') || '/'
                         || coalesce(pg_catalog.pg_get_expr(p.polwithcheck, p.polrelid), '-'), ',' order by c.relname, p.polname)
         from pg_catalog.pg_policy p join pg_catalog.pg_class c on c.oid = p.polrelid),
      (select string_agg(c.conrelid::regclass::text || '/' || c.conname || '/' || pg_catalog.pg_get_constraintdef(c.oid), ','
                         order by c.conrelid::regclass::text, c.conname) from pg_catalog.pg_constraint c
        where c.connamespace = 'public'::regnamespace),
-     (select string_agg(t.tgrelid::regclass::text || '/' || t.tgname || '/' || t.tgenabled, ',' order by t.tgrelid::regclass::text, t.tgname)
+     (select string_agg(t.tgrelid::regclass::text || '/' || t.tgname || '/' || t.tgenabled::text, ',' order by t.tgrelid::regclass::text, t.tgname)
         from pg_catalog.pg_trigger t where not t.tgisinternal),
      (select string_agg(r.rolname, ',' order by r.rolname) from pg_catalog.pg_roles r),
-     (select string_agg(m.roleid::regrole::text || '>' || m.member::regrole::text || '/' || m.set_option || m.inherit_option || m.admin_option,
+     (select string_agg(m.roleid::regrole::text || '>' || m.member::regrole::text || '/' || m.set_option::text || m.inherit_option::text || m.admin_option::text,
                         ',' order by m.roleid::regrole::text, m.member::regrole::text) from pg_catalog.pg_auth_members m)))"
 }
 verify_ok() { run_file "$VERIFY" "$TMP/v.out"; [ "$(summary_of "$TMP/v.out" | cut -d'|' -f7)" = "PASS" ]; }
@@ -184,6 +184,7 @@ record "I01 0020 verify before 0022: part_a=ok, no 0022 marker" "$ok" "$(v20_lin
 
 # ---- 5) حراس الـ preflight (قبل التطبيق) ----
 CF0=$(cat_fp)
+fp_ok() { printf '%s' "$CF0" | grep -Eqx '[0-9a-f]{32}'; }
 run_file "$APPLY" "$TMP/g1.out"
 ok=no; has "$TMP/g1.out" 'ZELL_0022_APPROVAL_MISSING' && [ "$(state)" = "$CLEAN" ] && ok=yes
 record "G01 apply without the approval line -> ZELL_0022_APPROVAL_MISSING, nothing created" "$ok" "$(state) $(tailof "$TMP/g1.out")"
@@ -199,13 +200,13 @@ q "grant execute on function public.zell_inv_product_has_stock_refs(integer) to 
 run_approved "$APPLY" 'ci-0022' "$TMP/g4.out"
 ok=no; has "$TMP/g4.out" 'ZELL_0022_PRE_INV_GRANT_EXISTS' && ok=yes
 q "revoke execute on function public.zell_inv_product_has_stock_refs(integer) from zell_inventory_definer" > /dev/null
-[ "$(state)" = "$CLEAN" ] && [ "$(cat_fp)" = "$CF0" ] || ok=no
+[ "$(state)" = "$CLEAN" ] && [ "$(cat_fp)" = "$CF0" ] && fp_ok || ok=no
 record "G04 stock helper grant already present -> ZELL_0022_PRE_INV_GRANT_EXISTS (catalog back to the same state)" "$ok" "$(state) $(tailof "$TMP/g4.out")"
 
 # ---- 6) ptest قبل التطبيق ----
 run_file "$PTEST" "$TMP/pt.out"; rc=$?
 s=$(summary_of "$TMP/pt.out")
-ok=no; [ "$rc" -eq 0 ] && [ "$(printf '%s' "$s" | cut -d'|' -f9)" = "PASS" ] && [ "$(state)" = "$CLEAN" ] && [ "$(cat_fp)" = "$CF0" ] && ok=yes
+ok=no; [ "$rc" -eq 0 ] && [ "$(printf '%s' "$s" | cut -d'|' -f9)" = "PASS" ] && [ "$(state)" = "$CLEAN" ] && [ "$(cat_fp)" = "$CF0" ] && fp_ok && ok=yes
 record "T01 ptest before apply: PASS 6/0 and fully rolled back (same catalog fingerprint)" "$ok" "$s $(fails_of "$TMP/pt.out") $(tailof "$TMP/pt.out")"
 
 # ---- 7) التطبيق ----
@@ -289,7 +290,7 @@ record "I08 after every revert: 0020 verify part_a=ok (0022 marker) and 0022 ver
 run_file "$ROLLBACK" "$TMP/r1.out"; rc=$?
 v20
 ok=no
-[ "$rc" -eq 0 ] && [ "$(state)" = "$CLEAN" ] && [ "$(cat_fp)" = "$CF0" ] \
+[ "$rc" -eq 0 ] && [ "$(state)" = "$CLEAN" ] && [ "$(cat_fp)" = "$CF0" ] && fp_ok \
   && has "$TMP/i20.out" 'ZELL_0020_VERIFY_RESULT part_a=ok' && ! has "$TMP/i20.out" '0022=applied' && ok=yes
 record "R01 rollback before any delete: catalog fingerprint = before apply (ACLs, functions, policies, constraints, triggers, roles); 0020 verify ok" "$ok" "$(state) $(v20_line) $(tailof "$TMP/r1.out")"
 run_file "$ROLLBACK" "$TMP/r2.out"
@@ -502,6 +503,7 @@ ok=no; has "$TMP/d.out" '45508' && has "$TMP/d.out" 'DETAIL:  home_products_lock
 record "C19 home list lock held longer than lock_timeout -> 45508 (home_products_lock) after ~3s, nothing deleted" "$ok" "$(dd)"
 
 # الدوال الفعلية (service_role زي اللوحة النهارده) — كل حالة بالترتيبين، وباقي الداتابيز بصمته زي ما هي.
+outcome() { if deleted; then echo success; elif has "$TMP/d.out" '45508'; then echo 45508; else echo other; fi; }
 P=$(mkp pw1 1); OM=$(om); F=$(fp_rest "$P" 0 "$OM")
 other_first "select public.zell_set_product_widths($P, '$WROW'::jsonb)" 2 "$P" "$(ver "$P")" service_role
 ok=no
@@ -509,7 +511,7 @@ if ! has "$TMP/d.out" '45502' && [ "$(fp_rest "$P" 0 "$OM")" = "$F" ]; then
   if deleted; then [ "$(q "select count(*) from public.product_widths where product_id = $P")" = "0" ] && ok=yes
   elif has "$TMP/d.out" '45508'; then [ "$(q "select string_agg(width_cm::text, ',') from public.product_widths where product_id = $P")" = "70" ] && ok=yes; fi
 fi
-record "P01 zell_set_product_widths first, then delete (same product) -> success on the current state or 45508, never 45502; rest unchanged" "$ok" "$(dd)"
+record "P01 zell_set_product_widths first, then delete (same product) -> success on the current state or 45508, never 45502; rest unchanged [got: $(outcome)]" "$ok" "$(dd)"
 P=$(mkp pw2 1); OM=$(om); F=$(fp_rest "$P" 0 "$OM")
 delete_first "$P" "$(ver "$P")" "select public.zell_set_product_widths($P, '$WROW'::jsonb)" service_role
 ok=no; deleted && has "$TMP/o.out" '45100' && [ "$(q "select count(*) from public.product_widths where product_id = $P")" = "0" ] \
@@ -525,7 +527,7 @@ if [ "$(fp_rest "$P,$AV2" 0 "$OM")" = "$F" ]; then
   if deleted; then [ "$(q "select count(*) from public.product_addons where addon_id = $P or product_id = $AV2")" = "0" ] && ok=yes
   elif has "$TMP/d.out" '45508'; then [ "$(q "select count(*) from public.product_addons where product_id = $AV2 and addon_id = $P")" = "1" ] && [ "$(exists_p "$P")" = "1" ] && ok=yes; fi
 fi
-record "P03 zell_set_product_addons (other product lists it) first, then delete -> success with the link cascaded, or 45508; rest unchanged" "$ok" "$(dd)"
+record "P03 zell_set_product_addons (other product lists it) first, then delete -> success with the link cascaded, or 45508; rest unchanged [got: $(outcome)]" "$ok" "$(dd)"
 AV3=$(mkvis addon-owner-3)
 P=$(mkp pa2 0); q "update public.products set sale_unit = 'piece' where id = $P" > /dev/null
 q "insert into public.product_addons (product_id, addon_id) values ($AV3, $P)" > /dev/null
@@ -545,7 +547,7 @@ if [ "$(fp_rest "$P" "$COL2" "$OM")" = "$F" ]; then
   if deleted; then [ "$(q "select string_agg(product_id::text, ',' order by product_id) from public.product_collections where collection_id = $COL2")" = "$XC" ] && ok=yes
   elif has "$TMP/d.out" '45508'; then [ "$(q "select string_agg(product_id::text || ':' || sort_order, ',' order by sort_order) from public.product_collections where collection_id = $COL2")" = "$P:1,$XC:2" ] && ok=yes; fi
 fi
-record "P05 zell_set_collection_products (collection with the product) first, then delete -> 45508 or success on the current state; rest unchanged" "$ok" "$(dd)"
+record "P05 zell_set_collection_products (collection with the product) first, then delete -> 45508 or success on the current state; rest unchanged [got: $(outcome)]" "$ok" "$(dd)"
 COL3=$(q "insert into public.collections (slug, title_ar) values ('ci-0022-conc-3', 'CI 0022 3') returning id")
 P=$(mkp pk2 0)
 q "insert into public.product_collections (collection_id, product_id, sort_order) values ($COL3, $XC, 1), ($COL3, $P, 2)" > /dev/null
