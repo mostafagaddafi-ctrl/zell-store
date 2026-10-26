@@ -140,6 +140,8 @@ const KNOWN_SENTINELS = [
   'ZELL_COLLECTION_SLUG_TAKEN',
   // 0019 — trigger orders_cancelled_final (45080): الطلب الملغي مايرجعش لأي حالة تانية
   'ZELL_ORDER_CANCELLED_FINAL',
+  // 0022 — trigger zell_catalog_home_products_guard (45507): حفظ قايمة الرئيسية بـ id لمنتج مش موجود
+  'ZELL_HOME_PRODUCTS_MISSING',
   // 0020 — المخزون والمشتريات: الـ23 اسم من lib/inventory/sentinels.ts (قايمة واحدة مقفولة،
   //    والاختبارات بتتأكد إن مفيش تداخل مع الأسماء اللي فوق).
   ...INVENTORY_SENTINELS,
