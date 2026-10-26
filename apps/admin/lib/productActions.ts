@@ -4,13 +4,14 @@
  * PRODUCT-DELETE (المرحلة B) — Server Action حذف المنتج نهائيًا (العقد docs/contracts/PRODUCT-DELETE.md §٦).
  *
  * الغلاف actionWithAccess بصلاحية فئة المالك zell.orders.payments_admin (نفس صلاحية إعدادات المالك في 0021-D2 و
- * EXPRESS-SHIPPING، من غير صلاحية جديدة في 0021-P). الترتيب: الهوية والصلاحية ← علم التعديلات ← التحقق ←
+ * EXPRESS-SHIPPING، ونفس رسالة OWNER_ONLY_MESSAGE زي ما جدول الربط بيطلب لكل action مالك، من غير صلاحية جديدة في 0021-P). الترتيب: الهوية والصلاحية ← علم التعديلات ← التحقق ←
  * zell_product_delete بجلسة المستخدم. القرار النهائي في الداتابيز (المالك بس 45402)، فأي أدمن معاه الصلاحية برضه بيترفض.
  * بعد النجاح: تحديث المتجر (/api/revalidate)، ولو فشل التحديث النتيجة بتنجح بتحذير.
  */
 
 import { actionWithAccess } from './access/instance'
 import type { AccessContext } from './access/wrappers'
+import { OWNER_ONLY_MESSAGE } from './coupons/form'
 import type { MutationResult } from './mutations'
 import { deleteProduct } from './mutations/productDelete'
 import type { ProductDeleteResult } from './products/deleteProduct'
@@ -18,7 +19,7 @@ import { REVALIDATION_WARNING, revalidateStorefront } from './revalidateStorefro
 
 export const deleteProductAction = actionWithAccess(
   'zell.orders.payments_admin',
-  { mutates: true },
+  { mutates: true, forbiddenMessage: OWNER_ONLY_MESSAGE },
   async (_ctx: AccessContext, productId: number, expectedUpdatedAt: string): Promise<MutationResult<ProductDeleteResult>> => {
     const result = await deleteProduct(productId, expectedUpdatedAt)
     if (!result.ok) return result
