@@ -87,15 +87,5 @@
       "kind": "name_unparsed",
       "reason": "not a database call: deps.rpc is an injected function (PreviewDeps.rpc). The real call is apps/storefront/app/api/coupons/preview/route.ts restRpc('zell_preview_coupon', { p_code }), which is parsed and checked."
     }
-  ],
-  "pending": [
-    {
-      "names": [
-        "zell_product_delete",
-        "zell_product_delete_preview"
-      ],
-      "migration": "backend/db/migrations/0022_product_delete.sql",
-      "reason": "PRODUCT-DELETE phase B (contract §7-a): 0022 is approved and merged (#185) but not in build_from_scratch.list until it is applied on Production (phase C). Checked with --pending require on the full build + 0022 in backend/db/ci/0022_sql_ci.sh (K22). Remove this entry in phase C."
-    }
   ]
 }

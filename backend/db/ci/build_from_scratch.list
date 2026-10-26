@@ -49,3 +49,4 @@ apply|migrations/0021d2_delivery_settings.sql|delivery settings
 apply|migrations/0021tr_track_order.sql|track order
 apply|migrations/0021ex_express_shipping.sql|express shipping
 apply|migrations/0021tr2_track_order_v2.sql|track order v2
+apply|migrations/0022_product_delete.sql|product delete (applied + verified on Production 2026-10-26; #185 · #186 · PRODUCT-DELETE phase C)
