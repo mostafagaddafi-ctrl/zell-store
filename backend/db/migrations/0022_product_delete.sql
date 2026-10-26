@@ -1,6 +1,6 @@
 -- 0022 PRODUCT-DELETE — حذف المنتج للمالك (SQL بس)
 --
--- العقد: docs/contracts/PRODUCT-DELETE.md (المراجعة 3.1، معتمد على 4838dbc).
+-- العقد: docs/contracts/PRODUCT-DELETE.md (المراجعة 3.2: المرحلتين §٧-أ وفحص الـ ids الجديدة بس في الـ trigger §٥-أ).
 --   • دور جديد zell_catalog_definer (NOLOGIN · NOINHERIT · NOBYPASSRLS) بأقل صلاحيات (§٤-ج)، ومالك 3 دوال:
 --       zell_product_delete(integer, timestamptz)   — المالك بس، EXECUTE لـ authenticated. الأكواد 45501..45508.
 --       zell_product_delete_preview(integer)        — المالك بس، EXECUTE لـ authenticated. قراية بس.
@@ -250,7 +250,7 @@ begin
   exception when foreign_key_violation then
     get stacked diagnostics v_constraint = constraint_name;
     if v_constraint = 'order_items_product_id_fkey' then
-      raise exception 'ZELL_PRODUCT_HAS_ORDERS' using errcode = '45504';
+      raise exception 'ZELL_PRODUCT_HAS_ORDERS' using errcode = '45504', detail = v_constraint;
     end if;
     raise exception 'ZELL_PRODUCT_HAS_STOCK' using errcode = '45505', detail = coalesce(v_constraint, '');
   end;
