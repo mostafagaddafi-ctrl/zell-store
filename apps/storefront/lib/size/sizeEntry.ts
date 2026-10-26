@@ -3,6 +3,7 @@ import {
   formatLength,
   requiredLength,
   validateLength,
+  widthOptionsOf,
   withWidth,
   type ProductSizeEntry,
   type StoreProduct,
@@ -168,6 +169,21 @@ export function parseSizeDraftRecord(record: Record<string, unknown>): SizeDraft
     }
   }
   return draft
+}
+
+/**
+ * بصمة قواعد المقاس — أي تغيير فيها من اللوحة بيلغي مسودة المقاس القديمة. اتنقلت بالحرف من SizePanel (SIZE-TEXTS)
+ * علشان تتختبر في suite size-texts: نصوص «حدد المقاس» مش جزء منها.
+ */
+export function sizeRulesKeyOf(product: StoreProduct): string {
+  return [
+    product.width_cm,
+    product.min_length_cm,
+    product.step_cm,
+    product.max_length_cm,
+    product.lock_width === true ? 1 : 0,
+    widthOptionsOf(product).map((option) => option.width_cm).join(','),
+  ].join('|')
 }
 
 /** شكل المسودة اللي بتتحفظ (دايمًا فيها meterCm). */
