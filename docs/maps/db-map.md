@@ -23,7 +23,7 @@
 | `erp_definer` | `0021p_erp_access` | مالك دوال المحرك `erp_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS) |
 | `zell_erp_definer` | `0021p_zell_erp_access` | مالك دوال المحوّل والواجهة `erp_actor_status_v1`. مالوش أي صلاحية على `admin_users` |
 | `zell_order_definer` | `0021a_a1_order_cycle` | مالك دوال دورة الطلب `zell_order_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS). على `orders`: SELECT + UPDATE لأعمدة الدورة بس. ومالك `zell_checkout_delivery_periods` (0021-D)، وبعد P1/P2: `zell_payment_*` (ماعدا الـ triggers) و`zell_checkout_confirmation_fee` (§٧-ب)، وبعد 0021-D2: `zell_delivery_settings_get` / `_save` و`zell_checkout_delivery_settings` (§٧-ج)، وبعد 0021-TR: `zell_checkout_track_order` و SELECT على ٨ أعمدة من `order_items` بـ policy قراية (§٩)، وبعد EXPRESS-SHIPPING: `zell_shipping_options_get` / `_save` / `_checkout` و SELECT + UPDATE على `zell_shipping_options` و SELECT + INSERT على سجله (§١٠)، وبعد TRACK-ORDER v2: 9 دوال `zell_shipment_*` و`zell_customer_update_*` (ماعدا الـ triggers) و SELECT + INSERT + UPDATE على `zell_order_shipments` و`zell_order_customer_updates` و SELECT + INSERT على سجلاتهم (§١١)، ومفيش صلاحية جديدة على `orders` ولا `order_events` ولا `order_payments` |
-| `zell_catalog_definer` | `0022_product_delete` | مالك دوال حذف المنتج (NOLOGIN · NOINHERIT · NOBYPASSRLS، عضوية `postgres` بـ SET بس) — §١٢. صلاحيات أعمدة + 17 policy باسم `zell_catalog_definer_*` بس، ومفيش أي صلاحية على `orders` ولا قراية أسماء أو أسعار المنتجات (**مش متطبّق لسه**) |
+| `zell_catalog_definer` | `0022_product_delete` | مالك دوال حذف المنتج (NOLOGIN · NOINHERIT · NOBYPASSRLS، عضوية `postgres` بـ SET بس) — §١٢. صلاحيات أعمدة + 17 policy باسم `zell_catalog_definer_*` بس، ومفيش أي صلاحية على `orders` ولا قراية أسماء أو أسعار المنتجات (متطبّق ومتحقق منه على Production 2026-10-26) |
 
 ---
 
@@ -44,7 +44,7 @@
 | `settings` | `schema.sql` | إعدادات ومحتوى بمفتاح (hero · sections · faqs · shipping_rates …) | 0007 شال أسرار تليجرام · 0008 مفتاح `announcement` · 0019 مفتاح `coupons_enabled` |
 | `product_images` | `0003` | صور معرض المنتج (`bucket` + `object_path`)، والترتيب والرئيسية | · **(برّه الملفات)** `fit` (16) + `product_images_fit_check`: `baseline/b1_products_columns.sql` |
 | `site_images` | `0006` | اللوجو وصور الموقع | 0009 نوع `hero` + صورة نشطة واحدة لكل نوع فردي |
-| `storage_orphans` | `0006` | ملفات Storage محتاجة تنظيف | 0012 سبب `removed` · 0022 سبب `product_deleted` (مش متطبّق لسه) |
+| `storage_orphans` | `0006` | ملفات Storage محتاجة تنظيف | 0012 سبب `removed` · 0022 سبب `product_deleted` (متطبّق 2026-10-26) |
 | `collections` | `0010` | الأقسام | 0012 `show_on_home` `show_in_nav` والغلاف · 0017 `catalog_layout` |
 | `product_collections` | `0010` | ربط المنتجات بالأقسام وترتيبها | |
 | `product_widths` | `0015` | عروض الرول الإضافية لكل منتج بسعر المتر بتاعها | |
@@ -375,7 +375,7 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 
 ## ١٢) حذف المنتج للمالك (PRODUCT-DELETE — 0022)
 
-> **مش متطبّق على Production.** العقد: `docs/contracts/PRODUCT-DELETE.md` (المراجعة 3.2، المرحلتين في §٧-أ). الأكواد الجديدة 45501..45508. ده جزء الـ SQL (المرحلة A). كود اللوحة وربط 45507 (المرحلة B) بيتجهّز ويتختبر من غير ما يستنى Production، و0022 تتضاف لـ `ci/build_from_scratch.list` مع لقطة BASELINE الجديدة بعد التطبيق (المرحلة C).
+> **متطبّق ومتحقق منه على Production 2026-10-26** (من main `9f5166b`، بموافقة `owner-approval-2026-10-26-0022-product-delete`، والتفاصيل في وصف #186)، واللوحة منشورة (#186، main `ff73605`). العقد: `docs/contracts/PRODUCT-DELETE.md` (المراجعة 3.2، المراحل في §٧-أ). الأكواد الجديدة 45501..45508. المرحلة C: 0022 في `ci/build_from_scratch.list`، ولقطة BASELINE لـ `order_items` محدّثة، ونداءات الدالتين اتشالوا من `pending` في `call_contract_policy.json`.
 
 | الدالة | المالك · EXECUTE | بتعمل إيه |
 | --- | --- | --- |
