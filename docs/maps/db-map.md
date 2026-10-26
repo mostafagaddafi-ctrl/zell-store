@@ -396,7 +396,7 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | 45508 | قفل مشغول (القايمة · المنتج · التوابع) — جرّب تاني |
 
 - **تغيير في جدول موجود:** `storage_orphans_reason_check` بنفس الاسم + سبب `product_deleted`. مفيش أي تعديل في دالة موجودة.
-- **ملف تحقق 0020:** بيفحص ACL `zell_inv_product_has_stock_refs` بالحرف، فبعد 0022 هيقول `ZELL_0020_FUNCTION_ACL` عليها (متوقع، والـ CI بيطبعها كمعلومة).
+- **ملف تحقق 0020:** بيعدّ دوال `zell_inventory_definer` وبيفحص ACL `zell_inv_product_has_stock_refs` بالحرف، فبعد 0022 هيفشل (أول رسالة `ZELL_0020_FUNCTION_COUNT` بسبب الغلاف، وبعدها ACL الـ helper). ده متوقع من العقد §٤-ب، والـ CI بيطبعه كمعلومة.
 - **الرجوع:** بعد revert كود اللوحة، وبيرفض لو فيه أي صف `product_deleted` (forward-fix بس). المنتجات المحذوفة مابترجعش غير بالـ backup.
 
 | الملف | بيعمل إيه |
