@@ -10,6 +10,11 @@
 --   ولو متطبّق الرسالة بتخلص بـ « 0020s=applied». من غيره السلوك والرسالة زي النسخة القديمة بالحرف (CI 0020-S S17).
 -- • 0020-S PR-3 (0020s_pr3_revoke_service_role.sql): لو متطبّق (0020-S موجود ومفيش ولا دالة قديمة لـ service_role)، الـ 23 RPC
 --   بتتوقع ACL = المالك بس، والرسالة بتخلص بـ « pr3=applied»، والجزء B بيرفض (ZELL_0020_VERIFY_B_PR3) لأنه بيستخدم service_role.
+-- • 0022 PRODUCT-DELETE (0022_product_delete.sql): متطبّق = الغلاف zell_inv_product_stock_ref_exists(integer) موجود. ساعتها الغلاف
+--   لازم يكون بشكله بالظبط (مالكه الدور · definer · stable · search_path فاضي · EXECUTE للدور و zell_catalog_definer بس)،
+--   و zell_inv_product_has_stock_refs بـ ACL = postgres + الدور بالظبط، والرسالة بتخلص بـ « 0022=applied». من غيره المنحة دي
+--   ممنوعة والسلوك والرسالة زي القديم بالحرف. أي خليط (منحة من غير غلاف أو العكس) = FAIL.
+-- • في كل الحالات: أي دالة مالكها zell_inventory_definer باسم برّه zell_inv_* = ZELL_0020_FUNCTION_FOREIGN.
 
 begin;
 select pg_catalog.set_config('zell.verify_part_b', 'off', true);   -- 'off' | 'on'
@@ -27,6 +32,8 @@ declare
                    and not exists (select 1 from pg_catalog.pg_proc p cross join lateral pg_catalog.aclexplode(p.proacl) a
                                     where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_%'
                                       and p.proname not like 'zell\_inv\_session\_%' and a.grantee = 'service_role'::regrole);
+  -- 0022: الغلاف موجود = متطبّق (أي خليط بيفشل في (g) و (g2)).
+  v_0022 boolean := pg_catalog.to_regprocedure('public.zell_inv_product_stock_ref_exists(integer)') is not null;
   v_tables text[] := array['inventory_locations', 'suppliers', 'purchase_docs', 'purchase_doc_lines', 'purchase_doc_charges', 'opening_stock_docs', 'opening_stock_lines', 'stock_lots', 'inventory_commands', 'inventory_audit_log'];
   v_table_oids oid[];
   v_seqs text[];
@@ -156,7 +163,11 @@ begin
   -- 0020-S بيضيف 23 zell_inv_session_* + zell_inv_claims_actor: الـ 43 الأصلية لازم تفضل 43، والإضافات 0 أو 24 بالظبط.
   if (select count(*) from pg_catalog.pg_proc p
        where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_%'
-         and p.proname not like 'zell\_inv\_session\_%' and p.proname <> 'zell_inv_claims_actor') <> 43
+         and p.proname not like 'zell\_inv\_session\_%' and p.proname <> 'zell_inv_claims_actor'
+         and p.proname <> 'zell_inv_product_stock_ref_exists') <> 43
+     or (select count(*) from pg_catalog.pg_proc p
+          where p.pronamespace = 'public'::regnamespace and p.proname = 'zell_inv_product_stock_ref_exists')
+        <> case when v_0022 then 1 else 0 end
      or (select count(*) from pg_catalog.pg_proc p
           where p.pronamespace = 'public'::regnamespace
             and (p.proname like 'zell\_inv\_session\_%' or p.proname = 'zell_inv_claims_actor')) not in (0, 24) then
@@ -231,6 +242,7 @@ begin
           when 'rpc' then case when v_pr3 then array[v_definer] else array[v_definer, v_service] end
           when 'pg_helper' then array[v_postgres, v_definer]
           when 'def_helper' then array[v_definer]
+          when 'pg_private' then case when v_0022 then array[v_postgres, v_definer] else array[v_postgres] end
           else array[v_postgres] end) g) then
       raise exception 'ZELL_0020_FUNCTION_ACL %', r.sig;
     end if;
@@ -244,6 +256,27 @@ begin
       raise exception 'ZELL_0020_FUNCTION_EFFECTIVE %', r.sig;
     end if;
   end loop;
+
+  -- (g2) 0022: شكل الغلاف بالظبط. وفي كل الحالات مفيش دالة للدور باسم برّه zell_inv_*.
+  if v_0022 and not exists (
+       select 1 from pg_catalog.pg_proc p
+        where p.oid = pg_catalog.to_regprocedure('public.zell_inv_product_stock_ref_exists(integer)')
+          and pg_catalog.to_regrole('zell_catalog_definer') is not null
+          and p.proowner = v_definer and p.prosecdef and p.provolatile = 's'
+          and p.proconfig = array['search_path=""']
+          and (select array_agg(distinct a.grantee order by a.grantee) from pg_catalog.aclexplode(p.proacl) a)
+              = (select array_agg(g order by g) from unnest(array[v_definer, pg_catalog.to_regrole('zell_catalog_definer')::oid]) g)
+          and not exists (select 1 from pg_catalog.aclexplode(p.proacl) a where a.privilege_type <> 'EXECUTE' or a.is_grantable)
+          and not pg_catalog.has_function_privilege('anon', p.oid, 'EXECUTE')
+          and not pg_catalog.has_function_privilege('authenticated', p.oid, 'EXECUTE')
+          and not pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE')) then
+    raise exception 'ZELL_0020_0022_WRAPPER_SHAPE';
+  end if;
+  select string_agg(p.oid::regprocedure::text, ',') into v_bad
+    from pg_catalog.pg_proc p where p.proowner = v_definer and p.proname not like 'zell\_inv\_%';
+  if v_bad is not null then
+    raise exception 'ZELL_0020_FUNCTION_FOREIGN %', v_bad;
+  end if;
 
   -- (h) الـschema: الدور معاه USAGE، والـCREATE **الفعلي** false
   if pg_catalog.has_schema_privilege('zell_inventory_definer', 'public', 'CREATE')
@@ -389,6 +422,10 @@ begin
                       and p.proname not like 'zell\_inv\_session\_%' and a.grantee = 'service_role'::regrole) then
       v_fp := v_fp || ' pr3=applied';
     end if;
+  end if;
+  -- 0022 متطبّق: علامة في آخر الرسالة (من غيره الرسالة زي ما هي بالحرف).
+  if pg_catalog.to_regprocedure('public.zell_inv_product_stock_ref_exists(integer)') is not null then
+    v_fp := v_fp || ' 0022=applied';
   end if;
   raise exception 'ZELL_0020_VERIFY_RESULT part_a=ok part_b=% fingerprint_md5=%',
     pg_catalog.current_setting('zell.verify_part_b'), v_fp;
