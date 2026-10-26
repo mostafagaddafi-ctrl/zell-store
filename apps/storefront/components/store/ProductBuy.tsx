@@ -13,6 +13,7 @@ import {
   withWidth,
   type InstallationConfig,
   type ProductSizeEntry,
+  type ProductSizeTexts,
   type StoreProduct,
 } from '@zell/core'
 import { useCart } from '../../lib/cart'
@@ -33,6 +34,7 @@ export function ProductBuy({
   addonsTitle = '',
   installation = null,
   sizeEntry = 'cm',
+  sizeTexts,
 }: {
   product: StoreProduct
   gift?: string
@@ -43,6 +45,8 @@ export function ProductBuy({
   installation?: InstallationConfig | null
   /** LENGTH-INPUT — الطريقة الأولى لإدخال المقاس من «المحتوى» (الغايب = سنتيمتر). */
   sizeEntry?: ProductSizeEntry
+  /** SIZE-TEXTS — نصوص «حدد المقاس» من «المحتوى» (الغايب = النصوص الافتراضية). */
+  sizeTexts?: ProductSizeTexts
 }) {
   const cart = useCart()
   const router = useRouter()
@@ -165,6 +169,7 @@ export function ProductBuy({
           if (next) setJustAdded(false)
         }}
         sizeEntry={sizeEntry}
+        sizeTexts={sizeTexts}
         decisionRef={decisionRef}
         attempt={attempt}
       />
