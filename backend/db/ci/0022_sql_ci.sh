@@ -352,7 +352,8 @@ record "R03 rollback after a real delete ($rows product_deleted rows) -> ZELL_00
 ok=no; verify_ok && ok=yes
 record "V02 verify after the concurrency runs: PASS 8" "$ok" "$(summary_of "$TMP/v.out") $(fails_of "$TMP/v.out")"
 
-# معلومة (مش حالة): ملف تحقق 0020 بيفحص ACL الـ helper بالحرف، فبعد 0022 متوقع يقول ZELL_0020_FUNCTION_ACL عليه.
+# معلومة (مش حالة): ملف تحقق 0020 بيعدّ دوال zell_inventory_definer وبيفحص ACL الـ helper بالحرف، فبعد 0022 متوقع يفشل
+# (أول رسالة ZELL_0020_FUNCTION_COUNT بسبب الغلاف). ده من العقد §٤-ب.
 run_file "$MIG/0020_inventory_purchasing_verify.sql" "$TMP/i20.out"
 echo "INFO 0020 verify after 0022: $(grep -oE 'ZELL_0020_[A-Z_]+[^\"]*' "$TMP/i20.out" | head -n 1 | cut -c1-200)$(summary_of "$TMP/i20.out" | cut -c1-200)"
 
