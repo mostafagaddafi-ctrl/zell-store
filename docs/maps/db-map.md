@@ -19,7 +19,7 @@
 | `postgres` | Supabase | مالك الجداول، واللي بيطبّق الـ migrations (الـ preflight بيتأكد) |
 | `zell_definer` | `0005c` (مسودة) | دور مسودة `create_order` القديمة |
 | `zell_order_writer` | `0006b` | مالك دوال مسار الطلب في الملفات (`zell_create_order` · `zell_get_order_receipt`)، ومن غير صلاحيات جداول مباشرة. **على Production مالك `zell_create_order` = `postgres`** (`08-HANDOFF-NOW.md`)، وCI بتاع P1 بيجرّب الاتنين |
-| `zell_inventory_definer` | `0020` | مالك دوال المخزون `zell_inv_*`، ومنها `zell_inv_session_*` و`zell_inv_claims_actor` من 0020-S (NOLOGIN · NOBYPASSRLS) |
+| `zell_inventory_definer` | `0020` | مالك دوال المخزون `zell_inv_*`، ومنها `zell_inv_session_*` و`zell_inv_claims_actor` من 0020-S (NOLOGIN · NOBYPASSRLS). بعد 0022: + الغلاف `zell_inv_product_stock_ref_exists` و EXECUTE على `zell_inv_product_has_stock_refs` (§١٢) |
 | `erp_definer` | `0021p_erp_access` | مالك دوال المحرك `erp_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS) |
 | `zell_erp_definer` | `0021p_zell_erp_access` | مالك دوال المحوّل والواجهة `erp_actor_status_v1`. مالوش أي صلاحية على `admin_users` |
 | `zell_order_definer` | `0021a_a1_order_cycle` | مالك دوال دورة الطلب `zell_order_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS). على `orders`: SELECT + UPDATE لأعمدة الدورة بس. ومالك `zell_checkout_delivery_periods` (0021-D)، وبعد P1/P2: `zell_payment_*` (ماعدا الـ triggers) و`zell_checkout_confirmation_fee` (§٧-ب)، وبعد 0021-D2: `zell_delivery_settings_get` / `_save` و`zell_checkout_delivery_settings` (§٧-ج)، وبعد 0021-TR: `zell_checkout_track_order` و SELECT على ٨ أعمدة من `order_items` بـ policy قراية (§٩)، وبعد EXPRESS-SHIPPING: `zell_shipping_options_get` / `_save` / `_checkout` و SELECT + UPDATE على `zell_shipping_options` و SELECT + INSERT على سجله (§١٠)، وبعد TRACK-ORDER v2: 9 دوال `zell_shipment_*` و`zell_customer_update_*` (ماعدا الـ triggers) و SELECT + INSERT + UPDATE على `zell_order_shipments` و`zell_order_customer_updates` و SELECT + INSERT على سجلاتهم (§١١)، ومفيش صلاحية جديدة على `orders` ولا `order_events` ولا `order_payments` |
@@ -375,7 +375,7 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 
 ## ١٢) حذف المنتج للمالك (PRODUCT-DELETE — 0022)
 
-> **مش متطبّق على Production.** العقد: `docs/contracts/PRODUCT-DELETE.md` (المراجعة 3.1). الأكواد الجديدة 45501..45508. ده جزء الـ SQL بس؛ كود اللوحة في PR تاني بعد التطبيق، وساعتها 0022 تتضاف لـ `ci/build_from_scratch.list`.
+> **مش متطبّق على Production.** العقد: `docs/contracts/PRODUCT-DELETE.md` (المراجعة 3.2، المرحلتين في §٧-أ). الأكواد الجديدة 45501..45508. ده جزء الـ SQL (المرحلة A). كود اللوحة وربط 45507 (المرحلة B) بيتجهّز ويتختبر من غير ما يستنى Production، و0022 تتضاف لـ `ci/build_from_scratch.list` مع لقطة BASELINE الجديدة بعد التطبيق (المرحلة C).
 
 | الدالة | المالك · EXECUTE | بتعمل إيه |
 | --- | --- | --- |
@@ -396,12 +396,12 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | 45508 | قفل مشغول (القايمة · المنتج · التوابع) — جرّب تاني |
 
 - **تغيير في جدول موجود:** `storage_orphans_reason_check` بنفس الاسم + سبب `product_deleted`. مفيش أي تعديل في دالة موجودة.
-- **ملف تحقق 0020:** بيعدّ دوال `zell_inventory_definer` وبيفحص ACL `zell_inv_product_has_stock_refs` بالحرف، فبعد 0022 هيفشل (أول رسالة `ZELL_0020_FUNCTION_COUNT` بسبب الغلاف، وبعدها ACL الـ helper). ده متوقع من العقد §٤-ب، والـ CI بيطبعه كمعلومة.
+- **ملف تحقق 0020 (`0020_inventory_purchasing_verify.sql`):** بقى صالح قبل 0022 وبعده (زي 0020-S و PR-3): بعد 0022 بيتوقع الغلاف بشكله بالظبط وACL الـ helper = `postgres` + `zell_inventory_definer`، والرسالة بتخلص بـ « 0022=applied». أي خليط أو منحة زيادة = FAIL، وأي دالة مالكها `zell_inventory_definer` باسم برّه `zell_inv_*` = `ZELL_0020_FUNCTION_FOREIGN`. الـ CI بيشغّله إلزامي قبل وبعد ومع محاولات زيادة.
 - **الرجوع:** بعد revert كود اللوحة، وبيرفض لو فيه أي صف `product_deleted` (forward-fix بس). المنتجات المحذوفة مابترجعش غير بالـ backup.
 
 | الملف | بيعمل إيه |
 | --- | --- |
 | `migrations/0022_product_delete.sql` | كله (الجسم بين `-- >>> 0022 BODY` و`-- <<<`)، ومحتاج سطر `zell.approved_by` بعد `begin;` (`owner-approval-YYYY-MM-DD-0022-product-delete`) |
 | `migrations/0022_product_delete_ptest.sql` | smoke قبل التطبيق (6 حالات، من غير كتابة بيانات): الجسم منسوخ بالحرف (CI بيقارن md5)، والنتيجة صفوف |
-| `migrations/0022_product_delete_verify.sql` · `_rollback.sql` | التحقق (8 فحوص، في أي وقت بعد التطبيق) · الرجوع |
-| `ci/0022_sql_ci.sh` · `ci/0022_flows.sql` | CI على Postgres 17 مؤقت والداتابيز مبنية من القايمة الصريحة: حراس الـ preflight · ptest · التطبيق · verify · الرجوع وإعادة التطبيق · السيناريوهات (F01–F18) · التزامن بجلستين (C01–C19) · رفض الرجوع بعد حذف |
+| `migrations/0022_product_delete_verify.sql` · `_rollback.sql` | التحقق (10 فحوص، منها جدول صلاحيات الدور كله والـ policies بتعبيراتها بالحرف، في أي وقت بعد التطبيق) · الرجوع |
+| `ci/0022_sql_ci.sh` · `ci/0022_flows.sql` | CI على Postgres 17 مؤقت والداتابيز مبنية من القايمة الصريحة + 0022: حراس الـ preflight · تحقق 0020 قبل وبعد · ptest · التطبيق · verify بالحرف ومحاولات التوسيع (N01–N05) · الرجوع لنفس حالة الـ catalog · السيناريوهات (F01–F25، بصمات محتوى) · التزامن بجلستين بالدوال الفعلية وبالـ DML (C01–C19 · P01–P08 · H01–H04) · مفيش 40P01 · رفض الرجوع بعد حذف |
