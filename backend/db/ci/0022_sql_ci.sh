@@ -25,7 +25,9 @@ PTEST="$MIG/0022_product_delete_ptest.sql"
 VERIFY="$MIG/0022_product_delete_verify.sql"
 ROLLBACK="$MIG/0022_product_delete_rollback.sql"
 V0020="$MIG/0020_inventory_purchasing_verify.sql"
+V0020R="$MIG/0020_inventory_purchasing_verify_rows.sql"
 FLOWS="$CIDIR/0022_flows.sql"
+IMPACT="$MIG/0022_product_delete_impact.sql"
 SHAPE="$CIDIR/0021p_txn_shape.py"
 SUPER="${CI_SUPERUSER:-supabase_admin}"
 DB=zell_ci_0022
@@ -38,8 +40,8 @@ OWNER_ID='00000000-0000-4000-8000-0000000000a1'
 ADMIN_ID='00000000-0000-4000-8000-0000000000a2'
 OFF_ID='00000000-0000-4000-8000-0000000000a3'
 USER_ID='00000000-0000-4000-8000-0000000000a4'
-EXPECTED="S01 S02 S03 S04 B01 X01 I01 G01 G02 G03 G04 T01 A01 A02 A03 V01 N01 N02 N03 N04 N05 I02 I03 I04 I05 I06 I07 I08 R01 R02 A04 F00
-C01 C02 C03 C04 C05 C06 C07 C08 C09 C10 C11 C12 C13 C14 C15 C16 C17 C18 C19 P01 P02 P03 P04 P05 P06 P07 P08 H01 H02 H03 H04 Z01 Z02 R03 V02"
+EXPECTED="S01 S02 S03 S04 S05 B01 X01 IMP0 IMP1 IMP2 I01 W01 G01 G02 G03 G04 T01 A01 IMP3 A02 A03 V01 N01 N02 N03 N04 N05 I02 W02 I03 W03 I04 I05 I06 I07 I08 R01 IMP4 R02 A04 IMP5 F00
+C01 C02 C03 C04 C05 C06 C07 C08 C09 C10 C11 C12 C13 C14 C15 C16 C17 C18 C19 P01 P02 P03 P04 P05 P06 P07 P08 H01 H02 H03 H04 Z01 Z02 R03 V02 K22"
 APPLIED='1|4|1|17|1|1'
 CLEAN='0|0|0|0|0|0'
 
@@ -115,8 +117,8 @@ v20() { run_file "$V0020" "$TMP/i20.out"; }
 v20_line() { grep -oE 'ZELL_0020_[A-Z0-9_]+[^"]{0,160}' "$TMP/i20.out" | head -n 1; }
 
 # ---- 1) فحوص ثابتة ----
-if python3 "$SHAPE" --selftest > "$TMP/shape_self.out" 2>&1 && python3 "$SHAPE" "$PTEST" "$VERIFY" "$FLOWS" > "$TMP/shape.out" 2>&1; then ok=yes; else ok=no; fi
-record "S01 transaction shape: ptest / verify / flows = begin ... one SELECT ... rollback (checker self-test first)" "$ok" "$(tailof "$TMP/shape.out") $(tailof "$TMP/shape_self.out")"
+if python3 "$SHAPE" --selftest > "$TMP/shape_self.out" 2>&1 && python3 "$SHAPE" "$PTEST" "$VERIFY" "$FLOWS" "$IMPACT" "$V0020R" > "$TMP/shape.out" 2>&1; then ok=yes; else ok=no; fi
+record "S01 transaction shape: ptest / verify / flows / impact / 0020 rows = begin ... one SELECT ... rollback (checker self-test first)" "$ok" "$(tailof "$TMP/shape.out") $(tailof "$TMP/shape_self.out")"
 m_apply=$(body_md5 "$APPLY" "0022 BODY"); m_ptest=$(body_md5 "$PTEST" "0022 BODY")
 ok=no; [ "$m_apply" = "$m_ptest" ] && [ "$m_apply" != "$EMPTY_MD5" ] && ok=yes
 record "S02 ptest body = apply body (md5 $m_apply)" "$ok" "apply=$m_apply ptest=$m_ptest"
@@ -135,6 +137,14 @@ for f in $found; do
 done
 case " $found " in *" backend/db/migrations/0022_product_delete.sql "*) ;; *) ok=no ;; esac
 record "S04 advisory key text zell_catalog:home_products used only by 0022 (contract §5-a)" "$ok" "$found"
+blk() { awk -v s="do \$$2\$" -v e="\$$2\$;" '$0 == s {f = 1} f {print} f && $0 == e {exit}' "$1"; }
+ok=yes; bmd=""
+for tg in zverify_a zverify_b zverify_end; do
+  a=$(blk "$V0020" "$tg" | md5sum | cut -d' ' -f1); b=$(blk "$V0020R" "$tg" | md5sum | cut -d' ' -f1)
+  [ "$a" = "$b" ] && [ "$a" != "$EMPTY_MD5" ] || ok=no
+  bmd="$bmd $tg=$a/$b"
+done
+record "S05 0020 rows wrapper: the 3 blocks (zverify_a · zverify_b · zverify_end) = the original verify byte for byte" "$ok" "$bmd"
 
 # ---- 2) بناء الداتابيز من القايمة الصريحة (زي build_from_scratch.sh) ----
 fresh=$(su_q postgres -c "select pg_catalog.count(*) from pg_catalog.pg_roles where rolname in ('postgres','anon','authenticated','service_role')")
@@ -177,10 +187,89 @@ chk=$(q "select (select count(*) from public.admin_users where user_id in ('$ADM
 ok=no; [ "$chk" = "2|1|1|1" ] && ok=yes
 record "X01 CI data: admin ...a2, inactive admin ...a3, plain user ...a4, product $P_ORD in order_items, product $P_STK in opening_stock_lines" "$ok" "$chk $(tailof "$TMP/x1.log")"
 
+# ---- 3b) استعلام الأثر (0022_product_delete_impact.sql) — نفس الملف بالحرف قبل التطبيق وبعده ----
+# حالة CI قبل التطبيق شبه Production: صف home_products فيه id قديم لمنتج مش موجود، وصورة مستنية تنظيف، ورابط إضافة، ورابط قسم.
+SEED1=$(q "select min(id) from public.products where name_ar not like 'ci-0022-%'")
+SEED2=$(q "select max(id) from public.products where name_ar not like 'ci-0022-%'")
+PRECOL=$(q "insert into public.collections (slug, title_ar) values ('ci-0022-pre', 'CI 0022 pre') returning id")
+q "insert into public.settings (key, value) values ('home_products', '{\"mode\": \"selected\", \"ids\": [$SEED1, $SEED2, 999999], \"allLabel\": \"\"}')
+   on conflict (key) do update set value = excluded.value" > "$TMP/pre.log"
+q "insert into public.storage_orphans (object_path, reason) values ('products/ci-pre/old.jpg', 'replaced')" >> "$TMP/pre.log"
+q "insert into public.product_addons (product_id, addon_id) values ($SEED1, $SEED2)" >> "$TMP/pre.log"
+q "insert into public.product_collections (collection_id, product_id) values ($PRECOL, $SEED1)" >> "$TMP/pre.log"
+q "insert into public.product_images (product_id, object_path) values ($SEED1, 'products/ci-pre/a.jpg')" >> "$TMP/pre.log"
+q "insert into public.product_widths (product_id, width_cm, price_per_meter_piastres) values ($SEED1, 77, 1000)" >> "$TMP/pre.log"
+OLD_ORPH="CHECK ((reason = ANY (ARRAY['insert_failed'::text, 'delete_failed'::text, 'replaced'::text, 'removed'::text])))"
+NEW_ORPH="CHECK ((reason = ANY (ARRAY['insert_failed'::text, 'delete_failed'::text, 'replaced'::text, 'removed'::text, 'product_deleted'::text])))"
+DATA_COLS="10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31"
+imp() { run_file "$IMPACT" "$TMP/imp_$1.out"; IMP_RC=$?; grep -v '^[[:space:]]*$' "$TMP/imp_$1.out" | tail -n 1 > "$TMP/imp_$1.row"; }
+icol() { cut -d'|' -f"$2" "$TMP/imp_$1.row"; }
+inf() { awk -F'|' '{print NF}' "$TMP/imp_$1.row"; }
+# أول عمود مختلف بين نتيجتين (من القايمة $3)، وفاضي لو كله زي بعضه.
+idiff() { local f; for f in $3; do [ "$(icol "$1" "$f")" = "$(icol "$2" "$f")" ] || { printf '%s' "$f"; return; }; done; }
+ishow() { cut -d'|' -f2-14,16,18,20,22,26-28,30-34 "$TMP/imp_$1.row"; }
+
+imp pre
+ok=no
+[ "$IMP_RC" -eq 0 ] && [ "$(inf pre)" = "34" ] && icol pre 1 | grep -Eqx '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z' \
+  && [ "$(icol pre 2)|$(icol pre 3)|$(icol pre 4)|$(icol pre 5)|$(icol pre 6)|$(icol pre 8)" = "0|0|0|0|f|0" ] \
+  && [ "$(icol pre 7)" = "$OLD_ORPH" ] && [ "$(icol pre 26)" = "1" ] && [ "$(icol pre 32)|$(icol pre 33)" = "0|0" ] && ok=yes
+echo "IMPACT pre: $(ishow pre)"
+record "IMP0 impact query before apply: 34 columns, UTC time, 0022 objects absent, old reasons, 1 stale home id, idle_tx 0, stop_locks 0" "$ok" "rc=$IMP_RC nf=$(inf pre) $(tailof "$TMP/imp_pre.out")"
+
+# تغيير محتوى بنفس العدد في كل جدول لازم يظهر في بصمته بس (العدد زي ما هو)، والرجوع يرجّع الـ baseline بالظبط.
+ok=yes; miss=""
+while IFS='~' read -r label change revert fpc cntc; do
+  q "$change" > /dev/null; imp chg; q "$revert" > /dev/null
+  d=$(idiff pre chg "$DATA_COLS")
+  if [ "$d" != "$fpc" ] || { [ -n "$cntc" ] && [ "$(icol pre "$cntc")" != "$(icol chg "$cntc")" ]; }; then ok=no; miss="$miss [$label: first diff=$d]"; fi
+done <<EOF
+products name~update public.products set name_ar = name_ar || '+' where id = $SEED2~update public.products set name_ar = left(name_ar, -1) where id = $SEED2~15~12
+image alt text~update public.product_images set alt_text = 'ci' where object_path = 'products/ci-pre/a.jpg'~update public.product_images set alt_text = null where object_path = 'products/ci-pre/a.jpg'~17~16
+width price~update public.product_widths set price_per_meter_piastres = price_per_meter_piastres + 1 where product_id = $SEED1 and width_cm = 77~update public.product_widths set price_per_meter_piastres = price_per_meter_piastres - 1 where product_id = $SEED1 and width_cm = 77~19~18
+addon order~update public.product_addons set sort_order = sort_order + 1 where product_id = $SEED1 and addon_id = $SEED2~update public.product_addons set sort_order = sort_order - 1 where product_id = $SEED1 and addon_id = $SEED2~21~20
+collection order~update public.product_collections set sort_order = sort_order + 1 where collection_id = $PRECOL~update public.product_collections set sort_order = sort_order - 1 where collection_id = $PRECOL~23~22
+settings value~update public.settings set value = pg_catalog.jsonb_set(value, '{allLabel}', '"ci"') where key = 'home_products'~update public.settings set value = pg_catalog.jsonb_set(value, '{allLabel}', '""') where key = 'home_products'~24~
+orphan row content~update public.storage_orphans set created_at = created_at + interval '1 second' where object_path = 'products/ci-pre/old.jpg'~update public.storage_orphans set created_at = created_at - interval '1 second' where object_path = 'products/ci-pre/old.jpg'~29~28
+EOF
+imp pre2
+d=$(idiff pre pre2 "$DATA_COLS")
+[ -z "$d" ] || { ok=no; miss="$miss [after the reverts column $d differs from the baseline]"; }
+record "IMP1 same-count content change in products / images / widths / addon links / collection links / settings / orphans changes that fingerprint (count unchanged); reverts give the baseline back" "$ok" "$miss"
+
+# الأقفال والمعاملات: القاعدة الحالية بس، والوقف بس للأقفال اللي بتعطّل التطبيق.
+ok=yes; why=""
+run_sql "select pg_catalog.pg_sleep(4) from public.products limit 1;" "$TMP/l1.out" & lp=$!; sleep 1; imp lk1; wait "$lp"
+[ "$(icol lk1 34)" -ge 1 ] && [ "$(icol lk1 33)" = "0" ] && [ "$(icol lk1 32)" = "0" ] || { ok=no; why="$why [active read: $(icol lk1 32)|$(icol lk1 33)|$(icol lk1 34)]"; }
+run_sql "$(printf '%s\n' 'begin;' 'lock table public.storage_orphans in share row exclusive mode;' 'select pg_catalog.pg_sleep(4);' 'commit;')" "$TMP/l2.out" & lp=$!; sleep 1; imp lk2; wait "$lp"
+[ "$(icol lk2 33)" -ge 1 ] && [ "$(icol lk2 32)" = "0" ] || { ok=no; why="$why [strong lock: $(icol lk2 32)|$(icol lk2 33)|$(icol lk2 34)]"; }
+run_sql "$(printf '%s\n' 'begin;' 'select count(*) from public.settings;' '\! sleep 4' 'commit;')" "$TMP/l3.out" & lp=$!; sleep 1.5; imp lk3; wait "$lp"
+[ "$(icol lk3 32)" -ge 1 ] && [ "$(icol lk3 33)" -ge 1 ] || { ok=no; why="$why [idle in transaction: $(icol lk3 32)|$(icol lk3 33)|$(icol lk3 34)]"; }
+printf '%s\n' 'begin;' 'select 1;' '\! sleep 4' 'commit;' | psql -X -q -tA -U postgres -d postgres -f - > "$TMP/l4.out" 2>&1 & lp=$!; sleep 1.5; imp lk4; wait "$lp"
+[ "$(icol lk4 32)" = "0" ] && [ "$(icol lk4 33)" = "0" ] || { ok=no; why="$why [other database: $(icol lk4 32)|$(icol lk4 33)]"; }
+record "IMP2 locks / idle: active read = info only · ShareRowExclusive = stop · idle in transaction = stop (idle_tx + its lock) · other database ignored" "$ok" "$why"
+
 # ---- 4) تحقق 0020 قبل 0022 (إلزامي) ----
 v20
 ok=no; has "$TMP/i20.out" 'ZELL_0020_VERIFY_RESULT part_a=ok' && ! has "$TMP/i20.out" '0022=applied' && ok=yes
 record "I01 0020 verify before 0022: part_a=ok, no 0022 marker" "$ok" "$(v20_line)"
+# الرسالة اللي الأصلي رماها (P0001 أو غيره) بالحرف، والصف بتاع نسخة الصفوف.
+v20_raw() { sed -n 's/.*ERROR:  [0-9A-Z]\{5\}: //p' "$TMP/i20.out" | head -n 1; }
+v20r() { run_file "$V0020R" "$TMP/i20r.out"; V20R_RC=$?; grep '^0|summary|' "$TMP/i20r.out" | head -n 1 > "$TMP/i20r.row"; }
+w_check() { # $1 id+name, $2 expected verdict, $3 required marker text or message prefix
+  local orig row verdict state msg markers ok=no
+  v20; orig=$(v20_raw); v20r; row=$(cat "$TMP/i20r.row")
+  verdict=$(printf '%s' "$row" | cut -d'|' -f3); state=$(printf '%s' "$row" | cut -d'|' -f4)
+  msg=$(printf '%s' "$row" | cut -d'|' -f5); markers=$(printf '%s' "$row" | cut -d'|' -f6)
+  if [ "$V20R_RC" -eq 0 ] && [ "$verdict" = "$2" ] && [ -n "$msg" ] && [ "$msg" = "$orig" ]; then
+    case "$2" in
+      PASS) [ "$state" = "P0001" ] && [ "$markers" = "$3" ] && ok=yes ;;
+      FAIL) case "$msg" in "$3"*) ok=yes ;; esac ;;
+    esac
+  fi
+  record "$1" "$ok" "rc=$V20R_RC verdict=$verdict state=$state markers=[$markers] msg=[$msg] orig=[$orig]"
+}
+w_check "W01 0020 verify as rows before 0022: PASS, same message as the original, markers 0020s+pr3" PASS "0020s=applied pr3=applied"
 
 # ---- 5) حراس الـ preflight (قبل التطبيق) ----
 CF0=$(cat_fp)
@@ -214,6 +303,14 @@ run_approved "$APPLY" 'ci-0022' "$TMP/a1.out"; rc=$?
 ok=no; [ "$rc" -eq 0 ] && [ "$(state)" = "$APPLIED" ] && ok=yes
 record "A01 apply with the approval line" "$ok" "$(state) $(tailof "$TMP/a1.out")"
 [ "$ok" = yes ] || finish
+imp post
+ok=no
+[ "$IMP_RC" -eq 0 ] && [ "$(inf post)" = "34" ] \
+  && [ "$(icol post 2)|$(icol post 3)|$(icol post 4)|$(icol post 5)|$(icol post 6)|$(icol post 8)" = "1|4|17|1|t|3" ] \
+  && [ "$(icol post 7)" = "$NEW_ORPH" ] && [ "$(icol post 9)" = "$(( $(icol pre 9) + 1 ))" ] \
+  && [ -z "$(idiff pre post "$DATA_COLS")" ] && [ "$(icol post 32)|$(icol post 33)" = "0|0" ] && ok=yes
+echo "IMPACT post: $(ishow post)"
+record "IMP3 impact query right after apply: role 1 · functions 4 · policies 17 · trigger 1 · helper grant t · product_deleted · code users 3 · inv functions +1; columns 10-31 = baseline" "$ok" "first data diff=$(idiff pre post "$DATA_COLS") $(ishow post)"
 run_approved "$APPLY" 'ci-0022' "$TMP/a2.out"
 ok=no; has "$TMP/a2.out" 'ZELL_0022_ALREADY_APPLIED' && [ "$(state)" = "$APPLIED" ] && ok=yes
 record "A02 second apply -> ZELL_0022_ALREADY_APPLIED" "$ok" "$(tailof "$TMP/a2.out")"
@@ -253,6 +350,7 @@ neg "N05 extra EXECUTE on zell_product_delete (service_role) -> V03 FAIL" \
 v20
 ok=no; has "$TMP/i20.out" 'ZELL_0020_VERIFY_RESULT part_a=ok' && has "$TMP/i20.out" '0022=applied' && ok=yes
 record "I02 0020 verify after 0022: part_a=ok with the 0022 marker" "$ok" "$(v20_line)"
+w_check "W02 0020 verify as rows after 0022: PASS, same message as the original, markers 0020s+pr3+0022" PASS "0020s=applied pr3=applied 0022=applied"
 neg20() { # $1 id+name, $2 change SQL, $3 restore SQL, $4 expected error
   q "$2" > "$TMP/n20.log"
   v20
@@ -262,6 +360,9 @@ neg20() { # $1 id+name, $2 change SQL, $3 restore SQL, $4 expected error
   has "$TMP/i20.out" "$4" && ! has "$TMP/i20.out" 'part_a=ok' && ok=yes
   record "$1" "$ok" "$line $(tailof "$TMP/n20.log")"
 }
+q "set role zell_inventory_definer; grant execute on function public.zell_inv_product_stock_ref_exists(integer) to authenticated; reset role" > /dev/null
+w_check "W03 0020 verify as rows with a real failure (extra grant): FAIL, the failure message shown unchanged (= original)" FAIL "ZELL_0020_0022_WRAPPER_SHAPE"
+q "set role zell_inventory_definer; revoke execute on function public.zell_inv_product_stock_ref_exists(integer) from authenticated; reset role" > /dev/null
 neg20 "I03 extra EXECUTE on the stock wrapper (authenticated) -> ZELL_0020_0022_WRAPPER_SHAPE" \
   "set role zell_inventory_definer; grant execute on function public.zell_inv_product_stock_ref_exists(integer) to authenticated; reset role" \
   "set role zell_inventory_definer; revoke execute on function public.zell_inv_product_stock_ref_exists(integer) from authenticated; reset role" \
@@ -293,12 +394,35 @@ ok=no
 [ "$rc" -eq 0 ] && [ "$(state)" = "$CLEAN" ] && [ "$(cat_fp)" = "$CF0" ] && fp_ok \
   && has "$TMP/i20.out" 'ZELL_0020_VERIFY_RESULT part_a=ok' && ! has "$TMP/i20.out" '0022=applied' && ok=yes
 record "R01 rollback before any delete: catalog fingerprint = before apply (ACLs, functions, policies, constraints, triggers, roles); 0020 verify ok" "$ok" "$(state) $(v20_line) $(tailof "$TMP/r1.out")"
+imp rb
+ok=no; [ "$IMP_RC" -eq 0 ] && [ -z "$(idiff pre rb "2 3 4 5 6 7 8 9 $DATA_COLS")" ] && ok=yes
+record "IMP4 impact query after rollback = the baseline exactly (columns 2-31)" "$ok" "first diff=$(idiff pre rb "2 3 4 5 6 7 8 9 $DATA_COLS")"
 run_file "$ROLLBACK" "$TMP/r2.out"
 ok=no; has "$TMP/r2.out" 'ZELL_0022_RB_NOT_APPLIED' && ok=yes
 record "R02 rollback when not applied -> ZELL_0022_RB_NOT_APPLIED" "$ok" "$(tailof "$TMP/r2.out")"
 run_approved "$APPLY" 'ci-0022-again' "$TMP/a4.out"; rc=$?
 ok=no; [ "$rc" -eq 0 ] && [ "$(state)" = "$APPLIED" ] && verify_ok && ok=yes
 record "A04 re-apply after rollback + verify PASS" "$ok" "$(state) $(summary_of "$TMP/v.out") $(tailof "$TMP/a4.out")"
+imp again
+ok=no; [ "$IMP_RC" -eq 0 ] && [ -z "$(idiff post again "2 3 4 5 6 7 8 9 $DATA_COLS")" ] && ok=yes
+record "IMP5 impact query after re-apply = the after-apply result (columns 2-31)" "$ok" "first diff=$(idiff post again "2 3 4 5 6 7 8 9 $DATA_COLS")"
+
+# ---- 10b) عقد استدعاء التطبيقات على البناء الكامل + 0022 (المرحلة B، العقد §٧-أ) ----
+# نفس حارس BASELINE (call_contract.mjs) بـ --pending require: نداءات zell_product_delete* بتتفحص فعليًا (الوجود · أسماء المعاملات ·
+# EXECUTE لـ authenticated · مفيش لـ anon و service_role)، زي ما هتتفحص في build_from_scratch بعد المرحلة C.
+if node "$CIDIR/call_contract.mjs" --root "$ROOT" --policy "$CIDIR/call_contract_policy.json" --sql "$TMP/cc.sql" --pending require > "$TMP/cc_static.log" 2>&1; then
+  psql -X -q -tA -v ON_ERROR_STOP=1 -U "$SUPER" -d "$DB" -f "$TMP/cc.sql" < /dev/null > "$TMP/cc_db.log" 2>&1; rc=$?
+  fails=$(grep -c '^CALL FAIL ' "$TMP/cc_db.log" || true)
+  passes=$(grep -c '^CALL PASS ' "$TMP/cc_db.log" || true)
+  checks=$(grep -oE '"checks":[0-9]+' "$TMP/cc_static.log" | head -n 1 | cut -d: -f2)
+  ok=no
+  [ "$rc" -eq 0 ] && [ "$fails" = "0" ] && [ -n "$checks" ] && [ "$passes" = "$checks" ] && ! grep -q '^PENDING ' "$TMP/cc_static.log" \
+    && grep -q '^CALL PASS .* zell_product_delete authenticated' "$TMP/cc_db.log" \
+    && grep -q '^CALL PASS .* zell_product_delete_preview authenticated' "$TMP/cc_db.log" && ok=yes
+  record "K22 call contract of the apps on the full build + 0022 (pending required): $passes of ${checks:-?} checks, delete + preview included" "$ok" "rc=$rc fails=$fails $(grep '^CALL FAIL ' "$TMP/cc_db.log" | head -n 5 | tr '\n' ' ') $(tailof "$TMP/cc_db.log")"
+else
+  record "K22 call contract of the apps on the full build + 0022 (static part failed)" no "$(tailof "$TMP/cc_static.log")"
+fi
 
 # ---- 11) السيناريوهات (معاملة بترجع) ----
 run_file "$FLOWS" "$TMP/fl.out"; rc=$?

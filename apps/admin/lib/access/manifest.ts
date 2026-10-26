@@ -22,7 +22,7 @@ export type ManifestEntry = {
   mutates: boolean
   todayGuard: 'admin' | 'owner'
   todayFlag: boolean
-  forbiddenMessage: 'OWNER_ONLY_MESSAGE' | 'INVENTORY_OWNER_ONLY_MESSAGE' | null
+  forbiddenMessage: 'OWNER_ONLY_MESSAGE' | 'INVENTORY_OWNER_ONLY_MESSAGE' | 'PRODUCT_DELETE_OWNER_ONLY_MESSAGE' | null
   mapFailure: 'rejectedFailure' | null
 }
 
@@ -87,6 +87,7 @@ export const ACCESS_MANIFEST: readonly ManifestEntry[] = [
   { kind: 'action', file: 'lib/paymentActions.ts', symbol: 'updatePaymentMethodAction', capability: 'zell.orders.payments_admin', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'OWNER_ONLY_MESSAGE', mapFailure: null },
   { kind: 'action', file: 'lib/paymentActions.ts', symbol: 'deletePaymentMethodAction', capability: 'zell.orders.payments_admin', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'OWNER_ONLY_MESSAGE', mapFailure: null },
   { kind: 'action', file: 'lib/paymentActions.ts', symbol: 'savePaymentSettingsAction', capability: 'zell.orders.payments_admin', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'OWNER_ONLY_MESSAGE', mapFailure: null },
+  { kind: 'action', file: 'lib/productActions.ts', symbol: 'deleteProductAction', capability: 'zell.orders.payments_admin', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'PRODUCT_DELETE_OWNER_ONLY_MESSAGE', mapFailure: null },
   { kind: 'action', file: 'lib/actions.ts', symbol: 'saveContentAction', capability: 'zell.content.edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
   { kind: 'action', file: 'lib/actions.ts', symbol: 'saveShippingAction', capability: 'zell.shipping.edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
   { kind: 'action', file: 'lib/actions.ts', symbol: 'saveIdentityAction', capability: 'zell.identity.edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },

@@ -45,6 +45,7 @@ const SUITES = [
   { name: 'size-texts', dir: 'lib/content', entry: 'sizeTexts.cases.ts', run: 'runSizeTextsCases' },
   { name: 'storefront-link', dir: 'lib/storefront', entry: 'link.cases.ts', run: 'runStorefrontLinkCases' },
   { name: 'policy-save', dir: 'lib/content', entry: 'policySave.cases.ts', run: 'runPolicySaveCases' },
+  { name: 'product-delete', dir: 'lib/products', entry: 'deleteProduct.cases.ts', run: 'runProductDeleteCases' },
 ]
 
 const COMPILER_OPTIONS = {

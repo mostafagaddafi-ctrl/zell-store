@@ -1,7 +1,8 @@
 import 'server-only'
 
 import { parseHomeProducts, type HomeProducts, type HomeProductsMode } from '@zell/core'
-import { restGet, restInsert, restPatch } from '../data/client'
+import { restGet, restInsert, restPatch, sentinelOf } from '../data/client'
+import { homeProductsSaveMessage } from '../products/deleteProduct'
 import type { MutationResult } from '../mutations'
 import { toInternalFailure } from './errors'
 import { KEY } from '../data/homeProducts'
@@ -46,6 +47,10 @@ export async function saveHomeProducts(raw: unknown): Promise<MutationResult<Hom
     }
     return { ok: true, data: saved }
   } catch (error) {
+    // PRODUCT-DELETE (0022): trigger قايمة الرئيسية بيرفض id جديد لمنتج مش موجود (45507، اتحذف بعد فتح الصفحة)
+    // = رسالة تحقق واضحة بدل الخطأ العام. والكتابة كلها بترجع في الداتابيز.
+    const message = homeProductsSaveMessage(sentinelOf(error))
+    if (message !== null) return { ok: false, code: 'VALIDATION', message }
     return toInternalFailure(error)
   }
 }
