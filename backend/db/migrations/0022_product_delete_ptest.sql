@@ -296,7 +296,7 @@ begin
   exception when foreign_key_violation then
     get stacked diagnostics v_constraint = constraint_name;
     if v_constraint = 'order_items_product_id_fkey' then
-      raise exception 'ZELL_PRODUCT_HAS_ORDERS' using errcode = '45504';
+      raise exception 'ZELL_PRODUCT_HAS_ORDERS' using errcode = '45504', detail = v_constraint;
     end if;
     raise exception 'ZELL_PRODUCT_HAS_STOCK' using errcode = '45505', detail = coalesce(v_constraint, '');
   end;
