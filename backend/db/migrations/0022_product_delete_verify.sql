@@ -52,13 +52,13 @@ with fn as (
     from pg_catalog.pg_database d cross join lateral pg_catalog.aclexplode(d.datacl) a
    where a.grantee = (select r from cat)
   union all
-  select 'default_acl:' || d.defaclobjtype from pg_catalog.pg_default_acl d where d.defaclrole = (select r from cat)
+  select 'default_acl:' || d.defaclobjtype::text from pg_catalog.pg_default_acl d where d.defaclrole = (select r from cat)
   union all
-  select 'default_acl_grant:' || d.defaclobjtype
+  select 'default_acl_grant:' || d.defaclobjtype::text
     from pg_catalog.pg_default_acl d cross join lateral pg_catalog.aclexplode(d.defaclacl) a
    where a.grantee = (select r from cat)
 ), pol as (
-  select c.relname || '|' || p.polname || '|' || p.polcmd || '|' || p.polpermissive::text || '|'
+  select c.relname::text || '|' || p.polname::text || '|' || p.polcmd::text || '|' || p.polpermissive::text || '|'
          || (select pg_catalog.string_agg(case when x = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(x)::text end, ',' order by 1)
                from pg_catalog.unnest(p.polroles) x) || '|'
          || coalesce(pg_catalog.pg_get_expr(p.polqual, p.polrelid), '-') || '|'
