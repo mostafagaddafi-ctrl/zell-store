@@ -3,6 +3,7 @@ import 'server-only'
 import type { Announcement, FaqItem, FooterLink, HeroContent, OrderStep, StoreContent, StoreSection } from '../adminData'
 import { checkSectionMobileLayout } from '../content/homeMobile'
 import { checkProductSizeEntry } from '../content/sizeEntry'
+import { checkProductSizeTexts } from '../content/sizeTexts'
 import { SECTION_KEYS, type SectionKey } from '../enums'
 import { flag, invalid, optionalText, requiredText, wholeNumber, type ValidationFailure } from './shared'
 
@@ -52,6 +53,9 @@ function validateHero(value: unknown): { ok: true; value: HeroContent } | Valida
   // LENGTH-INPUT — 'cm' أو 'm' بس (الغايب = 'cm')، وبيتكتب دايمًا في p_hero
   const sizeEntry = checkProductSizeEntry(value['productSizeEntry'])
   if (!sizeEntry.ok) return invalid(sizeEntry.message)
+  // SIZE-TEXTS — اختياري (الغايب = {})، والفاضي بيتشال، والأطول من الحد مرفوض من غير قص، وبيتكتب دايمًا في p_hero
+  const sizeTexts = checkProductSizeTexts(value['productSizeTexts'])
+  if (!sizeTexts.ok) return invalid(sizeTexts.message)
 
   const hero: HeroContent = {
     title: title.value,
@@ -59,6 +63,7 @@ function validateHero(value: unknown): { ok: true; value: HeroContent } | Valida
     subtitle: subtitle.value ?? '',
     ctaLabel: ctaLabel.value ?? '',
     productSizeEntry: sizeEntry.value,
+    productSizeTexts: sizeTexts.value,
   }
   return { ok: true, value: hero }
 }
