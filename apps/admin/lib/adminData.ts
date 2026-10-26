@@ -9,7 +9,7 @@
 import { supabaseAdminData } from './data/reads'
 import type { ImageFit, OrderStatus, SectionKey } from './enums'
 import type { DeliveryPeriod, FollowUpFilter } from './orders/cycle'
-import type { CatalogLayout, ProductSizeEntry, ShippingDays, ShippingMethod } from '@zell/core'
+import type { CatalogLayout, ProductSizeEntry, ProductSizeTexts, ShippingDays, ShippingMethod } from '@zell/core'
 import type { OrderCouponSnapshot } from './coupons/form'
 import type { HomeMobileLayout } from './content/homeMobile'
 import type { OrderShippingType, ShippingTypeFilter } from './orders/listFilters'
@@ -166,6 +166,8 @@ export type HeroContent = {
   ctaLabel: string
   /** LENGTH-INPUT — الطريقة الأولى لإدخال المقاس في صفحة المنتج (settings.hero.productSizeEntry؛ الغايب أو الغلط = 'cm'). */
   productSizeEntry: ProductSizeEntry
+  /** SIZE-TEXTS — نصوص «حدد المقاس» في صفحة المنتج (settings.hero.productSizeTexts؛ الغايب = {} والمتجر بيعرض الافتراضي). */
+  productSizeTexts: ProductSizeTexts
 }
 export type OrderStep = { title: string; description: string }
 export type FaqItem = { question: string; answer: string }
