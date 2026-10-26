@@ -15,6 +15,7 @@ import type {
 } from '../adminData'
 import { readHeroMobileLayout } from '../content/homeMobile'
 import { readProductSizeEntry } from '../content/sizeEntry'
+import { readProductSizeTexts } from '../content/sizeTexts'
 import { orderCouponSnapshot } from '../coupons/form'
 import { orderShippingType } from '../orders/listFilters'
 import { ORDER_STATUSES, SECTION_KEYS, type ImageFit, type OrderStatus, type SectionKey } from '../enums'
@@ -418,6 +419,8 @@ export function readHero(map: Map<string, unknown>): HeroContent {
     ctaLabel: text(raw['ctaLabel'], text(raw['cta_label'])),
     // LENGTH-INPUT — لازم يتقري علشان مايضيعش مع حفظ باقي المحتوى
     productSizeEntry: readProductSizeEntry(raw['productSizeEntry']),
+    // SIZE-TEXTS — لازم تتقري علشان ماتضيعش مع حفظ باقي المحتوى
+    productSizeTexts: readProductSizeTexts(raw['productSizeTexts']),
   }
 }
 
