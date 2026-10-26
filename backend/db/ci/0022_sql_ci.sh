@@ -255,10 +255,10 @@ ok=no; has "$TMP/i20.out" 'ZELL_0020_VERIFY_RESULT part_a=ok' && ! has "$TMP/i20
 record "I01 0020 verify before 0022: part_a=ok, no 0022 marker" "$ok" "$(v20_line)"
 # الرسالة اللي الأصلي رماها (P0001 أو غيره) بالحرف، والصف بتاع نسخة الصفوف.
 v20_raw() { sed -n 's/.*ERROR:  [0-9A-Z]\{5\}: //p' "$TMP/i20.out" | head -n 1; }
-v20r() { run_file "$V0020R" "$TMP/i20r.out"; V20R_RC=$?; grep '^0|summary|' "$TMP/i20r.out" | head -n 1; }
+v20r() { run_file "$V0020R" "$TMP/i20r.out"; V20R_RC=$?; grep '^0|summary|' "$TMP/i20r.out" | head -n 1 > "$TMP/i20r.row"; }
 w_check() { # $1 id+name, $2 expected verdict, $3 required marker text or message prefix
   local orig row verdict state msg markers ok=no
-  v20; orig=$(v20_raw); row=$(v20r)
+  v20; orig=$(v20_raw); v20r; row=$(cat "$TMP/i20r.row")
   verdict=$(printf '%s' "$row" | cut -d'|' -f3); state=$(printf '%s' "$row" | cut -d'|' -f4)
   msg=$(printf '%s' "$row" | cut -d'|' -f5); markers=$(printf '%s' "$row" | cut -d'|' -f6)
   if [ "$V20R_RC" -eq 0 ] && [ "$verdict" = "$2" ] && [ -n "$msg" ] && [ "$msg" = "$orig" ]; then
