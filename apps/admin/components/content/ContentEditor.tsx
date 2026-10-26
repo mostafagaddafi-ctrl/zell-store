@@ -8,7 +8,13 @@ import type { StoreContent } from '../../lib/adminData'
 import { useSaveAction } from '../../lib/client/useSaveAction'
 import { HOME_MOBILE_NOTE, HOME_MOBILE_OPTIONS, HOME_MOBILE_TITLE, type HomeMobileLayout } from '../../lib/content/homeMobile'
 import { SIZE_ENTRY_NOTE, SIZE_ENTRY_OPTIONS, SIZE_ENTRY_TITLE } from '../../lib/content/sizeEntry'
-import { SIZE_TEXTS_NOTE, SIZE_TEXTS_TITLE, SIZE_TEXT_FIELDS } from '../../lib/content/sizeTexts'
+import {
+  SIZE_TEXTS_EMPTY_HINT,
+  SIZE_TEXTS_NOTE,
+  SIZE_TEXTS_TITLE,
+  SIZE_TEXT_FIELDS,
+  sizeTextFieldValue,
+} from '../../lib/content/sizeTexts'
 import { SECTION_LABELS } from '../../lib/enums'
 import { STOREFRONT_LINK_NOT_SET } from '../../lib/storefront/link'
 import { useMutationsEnabled } from '../../lib/readiness'
@@ -182,13 +188,14 @@ export function ContentEditor({ content, storefrontHref }: { content: StoreConte
         </fieldset>
       </Card>
 
-      {/* SIZE-TEXTS — نصوص «حدد المقاس» في صفحة المنتج (settings.hero.productSizeTexts)، وبتتحفظ مع المحتوى (نفس action). الفاضي = النص الافتراضي. */}
+      {/* SIZE-TEXTS — نصوص «حدد المقاس» في صفحة المنتج (settings.hero.productSizeTexts)، وبتتحفظ مع المحتوى (نفس action). الخانة بتعرض النص الحالي كقيمة قابلة للتعديل، والفاضي أو المساوي للافتراضي = النص الافتراضي. */}
       <Card title={SIZE_TEXTS_TITLE}>
         <p className="mb-3 text-xs text-muted">{SIZE_TEXTS_NOTE}</p>
         <div className="grid gap-3 lg:grid-cols-2">
           {SIZE_TEXT_FIELDS.map((field) => {
             const id = 'size-text-' + field.key
-            const value = draft.hero.productSizeTexts[field.key] ?? ''
+            // النص الحالي كقيمة حقيقية قابلة للتعديل (المحفوظ، وإلا الافتراضي) — العرض مابيعدّلش المسودة
+            const value = sizeTextFieldValue(draft.hero.productSizeTexts, field.key)
             const setValue = (next: string) =>
               touch({
                 ...draft,
@@ -206,7 +213,7 @@ export function ContentEditor({ content, storefrontHref }: { content: StoreConte
                   <textarea
                     id={id}
                     value={value}
-                    placeholder={field.defaultText}
+                    placeholder={SIZE_TEXTS_EMPTY_HINT}
                     onChange={(e) => setValue(e.target.value)}
                     className={textareaClasses}
                   />
@@ -214,7 +221,7 @@ export function ContentEditor({ content, storefrontHref }: { content: StoreConte
                   <input
                     id={id}
                     value={value}
-                    placeholder={field.defaultText}
+                    placeholder={SIZE_TEXTS_EMPTY_HINT}
                     onChange={(e) => setValue(e.target.value)}
                     className={inputClasses}
                   />
