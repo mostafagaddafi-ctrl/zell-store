@@ -39,7 +39,7 @@ ADMIN_ID='00000000-0000-4000-8000-0000000000a2'
 OFF_ID='00000000-0000-4000-8000-0000000000a3'
 USER_ID='00000000-0000-4000-8000-0000000000a4'
 EXPECTED="S01 S02 S03 S04 B01 X01 I01 G01 G02 G03 G04 T01 A01 A02 A03 V01 N01 N02 N03 N04 N05 I02 I03 I04 I05 I06 I07 I08 R01 R02 A04 F00
-C01 C02 C03 C04 C05 C06 C07 C08 C09 C10 C11 C12 C13 C14 C15 C16 C17 C18 C19 P01 P02 P03 P04 P05 P06 P07 P08 H01 H02 H03 H04 Z01 Z02 R03 V02"
+C01 C02 C03 C04 C05 C06 C07 C08 C09 C10 C11 C12 C13 C14 C15 C16 C17 C18 C19 P01 P02 P03 P04 P05 P06 P07 P08 H01 H02 H03 H04 Z01 Z02 R03 V02 K22"
 APPLIED='1|4|1|17|1|1'
 CLEAN='0|0|0|0|0|0'
 
@@ -299,6 +299,23 @@ record "R02 rollback when not applied -> ZELL_0022_RB_NOT_APPLIED" "$ok" "$(tail
 run_approved "$APPLY" 'ci-0022-again' "$TMP/a4.out"; rc=$?
 ok=no; [ "$rc" -eq 0 ] && [ "$(state)" = "$APPLIED" ] && verify_ok && ok=yes
 record "A04 re-apply after rollback + verify PASS" "$ok" "$(state) $(summary_of "$TMP/v.out") $(tailof "$TMP/a4.out")"
+
+# ---- 10b) عقد استدعاء التطبيقات على البناء الكامل + 0022 (المرحلة B، العقد §٧-أ) ----
+# نفس حارس BASELINE (call_contract.mjs) بـ --pending require: نداءات zell_product_delete* بتتفحص فعليًا (الوجود · أسماء المعاملات ·
+# EXECUTE لـ authenticated · مفيش لـ anon و service_role)، زي ما هتتفحص في build_from_scratch بعد المرحلة C.
+if node "$CIDIR/call_contract.mjs" --root "$ROOT" --policy "$CIDIR/call_contract_policy.json" --sql "$TMP/cc.sql" --pending require > "$TMP/cc_static.log" 2>&1; then
+  psql -X -q -tA -v ON_ERROR_STOP=1 -U "$SUPER" -d "$DB" -f "$TMP/cc.sql" < /dev/null > "$TMP/cc_db.log" 2>&1; rc=$?
+  fails=$(grep -c '^CALL FAIL ' "$TMP/cc_db.log" || true)
+  passes=$(grep -c '^CALL PASS ' "$TMP/cc_db.log" || true)
+  checks=$(grep -oE '"checks":[0-9]+' "$TMP/cc_static.log" | head -n 1 | cut -d: -f2)
+  ok=no
+  [ "$rc" -eq 0 ] && [ "$fails" = "0" ] && [ -n "$checks" ] && [ "$passes" = "$checks" ] && ! grep -q '^PENDING ' "$TMP/cc_static.log" \
+    && grep -q '^CALL PASS .* zell_product_delete authenticated' "$TMP/cc_db.log" \
+    && grep -q '^CALL PASS .* zell_product_delete_preview authenticated' "$TMP/cc_db.log" && ok=yes
+  record "K22 call contract of the apps on the full build + 0022 (pending required): $passes of ${checks:-?} checks, delete + preview included" "$ok" "rc=$rc fails=$fails $(grep '^CALL FAIL ' "$TMP/cc_db.log" | head -n 5 | tr '\n' ' ') $(tailof "$TMP/cc_db.log")"
+else
+  record "K22 call contract of the apps on the full build + 0022 (static part failed)" no "$(tailof "$TMP/cc_static.log")"
+fi
 
 # ---- 11) السيناريوهات (معاملة بترجع) ----
 run_file "$FLOWS" "$TMP/fl.out"; rc=$?
