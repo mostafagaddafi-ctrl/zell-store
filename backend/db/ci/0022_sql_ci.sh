@@ -25,6 +25,7 @@ PTEST="$MIG/0022_product_delete_ptest.sql"
 VERIFY="$MIG/0022_product_delete_verify.sql"
 ROLLBACK="$MIG/0022_product_delete_rollback.sql"
 V0020="$MIG/0020_inventory_purchasing_verify.sql"
+V0020R="$MIG/0020_inventory_purchasing_verify_rows.sql"
 FLOWS="$CIDIR/0022_flows.sql"
 IMPACT="$MIG/0022_product_delete_impact.sql"
 SHAPE="$CIDIR/0021p_txn_shape.py"
@@ -39,7 +40,7 @@ OWNER_ID='00000000-0000-4000-8000-0000000000a1'
 ADMIN_ID='00000000-0000-4000-8000-0000000000a2'
 OFF_ID='00000000-0000-4000-8000-0000000000a3'
 USER_ID='00000000-0000-4000-8000-0000000000a4'
-EXPECTED="S01 S02 S03 S04 B01 X01 IMP0 IMP1 IMP2 I01 G01 G02 G03 G04 T01 A01 IMP3 A02 A03 V01 N01 N02 N03 N04 N05 I02 I03 I04 I05 I06 I07 I08 R01 IMP4 R02 A04 IMP5 F00
+EXPECTED="S01 S02 S03 S04 S05 B01 X01 IMP0 IMP1 IMP2 I01 W01 G01 G02 G03 G04 T01 A01 IMP3 A02 A03 V01 N01 N02 N03 N04 N05 I02 W02 I03 W03 I04 I05 I06 I07 I08 R01 IMP4 R02 A04 IMP5 F00
 C01 C02 C03 C04 C05 C06 C07 C08 C09 C10 C11 C12 C13 C14 C15 C16 C17 C18 C19 P01 P02 P03 P04 P05 P06 P07 P08 H01 H02 H03 H04 Z01 Z02 R03 V02 K22"
 APPLIED='1|4|1|17|1|1'
 CLEAN='0|0|0|0|0|0'
@@ -116,8 +117,8 @@ v20() { run_file "$V0020" "$TMP/i20.out"; }
 v20_line() { grep -oE 'ZELL_0020_[A-Z0-9_]+[^"]{0,160}' "$TMP/i20.out" | head -n 1; }
 
 # ---- 1) فحوص ثابتة ----
-if python3 "$SHAPE" --selftest > "$TMP/shape_self.out" 2>&1 && python3 "$SHAPE" "$PTEST" "$VERIFY" "$FLOWS" "$IMPACT" > "$TMP/shape.out" 2>&1; then ok=yes; else ok=no; fi
-record "S01 transaction shape: ptest / verify / flows / impact = begin ... one SELECT ... rollback (checker self-test first)" "$ok" "$(tailof "$TMP/shape.out") $(tailof "$TMP/shape_self.out")"
+if python3 "$SHAPE" --selftest > "$TMP/shape_self.out" 2>&1 && python3 "$SHAPE" "$PTEST" "$VERIFY" "$FLOWS" "$IMPACT" "$V0020R" > "$TMP/shape.out" 2>&1; then ok=yes; else ok=no; fi
+record "S01 transaction shape: ptest / verify / flows / impact / 0020 rows = begin ... one SELECT ... rollback (checker self-test first)" "$ok" "$(tailof "$TMP/shape.out") $(tailof "$TMP/shape_self.out")"
 m_apply=$(body_md5 "$APPLY" "0022 BODY"); m_ptest=$(body_md5 "$PTEST" "0022 BODY")
 ok=no; [ "$m_apply" = "$m_ptest" ] && [ "$m_apply" != "$EMPTY_MD5" ] && ok=yes
 record "S02 ptest body = apply body (md5 $m_apply)" "$ok" "apply=$m_apply ptest=$m_ptest"
@@ -136,6 +137,14 @@ for f in $found; do
 done
 case " $found " in *" backend/db/migrations/0022_product_delete.sql "*) ;; *) ok=no ;; esac
 record "S04 advisory key text zell_catalog:home_products used only by 0022 (contract §5-a)" "$ok" "$found"
+blk() { awk -v s="do \$$2\$" -v e="\$$2\$;" '$0 == s {f = 1} f {print} f && $0 == e {exit}' "$1"; }
+ok=yes; bmd=""
+for tg in zverify_a zverify_b zverify_end; do
+  a=$(blk "$V0020" "$tg" | md5sum | cut -d' ' -f1); b=$(blk "$V0020R" "$tg" | md5sum | cut -d' ' -f1)
+  [ "$a" = "$b" ] && [ "$a" != "$EMPTY_MD5" ] || ok=no
+  bmd="$bmd $tg=$a/$b"
+done
+record "S05 0020 rows wrapper: the 3 blocks (zverify_a · zverify_b · zverify_end) = the original verify byte for byte" "$ok" "$bmd"
 
 # ---- 2) بناء الداتابيز من القايمة الصريحة (زي build_from_scratch.sh) ----
 fresh=$(su_q postgres -c "select pg_catalog.count(*) from pg_catalog.pg_roles where rolname in ('postgres','anon','authenticated','service_role')")
@@ -244,6 +253,23 @@ record "IMP2 locks / idle: active read = info only · ShareRowExclusive = stop �
 v20
 ok=no; has "$TMP/i20.out" 'ZELL_0020_VERIFY_RESULT part_a=ok' && ! has "$TMP/i20.out" '0022=applied' && ok=yes
 record "I01 0020 verify before 0022: part_a=ok, no 0022 marker" "$ok" "$(v20_line)"
+# الرسالة اللي الأصلي رماها (P0001 أو غيره) بالحرف، والصف بتاع نسخة الصفوف.
+v20_raw() { sed -n 's/.*ERROR:  [0-9A-Z]\{5\}: //p' "$TMP/i20.out" | head -n 1; }
+v20r() { run_file "$V0020R" "$TMP/i20r.out"; V20R_RC=$?; grep '^0|summary|' "$TMP/i20r.out" | head -n 1; }
+w_check() { # $1 id+name, $2 expected verdict, $3 required marker text or message prefix
+  local orig row verdict state msg markers ok=no
+  v20; orig=$(v20_raw); row=$(v20r)
+  verdict=$(printf '%s' "$row" | cut -d'|' -f3); state=$(printf '%s' "$row" | cut -d'|' -f4)
+  msg=$(printf '%s' "$row" | cut -d'|' -f5); markers=$(printf '%s' "$row" | cut -d'|' -f6)
+  if [ "$V20R_RC" -eq 0 ] && [ "$verdict" = "$2" ] && [ -n "$msg" ] && [ "$msg" = "$orig" ]; then
+    case "$2" in
+      PASS) [ "$state" = "P0001" ] && [ "$markers" = "$3" ] && ok=yes ;;
+      FAIL) case "$msg" in "$3"*) ok=yes ;; esac ;;
+    esac
+  fi
+  record "$1" "$ok" "rc=$V20R_RC verdict=$verdict state=$state markers=[$markers] msg=[$msg] orig=[$orig]"
+}
+w_check "W01 0020 verify as rows before 0022: PASS, same message as the original, markers 0020s+pr3" PASS "0020s=applied pr3=applied"
 
 # ---- 5) حراس الـ preflight (قبل التطبيق) ----
 CF0=$(cat_fp)
@@ -324,6 +350,7 @@ neg "N05 extra EXECUTE on zell_product_delete (service_role) -> V03 FAIL" \
 v20
 ok=no; has "$TMP/i20.out" 'ZELL_0020_VERIFY_RESULT part_a=ok' && has "$TMP/i20.out" '0022=applied' && ok=yes
 record "I02 0020 verify after 0022: part_a=ok with the 0022 marker" "$ok" "$(v20_line)"
+w_check "W02 0020 verify as rows after 0022: PASS, same message as the original, markers 0020s+pr3+0022" PASS "0020s=applied pr3=applied 0022=applied"
 neg20() { # $1 id+name, $2 change SQL, $3 restore SQL, $4 expected error
   q "$2" > "$TMP/n20.log"
   v20
@@ -333,6 +360,9 @@ neg20() { # $1 id+name, $2 change SQL, $3 restore SQL, $4 expected error
   has "$TMP/i20.out" "$4" && ! has "$TMP/i20.out" 'part_a=ok' && ok=yes
   record "$1" "$ok" "$line $(tailof "$TMP/n20.log")"
 }
+q "set role zell_inventory_definer; grant execute on function public.zell_inv_product_stock_ref_exists(integer) to authenticated; reset role" > /dev/null
+w_check "W03 0020 verify as rows with a real failure (extra grant): FAIL, the failure message shown unchanged (= original)" FAIL "ZELL_0020_0022_WRAPPER_SHAPE"
+q "set role zell_inventory_definer; revoke execute on function public.zell_inv_product_stock_ref_exists(integer) from authenticated; reset role" > /dev/null
 neg20 "I03 extra EXECUTE on the stock wrapper (authenticated) -> ZELL_0020_0022_WRAPPER_SHAPE" \
   "set role zell_inventory_definer; grant execute on function public.zell_inv_product_stock_ref_exists(integer) to authenticated; reset role" \
   "set role zell_inventory_definer; revoke execute on function public.zell_inv_product_stock_ref_exists(integer) from authenticated; reset role" \
