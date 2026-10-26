@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSaveAction } from '../../lib/client/useSaveAction'
+import type { SaveFailure } from '../../lib/client/useSaveAction'
 import { deleteProductAction } from '../../lib/productActions'
 import {
   PRODUCT_DELETE_TEXT,
+  performProductDelete,
   productDeleteAllowed,
   productDeleteBlockers,
   productDeleteQuestion,
@@ -20,7 +21,8 @@ import { FailureBanner } from '../ui/FailureBanner'
 /**
  * PRODUCT-DELETE (المرحلة B) — كارت «حذف المنتج نهائيًا» في صفحة المنتج، للمالك بس (الصفحة مابتعرضهوش لغيره، والقرار
  * النهائي في الداتابيز). بيظهر بالأعداد بس لما المنتج مخفي؛ لو ظاهر: سطر «أخفِ المنتج أولًا». لو فيه طلبات أو مخزون أو
- * تعارض: السبب ومفيش زرار. الزرار ← تأكيد واحد بالأعداد ← النداء ← بعد النجاح رجوع لقايمة المنتجات.
+ * تعارض: السبب ومفيش زرار. الزرار ← تأكيد واحد بالأعداد ← النداء (مرة واحدة) ← بعد النجاح رجوع لقايمة المنتجات. لو الحذف
+ * نجح وتحديث المتجر الفوري فشل: الكارت بيفضل ويعرض التحذير (نجاح، مش فشل) ورابط القايمة، ومفيش أي إعادة للحذف.
  */
 export function ProductDeleteCard({
   productName,
@@ -55,20 +57,39 @@ export function ProductDeleteCard({
 function ProductDeletePanel({ productName, preview }: { productName: string; preview: ProductDeletePreview }) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
-  const { state, failure, run, retry } = useSaveAction()
   const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState<SaveFailure | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const inFlight = useRef(false)
   const blockers = productDeleteBlockers(preview)
   const allowed = productDeleteAllowed(preview)
-  const busy = state === 'saving'
-  const done = state === 'saved'
+  const done = notice !== null
 
-  function confirmDelete() {
-    void run(() => deleteProductAction(preview.productId, preview.updatedAt), {
-      onSuccess: () => {
-        router.replace('/products')
-        router.refresh()
-      },
-    })
+  async function confirmDelete() {
+    // نداء واحد بس في نفس الوقت، ومفيش نداء تاني بعد النجاح.
+    if (inFlight.current || done) return
+    inFlight.current = true
+    setBusy(true)
+    setFailure(null)
+    const outcome = await performProductDelete(() => deleteProductAction(preview.productId, preview.updatedAt))
+    setBusy(false)
+    if (outcome.kind === 'failed') {
+      inFlight.current = false
+      setFailure({ code: outcome.code, message: outcome.message })
+      return
+    }
+    if (outcome.navigate) {
+      router.replace('/products')
+      router.refresh()
+      return
+    }
+    setNotice(outcome.notice)
+  }
+
+  function backToList() {
+    router.replace('/products')
+    router.refresh()
   }
 
   return (
@@ -99,7 +120,7 @@ function ProductDeletePanel({ productName, preview }: { productName: string; pre
               <p className="text-xs font-semibold text-fg">{PRODUCT_DELETE_TEXT.confirmTitle}</p>
               <p className="text-xs text-fg">{productDeleteQuestion(productName, preview)}</p>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="danger" disabled={!mutationsOn || busy} onClick={confirmDelete}>
+                <Button size="sm" variant="danger" disabled={!mutationsOn || busy} onClick={() => void confirmDelete()}>
                   {busy ? PRODUCT_DELETE_TEXT.deleting : PRODUCT_DELETE_TEXT.confirm}
                 </Button>
                 <Button size="sm" variant="secondary" disabled={busy} onClick={() => setConfirming(false)}>
@@ -115,11 +136,14 @@ function ProductDeletePanel({ productName, preview }: { productName: string; pre
         ) : null}
 
         {done ? (
-          <p role="status" className="text-xs text-ok">
-            {PRODUCT_DELETE_TEXT.deleted}
-          </p>
+          <div role="status" className="space-y-2 rounded-md border border-gold bg-surface p-3">
+            <p className="text-xs font-semibold text-fg">{notice}</p>
+            <Button size="sm" variant="secondary" onClick={backToList}>
+              {PRODUCT_DELETE_TEXT.backToList}
+            </Button>
+          </div>
         ) : null}
-        <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
+        <FailureBanner failure={failure} onRetry={() => void confirmDelete()} onDiscardAndRefresh={() => router.refresh()} />
       </div>
     </Card>
   )
