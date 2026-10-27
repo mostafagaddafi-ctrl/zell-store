@@ -65,7 +65,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <AnnouncementBar announcement={settings.announcement} />
           <SiteHeader
             storeName={settings.storeName}
-            logo={settings.logo}
             collections={collections}
             allLabel={settings.homeProducts.allLabel}
             social={settings.socialLinks}
