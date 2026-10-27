@@ -34,7 +34,6 @@ const SUITES = [
   { name: 'size-texts', dir: 'lib/size', entry: 'sizeTexts.cases.ts', run: 'runSizeTextsCases' },
   { name: 'nav', dir: 'lib/nav', entry: 'storeNav.cases.ts', run: 'runStoreNavCases' },
   { name: 'policies', dir: 'lib/policies', entry: 'policies.cases.ts', run: 'runPolicyCases' },
-  { name: 'brand', dir: 'lib/brand', entry: 'headerWordmark.cases.ts', run: 'runHeaderWordmarkCases' },
 ]
 
 const COMPILER_OPTIONS = {

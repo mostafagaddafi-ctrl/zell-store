@@ -1,15 +1,16 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { MessageCircle, PackageSearch, ShoppingBag } from 'lucide-react'
-import type { SocialLink, StoreCollection } from '@zell/core'
+import type { SocialLink, StoreCollection, StoreImage } from '@zell/core'
 import { useCart } from '../../lib/cart'
 import { cn } from '../../lib/cn'
 import { buildDesktopNav, cartBadge, cartLabel, type HomeHelpVisibility } from '../../lib/nav/storeNav'
 import { Container } from '../ui/Container'
-import { HeaderWordmark } from './HeaderWordmark'
+import { LogoWordmark } from './Logo'
 import { MobileMenu } from './MobileMenu'
 import { Num } from './Num'
 
@@ -34,11 +35,12 @@ import { Num } from './Num'
  *    من غير نص، وواحدة بتخرج من الموقع. التواصل على الموبايل مكانه
  *    الزرار العائم وجزء «المساعدة» في قائمة الموبايل، والاتنين بنصّهم الكامل.
  *
- * اللوجو: «my» + «ظل» (LOGO-TEXT، قرار المالك 2026-10-27 — HeaderWordmark و`lib/brand/headerWordmark.ts`)،
- * مش صورة site_images. صورة اللوجو المرفوعة من اللوحة مابقتش بتظهر في الهيدر، ومااتمسحتش.
+ * اللوجو من site_images (kind = 'logo' and is_active = true). الخانة
+ * ارتفاع ثابت وعرض حر بحد أقصى، و object-contain يمنع أي تشويه.
  */
 export function SiteHeader({
   storeName,
+  logo,
   collections,
   whatsappNumber,
   whatsappMessage,
@@ -48,6 +50,7 @@ export function SiteHeader({
   help,
 }: {
   storeName: string
+  logo: StoreImage | null
   collections: StoreCollection[]
   whatsappNumber: string
   whatsappMessage: string
@@ -90,7 +93,22 @@ export function SiteHeader({
     <header className="sticky top-0 z-40 border-b border-border bg-bg/95 shadow-[0_1px_10px_hsl(var(--brand)/0.06)] backdrop-blur-md">
       <Container className="flex h-16 items-center gap-2 sm:h-[4.5rem]">
         <Link href="/" aria-label={storeName} className="flex h-12 w-20 shrink-0 items-center overflow-hidden sm:w-24">
-          <HeaderWordmark />
+          {logo ? (
+            <Image
+              src={logo.url}
+              alt={logo.alt || storeName}
+              width={160}
+              height={40}
+              priority
+              className="h-12 w-full object-contain mix-blend-multiply sm:h-14"
+            />
+          ) : (
+            <>
+              {/* من غير لوجو مرفوع: الاسم الكامل (العلامة + الاسم) جوه نفس الخانة — 15px على الموبايل و18px من sm */}
+              <LogoWordmark name={storeName} size={15} className="sm:hidden" />
+              <LogoWordmark name={storeName} size={18} className="hidden sm:inline-flex" />
+            </>
+          )}
         </Link>
 
         {/* روابط الكمبيوتر — لو الأقسام كتير، «كل الأقسام» بيوصل للباقي */}
