@@ -35,6 +35,7 @@ const SUITES = [
   { name: 'nav', dir: 'lib/nav', entry: 'storeNav.cases.ts', run: 'runStoreNavCases' },
   { name: 'policies', dir: 'lib/policies', entry: 'policies.cases.ts', run: 'runPolicyCases' },
   { name: 'seo', dir: 'lib/seo', entry: 'structuredData.cases.ts', run: 'runSeoCases' },
+  { name: 'buy-now', dir: 'lib/buy', entry: 'buyNow.cases.ts', run: 'runBuyNowCases' },
 ]
 
 const COMPILER_OPTIONS = {
