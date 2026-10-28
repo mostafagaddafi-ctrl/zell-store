@@ -19,6 +19,9 @@ import { ProductGallery } from '../../../components/store/ProductGallery'
 import { Container } from '../../../components/ui/Container'
 import { keyPoints } from '../../../lib/productCopy'
 import { getStorefrontProductById, getStorefrontData } from '../../../lib/data/source'
+import { JsonLd } from '../../../components/seo/JsonLd'
+import { canonicalPath, productJsonLd } from '../../../lib/seo/structuredData'
+import { SITE_URL } from '../../../lib/site'
 
 /**
  * مفيش generateStaticParams عن قصد.
@@ -41,6 +44,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: product.name_ar,
     description,
+    alternates: { canonical: canonicalPath.product(product.id) },
     openGraph: { type: 'website', title: product.name_ar, description, images: [{ url: imageUrl, alt: image ? image.alt || product.name_ar : product.name_ar }] },
     twitter: { card: 'summary_large_image', title: product.name_ar, description, images: [imageUrl] },
   }
@@ -75,6 +79,7 @@ export default async function ProductPage({ params }: PageProps) {
 
   return (
     <Container className="py-6 md:py-10">
+      <JsonLd data={productJsonLd(product, SITE_URL)} />
       <Link href="/" className="inline-flex items-center gap-1 text-sm font-semibold text-accent">
         <ArrowRight className="h-4 w-4" />
         كل الأنواع
