@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { ArrowLeft, Check, Minus, Plus, ShoppingBag } from 'lucide-react'
+import { ArrowLeft, Check, Loader2, Minus, Plus, ShoppingBag } from 'lucide-react'
 import { formatPiastres, maxQuantityOf, type StoreProduct } from '@zell/core'
 import { useCart } from '../../lib/cart'
+import { BUY_NOW_FAILED_TEXT, BUY_NOW_PENDING_TEXT } from '../../lib/buy/buyNow'
+import { useBuyNow } from './useBuyNow'
 import { Button, buttonClasses } from '../ui/Button'
 import { Num } from './Num'
 
@@ -15,7 +16,9 @@ import { Num } from './Num'
  */
 export function PieceBuy({ product }: { product: StoreProduct }) {
   const cart = useCart()
-  const router = useRouter()
+  // BUY-NOW — «اطلب دلوقتي»: إضافة مرة واحدة + علامة تحميل فورية + منع الضغط المتكرر (lib/buy/buyNow.ts)
+  const buyNow = useBuyNow()
+  const busy = buyNow.phase === 'navigating'
   const max = maxQuantityOf(product)
   const [quantity, setQuantity] = useState(1)
   const [justAdded, setJustAdded] = useState(false)
@@ -32,9 +35,9 @@ export function PieceBuy({ product }: { product: StoreProduct }) {
     setJustAdded(true)
   }
 
+  // لو نفس الكمية اتضافت لسه (justAdded) مابيضيفهاش تاني — يروح بس (السلوك القديم).
   const handleBuyNow = () => {
-    if (!justAdded) cart.addPiece(product.id, quantity, max)
-    router.push('/checkout')
+    buyNow.go(String(quantity), justAdded, () => cart.addPiece(product.id, quantity, max))
   }
 
   return (
@@ -85,14 +88,35 @@ export function PieceBuy({ product }: { product: StoreProduct }) {
 
       {/* نفس أولوية صفحة الفيلم: «ضيف للسلة» الأساسي وفوق، و«اطلب دلوقتي» تحته ثانوي */}
       <div className="grid gap-2">
-        <Button size="lg" onClick={handleAdd}>
+        <Button size="lg" onClick={handleAdd} disabled={busy}>
           <ShoppingBag className="h-5 w-5" />
           ضيف للسلة
         </Button>
-        <Button size="lg" variant="secondary" onClick={handleBuyNow}>
-          اطلب دلوقتي
-          <ArrowLeft className="h-5 w-5" />
+        <Button
+          size="lg"
+          variant="secondary"
+          onClick={handleBuyNow}
+          disabled={busy}
+          aria-busy={busy}
+          className={busy ? 'disabled:cursor-wait disabled:opacity-100' : undefined}
+        >
+          {busy ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+              {BUY_NOW_PENDING_TEXT}
+            </>
+          ) : (
+            <>
+              اطلب دلوقتي
+              <ArrowLeft className="h-5 w-5" />
+            </>
+          )}
         </Button>
+        {buyNow.phase === 'failed' ? (
+          <p role="alert" className="text-center text-xs font-semibold text-fg">
+            {BUY_NOW_FAILED_TEXT}
+          </p>
+        ) : null}
       </div>
 
       {justAdded ? (
