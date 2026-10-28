@@ -4,19 +4,29 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   BUY_NOW_INITIAL,
-  BUY_NOW_TIMEOUT_MS,
+  BUY_NOW_SLOW_MS,
+  buyNowBusy,
   buyNowClick,
   buyNowRestored,
-  buyNowTimeout,
+  buyNowRetry,
+  buyNowSlow,
   type BuyNowPhase,
   type BuyNowState,
 } from '../../lib/buy/buyNow'
 
+export type BuyNow = {
+  phase: BuyNowPhase
+  busy: boolean
+  go: (key: string, alreadyInCart: boolean, addLine: () => void, addExtras?: () => void) => void
+  retry: () => void
+}
+
 /**
  * BUY-NOW — الهوك اللي بيشغّل آلة الحالة (lib/buy/buyNow.ts) في صفحة المنتج.
  * الحالة في ref علشان ضغطتين في نفس اللحظة (قبل أي render) مايعدّوش الاتنين، ونسخة في state للعرض.
+ * المؤقّت بيعلّم «slow» بس (تنبيه)، ومابيفكّش الحماية أبدًا. «افتح صفحة بيانات الطلب» = تحميل كامل للصفحة.
  */
-export function useBuyNow(href = '/checkout'): { phase: BuyNowPhase; go: (key: string, alreadyInCart: boolean, addToCart: () => void) => void } {
+export function useBuyNow(href = '/checkout'): BuyNow {
   const router = useRouter()
   const stateRef = useRef<BuyNowState>(BUY_NOW_INITIAL)
   const [state, setState] = useState<BuyNowState>(BUY_NOW_INITIAL)
@@ -29,7 +39,7 @@ export function useBuyNow(href = '/checkout'): { phase: BuyNowPhase; go: (key: s
   }
 
   useEffect(() => {
-    // رجوع من كاش المتصفح وهي لسه «بينتقل» = الأزرار ترجع شغّالة
+    // رجوع من كاش المتصفح وهي مشغولة = الأزرار ترجع شغّالة
     const onShow = (event: PageTransitionEvent) => {
       if (!event.persisted) return
       window.clearTimeout(timer.current)
@@ -44,17 +54,25 @@ export function useBuyNow(href = '/checkout'): { phase: BuyNowPhase; go: (key: s
     }
   }, [])
 
-  const go = (key: string, alreadyInCart: boolean, addToCart: () => void) => {
+  const go: BuyNow['go'] = (key, alreadyInCart, addLine, addExtras) => {
     const step = buyNowClick(stateRef.current, key, alreadyInCart)
-    if (!step.navigate) return
-    if (step.add) addToCart()
+    if (step.navigate !== 'soft') return
+    if (step.addLine) addLine()
+    if (step.addExtras && addExtras) addExtras()
     commit(step.next)
     window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(() => commit(buyNowTimeout(stateRef.current)), BUY_NOW_TIMEOUT_MS)
+    timer.current = window.setTimeout(() => commit(buyNowSlow(stateRef.current)), BUY_NOW_SLOW_MS)
     startTransition(() => {
       router.push(href)
     })
   }
 
-  return { phase: state.phase, go }
+  const retry = () => {
+    const step = buyNowRetry(stateRef.current)
+    if (step.navigate !== 'hard') return
+    commit(step.next)
+    window.location.assign(href)
+  }
+
+  return { phase: state.phase, busy: buyNowBusy(state), go, retry }
 }
