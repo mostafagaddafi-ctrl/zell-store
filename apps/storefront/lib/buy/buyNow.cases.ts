@@ -147,6 +147,8 @@ export function runBuyNowCases(): { passed: number; failures: BuyNowCaseFailure[
   check('N11 slow notice + retry in both', [productBuy.includes('<BuyNowSlowNotice'), pieceBuy.includes('<BuyNowSlowNotice')], [true, true])
   check('N11 the 15s timer only marks slow (never unlocks), retry is a full page load', [hook.includes('buyNowSlow('), hook.includes('window.location.assign('), /buyNowTimeout|phase: 'failed'/.test(hook)], [true, true, false])
   check('N11 checkout has a loading screen', existsSync(join(root, 'app', 'checkout', 'loading.tsx')), true)
+  const checkoutForm = readFileSync(join(root, 'components', 'store', 'CheckoutForm.tsx'), 'utf8')
+  check('N12 checkout shows «تعديل السلة» (link to /cart) above the items', /<Link href="\/cart"[^>]*>\s*تعديل السلة\s*<\/Link>/.test(checkoutForm), true)
 
   return { passed, failures }
 }
