@@ -7,6 +7,7 @@ import { CollectionNav } from '../../../components/store/CollectionNav'
 import { ProductCard } from '../../../components/store/ProductCard'
 import { Container } from '../../../components/ui/Container'
 import { getStorefrontData } from '../../../lib/data/source'
+import { canonicalPath } from '../../../lib/seo/structuredData'
 
 /**
  * صفحة قسم.
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const found = await findCollection(slug)
   if (!found) return { title: 'القسم مش موجود' }
 
-  const metadata: Metadata = { title: found.collection.title }
+  const metadata: Metadata = { title: found.collection.title, alternates: { canonical: canonicalPath.collection(found.collection.slug) } }
   if (found.collection.subtitle !== '') metadata.description = found.collection.subtitle
   // معاينة المشاركة: اسم القسم والوصف + صورة القسم (وإلا الصورة الافتراضية)
   const image = found.collection.image

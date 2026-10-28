@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { Fragment } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
@@ -12,6 +13,10 @@ import { Container } from '../components/ui/Container'
 import { getStorefrontData } from '../lib/data/source'
 import { homeMobileView } from '../lib/home/homeLayout'
 import { isHomeHelpSectionShown } from '../lib/nav/storeNav'
+import { canonicalPath } from '../lib/seo/structuredData'
+
+// SEO-BASICS: العنوان القانوني للرئيسية (https://myzill.com/ من metadataBase).
+export const metadata: Metadata = { alternates: { canonical: canonicalPath.home() } }
 
 /**
  * الرئيسية — الأجزاء وترتيبها وظهورها ونصوصها من «المحتوى» في اللوحة.

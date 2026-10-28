@@ -4,6 +4,7 @@ import { ArrowRight } from 'lucide-react'
 import { Container } from '../../components/ui/Container'
 import { ImageSlot } from '../../components/ui/ImageSlot'
 import { getStorefrontData } from '../../lib/data/source'
+import { canonicalPath } from '../../lib/seo/structuredData'
 
 /**
  * كل الأقسام — المدخل لباقي الأقسام لما الهيدر مايكفيش.
@@ -12,7 +13,7 @@ import { getStorefrontData } from '../../lib/data/source'
  * قسم فاضي مابيوصلش هنا — التصفية في toStoreCollections.
  */
 
-export const metadata: Metadata = { title: 'كل الأقسام' }
+export const metadata: Metadata = { title: 'كل الأقسام', alternates: { canonical: canonicalPath.collections() } }
 
 export default async function CollectionsIndexPage() {
   const { collections } = await getStorefrontData()
