@@ -1,43 +1,62 @@
 /**
- * BUY-NOW (أمر المالك 2026-10-28): «اطلب دلوقتي» من غير انتظار من غير علامة، ومن غير تكرار في السلة.
+ * BUY-NOW (أمر المالك 2026-10-28، المراجعة 1): «اطلب دلوقتي» من غير انتظار من غير علامة، ومن غير تكرار في السلة.
  *
  * آلة حالة خالصة (من غير React) — الهوك components/store/useBuyNow.ts بيشغّلها:
- * - أول ضغطة بعد التحقق من الاختيار = إضافة مرة واحدة + انتقال لـ /checkout، والحالة «بينتقل».
- * - أي ضغطة وهو «بينتقل» = ولا حاجة (لا إضافة ولا انتقال). و«ضيف للسلة» مقفول وقتها.
- * - الانتقال ماخلصش في BUY_NOW_TIMEOUT_MS = «فشل»: الصنف فاضل في السلة، وإعادة المحاولة بنفس الاختيار = انتقال بس.
- * - الصفحة رجعت من كاش المتصفح (bfcache) وهي «بينتقل» = الأزرار ترجع شغّالة، ونفس الاختيار مايتضافش تاني.
- * - «ضيف للسلة» لنفس الاختيار قبلها (alreadyInCart) = انتقال بس، زي السلوك القديم بالظبط.
+ * - idle ← أول ضغطة بعد التحقق: السطر يتضاف مرة واحدة (لو مااتضافش قبل كده بنفس الاختيار)، والإضافات المختارة
+ *   دلوقتي تتضاف، وانتقال عادي لـ /checkout ← navigating.
+ * - navigating / slow / reloading = «مشغول»: أي ضغطة مالهاش أثر، و«ضيف للسلة» وكل خانات الاختيار (المقاس · العرض ·
+ *   الإضافات · الكمية · الفني) مقفولة، فاللي ظاهر هو بالظبط اللي اتضاف. مفيش حاجة بتتفك لوحدها.
+ * - بعد BUY_NOW_SLOW_MS من غير انتقال ← slow: **تنبيه بس، مش فشل** — الانتقال الأصلي ممكن لسه يكمّل ويوصل عادي.
+ *   الحماية فاضلة، ومعاها زرار «افتح صفحة بيانات الطلب».
+ * - retry في slow ← reloading: تحميل كامل لـ /checkout (من غير أي إضافة). سياسة العملية الأصلية: مابتتلغيش؛ أيهما وصل
+ *   الأول بيفتح نفس الصفحة، والسلة محفوظة قبلها (localStorage)، فمفيش تكرار في الحالتين.
+ * - رجوع الصفحة من كاش المتصفح (bfcache) وهي مشغولة ← idle، من غير نسيان السطر اللي اتضاف (ضغطة بنفس الاختيار =
+ *   انتقال بس، وأي إضافات اتختارت بعد الرجوع بتتضاف لأنها ظاهرة مختارة).
  * الأسعار والمقاس والسلة نفسها ماتغيّروش. الحالات: buyNow.cases.ts (suite buy-now).
  */
 
-export const BUY_NOW_TIMEOUT_MS = 15000
+export const BUY_NOW_SLOW_MS = 15000
 export const BUY_NOW_PENDING_TEXT = 'جارٍ الانتقال لبيانات الطلب…'
-export const BUY_NOW_FAILED_TEXT = 'ماقدرناش نفتح صفحة بيانات الطلب. اتأكد من الإنترنت واضغط «اطلب دلوقتي» تاني — الطلب مش هيتكرر في السلة.'
+export const BUY_NOW_SLOW_TEXT = 'التحميل بياخد وقت أطول من العادي. طلبك اتضاف للسلة مرة واحدة ومش هيتكرر.'
+export const BUY_NOW_RETRY_LABEL = 'افتح صفحة بيانات الطلب'
 
-export type BuyNowPhase = 'idle' | 'navigating' | 'failed'
+export type BuyNowPhase = 'idle' | 'navigating' | 'slow' | 'reloading'
 export type BuyNowState = { phase: BuyNowPhase; addedKey: string | null }
 export const BUY_NOW_INITIAL: BuyNowState = { phase: 'idle', addedKey: null }
 
-export type BuyNowStep = { add: boolean; navigate: boolean; next: BuyNowState }
+export type BuyNowNavigation = 'none' | 'soft' | 'hard'
+export type BuyNowStep = { addLine: boolean; addExtras: boolean; navigate: BuyNowNavigation; next: BuyNowState }
 
-/** ضغطة على «اطلب دلوقتي» بعد ما الاختيار اتحقق. key = لقطة الاختيار. alreadyInCart = «ضيف للسلة» لنفس الاختيار لسه. */
-export function buyNowClick(state: BuyNowState, key: string, alreadyInCart: boolean): BuyNowStep {
-  if (state.phase === 'navigating') return { add: false, navigate: false, next: state }
-  const add = !alreadyInCart && state.addedKey !== key
-  return { add, navigate: true, next: { phase: 'navigating', addedKey: key } }
-}
+const NOTHING = (state: BuyNowState): BuyNowStep => ({ addLine: false, addExtras: false, navigate: 'none', next: state })
 
-/** الانتقال ماخلصش في المدة = فشل (اللي اتضاف فاضل). */
-export function buyNowTimeout(state: BuyNowState): BuyNowState {
-  return state.phase === 'navigating' ? { phase: 'failed', addedKey: state.addedKey } : state
-}
-
-/** رجوع الصفحة من كاش المتصفح وهي لسه «بينتقل» = الأزرار ترجع شغّالة، من غير نسيان اللي اتضاف. */
-export function buyNowRestored(state: BuyNowState): BuyNowState {
-  return state.phase === 'navigating' ? { phase: 'idle', addedKey: state.addedKey } : state
-}
-
-/** وقت الانتقال: أزرار الشراء (الاتنين) مقفولة. */
+/** مشغول = أزرار الشراء وخانات الاختيار مقفولة. */
 export function buyNowBusy(state: BuyNowState): boolean {
-  return state.phase === 'navigating'
+  return state.phase !== 'idle'
+}
+
+/** ضغطة «اطلب دلوقتي» بعد ما الاختيار اتحقق. key = لقطة السطر. alreadyInCart = «ضيف للسلة» لنفس السطر لسه. */
+export function buyNowClick(state: BuyNowState, key: string, alreadyInCart: boolean): BuyNowStep {
+  if (buyNowBusy(state)) return NOTHING(state)
+  return {
+    addLine: !alreadyInCart && state.addedKey !== key,
+    addExtras: true,
+    navigate: 'soft',
+    next: { phase: 'navigating', addedKey: key },
+  }
+}
+
+/** مرّت BUY_NOW_SLOW_MS والانتقال لسه ماخلصش = تنبيه (الحماية فاضلة). */
+export function buyNowSlow(state: BuyNowState): BuyNowState {
+  return state.phase === 'navigating' ? { phase: 'slow', addedKey: state.addedKey } : state
+}
+
+/** «افتح صفحة بيانات الطلب» في حالة التنبيه = تحميل كامل للصفحة، من غير إضافة. أي حالة تانية = ولا حاجة. */
+export function buyNowRetry(state: BuyNowState): BuyNowStep {
+  if (state.phase !== 'slow') return NOTHING(state)
+  return { addLine: false, addExtras: false, navigate: 'hard', next: { phase: 'reloading', addedKey: state.addedKey } }
+}
+
+/** رجوع من كاش المتصفح وهي مشغولة = الأزرار ترجع شغّالة، من غير نسيان اللي اتضاف. */
+export function buyNowRestored(state: BuyNowState): BuyNowState {
+  return buyNowBusy(state) ? { phase: 'idle', addedKey: state.addedKey } : state
 }
