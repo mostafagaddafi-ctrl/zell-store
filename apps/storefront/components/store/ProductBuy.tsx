@@ -16,7 +16,8 @@ import {
   type StoreProduct,
 } from '@zell/core'
 import { useCart } from '../../lib/cart'
-import { BUY_NOW_FAILED_TEXT, BUY_NOW_PENDING_TEXT } from '../../lib/buy/buyNow'
+import { BUY_NOW_PENDING_TEXT } from '../../lib/buy/buyNow'
+import { BuyNowSlowNotice } from './BuyNowSlowNotice'
 import { useBuyNow } from './useBuyNow'
 import { buttonClasses, Button } from '../ui/Button'
 import { Num } from './Num'
@@ -52,7 +53,7 @@ export function ProductBuy({
   const cart = useCart()
   // BUY-NOW — «اطلب دلوقتي»: إضافة مرة واحدة + علامة تحميل فورية + منع الضغط المتكرر (lib/buy/buyNow.ts)
   const buyNow = useBuyNow()
-  const busy = buyNow.phase === 'navigating'
+  const busy = buyNow.busy
   // PR4 — «هتركّبه إزاي؟»: النية على مستوى السلة (cart.installMode)، وCheckout الحكم النهائي
   const installerGovernorates = installation ? installationReadyGovernorates(installation) : []
   const fee = installation?.feePerMeterPiastres ?? null
@@ -138,21 +139,30 @@ export function ProductBuy({
   }
 
   // «اطلب دلوقتي»: يضيف ويروح للبيانات على طول. لو نفس الاختيار اتضاف لسه (justAdded) مابيضيفوش تاني — يروح بس.
-  // BUY-NOW: الإضافة مرة واحدة بس مهما اتضغط، وأثناء الانتقال أي ضغطة مالهاش أثر، ولو الانتقال فشل إعادة المحاولة مابتضيفش.
+  // BUY-NOW: السطر مرة واحدة بس مهما اتضغط، وأثناء الانتظار كل الاختيارات مقفولة، وبعد 15 ثانية تنبيه مش فشل.
   const handleBuyNow = () => {
     const decision = decide()
     if (decision.kind === 'reveal') setAttempt((value) => value + 1)
     if (decision.kind !== 'add') return
     const key = lineKey(decision.lengthCm)
-    buyNow.go(key, justAdded && lastAddedRef.current === key, () => {
-      cart.add(product.id, decision.lengthCm, chosenWidth)
-      addSelectedAddons()
-      lastAddedRef.current = key
-    })
+    buyNow.go(
+      key,
+      justAdded && lastAddedRef.current === key,
+      () => {
+        cart.add(product.id, decision.lengthCm, chosenWidth)
+        lastAddedRef.current = key
+      },
+      // الإضافات المختارة دلوقتي بتتضاف دايمًا (بتتصفّر بعد الإضافة، فمابتتكررش) — اللي ظاهر مختار = اللي بيتضاف
+      () => {
+        addSelectedAddons()
+      },
+    )
   }
 
   return (
     <div className="space-y-4">
+      {/* BUY-NOW: وقت «اطلب دلوقتي» كل الاختيارات والأزرار مقفولة لحد ما الانتقال يتحسم — اللي ظاهر = اللي اتضاف */}
+      <fieldset disabled={busy} className="min-w-0 space-y-4">
       {/* العرض جوه كارت المقاس نفسه — وتغييره بيعيد الحساب على نفس مقاس الشباك */}
       <SizePanel
         product={product}
@@ -258,12 +268,11 @@ export function ProductBuy({
             اختار «هتركّبه إزاي؟» فوق الأول — بنفسي ولا مع فني — عشان تضيف أو تطلب.
           </p>
         ) : null}
-        {buyNow.phase === 'failed' ? (
-          <p role="alert" className="text-center text-xs font-semibold text-fg">
-            {BUY_NOW_FAILED_TEXT}
-          </p>
-        ) : null}
       </div>
+      </fieldset>
+
+      {/* BUY-NOW: بعد 15 ثانية تنبيه (مش فشل) + تحميل كامل لصفحة البيانات — برّه الـ fieldset علشان يفضل شغّال */}
+      <BuyNowSlowNotice phase={buyNow.phase} onRetry={buyNow.retry} />
 
       {justAdded ? (
         <div className="space-y-3 rounded-lg border border-accent/40 bg-card p-4">
