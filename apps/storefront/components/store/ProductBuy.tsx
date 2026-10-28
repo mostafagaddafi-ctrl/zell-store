@@ -2,8 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { ArrowLeft, Check, ShoppingBag } from 'lucide-react'
+import { ArrowLeft, Check, Loader2, ShoppingBag } from 'lucide-react'
 import {
   formatLength,
   installationReadyGovernorates,
@@ -17,6 +16,8 @@ import {
   type StoreProduct,
 } from '@zell/core'
 import { useCart } from '../../lib/cart'
+import { BUY_NOW_FAILED_TEXT, BUY_NOW_PENDING_TEXT } from '../../lib/buy/buyNow'
+import { useBuyNow } from './useBuyNow'
 import { buttonClasses, Button } from '../ui/Button'
 import { Num } from './Num'
 import { GiftNote } from './GiftNote'
@@ -49,7 +50,9 @@ export function ProductBuy({
   sizeTexts?: ProductSizeTexts
 }) {
   const cart = useCart()
-  const router = useRouter()
+  // BUY-NOW — «اطلب دلوقتي»: إضافة مرة واحدة + علامة تحميل فورية + منع الضغط المتكرر (lib/buy/buyNow.ts)
+  const buyNow = useBuyNow()
+  const busy = buyNow.phase === 'navigating'
   // PR4 — «هتركّبه إزاي؟»: النية على مستوى السلة (cart.installMode)، وCheckout الحكم النهائي
   const installerGovernorates = installation ? installationReadyGovernorates(installation) : []
   const fee = installation?.feePerMeterPiastres ?? null
@@ -134,19 +137,18 @@ export function ProductBuy({
     return added
   }
 
-  // «اطلب دلوقتي»: يضيف ويروح للبيانات على طول. لو نفس الاختيار اتضاف
-  // لسه (justAdded) مابيضيفوش تاني — يروح بس، عشان مايتكررش في السلة.
+  // «اطلب دلوقتي»: يضيف ويروح للبيانات على طول. لو نفس الاختيار اتضاف لسه (justAdded) مابيضيفوش تاني — يروح بس.
+  // BUY-NOW: الإضافة مرة واحدة بس مهما اتضغط، وأثناء الانتقال أي ضغطة مالهاش أثر، ولو الانتقال فشل إعادة المحاولة مابتضيفش.
   const handleBuyNow = () => {
     const decision = decide()
     if (decision.kind === 'reveal') setAttempt((value) => value + 1)
     if (decision.kind !== 'add') return
     const key = lineKey(decision.lengthCm)
-    if (!(justAdded && lastAddedRef.current === key)) {
+    buyNow.go(key, justAdded && lastAddedRef.current === key, () => {
       cart.add(product.id, decision.lengthCm, chosenWidth)
       addSelectedAddons()
       lastAddedRef.current = key
-    }
-    router.push('/checkout')
+    })
   }
 
   return (
@@ -224,7 +226,7 @@ export function ProductBuy({
         <Button
           size="lg"
           onClick={handleAdd}
-          disabled={!canAdd}
+          disabled={!canAdd || busy}
           {...(choiceRequired ? { 'aria-describedby': choiceHintId } : {})}
         >
           <ShoppingBag className="h-5 w-5" />
@@ -234,15 +236,31 @@ export function ProductBuy({
           size="lg"
           variant="secondary"
           onClick={handleBuyNow}
-          disabled={!canAdd}
+          disabled={!canAdd || busy}
+          aria-busy={busy}
+          className={busy ? 'disabled:cursor-wait disabled:opacity-100' : undefined}
           {...(choiceRequired ? { 'aria-describedby': choiceHintId } : {})}
         >
-          اطلب دلوقتي
-          <ArrowLeft className="h-5 w-5" />
+          {busy ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+              {BUY_NOW_PENDING_TEXT}
+            </>
+          ) : (
+            <>
+              اطلب دلوقتي
+              <ArrowLeft className="h-5 w-5" />
+            </>
+          )}
         </Button>
         {choiceRequired ? (
           <p id={choiceHintId} className="text-center text-xs font-semibold text-fg">
             اختار «هتركّبه إزاي؟» فوق الأول — بنفسي ولا مع فني — عشان تضيف أو تطلب.
+          </p>
+        ) : null}
+        {buyNow.phase === 'failed' ? (
+          <p role="alert" className="text-center text-xs font-semibold text-fg">
+            {BUY_NOW_FAILED_TEXT}
           </p>
         ) : null}
       </div>
