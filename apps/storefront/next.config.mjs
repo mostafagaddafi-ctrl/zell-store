@@ -15,6 +15,10 @@ const nextConfig = {
       },
     ],
   },
+  async rewrites() {
+    // SEO-BASICS: ‎/favicon.ico‎ = أيقونة الموقع بمقاس 48 (app/icon.tsx) — جوجل والمتصفحات بيدوّروا على المسار ده مباشرة.
+    return [{ source: '/favicon.ico', destination: '/icon/48' }]
+  },
   async headers() {
     return [
       {
