@@ -808,9 +808,16 @@ export function CheckoutForm({
               مهم بعد «اطلب دلوقتي»: الصنف بيتضاف على السلة الموجودة، فأي حاجة قديمة فيها بتظهر هنا. */}
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-bold text-fg">الأصناف في طلبك</h2>
-            <Link href="/cart" className="text-sm font-semibold text-accent">
-              تعديل السلة
-            </Link>
+            {/* وقت الإرسال: نص مش رابط (مفيش تنقّل ولا تعديل للسلة والطلب الأصلي لسه جاري — بعد النجاح السلة بتتفضّى) */}
+            {submitting ? (
+              <span className="text-sm font-semibold text-muted" aria-disabled="true">
+                تعديل السلة
+              </span>
+            ) : (
+              <Link href="/cart" className="text-sm font-semibold text-accent">
+                تعديل السلة
+              </Link>
+            )}
           </div>
           <ul className="divide-y divide-border rounded-lg border border-border bg-card px-4">
             {entries.map((entry) => {
