@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { ArrowLeft, Check, Loader2, Minus, Plus, ShoppingBag } from 'lucide-react'
 import { formatPiastres, maxQuantityOf, type StoreProduct } from '@zell/core'
 import { useCart } from '../../lib/cart'
-import { BUY_NOW_FAILED_TEXT, BUY_NOW_PENDING_TEXT } from '../../lib/buy/buyNow'
+import { BUY_NOW_PENDING_TEXT } from '../../lib/buy/buyNow'
+import { BuyNowSlowNotice } from './BuyNowSlowNotice'
 import { useBuyNow } from './useBuyNow'
 import { Button, buttonClasses } from '../ui/Button'
 import { Num } from './Num'
@@ -18,7 +19,7 @@ export function PieceBuy({ product }: { product: StoreProduct }) {
   const cart = useCart()
   // BUY-NOW — «اطلب دلوقتي»: إضافة مرة واحدة + علامة تحميل فورية + منع الضغط المتكرر (lib/buy/buyNow.ts)
   const buyNow = useBuyNow()
-  const busy = buyNow.phase === 'navigating'
+  const busy = buyNow.busy
   const max = maxQuantityOf(product)
   const [quantity, setQuantity] = useState(1)
   const [justAdded, setJustAdded] = useState(false)
@@ -42,6 +43,8 @@ export function PieceBuy({ product }: { product: StoreProduct }) {
 
   return (
     <div className="space-y-4">
+      {/* BUY-NOW: وقت «اطلب دلوقتي» كل الاختيارات والأزرار مقفولة لحد ما الانتقال يتحسم — اللي ظاهر = اللي اتضاف */}
+      <fieldset disabled={busy} className="min-w-0 space-y-4">
       {/* صف مدمج: الكمية بأزرار كبيرة للموبايل (٤٤px)، وتحتها سعر الوحدة والإجمالي */}
       <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
         <div className="flex items-center justify-between gap-3">
@@ -112,12 +115,11 @@ export function PieceBuy({ product }: { product: StoreProduct }) {
             </>
           )}
         </Button>
-        {buyNow.phase === 'failed' ? (
-          <p role="alert" className="text-center text-xs font-semibold text-fg">
-            {BUY_NOW_FAILED_TEXT}
-          </p>
-        ) : null}
       </div>
+      </fieldset>
+
+      {/* BUY-NOW: بعد 15 ثانية تنبيه (مش فشل) + تحميل كامل لصفحة البيانات — برّه الـ fieldset علشان يفضل شغّال */}
+      <BuyNowSlowNotice phase={buyNow.phase} onRetry={buyNow.retry} />
 
       {justAdded ? (
         <div className="space-y-3 rounded-lg border border-accent/40 bg-card p-4">
