@@ -6,7 +6,8 @@ import { MarkImage, loadLogoFont } from '../lib/brand/logoImage'
  * أيقونة الموقع (التاب وشاشة الموبايل): العلامة بالإطار والحواف، بتتولّد بالكود (من غير ملف صورة).
  * المسارات: ‎/icon/32‎ · ‎/icon/192‎ · ‎/icon/512‎ (والـ manifest بيشاور على 192 و512).
  */
-const SIZES = [32, 192, 512]
+// SEO-BASICS: 48 و96 علشان جوجل بيفضّل مضاعفات 48، و/favicon.ico بيتحوّل لـ /icon/48 (next.config.mjs).
+const SIZES = [32, 48, 96, 192, 512]
 
 export function generateImageMetadata() {
   return SIZES.map((size) => ({ id: String(size), size: { width: size, height: size }, contentType: 'image/png' }))
