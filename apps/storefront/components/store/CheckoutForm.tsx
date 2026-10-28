@@ -804,7 +804,14 @@ export function CheckoutForm({
 
       <div className="lg:col-span-5">
         <div className="space-y-4 lg:sticky lg:top-24">
-          {/* الأصناف */}
+          {/* الأصناف — CHECKOUT-CART-LINK (أمر المالك 2026-10-28): رابط واضح لتعديل السلة فوق الأصناف (الحذف والكمية من هناك).
+              مهم بعد «اطلب دلوقتي»: الصنف بيتضاف على السلة الموجودة، فأي حاجة قديمة فيها بتظهر هنا. */}
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-bold text-fg">الأصناف في طلبك</h2>
+            <Link href="/cart" className="text-sm font-semibold text-accent">
+              تعديل السلة
+            </Link>
+          </div>
           <ul className="divide-y divide-border rounded-lg border border-border bg-card px-4">
             {entries.map((entry) => {
               // صورة مصغرة للتأكد البصري — نفس صورة السلة (primaryImage + ImageSlot) ومن المنتجات الموجودة.
