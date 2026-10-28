@@ -147,6 +147,12 @@ export function runBuyNowCases(): { passed: number; failures: BuyNowCaseFailure[
   check('N11 slow notice + retry in both', [productBuy.includes('<BuyNowSlowNotice'), pieceBuy.includes('<BuyNowSlowNotice')], [true, true])
   check('N11 the 15s timer only marks slow (never unlocks), retry is a full page load', [hook.includes('buyNowSlow('), hook.includes('window.location.assign('), /buyNowTimeout|phase: 'failed'/.test(hook)], [true, true, false])
   check('N11 checkout has a loading screen', existsSync(join(root, 'app', 'checkout', 'loading.tsx')), true)
+  const checkoutForm = readFileSync(join(root, 'components', 'store', 'CheckoutForm.tsx'), 'utf8')
+  check('N12 checkout «تعديل السلة»: plain text while submitting, a link to /cart otherwise (and no other link with that text)', [
+    /\{submitting \? \(\s*<span[^>]*aria-disabled="true"[^>]*>\s*تعديل السلة\s*<\/span>/.test(checkoutForm),
+    /\) : \(\s*<Link href="\/cart"[^>]*>\s*تعديل السلة\s*<\/Link>\s*\)\}/.test(checkoutForm),
+    (checkoutForm.match(/<Link[^>]*>\s*تعديل السلة/g) ?? []).length,
+  ], [true, true, 1])
 
   return { passed, failures }
 }
