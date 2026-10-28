@@ -1,23 +1,26 @@
 /**
  * BUY-NOW — حالات «اطلب دلوقتي» (pnpm --filter @zell/storefront cases، suite buy-now).
- * سلة مزيّفة بتعدّ الإضافات (الصنف + إضافاته في نفس الخطوة) والانتقالات، ووقت مزيّف للانتقال البطيء والفشل.
- * N01 أول ضغطة · N02 ضغطات سريعة متكررة · N03 انتقال بطيء · N04 فشل · N05 إعادة المحاولة · N06 ضغطات سريعة وقت الإعادة ·
- * N07 «ضيف للسلة» الأول · N08 رجوع من كاش المتصفح · N09 اختيار تاني بعد الفشل · N10 حالات من غير أثر ·
- * N11 الثوابت · N12 الربط في المكوّنات وصفحة التحميل.
+ * سلة مزيّفة بتعدّ السطور والإضافات، وعدّاد انتقالات (عادي/كامل)، وساعة مزيّفة.
+ * N01 أول ضغطة · N02 ضغطات سريعة · N03 بعد 15 ثانية = تنبيه والحماية فاضلة · N04 الانتقال الأصلي يكمّل بعد التنبيه ·
+ * N05 «افتح صفحة بيانات الطلب» · N06 retry في غير وقته · N07 «ضيف للسلة» الأول · N08 كاش المتصفح + إضافات جديدة ·
+ * N09 اختيار تاني بعد الرجوع · N10 الثوابت · N11 الربط في المكوّنات (قفل الخانات · التنبيه · صفحة التحميل).
  */
 
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  BUY_NOW_FAILED_TEXT,
   BUY_NOW_INITIAL,
   BUY_NOW_PENDING_TEXT,
-  BUY_NOW_TIMEOUT_MS,
+  BUY_NOW_RETRY_LABEL,
+  BUY_NOW_SLOW_MS,
+  BUY_NOW_SLOW_TEXT,
   buyNowBusy,
   buyNowClick,
   buyNowRestored,
-  buyNowTimeout,
+  buyNowRetry,
+  buyNowSlow,
   type BuyNowState,
+  type BuyNowStep,
 } from './buyNow'
 
 export type BuyNowCaseFailure = { name: string; expected: string; actual: string }
@@ -32,92 +35,118 @@ function check(name: string, actual: unknown, expected: unknown): void {
   else failures.push({ name, expected: e, actual: a })
 }
 
-/** محاكاة الصفحة: سلة مزيّفة + عدّاد انتقالات + ساعة. */
+/** محاكاة الصفحة: سلة مزيّفة + انتقالات + ساعة. selectedExtras = الإضافات المختارة دلوقتي (بتتصفّر بعد الإضافة زي AddonsPicker). */
 function page() {
   let state: BuyNowState = BUY_NOW_INITIAL
   let now = 0
   let startedAt = 0
-  const cart = { lines: 0, addons: 0 }
-  let navigations = 0
+  let selectedExtras = 0
+  const cart = { lines: 0, extras: 0 }
+  const nav = { soft: 0, hard: 0 }
+  const apply = (step: BuyNowStep) => {
+    if (step.addLine) cart.lines += 1
+    if (step.addExtras) {
+      cart.extras += selectedExtras
+      selectedExtras = 0
+    }
+    if (step.navigate === 'soft') nav.soft += 1
+    if (step.navigate === 'hard') nav.hard += 1
+    state = step.next
+  }
   return {
-    click(key: string, alreadyInCart = false, addonCount = 0) {
+    select(extras: number) {
+      selectedExtras = extras
+    },
+    click(key: string, alreadyInCart = false) {
       const step = buyNowClick(state, key, alreadyInCart)
-      if (!step.navigate) return
-      if (step.add) {
-        cart.lines += 1
-        cart.addons += addonCount
-      }
-      state = step.next
-      startedAt = now
-      navigations += 1
+      if (step.navigate !== 'none') startedAt = now
+      apply(step)
+    },
+    retry() {
+      apply(buyNowRetry(state))
     },
     wait(ms: number) {
       now += ms
-      if (state.phase === 'navigating' && now - startedAt >= BUY_NOW_TIMEOUT_MS) state = buyNowTimeout(state)
+      if (state.phase === 'navigating' && now - startedAt >= BUY_NOW_SLOW_MS) state = buyNowSlow(state)
     },
     restore() {
       state = buyNowRestored(state)
     },
     get view() {
-      return { phase: state.phase, busy: buyNowBusy(state), lines: cart.lines, addons: cart.addons, navigations }
+      return { phase: state.phase, busy: buyNowBusy(state), lines: cart.lines, extras: cart.extras, soft: nav.soft, hard: nav.hard }
     },
   }
 }
 
 export function runBuyNowCases(): { passed: number; failures: BuyNowCaseFailure[] } {
   const p = page()
-  p.click('300|120', false, 2)
-  check('N01 first click: adds the item and its 2 addons once, navigates, busy', p.view, { phase: 'navigating', busy: true, lines: 1, addons: 2, navigations: 1 })
+  p.select(2)
+  p.click('300|120')
+  check('N01 first click: line once + the 2 selected addons, one soft navigation, busy', p.view, { phase: 'navigating', busy: true, lines: 1, extras: 2, soft: 1, hard: 0 })
 
-  for (let i = 0; i < 5; i += 1) p.click('300|120', false, 2)
-  check('N02 five rapid clicks while navigating: nothing added, no extra navigation', p.view, { phase: 'navigating', busy: true, lines: 1, addons: 2, navigations: 1 })
+  for (let i = 0; i < 5; i += 1) p.click('300|120')
+  check('N02 five rapid clicks while navigating: nothing', p.view, { phase: 'navigating', busy: true, lines: 1, extras: 2, soft: 1, hard: 0 })
 
-  p.wait(BUY_NOW_TIMEOUT_MS - 1)
-  p.click('300|120', false, 2)
-  check('N03 slow navigation (just under the timeout): still busy, clicks ignored', p.view, { phase: 'navigating', busy: true, lines: 1, addons: 2, navigations: 1 })
+  p.wait(BUY_NOW_SLOW_MS)
+  for (let i = 0; i < 3; i += 1) p.click('300|120')
+  check('N03 after 15s: slow notice, still busy (no unlock), clicks ignored', p.view, { phase: 'slow', busy: true, lines: 1, extras: 2, soft: 1, hard: 0 })
 
-  p.wait(1)
-  check('N04 timeout: failed, buttons enabled, item still in the cart once', p.view, { phase: 'failed', busy: false, lines: 1, addons: 2, navigations: 1 })
+  p.wait(60000)
+  check('N04 the original navigation may still complete: nothing changes on the page meanwhile', p.view, { phase: 'slow', busy: true, lines: 1, extras: 2, soft: 1, hard: 0 })
 
-  p.click('300|120', false, 2)
-  check('N05 retry with the same choice: navigates again without adding', p.view, { phase: 'navigating', busy: true, lines: 1, addons: 2, navigations: 2 })
-
-  for (let i = 0; i < 3; i += 1) p.click('300|120', false, 2)
-  check('N06 rapid clicks during the retry: still one item, two navigations', p.view, { phase: 'navigating', busy: true, lines: 1, addons: 2, navigations: 2 })
+  p.retry()
+  p.retry()
+  p.retry()
+  check('N05 «افتح صفحة بيانات الطلب» x3: one full page load, nothing added, still busy', p.view, { phase: 'reloading', busy: true, lines: 1, extras: 2, soft: 1, hard: 1 })
 
   const q = page()
-  q.click('2', true)
-  check('N07 «ضيف للسلة» first, then buy now: no second add, navigates (old behavior)', q.view, { phase: 'navigating', busy: true, lines: 0, addons: 0, navigations: 1 })
+  q.retry()
+  q.click('300|120')
+  q.retry()
+  check('N06 retry when idle or still within 15s: no effect', q.view, { phase: 'navigating', busy: true, lines: 1, extras: 0, soft: 1, hard: 0 })
 
   const r = page()
-  r.click('450|120')
-  r.restore()
-  check('N08 back from the browser cache while navigating: buttons enabled again', r.view, { phase: 'idle', busy: false, lines: 1, addons: 0, navigations: 1 })
-  r.click('450|120')
-  check('N08 then buy now with the same choice: no second add', r.view, { phase: 'navigating', busy: true, lines: 1, addons: 0, navigations: 2 })
+  r.select(1)
+  r.click('300|120', true)
+  check('N07 «ضيف للسلة» first then buy now: line not added again; addons picked after it are added (shown = added)', r.view, { phase: 'navigating', busy: true, lines: 0, extras: 1, soft: 1, hard: 0 })
 
   const s = page()
-  s.click('300|120')
-  s.wait(BUY_NOW_TIMEOUT_MS)
-  s.click('500|150')
-  check('N09 after a failure, a different choice is a new item (added once)', s.view, { phase: 'navigating', busy: true, lines: 2, addons: 0, navigations: 2 })
+  s.click('450|120')
+  s.wait(BUY_NOW_SLOW_MS)
+  s.restore()
+  check('N08 back from the browser cache while busy: buttons enabled again', s.view, { phase: 'idle', busy: false, lines: 1, extras: 0, soft: 1, hard: 0 })
+  s.select(3)
+  s.click('450|120')
+  check('N08 same line again: line not re-added, the 3 newly picked addons are added', s.view, { phase: 'navigating', busy: true, lines: 1, extras: 3, soft: 2, hard: 0 })
 
-  check('N10 timeout/restore when idle change nothing', [buyNowTimeout(BUY_NOW_INITIAL), buyNowRestored(BUY_NOW_INITIAL)], [BUY_NOW_INITIAL, BUY_NOW_INITIAL])
-  const failed: BuyNowState = { phase: 'failed', addedKey: 'k' }
-  check('N10 restore when failed keeps failed', buyNowRestored(failed), failed)
+  const t = page()
+  t.click('300|120')
+  t.restore()
+  t.click('500|150')
+  check('N09 a different line after coming back is a new line (added once)', t.view, { phase: 'navigating', busy: true, lines: 2, extras: 0, soft: 2, hard: 0 })
 
-  check('N11 constants', [BUY_NOW_TIMEOUT_MS, BUY_NOW_PENDING_TEXT, BUY_NOW_FAILED_TEXT.length > 20], [15000, 'جارٍ الانتقال لبيانات الطلب…', true])
+  const idle: BuyNowState = BUY_NOW_INITIAL
+  check('N10 slow/restore on idle change nothing', [buyNowSlow(idle), buyNowRestored(idle)], [idle, idle])
+  check('N10 constants', [BUY_NOW_SLOW_MS, BUY_NOW_PENDING_TEXT, BUY_NOW_RETRY_LABEL, BUY_NOW_SLOW_TEXT.includes('مش هيتكرر')], [
+    15000,
+    'جارٍ الانتقال لبيانات الطلب…',
+    'افتح صفحة بيانات الطلب',
+    true,
+  ])
 
   const root = process.cwd()
   const productBuy = readFileSync(join(root, 'components', 'store', 'ProductBuy.tsx'), 'utf8')
   const pieceBuy = readFileSync(join(root, 'components', 'store', 'PieceBuy.tsx'), 'utf8')
-  check('N12 ProductBuy and PieceBuy go through useBuyNow (no direct push to /checkout)', [
+  const hook = readFileSync(join(root, 'components', 'store', 'useBuyNow.ts'), 'utf8')
+  check('N11 ProductBuy/PieceBuy go through useBuyNow (no direct push to /checkout)', [
     productBuy.includes('useBuyNow('),
     pieceBuy.includes('useBuyNow('),
     /router\.push\(\s*['"]\/checkout/.test(productBuy + pieceBuy),
   ], [true, true, false])
-  check('N12 both disable «ضيف للسلة» while navigating', [productBuy.includes('disabled={!canAdd || busy}'), pieceBuy.includes('disabled={busy}')], [true, true])
-  check('N12 checkout has a loading screen', existsSync(join(root, 'app', 'checkout', 'loading.tsx')), true)
+  check('N11 every choice is locked while busy (fieldset disabled)', [productBuy.includes('<fieldset disabled={busy}'), pieceBuy.includes('<fieldset disabled={busy}')], [true, true])
+  check('N11 slow notice + retry in both', [productBuy.includes('<BuyNowSlowNotice'), pieceBuy.includes('<BuyNowSlowNotice')], [true, true])
+  check('N11 the 15s timer only marks slow (never unlocks), retry is a full page load', [hook.includes('buyNowSlow('), hook.includes('window.location.assign('), /buyNowTimeout|phase: 'failed'/.test(hook)], [true, true, false])
+  check('N11 checkout has a loading screen', existsSync(join(root, 'app', 'checkout', 'loading.tsx')), true)
 
   return { passed, failures }
 }
