@@ -6,10 +6,12 @@ import { AnnouncementBar } from '../components/store/AnnouncementBar'
 import { SiteFooter } from '../components/store/SiteFooter'
 import { SiteHeader } from '../components/store/SiteHeader'
 import { WhatsAppFab } from '../components/store/WhatsAppFab'
+import { JsonLd } from '../components/seo/JsonLd'
 import { NavHistory } from '../components/ui/BackButton'
 import { CartProvider } from '../lib/cart'
 import { getStorefrontData } from '../lib/data/source'
 import { homeHelpVisibility } from '../lib/nav/storeNav'
+import { storeJsonLd } from '../lib/seo/structuredData'
 import { SITE_URL } from '../lib/site'
 import './globals.css'
 
@@ -58,6 +60,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="ar" dir="rtl" className={cairo.variable}>
       <body className="flex min-h-dvh flex-col bg-bg font-sans text-fg antialiased">
+        {/* SEO-BASICS: بيانات المتجر لجوجل (Organization + WebSite) — مش ظاهرة للزوار */}
+        <JsonLd
+          data={storeJsonLd({
+            name: settings.storeName,
+            siteUrl: SITE_URL,
+            logoUrl: settings.logo ? settings.logo.url : null,
+            sameAs: settings.socialLinks.map((link) => link.url),
+          })}
+        />
         <CartProvider>
           {/* مسارات التاب ده لزرار «رجوع» — مابيعرضش حاجة */}
           <NavHistory />
