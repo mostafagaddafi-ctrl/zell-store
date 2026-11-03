@@ -27,7 +27,8 @@ with checks(id, name, ok, detail) as (
       and not pg_catalog.has_function_privilege('anon', 'public.zell_product_delete(integer, timestamp with time zone)', 'EXECUTE') and not pg_catalog.has_function_privilege('anon', 'public.zell_product_delete_preview(integer)', 'EXECUTE')
       and not pg_catalog.has_function_privilege('service_role', 'public.zell_product_delete(integer, timestamp with time zone)', 'EXECUTE') and not pg_catalog.has_function_privilege('service_role', 'public.zell_product_delete_preview(integer)', 'EXECUTE'), false), null
   union all
-  select 'V03', 'no function in public references an inventory table', not exists (select 1 from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosrc ~ '\m(inventory_locations|suppliers|purchase_docs|purchase_doc_lines|purchase_doc_charges|opening_stock_docs|opening_stock_lines|stock_lots|inventory_commands|inventory_audit_log)\M'), null
+  select 'V03', 'no function in public references an inventory table, and no function in any schema calls a zell_inv_* name', not exists (select 1 from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosrc ~ '\m(inventory_locations|suppliers|purchase_docs|purchase_doc_lines|purchase_doc_charges|opening_stock_docs|opening_stock_lines|stock_lots|inventory_commands|inventory_audit_log)\M')
+      and not exists (select 1 from pg_catalog.pg_proc p where p.pronamespace not in ('pg_catalog'::regnamespace, 'information_schema'::regnamespace) and p.prosrc ~* '\mzell_inv_'), null
   union all
   select 'V04', 'no leftover grants to the removed role (shared dependencies on a missing role)',
          not exists (select 1 from pg_catalog.pg_shdepend d where d.refclassid = 'pg_catalog.pg_authid'::regclass
