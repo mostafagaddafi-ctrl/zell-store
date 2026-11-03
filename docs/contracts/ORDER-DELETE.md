@@ -1,6 +1,6 @@
 # عقد ORDER-DELETE — حذف الطلبات من اللوحة (المالك بس، بالباسورد)
 
-> **الحالة: مسودة للمراجعة (المراجعة 4، بعد ملاحظة الصلاحيات على `2144805`).** عقد بس: مفيش كود ولا SQL ولا أي تشغيل على Production في الـ PR ده.
+> **الحالة: العقد معتمد (#197 ← main `e928ba7`). المرحلة B (SQL + ptest + verify + rollback + CI، من غير أي تطبيق) في PR لوحده (§١٣).** قراية Production قبل B في §١٢.
 > مبني على main `5d562fd` (#196). كل الحقايق عن الجداول والدوال من ملفات الريبو على الـ commit ده؛ **شكل Production الحي بيتأكد بقراية لوحدها بموافقة المالك قبل المرحلة B** (§٨).
 > الترتيب (§٨): العقد ← B (SQL + CI، من غير تطبيق) ← Production خطوة خطوة ← C (اللوحة) ← D (التوثيق والذاكرة). كل خطوة PR لوحده ومراجعة وأمر صريح من المالك.
 
@@ -84,10 +84,11 @@
 | الدور `zell_purge_definer` | — | NOLOGIN · NOINHERIT · NOBYPASSRLS · عضوية `postgres` بـ SET بس (زي `zell_catalog_definer`) |
 | `zell_purge_preview(p_ids integer[])` | `zell_purge_definer` · security definer · `search_path` فاضي | EXECUTE لـ `authenticated` بس |
 | `zell_purge_orders(…)` (§٤-٤) | نفسه | EXECUTE لـ `authenticated` بس |
-| `zell_purge_reauth_begin(p_actor uuid, p_session uuid)` · `zell_purge_reauth_finish(…)` (§٥-٣) | نفسه | EXECUTE لـ `service_role` بس |
+| `zell_purge_reauth_begin(p_actor uuid)` · `zell_purge_reauth_finish(p_actor uuid, p_session uuid, p_ok boolean, p_ids_hash text, p_snapshot_hash text, p_count integer)` (§٥-٣) | نفسه | EXECUTE لـ `service_role` بس |
 | `zell_purge_trg_append_only()` | `postgres` · invoker | مفيش EXECUTE لحد |
 | جدول `zell_purge_log` | `postgres` · RLS | `zell_purge_definer`: INSERT بس + policy INSERT باسم `zell_purge_log_insert`. صفر لـ `anon` و`authenticated` و`service_role` |
-| جدول `zell_purge_reauth` | `postgres` · RLS | `zell_purge_definer`: SELECT · INSERT · UPDATE + policies بالاسم. صفر للباقي |
+| جدول `zell_purge_reauth` (التذاكر) | `postgres` · RLS | `zell_purge_definer`: SELECT · INSERT · UPDATE + policies بالاسم. صفر للباقي |
+| جدول `zell_purge_attempts` (عدّاد المحاولات) | `postgres` · RLS | نفس منح ونمط `zell_purge_reauth` |
 | `orders` والستة اللي عليهم restrict (§٢-١) | زي ما هي | `zell_purge_definer`: SELECT على كل الأعمدة (البصمة على محتوى الصف كله) · **UPDATE على عمود واحد بس لكل جدول، للقفل بس** (عمود المفتاح أو `order_id`، بالحرف في B) · DELETE · policies: `zell_purge_select` (SELECT · `using (true)`) · `zell_purge_lock` (UPDATE · `using (true) with check (false)`) · `zell_purge_delete` (DELETE · `using (true)`) |
 | `order_items` و`order_events` (cascade) | زي ما هي | `zell_purge_definer`: SELECT على كل الأعمدة · UPDATE على عمود واحد للقفل بس · policies `zell_purge_select` و`zell_purge_lock` (نفس الشكل). **مفيش DELETE** (الـ cascade بيشتغل بصلاحية مالك الجدول) |
 | `admin_users` | زي ما هو | SELECT على الأعمدة اللازمة لفحص المالك بس (أو نداء `zell_order_actor(true)` لو صلاحيته بتسمح — يتحدد في B) |
@@ -113,7 +114,8 @@
 
 ### ٤-٥ الجداول الجديدة
 - `zell_purge_log` (append-only بحارس من غير استثناء): `id` · `purged_at` · `actor` (uuid المالك) · `order_numbers text[]` · `orders_count` · (اقتراح: `payments_count` · `received_piastres` · `refunded_piastres`). **مفيش اسم ولا تليفون ولا عنوان.**
-- `zell_purge_reauth`: صف لكل تذكرة (`ticket` · `actor` · `session_id` · `scope_ids_hash` · `snapshot_hash` · `orders_count` · `issued_at` · `expires_at` · `used_at`) + عدّاد المحاولات لكل مالك (`failed_count` · `window_started_at` · `locked_until`).
+- `zell_purge_reauth`: صف لكل تذكرة (`ticket` · `actor` · `session_id` · `scope_ids_hash` · `snapshot_hash` · `orders_count` · `issued_at` · `expires_at` · `used_at`).
+- `zell_purge_attempts`: صف لكل مالك (`actor` · `failed_count` · `window_started_at` · `locked_until` · `updated_at`). اتفصل عن التذاكر في B لأن شكله مختلف (قرار تنفيذ، نفس السلوك).
 
 ## ٥) اللوحة (المرحلة C)
 ### ٥-١ الأماكن
@@ -127,7 +129,7 @@
 - **التعامل مع التزامن:** تعديل أو دفعة أو تابع جديد **اتعمل commit قبل الأقفال** = البصمة اتغيّرت = رفض وعرض من جديد. تعديل **شغّال وماسك صف تابع وقت المسح** (زي تعديل أو إخفاء رسالة، أو حفظ شحنة) = «قفل مشغول» فورًا ومن غير تغيير، والمالك يجرّب تاني. صف جديد بيشاور على طلب **بعد** ما المسح قفله = بيستنى، وبعد المسح بيترفض من الـ FK. مفيش حالة بيتمسح فيها حاجة المالك ماشافهاش، ومفيش انتظار دائري.
 
 ### ٥-٣ الباسورد والتذكرة والحد
-1. **بداية المحاولة (قبل التأكد من الباسورد):** السيرفر بينادي `zell_purge_reauth_begin(actor, session)` بـ `service_role`: بتقفل صف عدّاد المالك (`FOR UPDATE`)، ترفض لو مقفول، وتعدّ المحاولة **قبل** ما الباسورد يتفحص. كده الطلبات المتزامنة كلها بتتعدّ ومحدش بيعدّي الحد.
+1. **بداية المحاولة (قبل التأكد من الباسورد):** السيرفر بينادي `zell_purge_reauth_begin(actor)` بـ `service_role`: بتقفل صف عدّاد المالك (`FOR UPDATE`)، ترفض لو مقفول، وتعدّ المحاولة **قبل** ما الباسورد يتفحص. كده الطلبات المتزامنة كلها بتتعدّ ومحدش بيعدّي الحد.
 2. **التأكد من الباسورد من غير ما جلسة المالك تتغيّر:** عميل Supabase منفصل على السيرفر **من غير كوكيز ومن غير حفظ جلسة** (مش عميل صفحة الدخول اللي بيكتب الكوكيز)، بـ `signInWithPassword` لإيميل المالك من جلسته الحالية. لو نجح، الجلسة المؤقتة اللي اتعملت بتتلغي هي بس (`scope: local`)، وجلسة المالك في المتصفح زي ما هي. B/C بيثبتوا ده باختبار.
 3. **نهاية المحاولة:** `zell_purge_reauth_finish(actor, session, ok, scope_ids_hash, snapshot_hash, count)`: لو غلط بتسيب العدّاد (وتقفل لو وصل الحد)؛ لو صح بتصفّر العدّاد وبتطلّع تذكرة **لاستعمال واحد لمدة دقيقتين، مربوطة بالمالك وبالجلسة الأصلية (`session_id` من الـ JWT) وبنطاق العملية** (بصمة قايمة الـ ids · `snapshot_hash` · العدد). تذكرة طلب واحد ماتنفعش لمسح شامل، والعكس.
 4. **الاستخدام في `zell_purge_orders`:** `update … set used_at = now() where ticket = … and used_at is null and expires_at > now() and actor = … and session_id = … and scope_ids_hash = … and snapshot_hash = … and orders_count = … returning …` جوه نفس المعاملة. طلبين متزامنين بنفس التذكرة: واحد بس بينجح. وصلاحية المالك بتتفحص تاني وقت الاستخدام (§٤-٤ (١)).
@@ -170,12 +172,29 @@
 ## ١٠) قرارات
 **اتحسمت (المراجع، 2026-11-03):** الاتجاه (أ) في §٤-٢ بالحراس الضروريين بس وباستثناء محدد · تحديث أي verify بفروق محددة ومراجَعة · 5 محاولات / 15 دقيقة · تذكرة دقيقتين · اللقطة الثابتة (§١-٦).
 
-**محتاجة المالك:**
-1. السجل يحفظ عدد الدفعات والمقبوض والمردود؟ المقترح (والمراجع ينصح بيه): أيوه.
-2. مكان زرار «مسح كل الطلبات»: صفحة الطلبات ولا الإعدادات.
+**اتحسمت (المالك، 2026-11-03 في الشات):**
+1. السجل بيحفظ عدد الدفعات والمقبوض والمردود (أعمدة `payments_count` · `received_piastres` · `refunded_piastres`). المالك سأل عن المساحة: سطر واحد لكل عملية مسح، فالحجم مهمل.
+2. زرار «مسح كل الطلبات» في **الإعدادات** (المرحلة C).
+3. **مفيش زرار لمسح السجل:** السجل هو الدليل الوحيد على المسح، ومالوش أي استثناء (§٤-٢).
 
+## ١٢) قراية Production قبل المرحلة B (2026-11-03، بموافقة المالك لوحدها)
+- **المصدر:** شات التنفيذ عبر Retool (مورد `SUPABASE`)، `SELECT` واحد read only بالمستخدم `postgres`: 23:04:23–23:04:24Z، واتعاد نفس الاستعلام 23:04:41–23:04:42Z لأن جزء من العرض اتقطع. من غير بيانات شخصية ومن غير أي تعديل. **منقول من تسليم المنفّذ، مش تحقق مستقل من المراجع.**
+- **التوابع (الـ FKs بالتكرار):** `order_events>orders:order_events_order_fkey:c` · `order_items>orders:order_items_order_id_fkey:c` · `order_payments>orders:order_payments_order_fkey:r` · `zell_order_customer_updates>orders:zell_order_customer_updates_order_fkey:r` · `zell_order_customer_updates_log>orders:zell_order_customer_updates_log_order_fkey:r` · `zell_order_customer_updates_log>zell_order_customer_updates:zell_order_customer_updates_log_update_fkey:r` · `zell_order_shipments>orders:zell_order_shipments_order_fkey:r` · `zell_order_shipments_log>orders:zell_order_shipments_log_order_fkey:r` · `zell_payment_commands>orders:zell_payment_commands_order_fkey:r` — 8 جداول في المستوى الأول + سجل الرسايل على الرسالة. مفيش جدول تاني فيه عمود `order_id` من غير FK. ده بالحرف `EXPECTED_SHAPE` في 0024.
+- **الحراس (md5 الـ prosrc الكامل):** `zell_payment_trg_append_only` `7bdc5a72585917ba4e27f7c902bd15ad` · `zell_shipment_trg_append_only` `e340a7264ecee639665d3da78c64f0f6` · `zell_customer_update_trg_append_only` `afbee972f9b44d516f4da8cd19fe31fa` · `zell_order_trg_events_immutable` `d629f8b5c3a0fe1573ad87dd6727cccd` — مالكهم `postgres`، invoker، ACL `{postgres=X/postgres}`. نفس بصمات نصوص الملفات بالحرف (اتحسبت وقت كتابة B).
+- **الـ triggers:** 18 على الجداول التسعة، كلهم `O` (شغالين)، نفس الملفات.
+- **الصلاحيات:** RLS على التسعة، مالكهم `postgres`. ACL `orders` = `{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,zell_order_definer=r/postgres}` → `service_role` عنده DELETE على `orders` (حذف طلب مالوش توابع ممكن من كود السيرفر النهارده؛ منع الحذف = A3، متأجّل). `anon` و`authenticated` مالهمش.
+- **`zell_create_order`:** واحدة، 15 معامل، md5 `62924d0fe9b1563e76c54bbddfb628b4`، المالك `postgres`؛ الكوبون بيتعدّ من `orders` (إجمالي ولكل تليفون، من غير الملغي)، ومفيش عمود عدّاد في `coupons` (`max_uses` و`max_uses_per_phone` حدود بس).
+- **الأعداد:** طلبات 4 (جديد 1 · ملغي 1 · اتسلّم 2) · طلبات عليها دفعات 3 · دفعات 6 · أوامر دفع 6 · أصناف 4 · أحداث 24 · شحنات 1 / سجلها 1 · رسايل 1 / سجلها 2 · طلبات بكوبون 0 · معاملات معلّقة 0.
+
+## ١٣) المرحلة B — الملفات (من غير تطبيق)
+- `backend/db/migrations/0024_order_delete.sql` (الجسم بين `-- >>> 0024 BODY` و`-- <<<`، وسطر الموافقة بس بعد `begin;`) · `_ptest.sql` (8 حالات، الجسم بالحرف) · `_verify.sql` (10 فحوص، read only) · `_rollback.sql` (بيرفض لو السجل فيه سطور) · CI `backend/db/ci/0024_sql_ci.sh` (job `sql-0024`).
+- **الـ preflight:** المتصل `postgres` · الموافقة · مش متطبّق · المتطلبات · الحراس الأربعة و`zell_create_order` = بصمات §١٢ (`ZELL_0024_GUARD_DRIFT` / `_CREATE_ORDER_DRIFT`) · الأكواد 45601..45610 فاضية · التوابع = §١٢ بالحرف (`ZELL_0024_DEPENDENTS_DRIFT`).
+- **الأكواد:** 45601 مدخلات غلط · 45602 طلب مش موجود (المعاينة) · 45603 مش المالك (الحد والتذكرة) · 45604 تابع مش معتمد · 45605 اللقطة اتغيّرت · 45606 العدد مختلف · 45607 التذكرة · 45608 قفل مشغول · 45609 محجوز (الحد بيرجّع `allowed = false` من غير خطأ علشان العدّاد مايترجعش) · 45610 السجل append-only.
+- **بصمات الدوال بعد التطبيق (md5 الـ prosrc):** `zell_purge_ids_hash` `84d52a5f10ec855f8358a4d8e7055077` · `zell_purge_shape_problem` `757e7ca173717c6496505c0b24f4a38a` · `zell_purge_snapshot_hash` `de9442b871ac48af4a2d844ed66bc1e1` · `zell_purge_preview` `007aa2299b6733d97dd41a96303c2f7a` · `zell_purge_reauth_begin` `c7184a12872628261de514294251147c` · `zell_purge_reauth_finish` `8a87110ffbcbc9c7d449c67b29911d70` · `zell_purge_orders` `ed31cbfba6bed01b319d1c405e7d2d3f` · `zell_purge_trg_append_only` `78e8fdd2db353f13621c82c6cf545297` · `zell_payment_trg_append_only (جديد)` `002afae51685f2ac8e4e718d33035997` · `zell_shipment_trg_append_only (جديد)` `b3d68e747a49556e01fa2918b0206415` · `zell_customer_update_trg_append_only (جديد)` `0668e7dacc77a9c9a138d3647521dc8e`. الرجوع بيرجّع الحراس التلاتة لبصمات §١٢.
+- **تشغيل Production (مش في الـ PR ده):** ptest ← backup كامل ← تطبيق بسطر `owner-approval-YYYY-MM-DD-order-delete` بس ← verify، كل واحدة بموافقة لوحدها. الـ GRANT وCREATE POLICY على جداول الطلبات بياخدوا أقفال لحظية (بيوقفوا طلب جديد ثواني)، فالتشغيل في وقت هادي.
 ## ١١) سجل التعديلات
 - **2026-11-03 · المسودة الأولى** على main `5d562fd`، من مواصفات المالك في الشات وإضافات المراجع والشات التاني.
 - **2026-11-03 · مراجعة على `2504001` (مقبولة الفكرة، 4 Blocking):** B1 — وصف الحماية لكل جدول وعملية (حذف الأحداث بالـ cascade مسموح · UPDATE الشحنة والرسايل مسموح)، ومابنلمسش حارس الأحداث ولا سلوك التعديل (§٢-١ · §٤-٢ · §٦) · B2 — جدول صلاحيات صريح (§٤-٣)، والتوابع من الـ FKs الفعلية بالتكرار مع رفض أي تابع مش معتمد (§٢-٢)، وسجل الحذف من غير استثناء · B3 — التذكرة مربوطة بالمالك والجلسة ونطاق العملية، واستهلاك ذري، وإعادة فحص المالك، وحد بيعدّ قبل الفحص، وإعادة التأكد من الباسورد بعميل منفصل (§٥-٣) · B4 — لقطة ثابتة، والبصمة من الداتابيز بس بدقة الوقت الكاملة، والأقفال والتزامن (§١-٦ · §٤-٤ · §٥-٢ · §٦). وكمان: بادئة `zell_purge_*` علشان عدّادات verify A1 وP1 وTR2 (§٤-١)، والسجل بالمقبوض والمردود (§١-٩).
 - **2026-11-03 · مراجعة على `ba2b569` (B1–B3 اتقفلت، B4 محتاجة نقطتين):** بصمة لمحتوى صفوف الطلب وكل التوابع المعتمدة (مش العدد وأكبر id) + حالة اختبار لتعديل محتوى تابع والعدد ثابت (§٥-٢ · §٦) · الأقفال: الطلبات بالترتيب، وبعدين كل التوابع بترتيب ثابت بـ `NOWAIT` («قفل مشغول» من غير تغيير)، علشان دوال تعديل الرسايل بتقفل الرسالة قبل الطلب، ومن غير لمس دوال التعديل + سيناريوهات جلستين لتعديل وإخفاء رسالة وحفظ شحنة، ومفيش deadlock (§٤-٤ · §٥-٢ · §٦).
 - **2026-11-03 · مراجعة على `2144805` (B4 اتقفلت، نقطة صلاحيات واحدة):** `FOR UPDATE` محتاج UPDATE على عمود: منحة UPDATE على عمود واحد لكل جدول + policy قفل `with check (false)` بنمط 0022 (سطر 79–100)، وSELECT على كل الأعمدة للبصمة، وقفل `order_items` و`order_events` من غير DELETE (§٤-٣) + اختبار: القفل بينجح والتعديل الفعلي بيترفض (§٦) · تصحيح لفظي: البصمة بتتحفظ في التذكرة، ومحتوى الصفوف لأ (§٥-٢).
+- **2026-11-03 · المرحلة B (SQL + CI، من غير تطبيق):** قرارات المالك في §١٠ (السجل بالدفعات · الزرار في الإعدادات · مفيش مسح للسجل) · قراية Production بالمصدر في §١٢ · الملفات والأكواد والبصمات في §١٣ · `zell_purge_attempts` اتفصل عن `zell_purge_reauth` (§٤-٣ · §٤-٥) · توقيع `zell_purge_reauth_begin(p_actor)` (§٤-٣ · §٥-٣).
