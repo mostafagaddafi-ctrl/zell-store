@@ -770,3 +770,65 @@ jobs:
 
       - name: SQL suite (0023 on a database built from the whole build_from_scratch.list)
         run: bash backend/db/ci/0023_sql_ci.sh
+
+  sql-0024-changes:
+    name: "sql 0024 ORDER-DELETE: detect changes"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect 0024 SQL changes
+        id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$EVENT" = "pull_request" ]; then range="$BASE_SHA...HEAD"; else range="$BEFORE_SHA..HEAD"; fi
+          if ! changed=$(git diff --name-only "$range" 2>/dev/null); then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if printf '%s\n' "$changed" | grep -Eq '^(backend/db/migrations/|backend/db/ci/0024_|backend/db/ci/call_contract|apps/|backend/db/ci/build_from_scratch\.list$|backend/db/ci/platform_|backend/db/ci/fixtures/|backend/db/baseline/|backend/db/schema\.sql$|backend/db/ci/0021p_txn_shape\.py$|\.github/workflows/ci\.yml$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  sql-0024:
+    name: "sql 0024 ORDER-DELETE: build from list + ptest + guards + apply + verify + rollback + flows + concurrency + existing verifies + call contract (postgres 17)"
+    needs: sql-0024-changes
+    if: needs.sql-0024-changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGPASSWORD: ci
+      CI_SUPERUSER: supabase_admin
+      ZELL_CI_DISPOSABLE_DB: 'yes'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # PostgreSQL 17 من مستودع PostgreSQL الرسمي في cluster مؤقت جديد للاختبارات (زي sql-0022). مفيش أي اتصال بـ Supabase.
+      - name: PostgreSQL 17 (official apt repository, dedicated test cluster)
+        run: bash backend/db/ci/start_postgres17.sh
+
+      - name: psql client
+        run: psql --version
+
+      # Node لـ K01 (call_contract.mjs، من غير أي dependency) — زي sql-0022.
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: SQL suite (0024 on a database built from the whole build_from_scratch.list)
+        run: bash backend/db/ci/0024_sql_ci.sh
