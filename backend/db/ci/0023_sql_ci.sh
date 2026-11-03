@@ -225,14 +225,10 @@ DA2=$(owner_call "select public.zell_product_delete($P_HOME, '$upd_home'::timest
 ok=no; [ "$PA1" = "$PV1" ] && [ "$PA2" = "$PV2" ] && [ "$DA1" = "$DL1" ] && [ "$DA2" = "$DL2" ] && ok=yes
 record "A04 product delete preview + delete responses after 0023 = before, byte for byte (has_stock false, same keys)" "$ok" "pv1=$PA1 pv2=$PA2 dl1=$DA1 dl2=$DA2"
 run_file "$V22" "$TMP/v22_after.out"
-failed=$(grep -E '^[0-9]+\|check\|[^|]*\|[^|]*\|f\|' "$TMP/v22_after.out" | cut -d'|' -f3,4)
-ok=yes
-if [ -z "$failed" ]; then ok=no; fi
-while IFS= read -r line; do
-  [ -z "$line" ] && continue
-  printf '%s' "$line" | grep -qiE 'inv|stock' || ok=no
-done <<< "$failed"
-record "A05 verify 0022 after 0023: only its inventory checks fail (historical, not edited): $(printf '%s' "$failed" | tr '\n' ';' | cut -c1-500)" "$ok" "$(summary_of "$TMP/v22_after.out") $(tailof "$TMP/v22_after.out")"
+# verify 0022 تاريخي ومابيتعدّلش (قرار المراجعة): بعد 0023 بيقف عند أول إشارة للدور اللي اتشال، ومن غير أي صف ملخص.
+# خصائص دالتين الحذف بعد 0023 بيغطيها V02 في verify 0023 (المالك · security definer · config · EXECUTE · البصمة).
+ok=no; has "$TMP/v22_after.out" 'role "zell_inventory_definer" does not exist' && [ -z "$(summary_of "$TMP/v22_after.out")" ] && ok=yes
+record "A05 verify 0022 after 0023 stops on the removed role zell_inventory_definer (historical file, not edited); delete functions covered by 0023 V02" "$ok" "$(tailof "$TMP/v22_after.out")"
 
 # ---- 9) الإعادة ----
 run_with "$APPLY" "ci-0023" "$EXP" "$TMP/r1.out"
