@@ -407,3 +407,12 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | `migrations/0022_product_delete_impact.sql` | استعلام الأثر (قراءة بس، UTC، صف واحد 34 عمود): قبل التطبيق على Production وبعده على طول بنفس النص. كائنات 0022 + أعداد وبصمات محتوى الصفوف للمنتجات وتوابعها والإعدادات وstorage_orphans + المعاملات الخاملة والأقفال المعطّلة في القاعدة الحالية. CI: IMP0–IMP5 |
 | `migrations/0022_product_delete_verify.sql` · `_rollback.sql` | التحقق (10 فحوص، منها جدول صلاحيات الدور كله والـ policies بتعبيراتها بالحرف، في أي وقت بعد التطبيق) · الرجوع |
 | `ci/0022_sql_ci.sh` · `ci/0022_flows.sql` | CI على Postgres 17 مؤقت والداتابيز مبنية من القايمة الصريحة + 0022: حراس الـ preflight · تحقق 0020 قبل وبعد · ptest · التطبيق · verify بالحرف ومحاولات التوسيع (N01–N05) · الرجوع لنفس حالة الـ catalog · السيناريوهات (F01–F25، بصمات محتوى) · التزامن بجلستين بالدوال الفعلية وبالـ DML (C01–C19 · P01–P08 · H01–H04) · مفيش 40P01 · رفض الرجوع بعد حذف |
+
+## ١٣) إزالة المخزون (0023 — INVENTORY-REMOVAL B) — مكتوب، ومش متطبّق على Production
+
+- الملفات: `backend/db/migrations/0023_inventory_removal.sql` + `_ptest` + `_verify`، وCI `backend/db/ci/0023_sql_ci.sh` (job `sql-0023`). مفيش `_rollback` (العقد §٥-١: الرجوع = backup + الأرشيف `myzill-mini-erp`).
+- **بعد التطبيق بيتشال:** الجداول العشرة في §٢ (المخزون والمشتريات) والـ 4 sequences والـ policies، وكل دوال `zell_inv_*` في §٥ (68 على Production في قراية 2026-11-03)، والـ trigger `zinv_products_sale_unit` ودالته، والدور `zell_inventory_definer` في §١.
+- **بيتعدّل:** `zell_product_delete` و`zell_product_delete_preview` (0022): من غير فحص المخزون، والرد بنفس الشكل و`has_stock = false`؛ المالك والصلاحيات زي ما هم.
+- **الحراس:** جداول المخزون العشرة بتتقفل `access exclusive` قبل أول قراية بيانات (كتابة شغالة = تستنى وبعدين `ZELL_0023_DATA_CHANGED`) · أي دالة برّه المخزون بتنادي `zell_inv_*` = `ZELL_0023_SHAPE` (العقد §٥-١-ب).
+- لحد التطبيق، أقسام المخزون فوق بتوصف Production زي ما هي. بعد التطبيق والتحقق بتتحدّث في المرحلة C.
+

@@ -131,12 +131,12 @@ found=$(cd "$ROOT" && grep -rlF --exclude-dir=.git --exclude-dir=node_modules 'z
 ok=yes
 for f in $found; do
   case "$f" in
-    backend/db/migrations/0022_product_delete.sql|backend/db/migrations/0022_product_delete_ptest.sql|backend/db/ci/0022_sql_ci.sh|docs/contracts/PRODUCT-DELETE.md) ;;
+    backend/db/migrations/0022_product_delete.sql|backend/db/migrations/0022_product_delete_ptest.sql|backend/db/ci/0022_sql_ci.sh|docs/contracts/PRODUCT-DELETE.md|backend/db/migrations/0023_inventory_removal.sql|backend/db/migrations/0023_inventory_removal_ptest.sql) ;;
     *) ok=no ;;
   esac
 done
 case " $found " in *" backend/db/migrations/0022_product_delete.sql "*) ;; *) ok=no ;; esac
-record "S04 advisory key text zell_catalog:home_products used only by 0022 (contract §5-a)" "$ok" "$found"
+record "S04 advisory key text zell_catalog:home_products used only by the product-delete functions: 0022, and 0023 that re-defines them verbatim (contract §5-a; INVENTORY-REMOVAL §5-1-b)" "$ok" "$found"
 blk() { awk -v s="do \$$2\$" -v e="\$$2\$;" '$0 == s {f = 1} f {print} f && $0 == e {exit}' "$1"; }
 ok=yes; bmd=""
 for tg in zverify_a zverify_b zverify_end; do
