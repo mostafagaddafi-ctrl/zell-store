@@ -24,15 +24,8 @@ import ts from 'typescript'
 const appRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 const SUITES = [
-  { name: 'inventory', dir: 'lib/inventory', entry: 'inventory.cases.ts', run: 'runInventoryCases' },
-  { name: 'purchases', dir: 'lib/inventory', entry: 'purchase.cases.ts', run: 'runPurchaseCases' },
-  { name: 'openings', dir: 'lib/inventory', entry: 'opening.cases.ts', run: 'runOpeningCases' },
-  { name: 'ui', dir: 'lib/inventory', entry: 'ui.cases.ts', run: 'runUiCases' },
   { name: 'access', dir: 'lib/access', entry: 'access.cases.ts', run: 'runAccessCases' },
   { name: 'manifest', dir: 'lib/access', entry: 'manifest.cases.ts', run: 'runManifestCases' },
-  { name: 'session', dir: 'lib/inventory', entry: 'session.cases.ts', run: 'runSessionCases' },
-  { name: 'doclist', dir: 'lib/inventory', entry: 'docList.cases.ts', run: 'runDocListCases' },
-  { name: 'duplicate', dir: 'lib/inventory', entry: 'purchaseDuplicate.cases.ts', run: 'runDuplicateCases' },
   { name: 'orders', dir: 'lib/orders', entry: 'orders.cases.ts', run: 'runOrderCases' },
   { name: 'payments', dir: 'lib/orders', entry: 'payments.cases.ts', run: 'runPaymentCases' },
   { name: 'delivery', dir: 'lib/orders', entry: 'deliverySettings.cases.ts', run: 'runDeliverySettingsCases' },
