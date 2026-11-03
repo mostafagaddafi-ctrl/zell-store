@@ -28,8 +28,8 @@ export const DEFAULT_CONFIG = {
   ],
   rawGuardDirs: ['lib/auth/', 'lib/access/'],
   rawGuards: ['requireAdminPage', 'requireAdminAction', 'resolveAdminIdentity', 'readAdminRole'],
-  mutationModules: ['lib/mutations/', 'lib/inventory/rpc'],
-  mutationImporterDirs: ['lib/mutations/', 'lib/inventory/', 'lib/data/'],
+  mutationModules: ['lib/mutations/'],
+  mutationImporterDirs: ['lib/mutations/', 'lib/data/'],
 }
 
 const PAGE_WRAPPERS = new Set(['pageWithAccess'])

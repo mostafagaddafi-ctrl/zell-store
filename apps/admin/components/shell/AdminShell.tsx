@@ -6,11 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   AlertTriangle,
   ExternalLink,
-  Boxes,
-  ClipboardList,
-  Factory,
   FileText,
-  Receipt,
   Image as ImageIcon,
   Layers,
   LayoutDashboard,
@@ -93,20 +89,6 @@ export function AdminShell({
         { href: '/policies', label: 'السياسات', icon: FileText },
       ],
     },
-    // 0020 — المخزون للمالك بس (الصفحة والـactions ودوال الداتابيز نفسها بيتحققوا من الدور)
-    ...(identity.role === 'owner'
-      ? [
-          {
-            title: 'المخزون',
-            items: [
-              { href: '/inventory/purchases', label: 'المشتريات', icon: Receipt },
-              { href: '/inventory/openings', label: 'رصيد أول المدة', icon: ClipboardList },
-              { href: '/inventory/lots', label: 'دفعات المخزون', icon: Boxes },
-              { href: '/inventory/suppliers', label: 'الموردين', icon: Factory },
-            ],
-          },
-        ]
-      : []),
     { title: 'النظام', items: [{ href: '/settings', label: 'الإعدادات', icon: Settings }] },
   ]
 

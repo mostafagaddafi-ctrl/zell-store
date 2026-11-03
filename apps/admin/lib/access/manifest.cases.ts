@@ -194,8 +194,8 @@ export async function runManifestCases(): Promise<ManifestCasesReport> {
   const count = (kind: ManifestEntry['kind']) => all.filter((e) => e.kind === kind).length
 
   // ── M. الجدول نفسه ──────────────────────────────────────
-  check('M1 101 symbols: 71 action · 26 page · 1 layout · 3 route (79 من ب2 + 4 من 0021-A A2 + 9 من 0021-A P2 + 1 من 0021-D2 W2 + 1 من EXPRESS-SHIPPING W2 + 4 من TRACK-ORDER v2 W2-B + 2 من POLICY-PAGES + 1 من PRODUCT-DELETE)', [all.length, count('action'), count('page'), count('layout'), count('route')], [101, 71, 26, 1, 3])
-  check('M2 file + symbol unique', new Set(all.map((e) => e.file + '#' + e.symbol)).size, 101)
+  check('M1 79 symbols: 57 action · 18 page · 1 layout · 3 route (79 من ب2 + 4 من 0021-A A2 + 9 من 0021-A P2 + 1 من 0021-D2 W2 + 1 من EXPRESS-SHIPPING W2 + 4 من TRACK-ORDER v2 W2-B + 2 من POLICY-PAGES + 1 من PRODUCT-DELETE − 22 من INVENTORY-REMOVAL A: 14 action + 8 page)', [all.length, count('action'), count('page'), count('layout'), count('route')], [79, 57, 18, 1, 3])
+  check('M2 file + symbol unique', new Set(all.map((e) => e.file + '#' + e.symbol)).size, 79)
   check(
     'M3 capability is one of the 29 (layout = null only)',
     all.filter((e) => (e.kind === 'layout' ? e.capability !== null : e.capability === null || !isCapability(e.capability))).map((e) => e.symbol + '@' + e.file),
@@ -225,8 +225,8 @@ export async function runManifestCases(): Promise<ManifestCasesReport> {
     [],
   )
   check(
-    'M9 mapFailure only on inventory actions (InventoryFailure shape)',
-    all.filter((e) => (e.file === 'lib/inventoryActions.ts') !== (e.mapFailure === 'rejectedFailure')).map((e) => e.symbol),
+    'M9 no entry uses mapFailure (it was for inventory actions only; removed in INVENTORY-REMOVAL A)',
+    all.filter((e) => e.mapFailure !== null).map((e) => e.symbol),
     [],
   )
 

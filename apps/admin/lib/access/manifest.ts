@@ -3,7 +3,7 @@
  *
  *   todayGuard: admin = requireAdminPage / requireAdminAction بس · owner = ومعاه ownerGate أو role !== 'owner' (redirect /403)
  *   todayFlag : الرمز كان بيفحص guardMutations() قبل ب2
- *   forbiddenMessage / mapFailure: اسم الثابت / الدالة اللي الغلاف بياخدها في الكود (رسايل «للمالك بس» وشكل InventoryFailure)
+ *   forbiddenMessage / mapFailure: اسم الثابت / الدالة اللي الغلاف بياخدها في الكود (رسايل «للمالك بس»؛ mapFailure مابقاش مستخدم بعد INVENTORY-REMOVAL A)
  *
  * بيتفحص في CI مرتين: scripts/check-access-manifest.mjs (الجدول = الكود) و manifest.cases.ts (تكافؤ legacy).
  * العقد: docs/contracts/0021-P-code.md §٧.
@@ -22,7 +22,7 @@ export type ManifestEntry = {
   mutates: boolean
   todayGuard: 'admin' | 'owner'
   todayFlag: boolean
-  forbiddenMessage: 'OWNER_ONLY_MESSAGE' | 'INVENTORY_OWNER_ONLY_MESSAGE' | 'PRODUCT_DELETE_OWNER_ONLY_MESSAGE' | null
+  forbiddenMessage: 'OWNER_ONLY_MESSAGE' | 'PRODUCT_DELETE_OWNER_ONLY_MESSAGE' | null
   mapFailure: 'rejectedFailure' | null
 }
 
@@ -37,14 +37,6 @@ export const ACCESS_MANIFEST: readonly ManifestEntry[] = [
   { kind: 'page', file: 'app/(dashboard)/installation-tools/page.tsx', symbol: 'default', capability: 'zell.installation_tools.view', mutates: false, todayGuard: 'admin', todayFlag: false, forbiddenMessage: null, mapFailure: null },
   { kind: 'page', file: 'app/(dashboard)/policies/page.tsx', symbol: 'default', capability: 'zell.content.view', mutates: false, todayGuard: 'admin', todayFlag: false, forbiddenMessage: null, mapFailure: null },
   { kind: 'page', file: 'app/(dashboard)/installation/page.tsx', symbol: 'default', capability: 'zell.installation.view', mutates: false, todayGuard: 'admin', todayFlag: false, forbiddenMessage: null, mapFailure: null },
-  { kind: 'page', file: 'app/(dashboard)/inventory/lots/page.tsx', symbol: 'default', capability: 'zell.inventory0020.view', mutates: false, todayGuard: 'owner', todayFlag: false, forbiddenMessage: null, mapFailure: null },
-  { kind: 'page', file: 'app/(dashboard)/inventory/openings/[id]/page.tsx', symbol: 'default', capability: 'zell.inventory0020.view', mutates: false, todayGuard: 'owner', todayFlag: false, forbiddenMessage: null, mapFailure: null },
-  { kind: 'page', file: 'app/(dashboard)/inventory/openings/new/page.tsx', symbol: 'default', capability: 'zell.inventory0020.view', mutates: false, todayGuard: 'owner', todayFlag: false, forbiddenMessage: null, mapFailure: null },
-  { kind: 'page', file: 'app/(dashboard)/inventory/openings/page.tsx', symbol: 'default', capability: 'zell.inventory0020.view', mutates: false, todayGuard: 'owner', todayFlag: false, forbiddenMessage: null, mapFailure: null },
-  { kind: 'page', file: 'app/(dashboard)/inventory/purchases/[id]/page.tsx', symbol: 'default', capability: 'zell.inventory0020.view', mutates: false, todayGuard: 'owner', todayFlag: false, forbiddenMessage: null, mapFailure: null },
-  { kind: 'page', file: 'app/(dashboard)/inventory/purchases/new/page.tsx', symbol: 'default', capability: 'zell.inventory0020.view', mutates: false, todayGuard: 'owner', todayFlag: false, forbiddenMessage: null, mapFailure: null },
-  { kind: 'page', file: 'app/(dashboard)/inventory/purchases/page.tsx', symbol: 'default', capability: 'zell.inventory0020.view', mutates: false, todayGuard: 'owner', todayFlag: false, forbiddenMessage: null, mapFailure: null },
-  { kind: 'page', file: 'app/(dashboard)/inventory/suppliers/page.tsx', symbol: 'default', capability: 'zell.inventory0020.view', mutates: false, todayGuard: 'owner', todayFlag: false, forbiddenMessage: null, mapFailure: null },
   { kind: 'page', file: 'app/(dashboard)/orders/[orderNumber]/page.tsx', symbol: 'default', capability: 'zell.orders.view', mutates: false, todayGuard: 'admin', todayFlag: false, forbiddenMessage: null, mapFailure: null },
   { kind: 'page', file: 'app/(dashboard)/orders/page.tsx', symbol: 'default', capability: 'zell.orders.view', mutates: false, todayGuard: 'admin', todayFlag: false, forbiddenMessage: null, mapFailure: null },
   { kind: 'page', file: 'app/(dashboard)/page.tsx', symbol: 'default', capability: 'zell.dashboard.view', mutates: false, todayGuard: 'admin', todayFlag: false, forbiddenMessage: null, mapFailure: null },
@@ -116,18 +108,4 @@ export const ACCESS_MANIFEST: readonly ManifestEntry[] = [
   { kind: 'action', file: 'lib/couponActions.ts', symbol: 'updateCouponAction', capability: 'zell.coupons.edit', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'OWNER_ONLY_MESSAGE', mapFailure: null },
   { kind: 'action', file: 'lib/couponActions.ts', symbol: 'setCouponActiveAction', capability: 'zell.coupons.edit', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'OWNER_ONLY_MESSAGE', mapFailure: null },
   { kind: 'action', file: 'lib/couponActions.ts', symbol: 'setCouponsEnabledAction', capability: 'zell.coupons.edit', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'OWNER_ONLY_MESSAGE', mapFailure: null },
-  { kind: 'action', file: 'lib/inventoryActions.ts', symbol: 'createSupplierAction', capability: 'zell.inventory0020.edit', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'INVENTORY_OWNER_ONLY_MESSAGE', mapFailure: 'rejectedFailure' },
-  { kind: 'action', file: 'lib/inventoryActions.ts', symbol: 'updateSupplierAction', capability: 'zell.inventory0020.edit', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'INVENTORY_OWNER_ONLY_MESSAGE', mapFailure: 'rejectedFailure' },
-  { kind: 'action', file: 'lib/inventoryActions.ts', symbol: 'previewPurchaseAction', capability: 'zell.inventory0020.view', mutates: false, todayGuard: 'owner', todayFlag: false, forbiddenMessage: 'INVENTORY_OWNER_ONLY_MESSAGE', mapFailure: 'rejectedFailure' },
-  { kind: 'action', file: 'lib/inventoryActions.ts', symbol: 'createPurchaseAction', capability: 'zell.inventory0020.edit', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'INVENTORY_OWNER_ONLY_MESSAGE', mapFailure: 'rejectedFailure' },
-  { kind: 'action', file: 'lib/inventoryActions.ts', symbol: 'updatePurchaseAction', capability: 'zell.inventory0020.edit', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'INVENTORY_OWNER_ONLY_MESSAGE', mapFailure: 'rejectedFailure' },
-  { kind: 'action', file: 'lib/inventoryActions.ts', symbol: 'postPurchaseAction', capability: 'zell.inventory0020.edit', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'INVENTORY_OWNER_ONLY_MESSAGE', mapFailure: 'rejectedFailure' },
-  { kind: 'action', file: 'lib/inventoryActions.ts', symbol: 'discardPurchaseAction', capability: 'zell.inventory0020.edit', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'INVENTORY_OWNER_ONLY_MESSAGE', mapFailure: 'rejectedFailure' },
-  { kind: 'action', file: 'lib/inventoryActions.ts', symbol: 'voidPurchaseAction', capability: 'zell.inventory0020.edit', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'INVENTORY_OWNER_ONLY_MESSAGE', mapFailure: 'rejectedFailure' },
-  { kind: 'action', file: 'lib/inventoryActions.ts', symbol: 'previewOpeningAction', capability: 'zell.inventory0020.view', mutates: false, todayGuard: 'owner', todayFlag: false, forbiddenMessage: 'INVENTORY_OWNER_ONLY_MESSAGE', mapFailure: 'rejectedFailure' },
-  { kind: 'action', file: 'lib/inventoryActions.ts', symbol: 'createOpeningAction', capability: 'zell.inventory0020.edit', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'INVENTORY_OWNER_ONLY_MESSAGE', mapFailure: 'rejectedFailure' },
-  { kind: 'action', file: 'lib/inventoryActions.ts', symbol: 'updateOpeningAction', capability: 'zell.inventory0020.edit', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'INVENTORY_OWNER_ONLY_MESSAGE', mapFailure: 'rejectedFailure' },
-  { kind: 'action', file: 'lib/inventoryActions.ts', symbol: 'postOpeningAction', capability: 'zell.inventory0020.edit', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'INVENTORY_OWNER_ONLY_MESSAGE', mapFailure: 'rejectedFailure' },
-  { kind: 'action', file: 'lib/inventoryActions.ts', symbol: 'discardOpeningAction', capability: 'zell.inventory0020.edit', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'INVENTORY_OWNER_ONLY_MESSAGE', mapFailure: 'rejectedFailure' },
-  { kind: 'action', file: 'lib/inventoryActions.ts', symbol: 'voidOpeningAction', capability: 'zell.inventory0020.edit', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'INVENTORY_OWNER_ONLY_MESSAGE', mapFailure: 'rejectedFailure' },
 ]
