@@ -14,12 +14,12 @@
 
 | الدور | اتعرّف في | بيعمل إيه |
 | --- | --- | --- |
-| `anon` · `authenticated` | Supabase | مالهمش أي وصول للجداول (RLS + سحب الصلاحيات في 0002). `authenticated` عنده EXECUTE على ١٢ دالة `zell_erp_*` (0021-P) و٢٣ دالة `zell_inv_session_*` (0020-S PR-1) و١١ دالة `zell_order_*` (0021-A A1) بس. بعد تطبيق 0021-A P1: + ١٠ دوال `zell_payment_*` (§٧-ب، متطبّق 2026-10-11). بعد تطبيق 0021-D2: + `zell_delivery_settings_get` و`zell_delivery_settings_save` (§٧-ج). بعد تطبيق EXPRESS-SHIPPING: + `zell_shipping_options_get` و`zell_shipping_options_save` (§١٠). بعد تطبيق TRACK-ORDER v2: + `zell_shipment_get` / `_save` و`zell_customer_update_list` / `_add` / `_edit` / `_set_hidden` (§١١) |
-| `service_role` | Supabase | بيتخطى RLS. اللوحة والمتجر بيقروا بيه من السيرفر بس (حل انتقالي)، وعنده EXECUTE على دوال اللوحة القديمة بس: صفر على أي `zell_inv_*` (من 0020-S PR-3) وعلى جداول 0020. صفر على `erp_*` و`zell_erp_*`. من `zell_order_*`: `zell_order_gate_is_open` بس (trigger الحالة وقت PATCH اللوحة). من `zell_checkout_*`: `zell_checkout_delivery_periods` (0021-D)، و`zell_checkout_confirmation_fee` (P2)، و`zell_checkout_delivery_settings` بعد تطبيق 0021-D2، و`zell_checkout_track_order` بعد تطبيق 0021-TR (§٩). ومن `zell_shipping_*`: `zell_shipping_options_checkout` بس بعد تطبيق EXPRESS-SHIPPING (§١٠). صفر على `zell_payment_*` و`zell_delivery_settings_*` |
+| `anon` · `authenticated` | Supabase | مالهمش أي وصول للجداول (RLS + سحب الصلاحيات في 0002). `authenticated` عنده EXECUTE على ١٢ دالة `zell_erp_*` (0021-P) و١١ دالة `zell_order_*` (0021-A A1) بس. بعد تطبيق 0021-A P1: + ١٠ دوال `zell_payment_*` (§٧-ب، متطبّق 2026-10-11). بعد تطبيق 0021-D2: + `zell_delivery_settings_get` و`zell_delivery_settings_save` (§٧-ج). بعد تطبيق EXPRESS-SHIPPING: + `zell_shipping_options_get` و`zell_shipping_options_save` (§١٠). بعد تطبيق TRACK-ORDER v2: + `zell_shipment_get` / `_save` و`zell_customer_update_list` / `_add` / `_edit` / `_set_hidden` (§١١). دوال `zell_inv_session_*` (0020-S) اتشالت في 0023 (§١٣) |
+| `service_role` | Supabase | بيتخطى RLS. اللوحة والمتجر بيقروا بيه من السيرفر بس (حل انتقالي)، وعنده EXECUTE على دوال اللوحة القديمة بس: دوال `zell_inv_*` وجداول 0020 اتشالت في 0023 (§١٣). صفر على `erp_*` و`zell_erp_*`. من `zell_order_*`: `zell_order_gate_is_open` بس (trigger الحالة وقت PATCH اللوحة). من `zell_checkout_*`: `zell_checkout_delivery_periods` (0021-D)، و`zell_checkout_confirmation_fee` (P2)، و`zell_checkout_delivery_settings` بعد تطبيق 0021-D2، و`zell_checkout_track_order` بعد تطبيق 0021-TR (§٩). ومن `zell_shipping_*`: `zell_shipping_options_checkout` بس بعد تطبيق EXPRESS-SHIPPING (§١٠). صفر على `zell_payment_*` و`zell_delivery_settings_*` |
 | `postgres` | Supabase | مالك الجداول، واللي بيطبّق الـ migrations (الـ preflight بيتأكد) |
 | `zell_definer` | `0005c` (مسودة) | دور مسودة `create_order` القديمة |
 | `zell_order_writer` | `0006b` | مالك دوال مسار الطلب في الملفات (`zell_create_order` · `zell_get_order_receipt`)، ومن غير صلاحيات جداول مباشرة. **على Production مالك `zell_create_order` = `postgres`** (`08-HANDOFF-NOW.md`)، وCI بتاع P1 بيجرّب الاتنين |
-| `zell_inventory_definer` | `0020` | مالك دوال المخزون `zell_inv_*`، ومنها `zell_inv_session_*` و`zell_inv_claims_actor` من 0020-S (NOLOGIN · NOBYPASSRLS). بعد 0022: + الغلاف `zell_inv_product_stock_ref_exists` و EXECUTE على `zell_inv_product_has_stock_refs` (§١٢) |
+| ~~`zell_inventory_definer`~~ | `0020` | **اتشال في 0023 (2026-11-03، §١٣)** مع كل دوال `zell_inv_*`. كان مالك دوال المخزون (ومنها `zell_inv_session_*` و`zell_inv_claims_actor` من 0020-S، والغلاف `zell_inv_product_stock_ref_exists` من 0022) |
 | `erp_definer` | `0021p_erp_access` | مالك دوال المحرك `erp_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS) |
 | `zell_erp_definer` | `0021p_zell_erp_access` | مالك دوال المحوّل والواجهة `erp_actor_status_v1`. مالوش أي صلاحية على `admin_users` |
 | `zell_order_definer` | `0021a_a1_order_cycle` | مالك دوال دورة الطلب `zell_order_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS). على `orders`: SELECT + UPDATE لأعمدة الدورة بس. ومالك `zell_checkout_delivery_periods` (0021-D)، وبعد P1/P2: `zell_payment_*` (ماعدا الـ triggers) و`zell_checkout_confirmation_fee` (§٧-ب)، وبعد 0021-D2: `zell_delivery_settings_get` / `_save` و`zell_checkout_delivery_settings` (§٧-ج)، وبعد 0021-TR: `zell_checkout_track_order` و SELECT على ٨ أعمدة من `order_items` بـ policy قراية (§٩)، وبعد EXPRESS-SHIPPING: `zell_shipping_options_get` / `_save` / `_checkout` و SELECT + UPDATE على `zell_shipping_options` و SELECT + INSERT على سجله (§١٠)، وبعد TRACK-ORDER v2: 9 دوال `zell_shipment_*` و`zell_customer_update_*` (ماعدا الـ triggers) و SELECT + INSERT + UPDATE على `zell_order_shipments` و`zell_order_customer_updates` و SELECT + INSERT على سجلاتهم (§١١)، ومفيش صلاحية جديدة على `orders` ولا `order_events` ولا `order_payments` |
@@ -91,22 +91,9 @@
 | `zell_order_customer_updates` | `0021tr2_track_order_v2` | رسايل العميل اللي بتظهر في «تتبّع طلبك»: النص (1..300) · مخفية · اتعدّلت · الممثل والأوقات. مابتتمسحش (الإخفاء بدل المسح). منفصلة تمامًا عن `internal_notes` |
 | `zell_order_customer_updates_log` | `0021tr2_track_order_v2` | سجل داخلي append-only: add · edit · hide · show (القديم · الجديد · الممثل · الوقت). مابيظهرش للعميل |
 
-### المخزون والمشتريات (0020)
+### المخزون والمشتريات (0020) — اتشالت في 0023
 
-| الجدول | بيعمل إيه |
-| --- | --- |
-| `inventory_locations` | مواقع المخزون (الافتراضي `MAIN`) |
-| `suppliers` | الموردين |
-| `purchase_docs` | مستند الشراء: `draft` · `posted` · `voided` · `discarded` |
-| `purchase_doc_lines` | سطور مستند الشراء |
-| `purchase_doc_charges` | مصاريف الشراء المفصّلة اللي بتتوزّع على السطور |
-| `opening_stock_docs` · `opening_stock_lines` | رصيد أول المدة |
-| `stock_lots` | الـ lots المترحّلة (رول أو دفعة) بتكلفتها |
-| `inventory_commands` | idempotency للأوامر (append-only) |
-| `inventory_audit_log` | سجل المخزون (append-only) |
-
-- **Sequences:** `purchase_doc_no_seq` · `opening_doc_no_seq` · `roll_lot_seq` · `batch_lot_seq` (أرقام المستندات والـ lots، والفجوات عادية).
-- **الصلاحيات:** RLS + policy واحدة للدور `zell_inventory_definer` بس. `service_role` مالوش أي صلاحية على الجداول دي، والقراية والكتابة من الـ RPCs (§٥). مفيش DELETE/TRUNCATE (triggers).
+- **اتشالت من Production في 0023 (2026-11-03، §١٣):** الجداول العشرة (`inventory_locations` · `suppliers` · `purchase_docs` · `purchase_doc_lines` · `purchase_doc_charges` · `opening_stock_docs` · `opening_stock_lines` · `stock_lots` · `inventory_commands` · `inventory_audit_log`) والـ 4 sequences (`purchase_doc_no_seq` · `opening_doc_no_seq` · `roll_lot_seq` · `batch_lot_seq`) والـ policies. الوصف القديم في ملفات 0020 و0020-S (تاريخية) وفي الأرشيف `myzill-mini-erp`.
 
 ### الصلاحيات (0021-P)
 
@@ -162,33 +149,11 @@
 
 - دوال اللوحة دي `security invoker`، والـ EXECUTE عليها لـ `service_role` بس (`docs/OPERATIONS.md`).
 
-## ٥) دوال المخزون (0020، مالكها `zell_inventory_definer`)
+## ٥) دوال المخزون (0020 · 0020-S) — اتشالت في 0023
 
-- **الحد العام: ٢٣ دالة owner-only** بتاخد `p_actor` وبتتأكد منه في `admin_users` (`zell_inv_assert_owner`).
-- ✅ **اتقفل في 0020-S** (PR-1 #109 · PR-2 #110 · PR-3 `0020s_pr3_revoke_service_role.sql`): مفيش `zell_inv_*` لـ `service_role`، والممثل = `sub` الجلسة بس. الفقرة اللي تحت تاريخية.
-- ⚠ (تاريخي) **الحماية من السيرفر بس:** الـ ٢٣ (١٤ كتابة · ٩ قراية) EXECUTE لـ `service_role` بس، والممثل `p_actor` بيحدده كود اللوحة
-  (غلاف `actionWithAccess` بصلاحية فئة `owner` ← `p_actor = ctx.identity.userId`، عمره ما ييجي من الفورم)، مش جلسة المستخدم. ده نفس نمط
-  `p_actor` اللي 0021-P قفلته في دوالها. **القرار (2026-10-08، `10-DECISIONS.md` في zell-skills):** عقد لوحده لنقلها لهوية الجلسة،
-  بعد 0021-P ب2 وقبل الإطلاق، ومش مشروط بتشغيل shadow أو enforce ولا بصفحة إدارة الصلاحيات (`docs/contracts/0021-P-code.md` §٨ بند 4).
-- **0020-S PR-1 (`0020s_inv_session.sql`، إضافة بس):** ٢٣ دالة `zell_inv_session_<x>` بنفس معاملات `zell_inv_<x>` ناقص `p_actor`
-  (أسماء مختلفة، مفيش overload). الممثل = `sub` الجلسة من `zell_inv_claims_actor()` (داخلية، بشرط `role = authenticated`)، وبتنادي الدالة
-  القديمة بيه، وفحص المالك زي ما هو (`zell_inv_assert_owner`). EXECUTE لـ `authenticated` بس. الدوال القديمة وصلاحياتها زي ما هي:
-  من PR-2 اللوحة بتنادي `zell_inv_session_*` بجلسة المستخدم بس (`apps/admin/lib/inventory/rpc.ts`). من PR-3 (`0020s_pr3_revoke_service_role.sql`)
-  القديمة داخلية (EXECUTE لمالكها بس) ومابتتمسحش. العقد: `docs/contracts/0020-S.md`.
-  ملفي 0020 القديمين صالحين مع 0020-S: الـ verify بيكتب `0020s=applied`، والـ rollback بيرفض بـ `ZELL_0020_ROLLBACK_0020S_FIRST` لحد rollback 0020-S الأول.
-
-| المجموعة | الدوال |
-| --- | --- |
-| المواقع | `zell_inv_create_location` · `zell_inv_update_location` · `zell_inv_list_locations` |
-| الموردين | `zell_inv_create_supplier` · `zell_inv_update_supplier` · `zell_inv_list_suppliers` |
-| الشراء | `zell_inv_create_purchase` · `zell_inv_update_purchase` · `zell_inv_post_purchase` (ترحيل لـ lots) · `zell_inv_discard_purchase` (مسح مسودة) · `zell_inv_void_purchase` (إلغاء مترحّل) · `zell_inv_list_purchases` · `zell_inv_get_purchase` · `zell_inv_preview_purchase` (التوزيع والتكلفة قبل الترحيل) |
-| أول المدة | `zell_inv_create_opening` · `zell_inv_update_opening` · `zell_inv_post_opening` · `zell_inv_discard_opening` · `zell_inv_void_opening` · `zell_inv_list_openings` · `zell_inv_get_opening` · `zell_inv_preview_opening` |
-| الـ lots | `zell_inv_list_lots` |
-| الجلسة (0020-S، EXECUTE لـ `authenticated`) | `zell_inv_session_*` (٢٣، واحدة لكل دالة فوق بنفس الاسم بعد `zell_inv_`) |
-| مساعدة داخلية | `zell_inv_claims_actor` (0020-S: `sub` الجلسة أو NULL) · `zell_inv_assert_owner` (المالك الشغال) · `zell_inv_lock_products` · `zell_inv_read_products` · `zell_inv_product_has_stock_refs` · `zell_inv_width_allowed` · `zell_inv_allocate_lr` (توزيع largest remainder) · `zell_inv_normalize_purchase` · `zell_inv_normalize_opening` · `zell_inv_command_check` (idempotency) · `zell_inv_doc_void_blockers` · `zell_inv_unknown_lot_references` · `zell_inv_void_contract_version` |
-| دوال الـ triggers (مالكها `postgres`) | `zell_inv_trg_no_delete` · `zell_inv_trg_no_truncate` · `zell_inv_trg_append_only` · `zell_inv_trg_doc_guard` · `zell_inv_trg_child_insert_guard` · `zell_inv_trg_lot_update_guard` · `zell_inv_trg_master_guard` · `zell_inv_trg_products_sale_unit` |
-
-- **Triggers:** `zinv_no_delete` · `zinv_no_truncate` · `zinv_doc_guard` · `zinv_child_insert_guard` · `zinv_append_only` · `zinv_lot_update_guard` · `zinv_master_guard` · `zinv_products_sale_unit` (على `products`).
+- **اتشالت من Production في 0023 (2026-11-03، §١٣):** كل دوال `zell_inv_*` (68 في قراية 2026-11-03: القديمة · الجلسة `zell_inv_session_*` · المساعدة · دوال الـ triggers · فحص المخزون بتاع 0022)، والـ triggers `zinv_*` (ومنها `zinv_products_sale_unit` على `products`)، والدور `zell_inventory_definer`. مفيش دالة باقية بتنادي `zell_inv_*` (verify 0023 V03).
+- الوصف التاريخي (الحد العام · 0020-S · المجموعات · الـ triggers): ملفات 0020 و0020-S و`docs/contracts/0020-S.md`، والأرشيف `myzill-mini-erp` (الوسم `pre-inventory-removal` على `b38b7b4`).
+- الصلاحيتين `zell.inventory0020.view` و`zell.inventory0020.edit` في كتالوج 0021-P **باقيين عن قصد** من غير استخدام (`docs/contracts/INVENTORY-REMOVAL.md` §١).
 
 ## ٦) دوال الصلاحيات (0021-P)
 
@@ -382,7 +347,7 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | `zell_product_delete(integer, timestamptz)` | `zell_catalog_definer` · `authenticated` بس (volatile · definer · `search_path` فاضي · `lock_timeout` 3s) | المالك بس (`zell_order_actor(true)`: 45400 / 45401 / 45402). المنتج لازم مخفي ومن غير طلبات ولا رصيد. الأقفال: قفل القايمة (advisory) ← صف المنتج (بيستنوا لحد 3 ثواني) ← الباقي `nowait`. بتسجّل الصور في `storage_orphans` بسبب `product_deleted` (المستني يفضل زي ما هو)، وبتشيل الـ id من `home_products`، والتوابع بالـ cascade. مابتمسحش ملفات من Storage |
 | `zell_product_delete_preview(integer)` | `zell_catalog_definer` · `authenticated` بس (stable) | المالك بس: النسخة · مخفي؟ · طلبات · رصيد · تعارض صور · عدد الصور والمقاسات والإضافات والمجموعات · في الرئيسية؟ · `can_delete`. قراية بس، والحذف بيعيد الفحص |
 | `zell_catalog_trg_home_products_guard()` | `zell_catalog_definer` · مفيش | trigger `zell_catalog_home_products_guard` على `settings` (BEFORE INSERT OR UPDATE OF value، صف `home_products` بس): بياخد قفل القايمة، وأي id **جديد** لازم يكون منتج موجود (45507). الـ ids اللي كانت موجودة قبل كده مابتتفحصش |
-| `zell_inv_product_stock_ref_exists(integer)` | `zell_inventory_definer` · `zell_catalog_definer` بس | غلاف definer على `zell_inv_product_has_stock_refs` (اللي بقى معاها EXECUTE لـ `zell_inventory_definer`) |
+| ~~`zell_inv_product_stock_ref_exists(integer)`~~ | `zell_inventory_definer` · `zell_catalog_definer` بس | **اتشالت في 0023.** كانت غلاف definer على `zell_inv_product_has_stock_refs` (اللي بقى معاها EXECUTE لـ `zell_inventory_definer`) |
 
 | الكود | المعنى |
 | --- | --- |
@@ -390,11 +355,12 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | 45502 | النسخة اتغيّرت (`updated_at` صف المنتج بدقة الميلي ثانية) |
 | 45503 | المنتج ظاهر — لازم يتخفى الأول |
 | 45504 | عليه طلبات (`order_items`) |
-| 45505 | عليه رصيد أو مستند مخزون (أو FK تاني) |
+| 45505 | عليه رصيد أو مستند مخزون (أو FK تاني). بعد 0023: أي FK تاني بس (مسار fallback) |
 | 45506 | صورة من صوره متعلّمة اتنضفت في `storage_orphans` |
 | 45507 | قايمة الرئيسية فيها id جديد لمنتج مش موجود (الـ trigger) |
 | 45508 | قفل مشغول (القايمة · المنتج · التوابع) — جرّب تاني |
 
+- **بعد 0023 (2026-11-03، §١٣):** فحص المخزون اتشال من الدالتين (الرصيد مابيتفحصش، والمعاينة `has_stock = false` بنفس الشكل)، والـ md5 بقى `84b80a92c3c413433a71d80300bd5418` / `39cf41edb6e8a5fcee5ea9e35081a0b5`؛ المالك والصلاحيات والإعدادات زي ما هم.
 - **تغيير في جدول موجود:** `storage_orphans_reason_check` بنفس الاسم + سبب `product_deleted`. مفيش أي تعديل في دالة موجودة.
 - **ملف تحقق 0020 (`0020_inventory_purchasing_verify.sql`):** بقى صالح قبل 0022 وبعده (زي 0020-S و PR-3): بعد 0022 بيتوقع الغلاف بشكله بالظبط وACL الـ helper = `postgres` + `zell_inventory_definer`، والرسالة بتخلص بـ « 0022=applied». أي خليط أو منحة زيادة = FAIL، وأي دالة مالكها `zell_inventory_definer` باسم برّه `zell_inv_*` = `ZELL_0020_FUNCTION_FOREIGN`. الـ CI بيشغّله إلزامي قبل وبعد ومع محاولات زيادة.
 - **الرجوع:** بعد revert كود اللوحة، وبيرفض لو فيه أي صف `product_deleted` (forward-fix بس). المنتجات المحذوفة مابترجعش غير بالـ backup.
@@ -408,11 +374,13 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | `migrations/0022_product_delete_verify.sql` · `_rollback.sql` | التحقق (10 فحوص، منها جدول صلاحيات الدور كله والـ policies بتعبيراتها بالحرف، في أي وقت بعد التطبيق) · الرجوع |
 | `ci/0022_sql_ci.sh` · `ci/0022_flows.sql` | CI على Postgres 17 مؤقت والداتابيز مبنية من القايمة الصريحة + 0022: حراس الـ preflight · تحقق 0020 قبل وبعد · ptest · التطبيق · verify بالحرف ومحاولات التوسيع (N01–N05) · الرجوع لنفس حالة الـ catalog · السيناريوهات (F01–F25، بصمات محتوى) · التزامن بجلستين بالدوال الفعلية وبالـ DML (C01–C19 · P01–P08 · H01–H04) · مفيش 40P01 · رفض الرجوع بعد حذف |
 
-## ١٣) إزالة المخزون (0023 — INVENTORY-REMOVAL B) — مكتوب، ومش متطبّق على Production
+## ١٣) إزالة المخزون (0023 — INVENTORY-REMOVAL B)
+
+> **متطبّق ومتحقق منه على Production 2026-11-03** (من main `553a2d1`، بموافقة `owner-approval-2026-11-03-0023-inventory-removal`: ptest 5/5 · تطبيق 17:53 UTC · verify 4/4؛ العقد §٥-٣). المرحلة C: 0023 آخر سطر في `ci/build_from_scratch.list` (بسطر أعداد البناء الاصطناعي).
 
 - الملفات: `backend/db/migrations/0023_inventory_removal.sql` + `_ptest` + `_verify`، وCI `backend/db/ci/0023_sql_ci.sh` (job `sql-0023`). مفيش `_rollback` (العقد §٥-١: الرجوع = backup + الأرشيف `myzill-mini-erp`).
-- **بعد التطبيق بيتشال:** الجداول العشرة في §٢ (المخزون والمشتريات) والـ 4 sequences والـ policies، وكل دوال `zell_inv_*` في §٥ (68 على Production في قراية 2026-11-03)، والـ trigger `zinv_products_sale_unit` ودالته، والدور `zell_inventory_definer` في §١.
-- **بيتعدّل:** `zell_product_delete` و`zell_product_delete_preview` (0022): من غير فحص المخزون، والرد بنفس الشكل و`has_stock = false`؛ المالك والصلاحيات زي ما هم.
+- **اتشال:** الجداول العشرة في §٢ (المخزون والمشتريات) والـ 4 sequences والـ policies، وكل دوال `zell_inv_*` في §٥ (68 على Production في قراية 2026-11-03)، والـ trigger `zinv_products_sale_unit` ودالته، والدور `zell_inventory_definer` في §١.
+- **اتعدّل:** `zell_product_delete` و`zell_product_delete_preview` (0022): من غير فحص المخزون، والرد بنفس الشكل و`has_stock = false`؛ المالك والصلاحيات زي ما هم.
 - **الحراس:** جداول المخزون العشرة بتتقفل `access exclusive` قبل أول قراية بيانات (كتابة شغالة = تستنى وبعدين `ZELL_0023_DATA_CHANGED`) · أي دالة برّه المخزون بتنادي `zell_inv_*` = `ZELL_0023_SHAPE` (العقد §٥-١-ب).
-- لحد التطبيق، أقسام المخزون فوق بتوصف Production زي ما هي. بعد التطبيق والتحقق بتتحدّث في المرحلة C.
+- الأقسام فوق (§١ · §٢ · §٥ · §١٢) اتحدّثت في المرحلة C.
 
