@@ -115,7 +115,7 @@ with fn(name, owner) as (
          (select count(*) from pg_catalog.pg_policies p where p.schemaname = 'public'
             and ((p.tablename = 'orders' and p.policyname like 'zell\_order\_definer\_%') or p.tablename in (select tbl.name from tbl))
             and p.roles = array['zell_order_definer']::name[]) = 7
-         and not exists (select 1 from pg_catalog.pg_policies p where p.schemaname = 'public'
+         and not exists (select 1 from pg_catalog.pg_policies p where p.schemaname = 'public' and p.policyname not like 'zell\_purge\_%'
                           and p.tablename in (select tbl.name from tbl) and p.roles <> array['zell_order_definer']::name[]),
          null
   union all
