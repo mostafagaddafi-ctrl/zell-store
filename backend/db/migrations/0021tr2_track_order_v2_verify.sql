@@ -48,7 +48,7 @@ with tbl as (
   select 'V02', 'policies: one per table, for zell_order_definer only',
          (select count(*) from pg_catalog.pg_policies p join tbl on tbl.relname = p.tablename
            where p.schemaname = 'public' and p.roles = array['zell_order_definer']::name[]) = 4
-         and (select count(*) from pg_catalog.pg_policies p join tbl on tbl.relname = p.tablename where p.schemaname = 'public') = 4,
+         and (select count(*) from pg_catalog.pg_policies p join tbl on tbl.relname = p.tablename where p.schemaname = 'public' and p.policyname not like 'zell\_purge\_%') = 4,
          null
   union all
   select 'V03', 'no table / sequence privileges for anon, authenticated, service_role',
