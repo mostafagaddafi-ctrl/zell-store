@@ -96,7 +96,10 @@ fp_out() {
           from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname not like 'zell\_inv\_%'
            and p.proname not in ('zell_product_delete', 'zell_product_delete_preview')),
        (select pg_catalog.string_agg(c.relname || '=' || coalesce(c.relacl::text, '-'), ',' order by 1) from pg_catalog.pg_class c
-         where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'v', 'm', 'S') and c.relname not in ('inventory_locations','suppliers','purchase_docs','purchase_doc_lines','purchase_doc_charges','opening_stock_docs','opening_stock_lines','stock_lots','inventory_commands','inventory_audit_log', 'purchase_doc_no_seq','opening_doc_no_seq','roll_lot_seq','batch_lot_seq')),
+         where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'v', 'm', 'S') and c.relname not in ('inventory_locations','suppliers','purchase_docs','purchase_doc_lines','purchase_doc_charges','opening_stock_docs','opening_stock_lines','stock_lots','inventory_commands','inventory_audit_log', 'purchase_doc_no_seq','opening_doc_no_seq','roll_lot_seq','batch_lot_seq')
+           and not exists (select 1 from pg_catalog.pg_depend d join pg_catalog.pg_class t on t.oid = d.refobjid
+                            where d.classid = 'pg_catalog.pg_class'::regclass and d.objid = c.oid and d.refclassid = 'pg_catalog.pg_class'::regclass
+                              and t.relnamespace = 'public'::regnamespace and t.relname in ('inventory_locations','suppliers','purchase_docs','purchase_doc_lines','purchase_doc_charges','opening_stock_docs','opening_stock_lines','stock_lots','inventory_commands','inventory_audit_log'))),
        (select pg_catalog.string_agg(r.rolname, ',' order by 1) from pg_catalog.pg_roles r where r.rolname <> 'zell_inventory_definer'),
        (select pg_catalog.string_agg(c.relname || '.' || co.conname, ',' order by 1) from pg_catalog.pg_constraint co join pg_catalog.pg_class c on c.oid = co.conrelid
          where co.connamespace = 'public'::regnamespace and c.relname not in ('inventory_locations','suppliers','purchase_docs','purchase_doc_lines','purchase_doc_charges','opening_stock_docs','opening_stock_lines','stock_lots','inventory_commands','inventory_audit_log'))))
