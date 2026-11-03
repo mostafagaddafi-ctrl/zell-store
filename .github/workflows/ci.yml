@@ -768,3 +768,69 @@ jobs:
 
       - name: Build from scratch (explicit list) + compare + guard tests + smoke + call contract
         run: bash backend/db/ci/build_from_scratch.sh
+
+  sql-0023-changes:
+    name: "sql 0023 INVENTORY-REMOVAL: detect changes"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect 0023 SQL changes
+        id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$EVENT" = "pull_request" ]; then range="$BASE_SHA...HEAD"; else range="$BEFORE_SHA..HEAD"; fi
+          if ! changed=$(git diff --name-only "$range" 2>/dev/null); then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if printf '%s\n' "$changed" | grep -Eq '^(backend/db/migrations/0023_|backend/db/ci/0023_|backend/db/migrations/0022_|backend/db/migrations/0020|backend/db/ci/build_from_scratch\.list$|backend/db/ci/platform_|backend/db/ci/fixtures/|backend/db/baseline/|backend/db/schema\.sql$|backend/db/ci/0021p_txn_shape\.py$|\.github/workflows/ci\.yml$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Postgres 17 مؤقت. مفيش أي اتصال بـ Supabase. كلمة السر دي لحاوية مؤقتة بتتمسح مع نهاية الـ job.
+  sql-0023:
+    name: "sql 0023 INVENTORY-REMOVAL: build from list + guards + atomic + ptest + apply + verify + parity (postgres 17)"
+    needs: sql-0023-changes
+    if: needs.sql-0023-changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: public.ecr.aws/docker/library/postgres:17
+        env:
+          POSTGRES_USER: supabase_admin
+          POSTGRES_PASSWORD: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U supabase_admin"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGPASSWORD: ci
+      CI_SUPERUSER: supabase_admin
+      ZELL_CI_DISPOSABLE_DB: 'yes'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: psql client
+        run: psql --version
+
+      - name: SQL suite (0023 on a database built from the whole build_from_scratch.list)
+        run: bash backend/db/ci/0023_sql_ci.sh
