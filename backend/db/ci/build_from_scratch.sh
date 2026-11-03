@@ -25,6 +25,9 @@ LIST="$CI/build_from_scratch.list"
 SUPER="${CI_SUPERUSER:-supabase_admin}"
 DB=zell_baseline_ci
 APPROVED_LABEL=ci-baseline-build
+# 0023 run text (INVENTORY-REMOVAL phase C): the inventory data line of THIS synthetic build (0020 seeds the MAIN location only).
+# 0023 refuses any other line (ZELL_0023_DATA_CHANGED), so a build that drifts stops here instead of dropping unknown rows.
+BUILD_INV_EXPECTED='locations=1 suppliers=0 purchase_docs=0 purchase_doc_lines=0 purchase_doc_charges=0 opening_docs=0 opening_lines=0 stock_lots=0 commands=0 audit=0'
 TMP="$(mktemp -d)"
 LOG="${ZELL_CI_LOG_DIR:-$TMP}"
 mkdir -p "$LOG"
@@ -114,6 +117,12 @@ while IFS='|' read -r kind rel reason; do
     sed "0,/^begin;\$/s//begin;\nset local zell.approved_by = '$APPROVED_LABEL';/" "$f" > "$runf"
     grep -qx "set local zell.approved_by = '$APPROVED_LABEL';" "$runf" || stop "B $tag $rel" "approved_by run-text line not inserted"
     note=" (approved_by run text)"
+  fi
+  if [ "$kind" = "apply" ] && grep -q 'zell\.inv_expected' "$f"; then
+    [ "$runf" != "$f" ] || stop "B $tag $rel" "inv_expected without approved_by run text"
+    sed -i "0,/^begin;\$/s//begin;\nset local zell.inv_expected = '$BUILD_INV_EXPECTED';/" "$runf"
+    grep -qx "set local zell.inv_expected = '$BUILD_INV_EXPECTED';" "$runf" || stop "B $tag $rel" "inv_expected run-text line not inserted"
+    note="$note (inv_expected run text)"
   fi
   if pg_f "$DB" "$runf" > "$log" 2>&1; then
     record "B$tag $kind $rel$note" yes ""
