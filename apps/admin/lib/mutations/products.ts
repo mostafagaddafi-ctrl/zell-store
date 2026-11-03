@@ -2,13 +2,15 @@ import 'server-only'
 
 import type { AdminProduct } from '../adminData'
 import { restGet, restInsert, sentinelOf } from '../data/client'
-import { INVENTORY_ERRORS } from '../inventory/errors'
 import { toAdminProduct, type ProductRow } from '../data/rows'
 import type { MutationResult } from '../mutations'
 import { validateProduct, type ProductInput } from '../validation/product'
 import { flag, timestamp, wholeNumber, type ValidationFailure } from '../validation/shared'
 import { patchGuarded } from './concurrency'
 import { toInternalFailure } from './errors'
+
+/** نص 45217 بالحرف (كان INVENTORY_ERRORS.ZELL_INV_SALE_UNIT_LOCKED.message قبل INVENTORY-REMOVAL A). */
+const SALE_UNIT_LOCKED_MESSAGE = 'وحدة البيع اتقفلت لأن المنتج عليه مخزون أو مستندات مخزون.'
 
 const TABLE = 'products'
 
@@ -171,10 +173,10 @@ export async function saveProduct(input: ProductInput): Promise<MutationResult<A
     if (!row) return toInternalFailure(null)
     return { ok: true, data: toAdminProduct(row, await imageCount(id.value)) }
   } catch (error) {
-    // 0020: وحدة البيع بتتقفل بعد وجود مخزون أو مستندات مخزون للمنتج
+    // 0020: وحدة البيع بتتقفل بعد وجود مخزون أو مستندات مخزون للمنتج (لحد المرحلة B في INVENTORY-REMOVAL)
     // (trigger zinv_products_sale_unit · 45217) — رسالة واضحة بدل INTERNAL.
     if (sentinelOf(error) === 'ZELL_INV_SALE_UNIT_LOCKED') {
-      return { ok: false, code: 'CONFLICT', message: INVENTORY_ERRORS.ZELL_INV_SALE_UNIT_LOCKED.message }
+      return { ok: false, code: 'CONFLICT', message: SALE_UNIT_LOCKED_MESSAGE }
     }
     return toInternalFailure(error)
   }
