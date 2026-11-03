@@ -9,11 +9,11 @@ set transaction read only;
 set local statement_timeout = '30s';
 
 with checks(id, name, ok, detail) as (
-  select 'V01', 'role zell_purge_definer: NOLOGIN · NOBYPASSRLS · NOINHERIT · postgres member with SET only · no other membership',
+  select 'V01', 'role zell_purge_definer: NOLOGIN · NOBYPASSRLS · NOINHERIT · postgres member with SET (no INHERIT) · no other member · no membership of its own',
          exists (select 1 from pg_catalog.pg_roles r where r.rolname = 'zell_purge_definer' and not r.rolcanlogin and not r.rolbypassrls and not r.rolinherit and not r.rolsuper and not r.rolcreaterole)
-     and (select pg_catalog.count(*) from pg_catalog.pg_auth_members a where a.roleid = pg_catalog.to_regrole('zell_purge_definer')) = 1
-     and exists (select 1 from pg_catalog.pg_auth_members a where a.roleid = pg_catalog.to_regrole('zell_purge_definer') and pg_catalog.pg_get_userbyid(a.member) = 'postgres'
-                   and a.set_option and not a.inherit_option and not a.admin_option)
+     and exists (select 1 from pg_catalog.pg_auth_members a where a.roleid = pg_catalog.to_regrole('zell_purge_definer') and a.member = 'postgres'::regrole and a.set_option)
+     and not exists (select 1 from pg_catalog.pg_auth_members a where a.roleid = pg_catalog.to_regrole('zell_purge_definer')
+                       and (a.inherit_option or a.member <> 'postgres'::regrole))
      and not exists (select 1 from pg_catalog.pg_auth_members a where a.member = pg_catalog.to_regrole('zell_purge_definer')), null::text
   union all
   select 'V02', 'functions: exactly 8 zell_purge_* with md5 · owner · security definer · config',
