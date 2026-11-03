@@ -792,14 +792,15 @@ jobs:
           if [ "$EVENT" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           if [ "$EVENT" = "pull_request" ]; then range="$BASE_SHA...HEAD"; else range="$BEFORE_SHA..HEAD"; fi
           if ! changed=$(git diff --name-only "$range" 2>/dev/null); then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if printf '%s\n' "$changed" | grep -Eq '^(backend/db/migrations/0023_|backend/db/ci/0023_|backend/db/migrations/0022_|backend/db/migrations/0020|backend/db/ci/build_from_scratch\.list$|backend/db/ci/platform_|backend/db/ci/fixtures/|backend/db/baseline/|backend/db/schema\.sql$|backend/db/ci/0021p_txn_shape\.py$|\.github/workflows/ci\.yml$)'; then
+          # مراجعة #195 B3: الـ suite بقت بتشغّل الـ 9 verify الموجودة (كل migrations) وعقد الاستدعاء (call_contract + apps/) بعد 0023، لحد المرحلة C.
+          if printf '%s\n' "$changed" | grep -Eq '^(backend/db/migrations/|backend/db/ci/0023_|backend/db/ci/call_contract|apps/|backend/db/ci/build_from_scratch\.list$|backend/db/ci/platform_|backend/db/ci/fixtures/|backend/db/baseline/|backend/db/schema\.sql$|backend/db/ci/0021p_txn_shape\.py$|\.github/workflows/ci\.yml$)'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
           fi
 
   sql-0023:
-    name: "sql 0023 INVENTORY-REMOVAL: build from list + guards + atomic + ptest + apply + verify + parity (postgres 17)"
+    name: "sql 0023 INVENTORY-REMOVAL: build from list + guards + concurrency + atomic + ptest + apply + verify + existing verifies + call contract + parity (postgres 17)"
     needs: sql-0023-changes
     if: needs.sql-0023-changes.outputs.run == 'true'
     runs-on: ubuntu-latest
@@ -821,6 +822,12 @@ jobs:
 
       - name: psql client
         run: psql --version
+
+      # Node لـ K01 (call_contract.mjs، من غير أي dependency) — زي sql-0022.
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       - name: SQL suite (0023 on a database built from the whole build_from_scratch.list)
         run: bash backend/db/ci/0023_sql_ci.sh
