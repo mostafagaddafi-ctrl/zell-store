@@ -15,6 +15,12 @@
 --   بالحرف. بعد الإزالة مفيش مفتاح من المخزون على products، فالمسار ده مش متوقع النهارده، لكنه مش مستحيل لو اتضاف مفتاح جديد بعدين.
 -- • الـ postflight بيقارن بصمة كل حاجة برّه المخزون (جداول وأعمدة وصلاحيات ودوال وpolicies وقيود وtriggers وأدوار وعضويات) قبل/بعد،
 --   وأعداد صفوف المنتجات والطلبات والإعدادات والأدمن قبل/بعد، وخصائص دالتين الحذف قبل/بعد.
+-- • القفل (مراجعة #195 B1): جوه الـ preflight، بعد فحص المتصل والموافقة و«مش متطبّق» وقبل أول قراية بيانات، جداول المخزون
+--   العشرة بتتقفل access exclusive لحد آخر المعاملة. أي كتابة شغالة عليهم لازم تخلص الأول، والأعداد بتتقرا بعدها (كل جملة بلقطة
+--   جديدة)، فصف اتضاف واتعمله commit وإحنا مستنيين = ZELL_0023_DATA_CHANGED. ولو القفل ماتاخدش في lock_timeout (5s) = خطأ ومفيش تغيير.
+-- • النداءات (مراجعة #195 B2): plpgsql مابيسجّلش اعتماد على الدوال اللي بينادِيها، فـ drop مش هيمنعها. أي دالة في أي schema
+--   (غير pg_catalog و information_schema، وغير zell_inv_* في public ودالتين الحذف اللي بيتبدّلوا هنا) جسمها فيه \mzell_inv_
+--   (من غير فرق حروف كبيرة/صغيرة) = ZELL_0023_SHAPE. وبعد الإزالة أي دالة فيها الاسم ده = ZELL_0023_POST_SHAPE.
 -- ⚠ Production بموافقة صريحة لكل خطوة: ptest ← backup كامل ← تطبيق ← verify.
 
 begin;
@@ -41,6 +47,10 @@ begin
   if v_role is null or pg_catalog.to_regclass('public.stock_lots') is null then
     raise exception 'ZELL_0023_ALREADY_APPLIED';
   end if;
+  -- قفل جداول المخزون العشرة قبل أول قراية بيانات (لحد آخر المعاملة): أي كتابة شغالة تخلص الأول، والأعداد تحت بتتقرا بعدها.
+  lock table public.inventory_locations, public.suppliers, public.purchase_docs, public.purchase_doc_lines, public.purchase_doc_charges,
+             public.opening_stock_docs, public.opening_stock_lines, public.stock_lots, public.inventory_commands, public.inventory_audit_log
+    in access exclusive mode;
   if v_del is null or v_pre is null
      or (select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p where p.oid = v_del) <> '4aa0deeeb83feb653b9e363c2d418330'
      or (select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p where p.oid = v_pre) <> '1396940b24ae2b4e5fa8c96a2ef00ea7'
@@ -84,7 +94,12 @@ begin
      or exists (select 1 from pg_catalog.pg_auth_members m where m.roleid = v_role and pg_catalog.pg_get_userbyid(m.member) <> 'postgres')
      or exists (select 1 from pg_catalog.pg_default_acl d where d.defaclrole = v_role)
      or exists (select 1 from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname not like 'zell\_inv\_%'
-                 and p.prosrc ~ '\m(inventory_locations|suppliers|purchase_docs|purchase_doc_lines|purchase_doc_charges|opening_stock_docs|opening_stock_lines|stock_lots|inventory_commands|inventory_audit_log)\M') then
+                 and p.prosrc ~ '\m(inventory_locations|suppliers|purchase_docs|purchase_doc_lines|purchase_doc_charges|opening_stock_docs|opening_stock_lines|stock_lots|inventory_commands|inventory_audit_log)\M')
+     or exists (select 1 from pg_catalog.pg_proc p
+                 where p.pronamespace not in ('pg_catalog'::regnamespace, 'information_schema'::regnamespace)
+                   and not (p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_inv\_%')
+                   and p.oid not in (v_del, v_pre)
+                   and p.prosrc ~* '\mzell_inv_') then
     raise exception 'ZELL_0023_SHAPE';
   end if;
   perform pg_catalog.set_config('zell.t23_fp', pg_catalog.md5(pg_catalog.concat_ws('|',
@@ -372,6 +387,7 @@ begin
      or exists (select 1 from pg_catalog.pg_trigger t where t.tgrelid = 'public.products'::regclass and t.tgname = 'zinv_products_sale_unit')
      or exists (select 1 from pg_catalog.pg_policies p where p.schemaname = 'public' and p.policyname like 'zinv\_%')
      or exists (select 1 from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.prosrc ~ '\m(inventory_locations|suppliers|purchase_docs|purchase_doc_lines|purchase_doc_charges|opening_stock_docs|opening_stock_lines|stock_lots|inventory_commands|inventory_audit_log)\M')
+     or exists (select 1 from pg_catalog.pg_proc p where p.pronamespace not in ('pg_catalog'::regnamespace, 'information_schema'::regnamespace) and p.prosrc ~* '\mzell_inv_')
      or (select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure('public.zell_product_delete(integer, timestamp with time zone)')) is distinct from '84b80a92c3c413433a71d80300bd5418'
      or (select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure('public.zell_product_delete_preview(integer)')) is distinct from '39cf41edb6e8a5fcee5ea9e35081a0b5'
      or (select pg_catalog.pg_get_userbyid(p.proowner) || '/' || p.prosecdef::text || '/' || p.provolatile::text || '/' || coalesce(p.proconfig::text, '-') || '/' || coalesce(p.proacl::text, '-')
