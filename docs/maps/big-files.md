@@ -25,7 +25,7 @@
 | `backend/db/ci/0021tr_sql_ci.sh` | 22 KB | 313 | اختبارات SQL لـ 0021-TR W1 في CI فوق شكل Production (S0–S5: الشكل · ptest · تطبيق · verify · الرد بالسبع حالات والموعد والسطور ومن غير بيانات عميل · null للشكل الغلط · الصلاحيات · rollback · حراس الـ preflight) |
 | `backend/db/ci/0022_sql_ci.sh` | 59 KB | 741 | اختبارات SQL لـ 0022 PRODUCT-DELETE في CI على داتابيز مبنية من القايمة لحد قبل 0022 (حراس الـ preflight · تحقق 0020 قبل وبعد · ptest · تطبيق · verify ومحاولات التوسيع · الأثر · الرجوع · عقد الاستدعاء · السيناريوهات · التزامن) |
 | `backend/db/ci/0023_sql_ci.sh` | 28 KB | 349 | اختبارات SQL لـ 0023 INVENTORY-REMOVAL B في CI على داتابيز مبنية من القايمة لحد قبل 0023 (S0 · B01–B02 · X01 · P01 · E01 · G01–G05 · C01–C02 · Z01 · T01–T02 · A01–A05 · E02 · K01 · R01) |
-| `backend/db/ci/0024_sql_ci.sh` | 45 KB | 524 | اختبارات SQL لـ 0024 ORDER-DELETE B في CI على داتابيز مبنية من القايمة كلها (S0 · B01 · E01 · T01–T02 · G01–G02 · Z01 · A01–A05 · E02 · K01 · RB1–RB2 · R01 · X01 · F01–F17 · C01–C06) |
+| `backend/db/ci/0024_sql_ci.sh` | 45 KB | 512 | اختبارات SQL لـ 0024 ORDER-DELETE B في CI على داتابيز مبنية من القايمة كلها (S0 · B01 · E01 · T01–T02 · G01–G02 · Z01 · A01–A05 · E02 · K01 · RB1–RB2 · R01 · X01 · F01–F17 · C01–C06) |
 | `backend/db/migrations/0006b_order_functions.sql` | 38 KB | 765 | دور `zell_order_writer` وأول نسخة من `zell_create_order` و`zell_get_order_receipt` |
 | `backend/db/migrations/0006c_order_receipt_expiry.sql` | 23 KB | 504 | `zell_create_order` بترجّع `receipt_expires_at` |
 | `backend/db/migrations/0015_product_widths.sql` | 21 KB | 463 | عروض الرول (`product_widths`) + `zell_create_order` |
@@ -1789,7 +1789,7 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 
 ## `backend/db/ci/0024_sql_ci.sh`
 
-اختبارات SQL لـ 0024 ORDER-DELETE B في CI على داتابيز مبنية من القايمة كلها (S0 · B01 · E01 · T01–T02 · G01–G02 · Z01 · A01–A05 · E02 · K01 · RB1–RB2 · R01 · X01 · F01–F17 · C01–C06) · 524 سطر
+اختبارات SQL لـ 0024 ORDER-DELETE B في CI على داتابيز مبنية من القايمة كلها (S0 · B01 · E01 · T01–T02 · G01–G02 · Z01 · A01–A05 · E02 · K01 · RB1–RB2 · R01 · X01 · F01–F17 · C01–C06) · 512 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -1810,33 +1810,33 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 69 | with_appr() { sed "0,/^begin;\$/s//begin;\nset local zell.approved_by = '$2';/" "$1"; } |
 | 70 | run_appr() { with_appr "$1" "$2" \| psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f - > "$3" 2>&1; } |
 | 71 | state() { |
-| 78 | fp_out() { |
-| 102 | claims() { printf '{"sub":"%s","role":"authenticated","session_id":"%s"}' "$1" "$2"; } |
-| 103 | as_user() { |
-| 107 | srv() { |
-| 111 | issue() { |
-| 117 | pv() { as_user "$OWNER_ID" "$SESS" "select (x.p ->> 'ids_hash') \|\| '\|' \|\| (x.p ->> 'snapshot_hash') \|\| '\|' \|\| (x.p ->> 'count') from (select public.zell_purge_preview($1) as p) x"; } |
-| 118 | purge() { as_user "$OWNER_ID" "${5:-$SESS}" "select public.zell_purge_orders($1, '$2', $3, '$4'::uuid)::text"; } |
-| 119 | oid_of() { q "select o.id from public.orders o where o.order_number = '$1'"; } |
-| 120 | f1() { printf '%s' "$1" \| cut -d'\|' -f1; } |
-| 121 | f2() { printf '%s' "$1" \| cut -d'\|' -f2; } |
-| 122 | f3() { printf '%s' "$1" \| cut -d'\|' -f3; } |
-| 123 | reset_attempts() { su_q "$DB" -c "delete from public.zell_purge_attempts" > /dev/null 2>&1; } |
-| 124 | now_ms() { date +%s%3N; } |
-| 125 | wait_app() { |
-| 136 | verifies() { |
-| 147 | verifies_pass() { [ "$(grep -c . "$TMP/ver_$1.txt")" = "9" ] && ! grep -qvE ' rc=0 verdict=PASS checks=[1-9][0-9]*$' "$TMP/ver_$1.txt"; } |
-| 148 | verifies_detail() { |
-| 156 | # ---- 1) فحوص ثابتة ---- |
-| 168 | # ---- 2) بناء الداتابيز من القايمة الصريحة كلها ---- |
-| 196 | # ---- 3) قبل التطبيق: الـ 9 verify · ptest · الحراس · الرجوع الكامل ---- |
-| 218 | # ---- 4) التطبيق ---- |
-| 254 | # ---- 5) بيانات CI ---- |
-| 299 | # ---- 6) السيناريوهات ---- |
-| 439 | # ---- 7) جلستين ---- |
-| 440 | bg_purge() { # $1 ids $2 snap $3 count $4 ticket $5 out $6 app |
-| 460 | holder() { # $1 table $2 out $3 app |
-| 516 | # ---- 8) الرجوع بعد مسح فعلي · verify ---- |
+| 79 | fp_out() { |
+| 90 | claims() { printf '{"sub":"%s","role":"authenticated","session_id":"%s"}' "$1" "$2"; } |
+| 91 | as_user() { |
+| 95 | srv() { |
+| 99 | issue() { |
+| 105 | pv() { as_user "$OWNER_ID" "$SESS" "select (x.p ->> 'ids_hash') \|\| '\|' \|\| (x.p ->> 'snapshot_hash') \|\| '\|' \|\| (x.p ->> 'count') from (select public.zell_purge_preview($1) as p) x"; } |
+| 106 | purge() { as_user "$OWNER_ID" "${5:-$SESS}" "select public.zell_purge_orders($1, '$2', $3, '$4'::uuid)::text"; } |
+| 107 | oid_of() { q "select o.id from public.orders o where o.order_number = '$1'"; } |
+| 108 | f1() { printf '%s' "$1" \| cut -d'\|' -f1; } |
+| 109 | f2() { printf '%s' "$1" \| cut -d'\|' -f2; } |
+| 110 | f3() { printf '%s' "$1" \| cut -d'\|' -f3; } |
+| 111 | reset_attempts() { su_q "$DB" -c "delete from public.zell_purge_attempts" > /dev/null 2>&1; } |
+| 112 | now_ms() { date +%s%3N; } |
+| 113 | wait_app() { |
+| 124 | verifies() { |
+| 135 | verifies_pass() { [ "$(grep -c . "$TMP/ver_$1.txt")" = "9" ] && ! grep -qvE ' rc=0 verdict=PASS checks=[1-9][0-9]*$' "$TMP/ver_$1.txt"; } |
+| 136 | verifies_detail() { |
+| 144 | # ---- 1) فحوص ثابتة ---- |
+| 156 | # ---- 2) بناء الداتابيز من القايمة الصريحة كلها ---- |
+| 184 | # ---- 3) قبل التطبيق: الـ 9 verify · ptest · الحراس · الرجوع الكامل ---- |
+| 206 | # ---- 4) التطبيق ---- |
+| 242 | # ---- 5) بيانات CI ---- |
+| 287 | # ---- 6) السيناريوهات ---- |
+| 427 | # ---- 7) جلستين ---- |
+| 428 | bg_purge() { # $1 ids $2 snap $3 count $4 ticket $5 out $6 app |
+| 448 | holder() { # $1 table $2 out $3 app |
+| 504 | # ---- 8) الرجوع بعد مسح فعلي · verify ---- |
 
 ## `backend/db/migrations/0023_inventory_removal_ptest.sql`
 
