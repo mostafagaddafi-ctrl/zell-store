@@ -1,0 +1,107 @@
+# ONE-SHOT (INVENTORY-REMOVAL A): deletes the 74 archived inventory files and this workflow itself, then exits.
+# Runs only on a push to feat/inventory-removal-a that touches this file. Never on main.
+name: tmp inventory removal A (one-shot)
+on:
+  push:
+    branches: [feat/inventory-removal-a]
+    paths: [".github/workflows/tmp-inventory-removal-a.yml"]
+permissions:
+  contents: write
+jobs:
+  remove:
+    if: github.ref == 'refs/heads/feat/inventory-removal-a'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/inventory-removal-a
+      - name: Delete the 74 archived files (list = myzill-mini-erp MANIFEST cdc8107, apps/admin part) and this workflow
+        run: |
+          set -euo pipefail
+          cat > /tmp/del.txt <<'LIST'
+          apps/admin/app/(dashboard)/inventory/lots/page.tsx
+          apps/admin/app/(dashboard)/inventory/openings/[id]/page.tsx
+          apps/admin/app/(dashboard)/inventory/openings/new/page.tsx
+          apps/admin/app/(dashboard)/inventory/openings/page.tsx
+          apps/admin/app/(dashboard)/inventory/purchases/[id]/page.tsx
+          apps/admin/app/(dashboard)/inventory/purchases/new/page.tsx
+          apps/admin/app/(dashboard)/inventory/purchases/page.tsx
+          apps/admin/app/(dashboard)/inventory/suppliers/page.tsx
+          apps/admin/components/inventory/CollapsibleSection.tsx
+          apps/admin/components/inventory/DocListToolbar.tsx
+          apps/admin/components/inventory/EditorBlocked.tsx
+          apps/admin/components/inventory/InvStatusBadge.tsx
+          apps/admin/components/inventory/InventoryActionBar.tsx
+          apps/admin/components/inventory/InventoryLineCard.tsx
+          apps/admin/components/inventory/LineCostSummary.tsx
+          apps/admin/components/inventory/LinkCheckbox.tsx
+          apps/admin/components/inventory/OpeningEditor.tsx
+          apps/admin/components/inventory/OpeningPanels.tsx
+          apps/admin/components/inventory/OpeningView.tsx
+          apps/admin/components/inventory/ProductPicker.tsx
+          apps/admin/components/inventory/PurchaseChargesEditor.tsx
+          apps/admin/components/inventory/PurchaseEditor.tsx
+          apps/admin/components/inventory/PurchaseLinesEditor.tsx
+          apps/admin/components/inventory/PurchasePreviewPanel.tsx
+          apps/admin/components/inventory/PurchaseView.tsx
+          apps/admin/components/inventory/ReasonDialog.tsx
+          apps/admin/components/inventory/SupplierForm.tsx
+          apps/admin/components/inventory/SuppliersList.tsx
+          apps/admin/components/inventory/UnresolvedNotice.tsx
+          apps/admin/components/inventory/UnsavedChangesGuard.tsx
+          apps/admin/components/inventory/VoidPurchaseAction.tsx
+          apps/admin/lib/client/useInventoryIntent.ts
+          apps/admin/lib/client/useLineCards.ts
+          apps/admin/lib/client/usePreview.ts
+          apps/admin/lib/data/inventory.ts
+          apps/admin/lib/data/inventoryEditor.ts
+          apps/admin/lib/data/inventoryOpenings.ts
+          apps/admin/lib/data/inventoryPurchases.ts
+          apps/admin/lib/inventory/catalog.ts
+          apps/admin/lib/inventory/docList.cases.ts
+          apps/admin/lib/inventory/docList.ts
+          apps/admin/lib/inventory/errors.ts
+          apps/admin/lib/inventory/ids.ts
+          apps/admin/lib/inventory/intent.ts
+          apps/admin/lib/inventory/inventory.cases.ts
+          apps/admin/lib/inventory/labels.ts
+          apps/admin/lib/inventory/lineIssues.ts
+          apps/admin/lib/inventory/lots.ts
+          apps/admin/lib/inventory/money.ts
+          apps/admin/lib/inventory/navigation.ts
+          apps/admin/lib/inventory/opening.cases.ts
+          apps/admin/lib/inventory/openingForm.ts
+          apps/admin/lib/inventory/openings.ts
+          apps/admin/lib/inventory/previewTracker.ts
+          apps/admin/lib/inventory/pricing.ts
+          apps/admin/lib/inventory/productSearch.ts
+          apps/admin/lib/inventory/purchase.cases.ts
+          apps/admin/lib/inventory/purchaseDuplicate.cases.ts
+          apps/admin/lib/inventory/purchaseDuplicate.ts
+          apps/admin/lib/inventory/purchaseForm.ts
+          apps/admin/lib/inventory/purchases.ts
+          apps/admin/lib/inventory/rpc.ts
+          apps/admin/lib/inventory/sentinels.ts
+          apps/admin/lib/inventory/session.cases.ts
+          apps/admin/lib/inventory/sessionCall.ts
+          apps/admin/lib/inventory/suppliers.ts
+          apps/admin/lib/inventory/ui.cases.ts
+          apps/admin/lib/inventory/writeLock.ts
+          apps/admin/lib/inventory/writeResults.ts
+          apps/admin/lib/inventoryActions.ts
+          apps/admin/lib/mutations/inventory.ts
+          apps/admin/lib/mutations/inventoryOpenings.ts
+          apps/admin/lib/mutations/inventoryPurchases.ts
+          apps/admin/scripts/check-inventory-session.mjs
+          LIST
+          test "$(wc -l < /tmp/del.txt)" -eq 74
+          while IFS= read -r f; do git rm -q -- "$f"; done < /tmp/del.txt
+          git rm -q -- .github/workflows/tmp-inventory-removal-a.yml
+          test "$(git diff --cached --name-only --diff-filter=D | wc -l)" -eq 75
+          test "$(git diff --cached --name-only --diff-filter=AM | wc -l)" -eq 0
+          if git ls-files apps/admin | grep -i inventory; then echo "LEFTOVER"; exit 1; fi
+          if git ls-files apps/admin | grep -E "usePreview|useLineCards"; then echo "LEFTOVER"; exit 1; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "admin: delete the 74 archived inventory files (INVENTORY-REMOVAL A)" -m "Exactly the apps/admin entries of myzill-mini-erp MANIFEST.txt (commit cdc8107), same blob SHAs as tag pre-inventory-removal. Also removes the one-shot workflow that made this commit."
+          git push origin HEAD:feat/inventory-removal-a
