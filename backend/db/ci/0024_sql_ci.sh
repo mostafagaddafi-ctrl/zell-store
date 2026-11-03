@@ -77,7 +77,8 @@ state() {
 # بصمة مستقلة لكل حاجة برّه الكائنات الجديدة والحراس التلاتة (الدوال · منح الجداول والأعمدة من غير الدور الجديد · الأدوار · الـ policies · الـ triggers · القيود · الصفوف).
 fp_out() {
   q "select pg_catalog.md5(pg_catalog.concat_ws('|',
-       (select pg_catalog.string_agg(p.oid::regprocedure::text || '=' || coalesce(p.proacl::text, '-') || '=' || pg_catalog.md5(p.prosrc) || '=' || pg_catalog.pg_get_userbyid(p.proowner), ',' order by 1)
+       (select pg_catalog.string_agg(p.oid::regprocedure::text || '=' || coalesce((select pg_catalog.string_agg(case when x.grantee = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(x.grantee) end || ':' || x.privilege_type, ',' order by 1)
+                                                                                    from pg_catalog.aclexplode(p.proacl) x where x.grantee = 0 or pg_catalog.pg_get_userbyid(x.grantee) <> 'zell_purge_definer'), '-') || '=' || pg_catalog.md5(p.prosrc) || '=' || pg_catalog.pg_get_userbyid(p.proowner), ',' order by 1)
           from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname not like 'zell\_purge\_%'
            and p.proname not in ('zell_payment_trg_append_only', 'zell_shipment_trg_append_only', 'zell_customer_update_trg_append_only')),
        (select pg_catalog.string_agg(c.relname || '=' || coalesce((select pg_catalog.string_agg(case when x.grantee = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(x.grantee) end || ':' || x.privilege_type, ',' order by 1)
