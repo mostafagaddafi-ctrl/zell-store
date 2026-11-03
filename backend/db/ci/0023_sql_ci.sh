@@ -5,6 +5,9 @@
 # أعداد غلط · متصل غلط) والحالة مابتتغيّرش · رجوع المعاملة كلها لو حصل خطأ في آخرها · ptest قبل التطبيق ومابيسيبش أثر · التطبيق ·
 # verify 0023 · ثبات كل حاجة برّه المخزون (بصمة + صفوف) · رد معاينة وحذف المنتج قبل = بعد بالحرف · verify 0022 بعد: الفاشل بس
 # فحوص المخزون (تاريخية، مابتتعدّلش) · رفض الإعادة.
+# ومراجعة #195: التزامن (C01 كتابة بتخلص وإحنا مستنيين القفل = DATA_CHANGED والصف بيفضل · C02 قفل أطول من lock_timeout = خطأ ومفيش
+# تغيير) · دالة برّه المخزون بتنادي zell_inv_* = SHAPE (G05) · الـ 9 verify الموجودة قبل وبعد (E01 · E02: PASS ونفس متجه check_id=ok) ·
+# عقد استدعاء التطبيقات على الداتابيز بعد 0023 (K01).
 # ممنوع يتشغّل على أي داتابيز غير الحاوية المؤقتة.
 set -uo pipefail
 
@@ -31,7 +34,7 @@ PASS=0
 FAIL=0
 SEEN=" "
 OWNER_ID='00000000-0000-4000-8000-0000000000b1'
-EXPECTED="S01 S02 S03 B01 B02 X01 P01 G01 G02 G03 G04 Z01 T01 T02 A01 A02 A03 A04 A05 R01"
+EXPECTED="S01 S02 S03 B01 B02 X01 P01 E01 G01 G02 G03 G04 G05 C01 C02 Z01 T01 T02 A01 A02 A03 A04 A05 E02 K01 R01"
 BEFORE_STATE='1|68|10|4aa0deeeb83feb653b9e363c2d418330|1'
 AFTER_STATE='0|0|0|84b80a92c3c413433a71d80300bd5418|0'
 
@@ -115,6 +118,50 @@ owner_call() {
     | psql -X -q -tA -v ON_ERROR_STOP=1 -U postgres -d "$DB" -f - 2>&1 | grep -v '^$' | tail -n 1
 }
 
+# ---- مساعدات مراجعة #195 ----
+# B3: الـ 9 verify الموجودة. الوسم:الملف:عمود الـ verdict في صف الملخص (0021-P: العمود 11 والفحص pass/fail؛ الباقي العمود 7 و t/f).
+VLIST="A1:0021a_a1_order_cycle_verify.sql:7 D:0021d_preferred_delivery_verify.sql:7 P1:0021a_p1_payments_verify.sql:7 P2:0021a_p2_checkout_fee_verify.sql:7 D2:0021d2_delivery_settings_verify.sql:7 TR:0021tr_track_order_verify.sql:7 TR2:0021tr2_track_order_v2_verify.sql:7 EX:0021ex_express_shipping_verify.sql:7 0021-P:0021p_access_verify.sql:11"
+US="$(printf '\037')"
+# بيشغّلهم بـ postgres زي Production (فاصل الأعمدة \037 لأن الأسماء والتفاصيل ممكن يبقى فيها |). لكل واحد سطر: الوسم · rc · verdict · عدد
+# الفحوص، ومتجه check_id=ok (العمود 3 = العمود 5) بالترتيب في $TMP/vec_<المرحلة>_<الوسم>.
+verifies() {
+  local phase=$1 item tag f col out rc verdict
+  : > "$TMP/ver_$phase.txt"
+  for item in $VLIST; do
+    tag=${item%%:*}; f=$(printf '%s' "$item" | cut -d: -f2); col=${item##*:}; out="$TMP/ver_${phase}_$tag.out"
+    psql -X -q -tA -F "$US" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$MIG/$f" < /dev/null > "$out" 2>&1; rc=$?
+    verdict=$(awk -F "$US" -v c="$col" '$1 == "0" && $2 == "summary" {print $c}' "$out")
+    awk -F "$US" '$1 ~ /^[0-9]+$/ && $1 != "0" && $2 == "check" {print $3 "=" $5}' "$out" > "$TMP/vec_${phase}_$tag"
+    printf '%s rc=%s verdict=%s checks=%s\n' "$tag" "$rc" "${verdict:--}" "$(grep -c . "$TMP/vec_${phase}_$tag")" >> "$TMP/ver_$phase.txt"
+  done
+}
+verifies_pass() { [ "$(grep -c . "$TMP/ver_$1.txt")" = "9" ] && ! grep -qvE ' rc=0 verdict=PASS checks=[1-9][0-9]*$' "$TMP/ver_$1.txt"; }
+verifies_detail() {
+  local t
+  tr '\n' ' ' < "$TMP/ver_$1.txt"
+  for t in $(grep -vE ' rc=0 verdict=PASS checks=[1-9][0-9]*$' "$TMP/ver_$1.txt" | cut -d' ' -f1); do
+    printf '[%s fail: %s %s] ' "$t" "$(awk -F "$US" '$2 == "check" && ($5 == "f" || $5 == "fail") {print $3}' "$TMP/ver_${1}_$t.out" | tr '\n' ',')" "$(tailof "$TMP/ver_${1}_$t.out" | tr "$US" '|')"
+  done
+}
+# B1: جلسة كتابة تانية في الخلفية (superuser بـ replica زي X01): بتضيف مورد ($1)، تستنى ($2 ثانية)، وبعدين $3 (commit أو rollback).
+holder() {
+  printf '%s\n' "set session_replication_role = replica;" "begin;" \
+    "insert into public.suppliers (name, name_key, created_by, updated_by) values ('$1', '$(printf '%s' "$1" | tr 'A-Z' 'a-z')', '$OWNER_ID', '$OWNER_ID');" \
+    "select pg_catalog.pg_sleep($2);" "$3;" \
+    | PGAPPNAME=ci0023_holder psql -X -q -tA -v ON_ERROR_STOP=1 -U "$SUPER" -d "$DB" -f - > "$4" 2>&1
+}
+# لحد ما الجلسة التانية تمسك قفل الكتابة بتاعها على suppliers (أقصى 10 ثواني).
+wait_holder() {
+  local i=0
+  while [ "$i" -lt 50 ]; do
+    [ "$(su_q "$DB" -c "select pg_catalog.count(*) from pg_catalog.pg_locks l join pg_catalog.pg_stat_activity a on a.pid = l.pid
+                         where a.application_name = 'ci0023_holder' and l.relation = 'public.suppliers'::regclass and l.mode = 'RowExclusiveLock' and l.granted")" = "1" ] && return 0
+    sleep 0.2; i=$((i + 1))
+  done
+  return 1
+}
+now_ms() { date +%s%3N; }
+
 # ---- 1) فحوص ثابتة ----
 if python3 "$SHAPE" --selftest > "$TMP/shape_self.out" 2>&1 && python3 "$SHAPE" "$PTEST" "$VERIFY" > "$TMP/shape.out" 2>&1; then ok=yes; else ok=no; fi
 record "S01 transaction shape: ptest / verify = begin ... one SELECT ... rollback (checker self-test first)" "$ok" "$(tailof "$TMP/shape.out") $(tailof "$TMP/shape_self.out")"
@@ -182,6 +229,11 @@ printf '%s' "$PV1" | grep -q '"has_stock": false' && printf '%s' "$PV2" | grep -
 record "P01 owner preview + delete (rolled back) before 0023: has_stock false, in_home, deleted, removed_from_home" "$ok" "pv1=$PV1 pv2=$PV2 dl1=$DL1 dl2=$DL2"
 FP0=$(fp_out)
 
+# ---- 4ب) الـ 9 verify الموجودة قبل 0023 (مراجعة #195 B3) ----
+verifies before
+ok=no; verifies_pass before && ok=yes
+record "E01 the 9 existing verifies before 0023 (A1 · D · P1 · P2 · D2 · TR · TR2 · EX · 0021-P strict) = PASS" "$ok" "$(verifies_detail before)"
+
 # ---- 5) حراس الـ preflight (كلهم قبل التطبيق، والحالة مابتتغيّرش) ----
 run_with "$APPLY" "" "$EXP" "$TMP/g1.out"
 ok=no; has "$TMP/g1.out" 'ZELL_0023_APPROVAL_MISSING' && [ "$(state)" = "$BEFORE_STATE" ] && ok=yes
@@ -195,6 +247,44 @@ record "G03 apply with a different expected-data line -> ZELL_0023_DATA_CHANGED,
 run_with "$APPLY" "ci-0023" "$EXP" "$TMP/g4.out" "set local role service_role;"
 ok=no; has "$TMP/g4.out" 'ZELL_0023_WRONG_CALLER' && [ "$(state)" = "$BEFORE_STATE" ] && ok=yes
 record "G04 apply by another role -> ZELL_0023_WRONG_CALLER, nothing changed" "$ok" "$(tailof "$TMP/g4.out")"
+
+# ---- 5ب) نداء zell_inv_* من دالة برّه المخزون (مراجعة #195 B2) ----
+su_q "$DB" -c "create function public.ci_0023_calls_inv() returns boolean language plpgsql as \$g5\$ begin return public.zell_inv_product_stock_ref_exists(1); end \$g5\$" > "$TMP/g5c.log" 2>&1
+run_with "$APPLY" "ci-0023" "$EXP" "$TMP/g5.out"
+st=$(state)
+su_q "$DB" -c "drop function public.ci_0023_calls_inv()" >> "$TMP/g5c.log" 2>&1
+ok=no; has "$TMP/g5.out" 'ZELL_0023_SHAPE' && [ "$st" = "$BEFORE_STATE" ] && [ "$(fp_out)" = "$FP0" ] && ok=yes
+record "G05 a plpgsql function outside inventory calls zell_inv_* (no dependency recorded) -> ZELL_0023_SHAPE, nothing changed; then dropped" "$ok" "state=$st $(tailof "$TMP/g5c.log") $(tailof "$TMP/g5.out")"
+
+# ---- 5ج) التزامن (مراجعة #195 B1): قفل الجداول العشرة قبل أول قراية بيانات ----
+holder "CI supplier 0023 C01" 3 commit "$TMP/c1h.out" &
+hp=$!
+if wait_holder; then
+  t0=$(now_ms); run_with "$APPLY" "ci-0023" "$EXP" "$TMP/c1.out"; t1=$(now_ms)
+  wait "$hp"; hrc=$?
+  st=$(state); fp=$(fp_out)
+  kept=$(su_q "$DB" -c "select pg_catalog.count(*) from public.suppliers where name_key = 'ci supplier 0023 c01'")
+  su_q "$DB" -c "set session_replication_role = replica" -c "delete from public.suppliers where name_key = 'ci supplier 0023 c01'" > "$TMP/c1c.log" 2>&1
+  ok=no
+  has "$TMP/c1.out" 'ZELL_0023_DATA_CHANGED' && has "$TMP/c1.out" ' suppliers=2 ' && [ "$hrc" -eq 0 ] && [ "$kept" = "1" ] && [ $((t1 - t0)) -ge 1500 ] \
+    && [ "$st" = "$BEFORE_STATE" ] && [ "$fp" = "$FP0" ] && [ "$(data_line)" = "$EXP" ] && ok=yes
+  record "C01 a supplier insert in flight commits while apply waits on the preflight lock ($((t1 - t0)) ms) -> ZELL_0023_DATA_CHANGED (suppliers=2); the supplier is kept, nothing changed" "$ok" "holder_rc=$hrc kept=$kept state=$st $(tailof "$TMP/c1.out") $(tailof "$TMP/c1h.out") $(tailof "$TMP/c1c.log")"
+else
+  wait "$hp"; record "C01 a supplier insert in flight" no "the second session never took its lock: $(tailof "$TMP/c1h.out")"
+fi
+holder "CI supplier 0023 C02" 8 rollback "$TMP/c2h.out" &
+hp=$!
+if wait_holder; then
+  t0=$(now_ms); run_with "$APPLY" "ci-0023" "$EXP" "$TMP/c2.out"; t1=$(now_ms)
+  st=$(state); fp=$(fp_out)
+  wait "$hp"; hrc=$?
+  ok=no
+  has "$TMP/c2.out" '55P03' && has "$TMP/c2.out" 'lock timeout' && has "$TMP/c2.out" 'lock table public.inventory_locations' && ! grep -q 'ZELL_0023_' "$TMP/c2.out" \
+    && [ $((t1 - t0)) -ge 4500 ] && [ "$hrc" -eq 0 ] && [ "$st" = "$BEFORE_STATE" ] && [ "$fp" = "$FP0" ] && [ "$(data_line)" = "$EXP" ] && ok=yes
+  record "C02 a writer holds suppliers longer than lock_timeout -> apply stops on the preflight lock after $((t1 - t0)) ms (55P03), nothing changed, the writer's row rolled back" "$ok" "holder_rc=$hrc state=$st $(tailof "$TMP/c2.out") $(tailof "$TMP/c2h.out")"
+else
+  wait "$hp"; record "C02 a writer holds suppliers longer than lock_timeout" no "the second session never took its lock: $(tailof "$TMP/c2h.out")"
+fi
 
 # ---- 6) المعاملة بترجع كلها: نفس الملف بخطأ مقصود بعد آخر خطوة وقبل commit ----
 sed "s/^commit;\$/do \$z23\$ begin raise exception 'ZELL_CI_ABORT_AFTER_BODY'; end \$z23\$;\ncommit;/" "$APPLY" > "$TMP/abort.sql"
@@ -229,6 +319,25 @@ run_file "$V22" "$TMP/v22_after.out"
 # خصائص دالتين الحذف بعد 0023 بيغطيها V02 في verify 0023 (المالك · security definer · config · EXECUTE · البصمة).
 ok=no; has "$TMP/v22_after.out" 'role "zell_inventory_definer" does not exist' && [ -z "$(summary_of "$TMP/v22_after.out")" ] && ok=yes
 record "A05 verify 0022 after 0023 stops on the removed role zell_inventory_definer (historical file, not edited); delete functions covered by 0023 V02" "$ok" "$(tailof "$TMP/v22_after.out")"
+
+# ---- 8ب) بعد 0023: الـ 9 verify الموجودة (نفس المتجه) وعقد استدعاء التطبيقات (مراجعة #195 B3) ----
+verifies after
+diffs=""
+for item in $VLIST; do tag=${item%%:*}; cmp -s "$TMP/vec_before_$tag" "$TMP/vec_after_$tag" || diffs="$diffs $tag"; done
+ok=no; verifies_pass after && [ -z "$diffs" ] && ok=yes
+record "E02 the same 9 verifies after 0023 = PASS, and every check_id=ok vector = before" "$ok" "vectors changed:${diffs:- none} $(verifies_detail after)"
+# نفس حارس BASELINE K02 (call_contract.mjs) على الداتابيز بعد 0023: كل دالة بتناديها التطبيقات موجودة بأسماء معاملاتها وصلاحياتها.
+if node "$CIDIR/call_contract.mjs" --root "$ROOT" --policy "$CIDIR/call_contract_policy.json" --sql "$TMP/cc.sql" > "$TMP/cc_static.log" 2>&1; then
+  psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U "$SUPER" -d "$DB" -f "$TMP/cc.sql" < /dev/null > "$TMP/cc_db.log" 2>&1; rc=$?
+  fails=$(grep -c '^CALL FAIL ' "$TMP/cc_db.log" || true)
+  passes=$(grep -c '^CALL PASS ' "$TMP/cc_db.log" || true)
+  checks=$(grep -oE '"checks":[0-9]+' "$TMP/cc_static.log" | head -n 1 | cut -d: -f2)
+  ok=no
+  [ "$rc" -eq 0 ] && [ "$fails" = "0" ] && [ -n "$checks" ] && [ "$passes" = "$checks" ] && ! grep -qE '^(PENDING|STALE_PENDING) ' "$TMP/cc_static.log" && ok=yes
+  record "K01 call contract of the apps on the database after 0023: $passes of ${checks:-?} checks, no CALL FAIL" "$ok" "rc=$rc fails=$fails $(grep '^CALL FAIL ' "$TMP/cc_db.log" | head -n 5 | tr '\n' ' ') $(tailof "$TMP/cc_db.log")"
+else
+  record "K01 call contract of the apps on the database after 0023 (static part failed)" no "$(tailof "$TMP/cc_static.log")"
+fi
 
 # ---- 9) الإعادة ----
 run_with "$APPLY" "ci-0023" "$EXP" "$TMP/r1.out"
