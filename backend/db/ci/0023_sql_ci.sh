@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 0023 INVENTORY-REMOVAL B — اختبار SQL في CI: Postgres 17 مؤقت، والداتابيز مبنية من الصفر بالقايمة الصريحة كلها
-# (backend/db/ci/build_from_scratch.list، ومنها 0020 و0020-S و0022؛ postgres مش superuser زي Production)، وبعدين 0023 فوقها.
+# 0023 INVENTORY-REMOVAL B — اختبار SQL في CI: Postgres 17 مؤقت، والداتابيز مبنية من الصفر بالقايمة الصريحة لحد قبل 0023
+# (backend/db/ci/build_from_scratch.list، ومنها 0020 و0020-S و0022؛ سطر 0023 بيتخطّى؛ postgres مش superuser زي Production)، وبعدين 0023 فوقها.
 # بيغطي: شكل المعاملة · md5 الجسم · سطور الموافقة والأعداد برّه الملف · verify 0022 قبل (PASS) · حراس الـ preflight (موافقة · أعداد ·
 # أعداد غلط · متصل غلط) والحالة مابتتغيّرش · رجوع المعاملة كلها لو حصل خطأ في آخرها · ptest قبل التطبيق ومابيسيبش أثر · التطبيق ·
 # verify 0023 · ثبات كل حاجة برّه المخزون (بصمة + صفوف) · رد معاينة وحذف المنتج قبل = بعد بالحرف · verify 0022 بعد: الفاشل بس
@@ -182,6 +182,8 @@ su_f "$DB" "$CIDIR/platform_default_privileges.sql" > "$TMP/dp.log" 2>&1 || stop
 n=0
 while IFS='|' read -r kind rel _reason; do
   case "$kind" in ''|'#'*|exclude) continue ;; apply|baseline|fixture|check) ;; *) stop "B01 build list" "unknown kind $kind" ;; esac
+  # 0023 نفسها في القايمة من المرحلة C (آخر سطر): هنا البناء لحد قبلها، والملف بيتطبّق ويتختبر تحت.
+  [ "$rel" = "migrations/0023_inventory_removal.sql" ] && { SKIPPED_0023=yes; break; }
   f="$DBDIR/$rel"
   [ -f "$f" ] || stop "B01 build list" "missing $rel"
   n=$((n + 1))
@@ -194,8 +196,8 @@ while IFS='|' read -r kind rel _reason; do
 done < "$LIST"
 shape=$(su_q "$DB" -c "select rolsuper::text || ',' || rolbypassrls::text from pg_catalog.pg_roles where rolname = 'postgres'")
 st=$(state)
-ok=no; [ "$n" -gt 10 ] && [ "$shape" = "false,true" ] && [ "$st" = "$BEFORE_STATE" ] && ok=yes
-record "B01 database built from the whole build_from_scratch.list ($n steps), postgres not superuser, inventory + 0022 present ($BEFORE_STATE)" "$ok" "steps=$n postgres=$shape state=$st"
+ok=no; [ "$n" -gt 10 ] && [ "$shape" = "false,true" ] && [ "$st" = "$BEFORE_STATE" ] && [ "${SKIPPED_0023:-no}" = "yes" ] && ok=yes
+record "B01 database built from build_from_scratch.list up to before 0023 ($n steps, 0023 line skipped), postgres not superuser, inventory + 0022 present ($BEFORE_STATE)" "$ok" "steps=$n postgres=$shape state=$st skipped_0023=${SKIPPED_0023:-no}"
 [ "$ok" = yes ] || finish
 run_file "$V22" "$TMP/v22_before.out"
 ok=no; [ "$(summary_of "$TMP/v22_before.out" | cut -d'|' -f7)" = "PASS" ] && ok=yes
