@@ -90,7 +90,10 @@ begin
   perform pg_catalog.set_config('zell.t23_fp', pg_catalog.md5(pg_catalog.concat_ws('|',
       (select pg_catalog.string_agg(c.relname || '=' || coalesce(c.relacl::text, '-') || '/' || pg_catalog.pg_get_userbyid(c.relowner) || '/' || c.relkind::text, ',' order by c.relname)
          from pg_catalog.pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p', 'v', 'm', 'S', 'f')
-          and c.relname not in ('inventory_locations', 'suppliers', 'purchase_docs', 'purchase_doc_lines', 'purchase_doc_charges', 'opening_stock_docs', 'opening_stock_lines', 'stock_lots', 'inventory_commands', 'inventory_audit_log', 'purchase_doc_no_seq', 'opening_doc_no_seq', 'roll_lot_seq', 'batch_lot_seq')),
+          and c.relname not in ('inventory_locations', 'suppliers', 'purchase_docs', 'purchase_doc_lines', 'purchase_doc_charges', 'opening_stock_docs', 'opening_stock_lines', 'stock_lots', 'inventory_commands', 'inventory_audit_log', 'purchase_doc_no_seq', 'opening_doc_no_seq', 'roll_lot_seq', 'batch_lot_seq')
+          and not exists (select 1 from pg_catalog.pg_depend d join pg_catalog.pg_class t on t.oid = d.refobjid
+                           where d.classid = 'pg_catalog.pg_class'::regclass and d.objid = c.oid and d.refclassid = 'pg_catalog.pg_class'::regclass
+                             and t.relnamespace = 'public'::regnamespace and t.relname in ('inventory_locations', 'suppliers', 'purchase_docs', 'purchase_doc_lines', 'purchase_doc_charges', 'opening_stock_docs', 'opening_stock_lines', 'stock_lots', 'inventory_commands', 'inventory_audit_log'))),
       (select pg_catalog.string_agg(c.relname || '.' || a.attname || '=' || a.attacl::text, ',' order by c.relname, a.attname)
          from pg_catalog.pg_attribute a join pg_catalog.pg_class c on c.oid = a.attrelid
         where c.relnamespace = 'public'::regnamespace and a.attacl is not null and c.relname not in ('inventory_locations', 'suppliers', 'purchase_docs', 'purchase_doc_lines', 'purchase_doc_charges', 'opening_stock_docs', 'opening_stock_lines', 'stock_lots', 'inventory_commands', 'inventory_audit_log')),
@@ -381,7 +384,10 @@ begin
   if pg_catalog.md5(pg_catalog.concat_ws('|',
       (select pg_catalog.string_agg(c.relname || '=' || coalesce(c.relacl::text, '-') || '/' || pg_catalog.pg_get_userbyid(c.relowner) || '/' || c.relkind::text, ',' order by c.relname)
          from pg_catalog.pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p', 'v', 'm', 'S', 'f')
-          and c.relname not in ('inventory_locations', 'suppliers', 'purchase_docs', 'purchase_doc_lines', 'purchase_doc_charges', 'opening_stock_docs', 'opening_stock_lines', 'stock_lots', 'inventory_commands', 'inventory_audit_log', 'purchase_doc_no_seq', 'opening_doc_no_seq', 'roll_lot_seq', 'batch_lot_seq')),
+          and c.relname not in ('inventory_locations', 'suppliers', 'purchase_docs', 'purchase_doc_lines', 'purchase_doc_charges', 'opening_stock_docs', 'opening_stock_lines', 'stock_lots', 'inventory_commands', 'inventory_audit_log', 'purchase_doc_no_seq', 'opening_doc_no_seq', 'roll_lot_seq', 'batch_lot_seq')
+          and not exists (select 1 from pg_catalog.pg_depend d join pg_catalog.pg_class t on t.oid = d.refobjid
+                           where d.classid = 'pg_catalog.pg_class'::regclass and d.objid = c.oid and d.refclassid = 'pg_catalog.pg_class'::regclass
+                             and t.relnamespace = 'public'::regnamespace and t.relname in ('inventory_locations', 'suppliers', 'purchase_docs', 'purchase_doc_lines', 'purchase_doc_charges', 'opening_stock_docs', 'opening_stock_lines', 'stock_lots', 'inventory_commands', 'inventory_audit_log'))),
       (select pg_catalog.string_agg(c.relname || '.' || a.attname || '=' || a.attacl::text, ',' order by c.relname, a.attname)
          from pg_catalog.pg_attribute a join pg_catalog.pg_class c on c.oid = a.attrelid
         where c.relnamespace = 'public'::regnamespace and a.attacl is not null and c.relname not in ('inventory_locations', 'suppliers', 'purchase_docs', 'purchase_doc_lines', 'purchase_doc_charges', 'opening_stock_docs', 'opening_stock_lines', 'stock_lots', 'inventory_commands', 'inventory_audit_log')),
