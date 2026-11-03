@@ -1,6 +1,5 @@
 import 'server-only'
 
-import { INVENTORY_SENTINELS } from '../inventory/sentinels'
 
 /**
  * عميل قراءة Supabase للوحة — **سيرفر فقط**.
@@ -142,9 +141,9 @@ const KNOWN_SENTINELS = [
   'ZELL_ORDER_CANCELLED_FINAL',
   // 0022 — trigger zell_catalog_home_products_guard (45507): حفظ قايمة الرئيسية بـ id لمنتج مش موجود
   'ZELL_HOME_PRODUCTS_MISSING',
-  // 0020 — المخزون والمشتريات: الـ23 اسم من lib/inventory/sentinels.ts (قايمة واحدة مقفولة،
-  //    والاختبارات بتتأكد إن مفيش تداخل مع الأسماء اللي فوق).
-  ...INVENTORY_SENTINELS,
+  // 0020 — trigger zinv_products_sale_unit (45217) على products: لسه موجود على Production لحد المرحلة B
+  //    في INVENTORY-REMOVAL، فحفظ المنتج بيترجمه لرسالة واضحة (lib/mutations/products.ts). باقي أسماء المخزون اتشالت مع كوده.
+  'ZELL_INV_SALE_UNIT_LOCKED',
 ] as const
 
 export type DbSentinel = (typeof KNOWN_SENTINELS)[number]
