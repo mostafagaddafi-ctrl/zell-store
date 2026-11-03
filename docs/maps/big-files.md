@@ -2,7 +2,7 @@
 
 كل ملف في الريبو حجمه 20 KB أو أكتر (SQL · shell · Markdown)، وأقسامه بأرقام سطورها، ومعاهم ملفات 0021-A P1/P2 و0021-D2 الأصغر علشان المرحلة تبقى كاملة. الهدف إن أي شات يقرا الجزء اللي محتاجه بس، من غير ما يفتح ملف فيه آلاف السطور.
 
-- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR. ملفات 0021-D2 W1 (`0021d2_*`) اتضافت في PR W1 فوق main `6f3df51` (صفوفها وأقسامها من الـ head بتاعه)، وباقي الجدول زي ما هو. و`docs/plans/ADMIN-LANG-LIST.md` اتضاف في PR الحصر فوق main `c760822`. وملفات 0021-TR W1 (`0021tr_*`) اتضافت في PR W1 (#145) فوق main `3658906` (صفوفها وأقسامها من الـ head بتاعه)، وقسم `docs/maps/db-map.md` اتولّد من جديد من نفس الـ head (كان قديم: من غير §٧-ج و§٩). وعقدي `EXPRESS-SHIPPING.md` و`TRACK-ORDER-v2.md` اتضافوا في PR العقود (#147) فوق main `c825ce3` (صفوفهم وأقسامهم من الـ head بتاعه). وملفات EXPRESS-SHIPPING W1 (`0021ex_*`) اتضافت في PR W1 فوق main `30971d2` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021a_p1_payments_verify.sql` و`docs/maps/db-map.md` و`docs/contracts/EXPRESS-SHIPPING.md` اتحدّثت من نفس الـ head. وفي PR W2 فوق main `baa66a5`: صفوف وأقسام `backend/db/ci/0021ex_sql_ci.sh` (S46) و`docs/contracts/EXPRESS-SHIPPING.md` (§٧-٣) اتحدّثت من الـ head بتاعه. وملفات TRACK-ORDER v2 W1 (`0021tr2_*`) اتضافت في PR W1 فوق main `7c68bb5` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021tr_track_order_verify.sql` و`0021tr_track_order_rollback.sql` و`0021ex_express_shipping_rollback.sql` و`docs/contracts/TRACK-ORDER-v2.md` و`docs/maps/db-map.md` اتحدّثت من نفس الـ head. وفي PR W2-B (#153) فوق main `e6629a4`: صفوف وأقسام `backend/db/ci/0021tr2_sql_ci.sh` (S47) و`docs/contracts/TRACK-ORDER-v2.md` (§١٥ و§١٧) اتحدّثت من الـ head بتاعه. وفي PR إضافة §١٢ لعقد EXPRESS-SHIPPING (#154) فوق main `d356ea8`: صف وقسم `docs/contracts/EXPRESS-SHIPPING.md` اتحدّثوا من الـ head بتاعه. وعقد `LENGTH-INPUT.md` اتضاف في PR العقد (#156) فوق main `e85e059` (صفه وقسمه من الـ head بتاعه). وعقد `STORE-MENU.md` اتضاف في PR التنفيذ (#159) فوق main `f35d40b` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وعقد `POLICY-PAGES.md` اتضاف في PR العقد (#167) فوق main `959bad3` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وفي PR التنفيذ (#168) فوق main `c411566`: صف وقسم `docs/contracts/POLICY-PAGES.md` اتحدّثوا من الـ head بتاعه (§١٢).
+- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR. ملفات 0021-D2 W1 (`0021d2_*`) اتضافت في PR W1 فوق main `6f3df51` (صفوفها وأقسامها من الـ head بتاعه)، وباقي الجدول زي ما هو. و`docs/plans/ADMIN-LANG-LIST.md` اتضاف في PR الحصر فوق main `c760822`. وملفات 0021-TR W1 (`0021tr_*`) اتضافت في PR W1 (#145) فوق main `3658906` (صفوفها وأقسامها من الـ head بتاعه)، وقسم `docs/maps/db-map.md` اتولّد من جديد من نفس الـ head (كان قديم: من غير §٧-ج و§٩). وعقدي `EXPRESS-SHIPPING.md` و`TRACK-ORDER-v2.md` اتضافوا في PR العقود (#147) فوق main `c825ce3` (صفوفهم وأقسامهم من الـ head بتاعه). وملفات EXPRESS-SHIPPING W1 (`0021ex_*`) اتضافت في PR W1 فوق main `30971d2` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021a_p1_payments_verify.sql` و`docs/maps/db-map.md` و`docs/contracts/EXPRESS-SHIPPING.md` اتحدّثت من نفس الـ head. وفي PR W2 فوق main `baa66a5`: صفوف وأقسام `backend/db/ci/0021ex_sql_ci.sh` (S46) و`docs/contracts/EXPRESS-SHIPPING.md` (§٧-٣) اتحدّثت من الـ head بتاعه. وملفات TRACK-ORDER v2 W1 (`0021tr2_*`) اتضافت في PR W1 فوق main `7c68bb5` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021tr_track_order_verify.sql` و`0021tr_track_order_rollback.sql` و`0021ex_express_shipping_rollback.sql` و`docs/contracts/TRACK-ORDER-v2.md` و`docs/maps/db-map.md` اتحدّثت من نفس الـ head. وفي PR W2-B (#153) فوق main `e6629a4`: صفوف وأقسام `backend/db/ci/0021tr2_sql_ci.sh` (S47) و`docs/contracts/TRACK-ORDER-v2.md` (§١٥ و§١٧) اتحدّثت من الـ head بتاعه. وفي PR إضافة §١٢ لعقد EXPRESS-SHIPPING (#154) فوق main `d356ea8`: صف وقسم `docs/contracts/EXPRESS-SHIPPING.md` اتحدّثوا من الـ head بتاعه. وعقد `LENGTH-INPUT.md` اتضاف في PR العقد (#156) فوق main `e85e059` (صفه وقسمه من الـ head بتاعه). وعقد `STORE-MENU.md` اتضاف في PR التنفيذ (#159) فوق main `f35d40b` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وعقد `POLICY-PAGES.md` اتضاف في PR العقد (#167) فوق main `959bad3` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وفي PR التنفيذ (#168) فوق main `c411566`: صف وقسم `docs/contracts/POLICY-PAGES.md` اتحدّثوا من الـ head بتاعه (§١٢). ملفات 0023 (INVENTORY-REMOVAL B) وصف `db-map` اتضافوا/اتحدّثوا في PR المرحلة B فوق main `8f3bf48`.
 - **القراية بالسطور:** على GitHub ضيف `#L100-L200` للرابط، أو اقرا الـ blob وقطّع السطور من القسم لحد القسم اللي بعده.
 - **الـ ptest:** جسم الـ migration منسوخ جواه بالحرف بين «بداية/نهاية الجسم المنسوخ»، فمش محتاج تقراه هناك. اقراه من ملف الـ migration.
 - الجداول متولّدة من عناوين الملفات نفسها: `-- (N)` · الفواصل · `DO $…$` · `create function/table/role` · `BEGIN/COMMIT/ROLLBACK` · `#` في Markdown · `name() {` و`X=$(cat <<'SQL'` في shell.
@@ -23,6 +23,7 @@
 | `backend/db/ci/0021tr2_flows.sql` | 45 KB | 633 | TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل ورد التتبّع بعد التطبيق في CI (F00–F49، 36 حالة، معاملة بترجع) |
 | `backend/db/ci/0021tr2_sql_ci.sh` | 44 KB | 553 | اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين (الشحنة والتعديل والإضافة) · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) |
 | `backend/db/ci/0021tr_sql_ci.sh` | 22 KB | 313 | اختبارات SQL لـ 0021-TR W1 في CI فوق شكل Production (S0–S5: الشكل · ptest · تطبيق · verify · الرد بالسبع حالات والموعد والسطور ومن غير بيانات عميل · null للشكل الغلط · الصلاحيات · rollback · حراس الـ preflight) |
+| `backend/db/ci/0023_sql_ci.sh` | 19 KB | 238 | اختبارات SQL لـ 0023 INVENTORY-REMOVAL B في CI على داتابيز مبنية من القايمة كلها (S0 · B01–B02 · X01 · P01 · G01–G04 · Z01 · T01–T02 · A01–A05 · R01) — أقل من 20 KB |
 | `backend/db/migrations/0006b_order_functions.sql` | 38 KB | 765 | دور `zell_order_writer` وأول نسخة من `zell_create_order` و`zell_get_order_receipt` |
 | `backend/db/migrations/0006c_order_receipt_expiry.sql` | 23 KB | 504 | `zell_create_order` بترجّع `receipt_expires_at` |
 | `backend/db/migrations/0015_product_widths.sql` | 21 KB | 463 | عروض الرول (`product_widths`) + `zell_create_order` |
@@ -73,6 +74,9 @@
 | `backend/db/migrations/0021tr_track_order_rollback.sql` | 2 KB | 45 | 0021-TR W1 الرجوع (الدالة والـ policy وصلاحيات الأعمدة على `order_items`؛ بيرفض طول ما TRACK-ORDER v2 متطبّق) — أقل من 20 KB |
 | `backend/db/migrations/0021tr_track_order_verify.sql` | 18 KB | 230 | 0021-TR W1 التحقق بعد التطبيق (7 فحوص، النداءات بدور `service_role`، بحالتين قبل/بعد TRACK-ORDER v2، والنتيجة صفوف) — أقل من 20 KB |
 | `backend/db/migrations/0021tr_track_order.sql` | 11 KB | 168 | 0021-TR W1 «تتبّع طلبك»: قراية `order_items` لـ `zell_order_definer` (٨ أعمدة + policy) · `zell_checkout_track_order` لـ `service_role` — أقل من 20 KB |
+| `backend/db/migrations/0023_inventory_removal_ptest.sql` | 48 KB | 528 | 0023 INVENTORY-REMOVAL B اختبار قبل التطبيق (smoke، 5 حالات، الجسم منسوخ بالحرف، والنتيجة صفوف) |
+| `backend/db/migrations/0023_inventory_removal_verify.sql` | 5 KB | 43 | 0023 INVENTORY-REMOVAL B التحقق بعد التطبيق (4 فحوص، read only) — أقل من 20 KB |
+| `backend/db/migrations/0023_inventory_removal.sql` | 36 KB | 427 | 0023 INVENTORY-REMOVAL B: preflight · دالتين حذف المنتج من غير فحص المخزون · trigger المنتجات · جداول المخزون والـ sequences · دوال zell_inv_* · الدور · postflight (مش متطبّق) |
 | `docs/contracts/0021-A.md` | 94 KB | 438 | عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر |
 | `docs/contracts/0021-P-code.md` | 29 KB | 249 | عقد كود 0021-P: أ ← ب1 ← ب2 · الأوضاع · الفاحص · التعديلات بعد الاعتماد |
 | `docs/contracts/0021-P.md` | 22 KB | 252 | عقد 0021-P (الداتابيز): المحرك والمحوّل والهوية من الجلسة |
@@ -81,7 +85,7 @@
 | `docs/contracts/POLICY-PAGES.md` | 30 KB | 164 | عقد صفحات السياسات في المتجر: طلب المالك · الوضع (الفوتر · سابقة `installation_tools_page` · دورة الطلب · البيانات الشخصية) · المسارات وقفل كل صفحة لوحدها · البيانات `settings.policy_pages` (مفيش SQL) · اللوحة والتزامن والصلاحيات · النصوص (مسودة) · قرارات المالك ق١–ق١٠ · الاختبارات · الرجوع · تفاصيل التنفيذ (§١٢) |
 | `docs/contracts/STORE-MENU.md` | 22 KB | 157 | عقد قائمة المتجر للعميل و«تتبّع طلبك» في هيدر الكمبيوتر: قرار المالك · أجزاء القائمة وشروط ظهورها · هيدر الكمبيوتر (من `lg`) · تمييز الصفحة الحالية · شرط روابط المساعدة · روابط `/#how` و`/#faq` · الملفات والحالات · تفاصيل التنفيذ وقرارات المالك بعد المعاينة (§١٥) · استثناء التجربة بعد النشر (§١٦) |
 | `docs/contracts/TRACK-ORDER-v2.md` | 49 KB | 248 | عقد التتبّع الكامل: حقول v1 + v2 · المبالغ (المدفوع · المردود · الصافي · المتبقي) · خط المراحل · الشحنة · رسايل العميل · الموعد · قراءات T1–T5 ونتايجها · W1 (الأسماء والأكواد النهائية) · W2 (التقسيم: W2-A المتجر · W2-B اللوحة) |
-| `docs/maps/db-map.md` | 51 KB | 373 | خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف |
+| `docs/maps/db-map.md` | 59 KB | 417 | خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف |
 | `docs/plans/ADMIN-LANG-LIST.md` | 62 KB | 224 | حصر نصوص اللوحة العامية مع مقترح فصحى مبسّطة لكل نص (أ · ب · ج · د)، للمالك يختار منه |
 | `docs/plans/ORDER-FLOW-PLAN.md` | 119 KB | 1584 | خطة مسار الطلب |
 | `README.md` | 25 KB | 325 | حالة النظام الحي: الميزات · اللوحة · الهيكل · الأمان · التوثيق |
@@ -1655,6 +1659,105 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 167 | -- <<< 0021TR BODY |
 | 168 | commit; |
 
+## `backend/db/ci/0023_sql_ci.sh`
+
+اختبارات SQL لـ 0023 INVENTORY-REMOVAL B في CI على داتابيز مبنية من القايمة كلها (S0 · B01–B02 · X01 · P01 · G01–G04 · Z01 · T01–T02 · A01–A05 · R01) — أقل من 20 KB · 238 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 38 | record() { |
+| 42 | finish() { |
+| 52 | stop() { record "$1" no "$2"; echo "STOPPED: $1"; finish; } |
+| 53 | tailof() { tail -n 6 "$1" 2> /dev/null \| tr '\n' ' ' \| cut -c1-600; } |
+| 54 | su_q() { local db=$1; shift; psql -X -q -tA -v ON_ERROR_STOP=1 -U "$SUPER" -d "$db" "$@" < /dev/null; } |
+| 55 | su_f() { psql -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U "$SUPER" -d "$1" -f "$2" < /dev/null; } |
+| 56 | pg_f() { psql -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$1" -f "$2" < /dev/null; } |
+| 57 | q() { psql -X -q -tA -v ON_ERROR_STOP=1 -U postgres -d "$DB" -c "$1" < /dev/null 2>&1; } |
+| 58 | run_file() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$1" < /dev/null > "$2" 2>&1; } |
+| 59 | has() { grep -q -- "$2" "$1"; } |
+| 60 | body_md5() { awk -v s="-- >>> $2" -v e="-- <<< $2" '$0 == s {f = 1} f {print} $0 == e {f = 0}' "$1" \| md5sum \| cut -d' ' -f1; } |
+| 62 | summary_of() { grep '^0\|summary\|' "$1"; } |
+| 63 | fails_of() { grep -E '^[0-9]+\\|(test\|check)\\|[^\|]*\\|[^\|]*\\|(fail\|f)\\|' "$1" \| tr '\n' ' ' \| cut -c1-1800; } |
+| 65 | with_lines() { |
+| 72 | run_with() { with_lines "$1" "$2" "$3" "${5:-}" \| psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f - > "$4" 2>&1; } |
+| 73 | state() { |
+| 80 | data_line() { |
+| 93 | fp_out() { |
+| 111 | owner_call() { |
+| 118 | # ---- 1) فحوص ثابتة ---- |
+| 129 | # ---- 2) بناء الداتابيز من القايمة الصريحة كلها (زي build_from_scratch.sh) ---- |
+| 157 | # ---- 3) بيانات CI ---- |
+| 172 | # ---- 4) رد معاينة وحذف المنتج قبل التطبيق (الحذف جوه معاملة بترجع) ---- |
+| 185 | # ---- 5) حراس الـ preflight (كلهم قبل التطبيق، والحالة مابتتغيّرش) ---- |
+| 199 | # ---- 6) المعاملة بترجع كلها: نفس الملف بخطأ مقصود بعد آخر خطوة وقبل commit ---- |
+| 205 | # ---- 7) ptest قبل التطبيق ---- |
+| 212 | # ---- 8) التطبيق ---- |
+| 233 | # ---- 9) الإعادة ---- |
+
+## `backend/db/migrations/0023_inventory_removal_ptest.sql`
+
+0023 INVENTORY-REMOVAL B اختبار قبل التطبيق (smoke، 5 حالات، الجسم منسوخ بالحرف، والنتيجة صفوف) · 528 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 12 | begin; |
+| 16 | do $zguard$ |
+| 26 | create function pg_temp.zt(p_name text, p_ok boolean, p_detail text) |
+| 32 | do $zpre$ |
+| 47 | -- >>> 0023 BODY |
+| 51 | -- (0) preflight: المتصل · الموافقة · مش متطبّق · دالتين الحذف = الحي · مفيش مخزون حقيقي · الأعداد = المتوقع · الشكل · لقطة قبل. |
+| 52 | do $p23$ |
+| 159 | -- (1) دالتين حذف المنتج (مالكهم zell_catalog_definer): نفس التعريف بالحرف ناقص فحص المخزون. |
+| 163 | create or replace function public.zell_product_delete(p_product_id integer, p_expected_updated_at timestamptz) |
+| 288 | create or replace function public.zell_product_delete_preview(p_product_id integer) |
+| 331 | -- (2) trigger وحدة البيع على المنتجات (45217) ودالته (مالكها postgres). |
+| 335 | -- (3) جداول المخزون العشرة في جملة drop واحدة (Postgres بيحل المفاتيح بينهم، من غير cascade)، بدور مالكهم الواحد، وبعدها الـ sequences. |
+| 336 | do $t23$ |
+| 370 | -- (4) كل دوال zell_inv_* (القديمة · الجلسة · المساعدة · دوال الـ triggers · فحص المخزون بتاع 0022)، كل واحدة بدور مالكها. |
+| 371 | do $f23$ |
+| 388 | -- (5) الدور: مالوش أي كائن دلوقتي. أي صلاحية فاضلة على الـ schema بتتشال بالاسم، وبعدين الدور. |
+| 392 | -- (6) postflight |
+| 393 | do $q23$ |
+| 452 | -- <<< 0023 BODY |
+| 454 | do $zT$ |
+| 521 | select 0 as ord, 'summary'::text as kind, null::text as id, null::text as name, null::text as outcome, null::text as detail, |
+| 528 | rollback; |
+
+## `backend/db/migrations/0023_inventory_removal_verify.sql`
+
+0023 INVENTORY-REMOVAL B التحقق بعد التطبيق (4 فحوص، read only) — أقل من 20 KB · 43 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 8 | begin; |
+| 12 | with checks(id, name, ok, detail) as ( |
+| 36 | select 0::integer as ord, 'summary'::text as kind, null::text as check_id, null::text as check_name, null::boolean as ok, null::text as detail, |
+| 43 | rollback; |
+
+## `backend/db/migrations/0023_inventory_removal.sql`
+
+0023 INVENTORY-REMOVAL B: preflight · دالتين حذف المنتج من غير فحص المخزون · trigger المنتجات · جداول المخزون والـ sequences · دوال zell_inv_* · الدور · postflight (مش متطبّق) · 427 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 20 | begin; |
+| 21 | -- >>> 0023 BODY |
+| 25 | -- (0) preflight: المتصل · الموافقة · مش متطبّق · دالتين الحذف = الحي · مفيش مخزون حقيقي · الأعداد = المتوقع · الشكل · لقطة قبل. |
+| 26 | do $p23$ |
+| 133 | -- (1) دالتين حذف المنتج (مالكهم zell_catalog_definer): نفس التعريف بالحرف ناقص فحص المخزون. |
+| 137 | create or replace function public.zell_product_delete(p_product_id integer, p_expected_updated_at timestamptz) |
+| 262 | create or replace function public.zell_product_delete_preview(p_product_id integer) |
+| 305 | -- (2) trigger وحدة البيع على المنتجات (45217) ودالته (مالكها postgres). |
+| 309 | -- (3) جداول المخزون العشرة في جملة drop واحدة (Postgres بيحل المفاتيح بينهم، من غير cascade)، بدور مالكهم الواحد، وبعدها الـ sequences. |
+| 310 | do $t23$ |
+| 344 | -- (4) كل دوال zell_inv_* (القديمة · الجلسة · المساعدة · دوال الـ triggers · فحص المخزون بتاع 0022)، كل واحدة بدور مالكها. |
+| 345 | do $f23$ |
+| 362 | -- (5) الدور: مالوش أي كائن دلوقتي. أي صلاحية فاضلة على الـ schema بتتشال بالاسم، وبعدين الدور. |
+| 366 | -- (6) postflight |
+| 367 | do $q23$ |
+| 426 | -- <<< 0023 BODY |
+| 427 | commit; |
+
 ## `docs/contracts/0021-A.md`
 
 عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر · 438 سطر
@@ -1893,7 +1996,7 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 
 ## `docs/maps/db-map.md`
 
-خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف · 373 سطر
+خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف · 417 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -1921,6 +2024,7 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 305 | ## ٩) تتبّع الطلب للعميل (0021-TR W1) |
 | 325 | ## ١٠) الشحن السريع ومدة الشحن (EXPRESS-SHIPPING W1) |
 | 348 | ## ١١) التتبّع الكامل: الشحنة ورسايل العميل (TRACK-ORDER v2 W1) |
+| 411 | ## ١٠) إزالة المخزون (0023 — INVENTORY-REMOVAL B) — مكتوب، ومش متطبّق على Production |
 ## `docs/plans/ADMIN-LANG-LIST.md`
 
 حصر نصوص اللوحة العامية مع مقترح فصحى مبسّطة لكل نص (أ · ب · ج · د)، للمالك يختار منه · 224 سطر
