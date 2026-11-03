@@ -3,7 +3,7 @@
   "limits": [
     "Static text scan of restRpc(...) and .rpc(...) in apps/** only (minus excluded_paths). Names built at run time, calls through other helpers, direct table reads/writes (restGet / restPatch / restInsert) and references inside SQL function bodies are NOT seen.",
     "An exception checks only that the function exists, that the calling role has EXECUTE and that forbidden roles have none — NOT the argument names.",
-    "A map-based call (ORDER_FUNCTIONS / INVENTORY_SESSION_FUNCTIONS) is checked for EVERY name in the map, even if a given call site uses a subset.",
+    "A map-based call (ORDER_FUNCTIONS) is checked for EVERY name in the map, even if a given call site uses a subset.",
     "Any new non-parseable site, or an exception that no longer matches a site, fails until reviewed."
   ],
   "excluded_paths": [
@@ -44,13 +44,6 @@
       "source": "apps/admin/lib/orders/rpc.ts header: session client only, no service_role (0021-A)"
     },
     {
-      "map": "INVENTORY_SESSION_FUNCTIONS",
-      "roles": [
-        "service_role"
-      ],
-      "source": "apps/admin/lib/inventory/rpc.ts header + 0020-S PR-3: no service_role on zell_inv_*"
-    },
-    {
       "names": [
         "zell_product_delete",
         "zell_product_delete_preview"
@@ -63,12 +56,6 @@
     }
   ],
   "exceptions": [
-    {
-      "file": "apps/admin/lib/inventory/rpc.ts",
-      "first_arg": "INVENTORY_SESSION_FUNCTIONS[fn]",
-      "kind": "params_unknown",
-      "reason": "typed wrapper callInventory(fn, args): names come from the INVENTORY_SESSION_FUNCTIONS map (all checked here for existence, EXECUTE for authenticated, none for service_role); per-function argument names are TypeScript types in sessionCall.ts, not statically parsed. Session contract also checked by apps/admin/scripts/check-inventory-session.mjs in CI."
-    },
     {
       "file": "apps/admin/lib/orders/rpc.ts",
       "first_arg": "ORDER_FUNCTIONS[fn]",
