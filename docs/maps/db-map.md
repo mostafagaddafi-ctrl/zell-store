@@ -24,6 +24,7 @@
 | `zell_erp_definer` | `0021p_zell_erp_access` | مالك دوال المحوّل والواجهة `erp_actor_status_v1`. مالوش أي صلاحية على `admin_users` |
 | `zell_order_definer` | `0021a_a1_order_cycle` | مالك دوال دورة الطلب `zell_order_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS). على `orders`: SELECT + UPDATE لأعمدة الدورة بس. ومالك `zell_checkout_delivery_periods` (0021-D)، وبعد P1/P2: `zell_payment_*` (ماعدا الـ triggers) و`zell_checkout_confirmation_fee` (§٧-ب)، وبعد 0021-D2: `zell_delivery_settings_get` / `_save` و`zell_checkout_delivery_settings` (§٧-ج)، وبعد 0021-TR: `zell_checkout_track_order` و SELECT على ٨ أعمدة من `order_items` بـ policy قراية (§٩)، وبعد EXPRESS-SHIPPING: `zell_shipping_options_get` / `_save` / `_checkout` و SELECT + UPDATE على `zell_shipping_options` و SELECT + INSERT على سجله (§١٠)، وبعد TRACK-ORDER v2: 9 دوال `zell_shipment_*` و`zell_customer_update_*` (ماعدا الـ triggers) و SELECT + INSERT + UPDATE على `zell_order_shipments` و`zell_order_customer_updates` و SELECT + INSERT على سجلاتهم (§١١)، ومفيش صلاحية جديدة على `orders` ولا `order_events` ولا `order_payments` |
 | `zell_catalog_definer` | `0022_product_delete` | مالك دوال حذف المنتج (NOLOGIN · NOINHERIT · NOBYPASSRLS، عضوية `postgres` بـ SET بس) — §١٢. صلاحيات أعمدة + 17 policy باسم `zell_catalog_definer_*` بس، ومفيش أي صلاحية على `orders` ولا قراية أسماء أو أسعار المنتجات (متطبّق ومتحقق منه على Production 2026-10-26) |
+| `zell_purge_definer` | `0024_order_delete` | مالك دوال حذف الطلبات `zell_purge_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS، عضوية `postgres` بـ SET بس) — §١٤. على جداول الطلبات التسعة: SELECT · UPDATE على عمود واحد للقفل بس (policy `with check (false)`) · DELETE على 7. **مش متطبّق لسه** |
 
 ---
 
@@ -384,3 +385,19 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 - **الحراس:** جداول المخزون العشرة بتتقفل `access exclusive` قبل أول قراية بيانات (كتابة شغالة = تستنى وبعدين `ZELL_0023_DATA_CHANGED`) · أي دالة برّه المخزون بتنادي `zell_inv_*` = `ZELL_0023_SHAPE` (العقد §٥-١-ب).
 - الأقسام فوق (§١ · §٢ · §٥ · §١٢) اتحدّثت في المرحلة C.
 
+
+## ١٤) حذف الطلبات للمالك (0024 — ORDER-DELETE B) — مكتوب، ومش متطبّق على Production
+
+- العقد: `docs/contracts/ORDER-DELETE.md` (معتمد #197، والمرحلة B §١٣). الملفات: `migrations/0024_order_delete.sql` + `_ptest` + `_verify` + `_rollback`، وCI `ci/0024_sql_ci.sh` (job `sql-0024`). سطر الموافقة بس بعد `begin;` (`owner-approval-YYYY-MM-DD-order-delete`).
+
+| الدالة | المالك · EXECUTE | بتعمل إيه |
+| --- | --- | --- |
+| `zell_purge_preview(integer[])` | `zell_purge_definer` · `authenticated` بس (stable · definer · TimeZone UTC) | المالك بس: القايمة (الرقم · التاريخ · الاسم والتليفون · الحالة · الإجمالي · الدفعات) + `ids_hash` + `snapshot_hash` (بصمة محتوى الطلب وكل توابعه). `null` = كل الطلبات |
+| `zell_purge_orders(integer[], text, integer, uuid)` | نفسه · `authenticated` بس (definer · TimeZone UTC · lock_timeout 3s) | المالك بس، معاملة واحدة: فحص التوابع ← قفل الطلبات بالترتيب ← التوابع `NOWAIT` ← استهلاك التذكرة ← البصمة ← الحذف ← سطر السجل. بيرجّع اللي اتمسح والفاضل |
+| `zell_purge_reauth_begin(uuid)` · `zell_purge_reauth_finish(uuid, uuid, boolean, text, text, integer)` | نفسه · `service_role` بس | الحد (5 محاولات / 15 دقيقة، بيعدّ قبل الباسورد) والتذكرة (دقيقتين، استعمال واحد، مربوطة بالمالك والجلسة ونطاق العملية) |
+| `zell_purge_ids_hash` · `zell_purge_shape_problem` · `zell_purge_snapshot_hash` | نفسه · مفيش | داخلية |
+| `zell_purge_trg_append_only()` | `postgres` · مفيش | حارس `zell_purge_log` (45610)، من غير استثناء |
+
+- **الجداول:** `zell_purge_log` (append-only: أرقام الطلبات · العدد · المالك · الوقت · عدد الدفعات · المقبوض · المردود، من غير بيانات شخصية) · `zell_purge_reauth` (التذاكر) · `zell_purge_attempts` (عدّاد المحاولات). مالكهم `postgres`، RLS، وصفر لـ `anon` و`authenticated` و`service_role`.
+- **تغيير في دوال موجودة:** `zell_payment_trg_append_only` · `zell_shipment_trg_append_only` · `zell_customer_update_trg_append_only`: DELETE مسموح بس لـ `zell_purge_definer` على جداولها المعتمدة (مش `zell_payment_config_log`) ولطلبات العملية؛ غير كده نفس الرفض ونفس الكود. `zell_order_trg_events_immutable` و`zell_create_order` مابيتلمسوش.
+- **الأكواد:** 45601..45610 (`ZELL_PURGE_*`، التفاصيل في العقد §١٣).
