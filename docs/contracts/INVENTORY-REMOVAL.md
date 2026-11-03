@@ -12,7 +12,7 @@
 
 ## ٠) القرار وليه
 - المخزون (الموردين · المشتريات · رصيد أول المدة · الدفعات/lots) **مش مستخدم**: البيانات على Production تجارب بس، والمالك مش عايز يحتفظ بيها.
-- **حجمه** على `b38b7b4`: 72 ملف في اللوحة (**11,170 سطر**، حوالي 30% من كود اللوحة) + 12 ملف migration و SQL CI لوحده.
+- **حجمه** على `b38b7b4`: 72 ملف في اللوحة (71 ملف كود + الفاحص `check-inventory-session.mjs`، **11,170 سطر**، حوالي 30% من كود اللوحة) + 12 ملف migration و SQL CI لوحده.
 - **أثره على الصيانة:** مربوط بجدول المنتجات (مفاتيح + trigger `zinv_products_sale_unit`) وبدوال حذف المنتج (0022)، وله suites في حالات اللوحة وjob SQL في CI وفاحص لوحده (`check-inventory-session.mjs`)، وكل شات لازم يفهمه علشان مايبوّظهوش.
 - **الإخفاء بس مش كفاية:** الكود يفضل موجود ولازم يفضل شغّال ويتختبر. القرار: **إزالة كاملة على مراحل، بعد أرشيف كامل.**
 - المخزون **مش مربوط** بالطلبات ولا الدفعات ولا الشحن ولا التتبّع ولا الكوبونات (اتأكد من الكود على `b38b7b4` — §٢).
@@ -27,14 +27,14 @@
 **في اللوحة — ملفات المخزون نفسها (بتتشال في A):**
 - `app/(dashboard)/inventory/**` (8) · `components/inventory/**` (23) · `lib/inventory/**` (31) · `lib/inventoryActions.ts` · `lib/data/*inventory*` (4) · `lib/mutations/*inventory*` (3) · `lib/client/useInventoryIntent.ts` · `scripts/check-inventory-session.mjs`.
 
-**ملفات تانية بتستورد من `lib/inventory` (لازم تفضل شغّالة بنفس السلوك):**
-| الملف | بيستخدم إيه |
-| --- | --- |
-| `lib/data/client.ts` | `INVENTORY_SENTINELS` (`lib/inventory/sentinels`) |
-| `lib/data/reads.ts` | `InventoryCatalog` وغيره (`lib/inventory/catalog`) |
-| `lib/mutations/products.ts` | `INVENTORY_ERRORS` (رسالة 45217 بتاعة trigger نوع البيع) |
-| `lib/client/usePreview.ts` | `InventoryResult` + أدوات المعاينة (`lib/inventory/preview`) |
-| `lib/client/useLineCards.ts` | `keysOpenAfterCloseAll` (`lib/inventory/lineIssues`) |
+**ملفات برّه فولدر المخزون بتستورد منه (اتأكد من كل استخدام على `b38b7b4` — مراجعة #193):**
+| الملف | بيستخدم إيه | الحكم |
+| --- | --- | --- |
+| `lib/data/client.ts` | `INVENTORY_SENTINELS` (`lib/inventory/sentinels`) | **مشترك محتمل:** كل استخدام يتراجع في A، واللي بيخدم غير المخزون يتنقل بنفس السلوك |
+| `lib/mutations/products.ts` | `INVENTORY_ERRORS` (رسالة 45217 بتاعة trigger نوع البيع) | **مشترك:** يفضل لحد B (§٤ خطوة ٣) |
+| `lib/data/reads.ts` | `readInventoryCatalog` و`InventoryCatalog` | **مخزون بس** (مستخدم من `lib/data/inventoryEditor.ts` بس): بيتشال في A |
+| `lib/client/usePreview.ts` | `InventoryResult` + أدوات المعاينة | **مخزون بس** (`OpeningEditor` و`PurchaseEditor`): بيتشال في A |
+| `lib/client/useLineCards.ts` | `keysOpenAfterCloseAll` | **مخزون بس** (`PurchaseLinesEditor`): بيتشال في A |
 
 **الإطار والفحوص:** `components/shell/AdminShell.tsx` (لينكات القايمة) · `lib/access/manifest.ts` + `manifest.cases.ts` (actions المخزون، `INVENTORY_OWNER_ONLY_MESSAGE`، الحالة M9) · `lib/access/wrappers.ts` (`mapFailure`) · `scripts/check-access.mjs` و`check-access-manifest.mjs` (إعداد `lib/inventory/rpc`) · `scripts/run-cases.mjs` (suites المخزون) · `.github/workflows/ci.yml` (خطوة الفاحص + job `sql-0020s`).
 
@@ -55,7 +55,7 @@
 
 ## ٤) المرحلة A — اللوحة (كود بس، مفيش SQL)
 1. **شيل** ملفات المخزون في §٢ والصفحات ولينكات القايمة.
-2. **نقل الحاجات المشتركة** من `lib/inventory` لمكان محايد **بنفس السلوك بالحرف** قبل الشيل: الـ sentinels والأخطاء المشتركة لـ `lib/data` / `lib/mutations`، وأدوات المعاينة والكروت لـ `lib/client`. الباقي اللي بيخص المخزون بس بيتشال. حالة لكل حاجة اتنقلت.
+2. **نقل المشترك بس:** قبل الشيل يتراجع كل استيراد من `lib/inventory` برّه المخزون (الجدول في §٢). اللي بيخدم غير المخزون بيتنقل لمكان محايد (`lib/data` أو `lib/mutations`) **بنفس السلوك بالحرف** ومعاه حالة. واللي مستخدم من المخزون بس (زي `usePreview` و`useLineCards` و`readInventoryCatalog`) **بيتشال معاه، مايتنقلش** (مفيش كود ميت).
 3. **رسالة 45217** في `lib/mutations/products.ts` تفضل لحد المرحلة B (الـ trigger لسه موجود على Production).
 4. **الفحوص:** `manifest.ts` والأعداد في `manifest.cases.ts` وبصمة الـ blob · `check-access*.mjs` · `run-cases.mjs` · شيل `check-inventory-session.mjs` وخطوته من CI. فاحص الصلاحيات `enforce` لازم يفضل `findings=0`.
 5. **الداتابيز ماتتلمسش:** الجداول والدوال بتفضل على Production لحد B، ومحدش بيناديها.
@@ -65,11 +65,11 @@
 ### ٥-١ الملف `backend/db/migrations/0023_inventory_removal.sql` (+ ptest + verify + CI)
 - **preflight:** المتصل `postgres` · سطر الموافقة · المرحلة A منشورة · **البيانات = اللي اتقرت في §٧ خطوة ٤ بالحرف** (أعداد كل جدول، ومفيش مستند `posted` ولا lot)، وأي اختلاف = وقف.
 - **الترتيب جوه معاملة واحدة:**
-  1. دوال حذف المنتج ومعاينته (0022): نسخة جديدة من التعريف الحي (ببصمته) **من غير** فحص المخزون، لأن مفيش مخزون. السلوك لأي منتج = زي النهارده بالظبط (المخزون فاضي من الإيصالات).
-  2. `drop` `zell_inv_product_stock_ref_exists` و`zell_inv_product_has_stock_refs`.
-  3. `drop trigger zinv_products_sale_unit` ودالته.
+  1. دوال حذف المنتج ومعاينته (0022): نسخة جديدة من التعريف الحي (ببصمته) **من غير** نداء فحص المخزون. **عقد الرد مايتغيّرش:** المعاينة بتفضل ترجّع نفس المفاتيح بنفس الشكل، و**`has_stock` = `false` دايمًا** (`apps/admin/lib/products/deleteProduct.ts` بيقرا المفاتيح الستة)، والحذف مابيرميش 45505 تاني. **الكود في اللوحة مايتغيّرش:** `ZELL_PRODUCT_HAS_STOCK` (45505) ورسالته بيفضلوا لحد قرار منفصل بشيلهم. CI بيقارن رد المعاينة والحذف قديم/جديد لمنتجات من غير مخزون (لازم يطلعوا متطابقين بالحرف).
+  2. `drop trigger zinv_products_sale_unit` ودالته **الأول** (قبل أي دالة بيناديها الـ trigger، علشان مفيش لحظة يبقى فيها trigger بينادي دالة مش موجودة).
+  3. `drop` `zell_inv_product_stock_ref_exists` و`zell_inv_product_has_stock_refs`.
   4. دوال `zell_inv_session_*` ثم `zell_inv_*` ثم المساعدة ودوال الـ triggers ثم الجداول (بالمفاتيح) والـ sequences والـ policies.
-  5. الدور `zell_inventory_definer`: بعد ما يبقى مالوش أي كائن ولا صلاحية (والـ postflight بيتأكد).
+  5. الدور `zell_inventory_definer`: الـ **preflight** بيتأكد إنه مالوش ملكية ولا صلاحيات ولا عضويات برّه كائنات المخزون (أي حاجة تانية = وقف). الصلاحيات بتتشال صراحةً بالاسم (مش `drop owned by` على العمياني)، وبعدين `drop role`. الـ **postflight** بيتأكد إن الدور مش موجود ومفيش كائن يتيم.
 - **postflight + verify:** مفيش أي كائن بالأسماء دي · `products` والطلبات زي ما هم · verify A1 · D · P1 · P2 · D2 · TR · 0022 · 0021-P strict = PASS · الأثر (IMPACT) الخانات المتوقعة مكتوبة قبل التطبيق.
 - **الرجوع:** **مفيش rollback SQL** (البيانات تجارب والمالك مش عايزها). الرجوع = الـ backup الكامل اللي قبل التطبيق + الأرشيف. لازم موافقة المالك على ده صريحة قبل التطبيق.
 ### ٥-٢ CI والبناء من الصفر
@@ -78,7 +78,7 @@
 - job جديد `sql-0023` (ptest · تطبيق · verify · حذف منتج قبل/بعد) على Postgres مؤقت فوق شكل Production.
 
 ## ٦) المرحلة C — التوثيق
-- `db-map` و`code-map` و`big-files` و`README` (سطر «المخزون اتشال واتنقل لـ `myzill-mini-erp`»).
+- `db-map` و`code-map` و`big-files` و`README` (سطر «المخزون اتشال واتنقل لـ `myzill-mini-erp`»، وسطر إن الصلاحيتين `zell.inventory0020.view` و`zell.inventory0020.edit` **باقيين عن قصد** في الكتالوج والكود من غير استخدام — §١).
 - **ERP-PLAN:** أرقام «0022» (الفلوس) و«0023» (الموظفين) بتتغيّر لتسميات من غير رقم migration، لأن 0022 بقى حذف المنتج و0023 هيبقى الإزالة. مصير باقي مراحل الـ ERP (حجز · قص · مرتجعات · خزن · موظفين · تقارير) **قرار المالك** (§٩).
 - الذاكرة (`myzill-memory`): القرار في `10-DECISIONS`، ومكان الأرشيف والوسم في `START.md`.
 
@@ -103,3 +103,4 @@
 
 ## ١٠) سجل التعديلات
 - **2026-11-03 · المسودة الأولى** على main `b38b7b4`، من قرار المالك في الشات.
+- **2026-11-03 · مراجعة على `2e4cb57`:** B1 — عقد رد حذف المنتج في §٥-١ (`has_stock` = `false` بنفس الشكل، و45505 يفضل في كود اللوحة) + مقارنة قديم/جديد في CI. تصحيحات: `usePreview` و`useLineCards` و`readInventoryCatalog` مخزون بس (بيتشالوا، مايتنقلوش — §٢ و§٤) · شيل الـ trigger قبل الدوال (§٥-١) · فحص الدور قبل حذفه · عدد الملفات 71 + الفاحص · تسجيل الصلاحيتين اليتيمتين في README (§٦).
