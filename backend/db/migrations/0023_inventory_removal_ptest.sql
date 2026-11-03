@@ -329,28 +329,28 @@ revoke create on schema public from zell_catalog_definer;
 drop trigger zinv_products_sale_unit on public.products;
 drop function public.zell_inv_trg_products_sale_unit();
 
--- (3) جداول المخزون (الأبناء الأول، من غير cascade) والـ sequences، كل واحد بدور مالكه.
+-- (3) جداول المخزون العشرة في جملة drop واحدة (Postgres بيحل المفاتيح بينهم، من غير cascade)، بدور مالكهم الواحد، وبعدها الـ sequences.
 do $t23$
 declare
   r record;
+  v_owners text[];
   v_owner text;
 begin
-  for r in select x.t, x.ord from (values ('stock_lots', 1), ('purchase_doc_charges', 2), ('purchase_doc_lines', 3), ('opening_stock_lines', 4),
-                                          ('purchase_docs', 5), ('opening_stock_docs', 6), ('suppliers', 7), ('inventory_locations', 8),
-                                          ('inventory_commands', 9), ('inventory_audit_log', 10)) x(t, ord) order by x.ord loop
-    select pg_catalog.pg_get_userbyid(c.relowner) into v_owner from pg_catalog.pg_class c
-     where c.relnamespace = 'public'::regnamespace and c.relname = r.t and c.relkind = 'r';
-    if v_owner is null then
-      raise exception 'ZELL_0023_SHAPE' using detail = 'table ' || r.t;
-    end if;
-    if v_owner <> 'postgres' then
-      execute pg_catalog.format('set local role %I', v_owner);
-    end if;
-    execute pg_catalog.format('drop table public.%I', r.t);
-    if v_owner <> 'postgres' then
-      reset role;
-    end if;
-  end loop;
+  select pg_catalog.array_agg(distinct pg_catalog.pg_get_userbyid(c.relowner)) into v_owners from pg_catalog.pg_class c
+   where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and c.relname in ('inventory_locations', 'suppliers', 'purchase_docs', 'purchase_doc_lines', 'purchase_doc_charges', 'opening_stock_docs', 'opening_stock_lines', 'stock_lots', 'inventory_commands', 'inventory_audit_log');
+  if pg_catalog.cardinality(v_owners) is distinct from 1 then
+    raise exception 'ZELL_0023_SHAPE' using detail = 'inventory table owners ' || coalesce(v_owners::text, '-');
+  end if;
+  v_owner := v_owners[1];
+  if v_owner <> 'postgres' then
+    execute pg_catalog.format('set local role %I', v_owner);
+  end if;
+  drop table public.stock_lots, public.purchase_doc_charges, public.purchase_doc_lines, public.opening_stock_lines,
+             public.purchase_docs, public.opening_stock_docs, public.suppliers, public.inventory_locations,
+             public.inventory_audit_log, public.inventory_commands;
+  if v_owner <> 'postgres' then
+    execute 'reset role';
+  end if;
   for r in select c.relname as s, pg_catalog.pg_get_userbyid(c.relowner) as o from pg_catalog.pg_class c
             where c.relnamespace = 'public'::regnamespace and c.relkind = 'S' and c.relname in ('purchase_doc_no_seq', 'opening_doc_no_seq', 'roll_lot_seq', 'batch_lot_seq') loop
     if r.o <> 'postgres' then
@@ -358,7 +358,7 @@ begin
     end if;
     execute pg_catalog.format('drop sequence public.%I', r.s);
     if r.o <> 'postgres' then
-      reset role;
+      execute 'reset role';
     end if;
   end loop;
 end
@@ -376,7 +376,7 @@ begin
     end if;
     execute 'drop function ' || r.sig;
     if r.o <> 'postgres' then
-      reset role;
+      execute 'reset role';
     end if;
   end loop;
 end
