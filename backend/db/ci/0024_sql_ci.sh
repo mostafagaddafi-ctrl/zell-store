@@ -8,7 +8,9 @@
 # جلستين (دفعة · تعديل رسالة وحفظ شحنة بالدوال الحقيقية · تذكرة مرتين · طلب جديد بعد المعاينة · الرجوع وقت مسح · قفل الرجوع)
 # ومفيش deadlock · رفض الرجوع لو دالة اتغيّرت أو بعد مسح فعلي · verify V07 بيمسك policy زيادة أو متغيّرة.
 # واستعلام الأثر (0024_order_delete_impact.sql، خطة #199): شكله · قبل/بعد الـ ptest والتطبيق والـ verify · بيانات غير فاضية (القراية مرتين
-# = نفس البصمات، وتعديل محتوى صنف بنفس العدد والمعرّفات بيغيّر بصمته بس) · قفل جلسة تانية على admin_users بيتعدّ في admin_users_locks.
+# = نفس البصمات، وتعديل محتوى صنف بنفس العدد والمعرّفات بيغيّر بصمته بس) · قفل جلسة تانية على admin_users بيتعدّ في admin_users_locks ·
+# رؤية الجلسات (sessions_visible): من غير pg_read_all_stats = f وidle_tx/stop_locks NULL والبوابة بترفض (M07)؛ وباقي حالات الأثر
+# بتشتغل بمنحة مؤقتة لـ pg_read_all_stats حوالين النداء بس (CI بس).
 # ممنوع يتشغّل على أي داتابيز غير الحاوية المؤقتة.
 set -uo pipefail
 
@@ -39,7 +41,7 @@ OWNER_ID='00000000-0000-4000-8000-0000000000b1'
 ADMIN_ID='00000000-0000-4000-8000-0000000000b2'
 SESS='00000000-0000-4000-8000-00000000c001'
 SESS2='00000000-0000-4000-8000-00000000c002'
-EXPECTED="S01 S02 S03 B01 E01 T01 T02 G01 G02 Z01 A01 A02 A03 E02 K01 RB1 A04 R01 RB3 V7A V7B X01 F01 F02 F03 F04 F05 F06 F07 F08 F09 F10 F18 C07 C08 F11 F12 F13 F14 F15 F16 F17 C01 C02 C03 C04 C05 C06 RB2 A05 M01 M02 M03 M04 M05 M06"
+EXPECTED="S01 S02 S03 B01 E01 T01 T02 G01 G02 Z01 A01 A02 A03 E02 K01 RB1 A04 R01 RB3 V7A V7B X01 F01 F02 F03 F04 F05 F06 F07 F08 F09 F10 F18 C07 C08 F11 F12 F13 F14 F15 F16 F17 C01 C02 C03 C04 C05 C06 RB2 A05 M01 M02 M03 M04 M05 M06 M07"
 BEFORE_STATE='0|0|7bdc5a72585917ba4e27f7c902bd15ad|0'
 AFTER_STATE='1|8|002afae51685f2ac8e4e718d33035997|1'
 # أعمدة الأثر 2-8 (كائنات 0024 · الحراس الأربعة · zell_create_order · شكل التوابع) قبل التطبيق وبعده = الخطوتين 1 و4 في خطة #199.
@@ -157,11 +159,22 @@ verifies_detail() {
   done
 }
 
-# استعلام الأثر (0024_order_delete_impact.sql) بالحرف زي Production (postgres مش superuser): صف واحد بـ 31 عمود مفصولة بـ |.
+# استعلام الأثر (0024_order_delete_impact.sql) بالحرف زي Production (postgres مش superuser): صف واحد بـ 32 عمود مفصولة بـ |.
 impact() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$IMPACT" < /dev/null > "$TMP/imp_$1.out" 2>&1; echo "$?" > "$TMP/imp_$1.rc"; }
-imp_valid() { [ "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" = "0" ] && [ "$(grep -c . "$TMP/imp_$1.out")" = "1" ] && [ "$(awk -F'|' 'NF {print NF}' "$TMP/imp_$1.out")" = "31" ]; }
+imp_valid() { [ "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" = "0" ] && [ "$(grep -c . "$TMP/imp_$1.out")" = "1" ] && [ "$(awk -F'|' 'NF {print NF}' "$TMP/imp_$1.out")" = "32" ]; }
 imp_f() { grep -v '^$' "$TMP/imp_$1.out" | head -n 1 | cut -d'|' -f"$2"; }
 imp_detail() { printf 'rc=%s %s' "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" "$(tr '\n' ' ' < "$TMP/imp_$1.out" | cut -c1-900)"; }
+imp_gate() { imp_valid "$1" && [ "$(imp_f "$1" 28-31)" = "0|0|0|t" ]; }
+# postgres في CI (زي الشيم) مالوش pg_read_all_stats؛ حالات الأثر المعتادة بتمنحه مؤقتًا حوالين النداء بس، وبتشيله على طول (CI بس).
+impact_v() { su_q "$DB" -c "grant pg_read_all_stats to postgres" > "$TMP/impv_$1.log" 2>&1; impact "$1"; su_q "$DB" -c "revoke pg_read_all_stats from postgres" >> "$TMP/impv_$1.log" 2>&1; }
+wait_idle() {
+  local i=0
+  while [ "$i" -lt 50 ]; do
+    [ "$(su_q "$DB" -c "select pg_catalog.count(*) from pg_catalog.pg_stat_activity a where a.application_name = '$1' and a.state = 'idle in transaction'")" = "1" ] && return 0
+    sleep 0.2; i=$((i + 1))
+  done
+  return 1
+}
 
 # ---- 1) فحوص ثابتة ----
 if python3 "$SHAPE" --selftest > "$TMP/shape_self.out" 2>&1 && python3 "$SHAPE" "$PTEST" "$VERIFY" > "$TMP/shape.out" 2>&1; then ok=yes; else ok=no; fi
@@ -205,9 +218,22 @@ st=$(state)
 ok=no; [ "$n" -gt 10 ] && [ "$shape" = "false,true" ] && [ "$st" = "$BEFORE_STATE" ] && ok=yes
 record "B01 database built from the whole build_from_scratch.list ($n steps), postgres not superuser, guards = Production read ($BEFORE_STATE)" "$ok" "steps=$n postgres=$shape state=$st"
 [ "$ok" = yes ] || finish
-impact before
-ok=no; imp_valid before && [ "$(imp_f before 2-8)" = "$IMPACT_BEFORE" ] && [ "$(imp_f before 28-30)" = "0|0|0" ] && ok=yes
-record "M02 impact before 0024: one row, 31 columns, columns 2-8 = plan step 1, idle_tx = stop_locks = admin_users_locks = 0" "$ok" "$(imp_detail before)"
+# ---- رؤية الجلسات: جلسة دور تاني idle in transaction؛ من غير pg_read_all_stats حالتها مخفية عن postgres ----
+{ printf '%s\n' "begin;" "select 1;"; sleep 5; printf '%s\n' "commit;"; } | PGAPPNAME=ci0024_idle psql -X -q -tA -v ON_ERROR_STOP=1 -U "$SUPER" -d "$DB" -f - > "$TMP/idle.out" 2>&1 &
+M_HI=$!
+if wait_idle ci0024_idle; then
+  impact nv
+  impact_v vi
+  wait "$M_HI"
+  M_RV=$(su_q "$DB" -c "select pg_catalog.pg_has_role('postgres', 'pg_read_all_stats', 'USAGE')" 2>&1)
+  ok=no; imp_valid nv && [ "$(imp_f nv 28-29)" = "|" ] && [ "$(imp_f nv 31)" = "f" ] && ! imp_gate nv && imp_valid vi && [ "$(imp_f vi 31)" = "t" ] && [ "$(imp_f vi 28)" -ge 1 ] 2> /dev/null && ! imp_gate vi && [ "$M_RV" = "f" ] && ok=yes
+  record "M07 session visibility with another role's session idle in transaction: postgres without pg_read_all_stats -> sessions_visible = f, idle_tx and stop_locks NULL (not 0), gate rejects; with it -> sessions_visible = t, idle_tx >= 1, gate rejects; membership removed again" "$ok" "without=$(imp_detail nv) with=$(imp_detail vi) member_after=$M_RV $(tailof "$TMP/idle.out")"
+else
+  wait "$M_HI"; record "M07 session visibility" no "the other session never became idle in transaction: $(tailof "$TMP/idle.out")"
+fi
+impact_v before
+ok=no; imp_gate before && [ "$(imp_f before 2-8)" = "$IMPACT_BEFORE" ] && ok=yes
+record "M02 impact before 0024 (postgres with pg_read_all_stats): one row, 32 columns, columns 2-8 = plan step 1, idle_tx = stop_locks = admin_users_locks = 0, sessions_visible = t" "$ok" "$(imp_detail before)"
 
 # ---- 3) قبل التطبيق: الـ 9 verify · ptest · الحراس · الرجوع الكامل ----
 verifies before
@@ -219,9 +245,9 @@ ok=no; [ "$(summary_of "$TMP/ptest.out" | cut -d'|' -f7)" = "PASS" ] && ok=yes
 record "T01 ptest -> PASS (8 pass, 0 fail)" "$ok" "$(summary_of "$TMP/ptest.out") $(fails_of "$TMP/ptest.out") $(tailof "$TMP/ptest.out")"
 ok=no; [ "$(state)" = "$BEFORE_STATE" ] && [ "$(fp_out)" = "$FP0" ] && ok=yes
 record "T02 ptest leaves nothing (state + outside fingerprint = before)" "$ok" "state=$(state)"
-impact ptest
-ok=no; imp_valid ptest && [ "$(imp_f ptest 2-30)" = "$(imp_f before 2-30)" ] && ok=yes
-record "M03 impact after ptest: columns 2-30 = before" "$ok" "$(imp_detail ptest)"
+impact_v ptest
+ok=no; imp_gate ptest && [ "$(imp_f ptest 2-31)" = "$(imp_f before 2-31)" ] && ok=yes
+record "M03 impact after ptest: columns 2-31 = before" "$ok" "$(imp_detail ptest)"
 psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$APPLY" < /dev/null > "$TMP/g1.out" 2>&1
 ok=no; has "$TMP/g1.out" 'ZELL_0024_APPROVAL_MISSING' && [ "$(state)" = "$BEFORE_STATE" ] && ok=yes
 record "G01 apply without the approval line -> ZELL_0024_APPROVAL_MISSING, nothing changed" "$ok" "$(tailof "$TMP/g1.out")"
@@ -238,7 +264,7 @@ record "Z01 body runs to the end (postflight included), then a forced error roll
 run_appr "$APPLY" "ci-0024" "$TMP/apply.out"
 ok=no; ! grep -q 'ERROR' "$TMP/apply.out" && [ "$(state)" = "$AFTER_STATE" ] && ok=yes
 record "A01 apply -> commit ($AFTER_STATE)" "$ok" "state=$(state) $(tailof "$TMP/apply.out")"
-impact apply
+impact_v apply
 run_file "$VERIFY" "$TMP/v24.out"
 ok=no; [ "$(summary_of "$TMP/v24.out" | cut -d'|' -f7)" = "PASS" ] && ok=yes
 record "A02 verify 0024 -> PASS (10 checks)" "$ok" "$(summary_of "$TMP/v24.out") $(fails_of "$TMP/v24.out")"
@@ -249,9 +275,9 @@ diffs=""
 for item in $VLIST; do tag=${item%%:*}; cmp -s "$TMP/vec_before_$tag" "$TMP/vec_after_$tag" || diffs="$diffs $tag"; done
 ok=no; verifies_pass after && [ -z "$diffs" ] && ok=yes
 record "E02 the same 9 verifies after 0024 = PASS, and every check_id=ok vector = before" "$ok" "vectors changed:${diffs:- none} $(verifies_detail after)"
-impact verifies
-ok=no; imp_valid apply && imp_valid verifies && [ "$(imp_f apply 2-8)" = "$IMPACT_AFTER" ] && [ "$(imp_f apply 9-30)" = "$(imp_f before 9-30)" ] && [ "$(imp_f verifies 2-30)" = "$(imp_f apply 2-30)" ] && ok=yes
-record "M04 impact after apply: columns 2-8 = plan step 4, 9-30 = before; after verify 0024 + the 9 verifies (plan step 5 order): columns 2-30 = after apply" "$ok" "apply=$(imp_detail apply) verifies=$(imp_detail verifies)"
+impact_v verifies
+ok=no; imp_gate apply && imp_gate verifies && [ "$(imp_f apply 2-8)" = "$IMPACT_AFTER" ] && [ "$(imp_f apply 9-31)" = "$(imp_f before 9-31)" ] && [ "$(imp_f verifies 2-31)" = "$(imp_f apply 2-31)" ] && ok=yes
+record "M04 impact after apply: columns 2-8 = plan step 4, 9-31 = before; after verify 0024 + the 9 verifies (plan step 5 order): columns 2-31 = after apply" "$ok" "apply=$(imp_detail apply) verifies=$(imp_detail verifies)"
 if node "$CIDIR/call_contract.mjs" --root "$ROOT" --policy "$CIDIR/call_contract_policy.json" --sql "$TMP/cc.sql" > "$TMP/cc_static.log" 2>&1; then
   psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U "$SUPER" -d "$DB" -f "$TMP/cc.sql" < /dev/null > "$TMP/cc_db.log" 2>&1; rc=$?
   fails=$(grep -c '^CALL FAIL ' "$TMP/cc_db.log" || true)
@@ -355,8 +381,8 @@ ok=no; has "$TMP/x1.log" 'X01_DONE' && [ "$(printf '%s' "$cnt" | cut -d'|' -f1)"
 record "X01 CI data: owner + admin · 6 orders (A: payment + refund · B: payment + shipment + message · D: coupon) · created events" "$ok" "ids=$OA,$OB,$OC,$OD,$OE,$OF counts=$cnt $(tailof "$TMP/x1.log")"
 FPD=$(fp_out)
 # ---- 5ب) استعلام الأثر ببيانات غير فاضية (الجداول التسعة كلها فيها صفوف من X01) ----
-impact d1
-impact d2
+impact_v d1
+impact_v d2
 M_NE=yes
 for m_c in 9 11 13 15 17 19 21 23 25; do [ "$(imp_f d1 "$m_c")" -gt 0 ] 2> /dev/null || M_NE=no; done
 for m_c in 10 12 14 16 18 20 22 24 26; do [ "$(imp_f d1 "$m_c")" != "$EMPTY_MD5" ] || M_NE=no; done
@@ -367,7 +393,7 @@ update public.order_items i set product_name_ar = 'ci-0024-item-m05' where i.ord
 set session_replication_role = origin;
 select 'M05A_DONE';
 SQL
-impact d3
+impact_v d3
 M_IDS1=$(q "select pg_catalog.string_agg(i.id::text, ',' order by i.id) from public.order_items i")
 su_sql > "$TMP/m05b.log" <<SQL
 set session_replication_role = replica;
@@ -375,20 +401,20 @@ update public.order_items i set product_name_ar = 'ci-0024-item' where i.order_i
 set session_replication_role = origin;
 select 'M05B_DONE';
 SQL
-impact d4
+impact_v d4
 M_CH=""
-for m_c in $(seq 2 30); do [ "$(imp_f d3 "$m_c")" = "$(imp_f d1 "$m_c")" ] || M_CH="$M_CH $m_c"; done
-ok=no; imp_valid d1 && imp_valid d2 && imp_valid d3 && imp_valid d4 && [ "$M_NE" = yes ] && [ "$(imp_f d2 2-30)" = "$(imp_f d1 2-30)" ] && [ "$M_CH" = " 12" ] && [ -n "$M_IDS0" ] && [ "$M_IDS1" = "$M_IDS0" ] && [ "$(imp_f d4 2-30)" = "$(imp_f d1 2-30)" ] && has "$TMP/m05a.log" 'M05A_DONE' && has "$TMP/m05b.log" 'M05B_DONE' && [ "$(fp_out)" = "$FPD" ] && ok=yes
+for m_c in $(seq 2 31); do [ "$(imp_f d3 "$m_c")" = "$(imp_f d1 "$m_c")" ] || M_CH="$M_CH $m_c"; done
+ok=no; imp_gate d1 && imp_gate d2 && imp_gate d3 && imp_gate d4 && [ "$M_NE" = yes ] && [ "$(imp_f d2 2-31)" = "$(imp_f d1 2-31)" ] && [ "$M_CH" = " 12" ] && [ -n "$M_IDS0" ] && [ "$M_IDS1" = "$M_IDS0" ] && [ "$(imp_f d4 2-31)" = "$(imp_f d1 2-31)" ] && has "$TMP/m05a.log" 'M05A_DONE' && has "$TMP/m05b.log" 'M05B_DONE' && [ "$(fp_out)" = "$FPD" ] && ok=yes
 record "M05 impact on non-empty data: the 9 tables have rows; read twice = same; one order_items row content changed (same count and ids) -> only order_items_fp (column 12) changes; restored -> = first read" "$ok" "non_empty=$M_NE changed_cols:${M_CH:- none} d1=$(imp_detail d1) d3=$(imp_detail d3) $(tailof "$TMP/m05a.log") $(tailof "$TMP/m05b.log")"
 # قفل من جلسة تانية على admin_users بيتعدّ في admin_users_locks (ومش في idle_tx ولا stop_locks).
 printf '%s\n' "begin;" "lock table public.admin_users in access share mode;" "select pg_catalog.pg_sleep(3);" "commit;" | PGAPPNAME=ci0024_aul psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=sqlstate -U "$SUPER" -d "$DB" -f - > "$TMP/aul.out" 2>&1 &
 M_HA=$!
 if wait_app ci0024_aul; then
-  impact l1
+  impact_v l1
   wait "$M_HA"
-  impact l2
-  ok=no; imp_valid l1 && imp_valid l2 && [ "$(imp_f l1 30)" -ge 1 ] 2> /dev/null && [ "$(imp_f l1 28-29)" = "0|0" ] && [ "$(imp_f l2 30)" = "0" ] && [ "$(imp_f l2 2-30)" = "$(imp_f d1 2-30)" ] && ok=yes
-  record "M06 another session holding a lock on admin_users -> admin_users_locks >= 1 (idle_tx = stop_locks = 0); after it ends -> 0 and columns 2-30 = M05 first read" "$ok" "with=$(imp_detail l1) after=$(imp_detail l2) $(tailof "$TMP/aul.out")"
+  impact_v l2
+  ok=no; imp_valid l1 && imp_gate l2 && [ "$(imp_f l1 30)" -ge 1 ] 2> /dev/null && [ "$(imp_f l1 28-29)" = "0|0" ] && [ "$(imp_f l1 31)" = "t" ] && [ "$(imp_f l2 2-31)" = "$(imp_f d1 2-31)" ] && ok=yes
+  record "M06 another session holding a lock on admin_users -> admin_users_locks >= 1 (idle_tx = stop_locks = 0, sessions_visible = t); after it ends -> gate passes and columns 2-31 = M05 first read" "$ok" "with=$(imp_detail l1) after=$(imp_detail l2) $(tailof "$TMP/aul.out")"
 else
   wait "$M_HA"; record "M06 a lock on admin_users from another session" no "holder session never reached its sleep: $(tailof "$TMP/aul.out")"
 fi
