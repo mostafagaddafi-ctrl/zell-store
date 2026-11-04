@@ -3,24 +3,33 @@
  */
 
 import {
+  EMPTY_PURGE_FORM,
   ORDER_PURGE_MESSAGES,
   ORDER_PURGE_OWNER_ONLY_MESSAGE,
+  TEMP_AUTH_OPTIONS,
   ordersCountText,
   parsePurgePreview,
   parsePurgeResult,
   parseReauthBegin,
   parseReauthFinish,
+  previewFailure,
+  purgeCanConfirm,
   purgeDoneNotice,
   purgeErrorCode,
   purgeFailure,
+  purgeFormAfterFailure,
   purgeInputIssue,
   purgePhrase,
   purgeSummary,
   runOrderPurge,
   sessionIdFromToken,
   validIds,
+  verifyOwnerPassword,
+  type PurgeForm,
   type PurgeRequest,
   type PurgeSteps,
+  type TempAuthClient,
+  type TempAuthOptions,
 } from './purge'
 
 export type PurgeCaseFailure = { name: string; expected: string; actual: string }
@@ -199,6 +208,106 @@ export async function runOrderPurgeCases(): Promise<{ passed: number; failures: 
     sessionIdFromToken('a.b', dec),
     sessionIdFromToken(null, dec),
   ], [S1, null, null, null])
+
+  // رسايل المعاينة منفصلة عن رفض الحذف (B1)
+  {
+    const nf = previewFailure({ code: '45602', message: 'ZELL_PURGE_NOT_FOUND' })
+    check('B01 preview: a missing order does NOT say «nothing was deleted» (a previous attempt may have deleted it)', [nf.code, nf.message, nf.message.includes('لم يُحذف شيء')], ['NOT_FOUND', ORDER_PURGE_MESSAGES.previewNotFound, false])
+    check('B02 preview: other codes', ['45400', '45402', '45601', '99999'].map((c) => previewFailure({ code: c }).message), [
+      ORDER_PURGE_MESSAGES.unauthenticated, ORDER_PURGE_MESSAGES.forbidden, ORDER_PURGE_MESSAGES.previewInvalid, ORDER_PURGE_MESSAGES.previewUnavailable,
+    ])
+  }
+
+  // حالة الكارت اللي الواجهة بتستخدمها فعليًا (B1)
+  {
+    const preview = parsePurgePreview(RAW)
+    const full: PurgeForm = { preview, phrase: 'احذف طلبين', backup: true, password: 'secret' }
+    check('B03 ready form can confirm', purgeCanConfirm(full, 'all', true, false), true)
+    const unknown = purgeFormAfterFailure(full, { code: 'INTERNAL' })
+    check('B04 after an UNKNOWN result: the old preview is gone, and typing the password again alone cannot re-enable delete', [
+      unknown, purgeCanConfirm({ ...unknown, password: 'secret' }, 'all', true, false),
+    ], [EMPTY_PURGE_FORM, false])
+    const changed = purgeFormAfterFailure(full, { code: 'CONFLICT' })
+    check('B05 after snapshot changed / busy / ticket (CONFLICT): same — preview gone, password alone cannot confirm', purgeCanConfirm({ ...changed, password: 'secret' }, 'all', true, false), false)
+    const gone = purgeFormAfterFailure(full, { code: 'NOT_FOUND' })
+    const denied = purgeFormAfterFailure(full, { code: 'FORBIDDEN' })
+    check('B06 after NOT_FOUND / FORBIDDEN / UNAUTHENTICATED: preview gone', [gone.preview, denied.preview, purgeFormAfterFailure(full, { code: 'UNAUTHENTICATED' }).preview], [null, null, null])
+    const wrong = purgeFormAfterFailure(full, { code: 'VALIDATION' })
+    check('B07 after a wrong password (VALIDATION): preview and confirmations kept, only the password cleared; retyping it re-enables', [
+      wrong.preview === preview, wrong.phrase, wrong.backup, wrong.password, purgeCanConfirm({ ...wrong, password: 'secret' }, 'all', true, false),
+    ], [true, 'احذف طلبين', true, '', true])
+    check('B08 confirm needs: exact phrase · backup for all only · password · mutations on · not busy · a non-empty preview', [
+      purgeCanConfirm({ ...full, phrase: 'احذف 2 طلبات' }, 'all', true, false),
+      purgeCanConfirm({ ...full, backup: false }, 'all', true, false),
+      purgeCanConfirm({ ...full, backup: false }, 'single', true, false),
+      purgeCanConfirm({ ...full, password: '' }, 'all', true, false),
+      purgeCanConfirm(full, 'all', false, false),
+      purgeCanConfirm(full, 'all', true, true),
+      purgeCanConfirm(EMPTY_PURGE_FORM, 'all', true, false),
+    ], [false, false, true, false, false, false, false])
+  }
+
+  // adapter المصادقة نفسه بعميل محاكاة (B2)
+  {
+    type SignReply = Awaited<ReturnType<TempAuthClient['auth']['signInWithPassword']>>
+    type OutReply = Awaited<ReturnType<TempAuthClient['auth']['signOut']>>
+    const UID = '00000000-0000-4000-8000-0000000000b1'
+    const ok: SignReply = { data: { user: { id: UID }, session: { access_token: 't' } }, error: null }
+    // العميل الأصلي (جلسة المتصفح): أي نداء عليه بيتعدّ
+    const original = { signIn: 0, signOut: 0 }
+    const originalClient: TempAuthClient = {
+      auth: {
+        signInWithPassword: async () => { original.signIn += 1; return ok },
+        signOut: async () => { original.signOut += 1; return { error: null } },
+      },
+    }
+    void originalClient
+    const run = async (sign: () => Promise<SignReply>, out: () => Promise<OutReply>, password = 'secret', email = 'owner@example.invalid') => {
+      const calls: string[] = []
+      const make = (options: TempAuthOptions): TempAuthClient => {
+        calls.push('make:' + JSON.stringify(options))
+        return {
+          auth: {
+            signInWithPassword: async (c) => { calls.push('signIn:' + c.email); return sign() },
+            signOut: async (o) => { calls.push('signOut:' + o.scope); return out() },
+          },
+        }
+      }
+      const result = await verifyOwnerPassword(make, email, UID, password)
+      return { result, calls }
+    }
+    const MAKE = 'make:' + JSON.stringify(TEMP_AUTH_OPTIONS)
+    check('A01 separate client options: no persisted session, no refresh, no URL session (createClient, not the cookie client)', TEMP_AUTH_OPTIONS,
+      { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
+    check('A02 correct password: one separate client → sign in → sign out (scope local) BEFORE the result → true',
+      await run(async () => ok, async () => ({ error: null })), { result: true, calls: [MAKE, 'signIn:owner@example.invalid', 'signOut:local'] })
+    check('A03 wrong password (400, no session): false, no sign out needed',
+      await run(async () => ({ data: { user: null, session: null }, error: { status: 400 } }), async () => ({ error: null })), { result: false, calls: [MAKE, 'signIn:owner@example.invalid'] })
+    check('A04 other sign-in error (500): not settled (null)',
+      await run(async () => ({ data: { user: null, session: null }, error: { status: 500 } }), async () => ({ error: null })), { result: null, calls: [MAKE, 'signIn:owner@example.invalid'] })
+    check('A05 signed in as ANOTHER user: the temporary session is still signed out (local), result not settled (null)',
+      await run(async () => ({ data: { user: { id: 'someone-else' }, session: { access_token: 't' } }, error: null }), async () => ({ error: null })),
+      { result: null, calls: [MAKE, 'signIn:owner@example.invalid', 'signOut:local'] })
+    check('A06 sign out returns { error }: not settled (null) — no ticket, no delete',
+      await run(async () => ok, async () => ({ error: { message: 'x' } })), { result: null, calls: [MAKE, 'signIn:owner@example.invalid', 'signOut:local'] })
+    check('A07 sign out throws: not settled (null)',
+      await run(async () => ok, async () => { throw new Error('network') }), { result: null, calls: [MAKE, 'signIn:owner@example.invalid', 'signOut:local'] })
+    check('A08 sign in throws: not settled (null), nothing to sign out',
+      await run(async () => { throw new Error('network') }, async () => ({ error: null })), { result: null, calls: [MAKE, 'signIn:owner@example.invalid'] })
+    check('A09 an error reply that still carries a session: signed out, not settled (null)',
+      await run(async () => ({ data: { user: { id: UID }, session: { access_token: 't' } }, error: { status: 400 } }), async () => ({ error: null })),
+      { result: null, calls: [MAKE, 'signIn:owner@example.invalid', 'signOut:local'] })
+    check('A10 no session and no error: not settled (null)',
+      await run(async () => ({ data: { user: { id: UID }, session: null }, error: null }), async () => ({ error: null })), { result: null, calls: [MAKE, 'signIn:owner@example.invalid'] })
+    check('A11 empty password or email: no client made at all', [await run(async () => ok, async () => ({ error: null }), ''), await run(async () => ok, async () => ({ error: null }), 'secret', '')],
+      [{ result: null, calls: [] }, { result: null, calls: [] }])
+    check('A12 the original (browser-session) client is never signed in or out by the adapter', original, { signIn: 0, signOut: 0 })
+    {
+      const log: Log = []
+      const r = await runOrderPurge(req(), steps(log, { verifyPassword: async () => { log.push('verify'); return run(async () => ok, async () => ({ error: { message: 'x' } })).then((x) => x.result) } }))
+      check('A13 cleanup not settled inside the real chain: no finish (no ticket), no purge', [r.ok ? null : r.message, log], [ORDER_PURGE_MESSAGES.passwordUnavailable, ['begin', 'verify']])
+    }
+  }
 
   return { passed, failures }
 }
