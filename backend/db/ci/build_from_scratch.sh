@@ -44,7 +44,7 @@ seen_count() { printf '%s' "$SEEN" | tr ' ' '\n' | grep -cx "$1" || true; }
 finish() {
   if [ "$FAIL" -eq 0 ]; then
     missing=""
-    for id in P01 P02 P03 C01 F01 F02 F03 F04 S01 K01 K02; do [ "$(seen_count "$id")" = "1" ] || missing="$missing $id"; done
+    for id in P01 P02 P03 C01 C02 F01 F02 F03 F04 S01 K01 K02; do [ "$(seen_count "$id")" = "1" ] || missing="$missing $id"; done
     nb=$(printf '%s' "$SEEN" | tr ' ' '\n' | grep -cE '^B[0-9]+$' || true)
     [ "$nb" = "${EXPECTED_STEPS:-x}" ] || missing="$missing B($nb/${EXPECTED_STEPS:-?})"
     for g in G2 G3 G4; do [ "$(seen_count "$g")" = "${EXPECTED_BASELINE:-x}" ] || missing="$missing $g($(seen_count "$g")/${EXPECTED_BASELINE:-?})"; done
@@ -139,6 +139,42 @@ passes=$(grep -c '^CMP PASS ' "$LOG/compare.log" || true)
 expected=$(grep -E '^CMP EXPECTED [0-9]+$' "$LOG/compare.log" | awk '{print $3}' | tail -n 1)
 ok=no; [ "$rc" -eq 0 ] && [ "$fails" = "0" ] && [ -n "$expected" ] && [ "$expected" -gt 0 ] && [ "$passes" = "$expected" ] && ok=yes
 record "C01 built database = step-0 / columns / orders snapshots ($passes of ${expected:-?} checks)" "$ok" "rc=$rc fails=$fails $(tailof "$LOG/compare.log")"
+
+# ---- 2b) ORDER-DELETE C1: the Production read text for the six orders/order_items entries, verbatim, as postgres ----
+READ_SQL="$DBDIR/migrations/0024_order_delete_baseline_read.sql"
+US="$(printf '\037')"
+ok=no; detail=""
+if python3 "$CI/0021p_txn_shape.py" "$READ_SQL" > "$LOG/read_shape.log" 2>&1; then
+  psql -X -q -tA -F "$US" -v ON_ERROR_STOP=1 -U postgres -d "$DB" -f "$READ_SQL" < /dev/null > "$LOG/read.out" 2> "$LOG/read.err"; rc=$?
+  if [ "$rc" -eq 0 ] && [ ! -s "$LOG/read.err" ]; then
+    detail=$(python3 - "$CI/baseline_compare.sql" "$LOG/read.out" <<'PY'
+import json, re, sys
+cmp = open(sys.argv[1], encoding='utf-8').read()
+keys = ['ocols:order_items', 'ocols:orders', 'opol:order_items', 'opol:orders', 'otbl:order_items', 'otbl:orders']
+rows = [l.split('\x1f', 1) for l in open(sys.argv[2], encoding='utf-8').read().splitlines() if l]
+got = dict((r[0], r[1]) for r in rows if len(r) == 2)
+bad = []
+if [r[0] for r in rows] != keys:
+    bad.append('keys=' + ','.join(r[0] for r in rows))
+for k in keys:
+    m = re.findall(r"\('" + re.escape(k) + r"', \$cmp\$(.*?)\$cmp\$::jsonb\)", cmp, re.S)
+    if len(m) != 1:
+        bad.append(k + ':expected_not_found')
+    elif k not in got:
+        bad.append(k + ':missing')
+    elif json.loads(m[0]) != json.loads(got[k]):
+        bad.append(k + ':differs')
+print('READ OK rows=%d' % len(rows) if not bad else 'READ BAD ' + ' '.join(bad))
+PY
+)
+    [ "$detail" = "READ OK rows=6" ] && ok=yes
+  else
+    detail="rc=$rc $(tailof "$LOG/read.err")"
+  fi
+else
+  detail="shape: $(tailof "$LOG/read_shape.log")"
+fi
+record "C02 ORDER-DELETE C1 Production read text: transaction shape · runs as postgres · exactly the six orders/order_items entries · each = the expected value in baseline_compare.sql" "$ok" "$detail"
 
 # ---- 3) guard tests (§4-6) ----
 # 3a) MANDATORY fingerprint self-tests, before any guard test relies on the fingerprint.
