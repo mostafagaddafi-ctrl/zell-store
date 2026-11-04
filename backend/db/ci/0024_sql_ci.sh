@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 0024 ORDER-DELETE B — اختبار SQL في CI: Postgres 17 مؤقت، والداتابيز مبنية من الصفر بالقايمة الصريحة كلها
+# 0024 ORDER-DELETE B — اختبار SQL في CI: Postgres 17 مؤقت، والداتابيز مبنية من الصفر بالقايمة الصريحة لحد قبل 0024
 # (backend/db/ci/build_from_scratch.list؛ postgres مش superuser زي Production)، وبعدين 0024 فوقها. مفيش أي اتصال بـ Supabase.
 # بيغطي (العقد docs/contracts/ORDER-DELETE.md §٦): شكل المعاملة · md5 الجسم · سطر الموافقة برّه الملف · الـ 9 verify قبل وبعد ·
 # ptest ومابيسيبش أثر · حراس الـ preflight · رجوع المعاملة كلها · التطبيق · verify 0024 · بصمة كل حاجة برّه الكائنات الجديدة والحراس التلاتة ·
@@ -191,7 +191,7 @@ ok=no
 if python3 "$SHAPE" "$IMPACT" > "$TMP/shape_imp.out" 2>&1 && [ "$(grep -cx 'begin;' "$IMPACT")" = "1" ] && [ "$(grep -cx 'set transaction read only;' "$IMPACT")" = "1" ] && [ "$(grep -cx 'rollback;' "$IMPACT")" = "1" ]; then ok=yes; fi
 record "M01 impact query: transaction shape = begin ... one SELECT ... rollback, read only" "$ok" "$(tailof "$TMP/shape_imp.out")"
 
-# ---- 2) بناء الداتابيز من القايمة الصريحة كلها ----
+# ---- 2) بناء الداتابيز من القايمة الصريحة لحد قبل 0024 ----
 fresh=$(su_q postgres -c "select pg_catalog.count(*) from pg_catalog.pg_roles where rolname in ('postgres','anon','authenticated','service_role')")
 [ "$fresh" = "0" ] || stop "B01 fresh disposable cluster" "platform roles already present"
 su_q postgres -c "create database $DB" -c "alter database $DB set zell.ci_scratch = 'on'" > "$TMP/createdb.log" 2>&1 || stop "B01 create database" "$(tailof "$TMP/createdb.log")"
@@ -200,6 +200,8 @@ su_f "$DB" "$CIDIR/platform_default_privileges.sql" > "$TMP/dp.log" 2>&1 || stop
 n=0
 while IFS='|' read -r kind rel _reason; do
   case "$kind" in ''|'#'*|exclude) continue ;; apply|baseline|fixture|check) ;; *) stop "B01 build list" "unknown kind $kind" ;; esac
+  # 0024 نفسها في القايمة من المرحلة C: هنا البناء لحد قبلها، والملف بيتطبّق ويتختبر تحت.
+  [ "$rel" = "migrations/0024_order_delete.sql" ] && { SKIPPED_0024=yes; break; }
   f="$DBDIR/$rel"
   [ -f "$f" ] || stop "B01 build list" "missing $rel"
   n=$((n + 1))
@@ -215,8 +217,8 @@ while IFS='|' read -r kind rel _reason; do
 done < "$LIST"
 shape=$(su_q "$DB" -c "select rolsuper::text || ',' || rolbypassrls::text from pg_catalog.pg_roles where rolname = 'postgres'")
 st=$(state)
-ok=no; [ "$n" -gt 10 ] && [ "$shape" = "false,true" ] && [ "$st" = "$BEFORE_STATE" ] && ok=yes
-record "B01 database built from the whole build_from_scratch.list ($n steps), postgres not superuser, guards = Production read ($BEFORE_STATE)" "$ok" "steps=$n postgres=$shape state=$st"
+ok=no; [ "$n" -gt 10 ] && [ "$shape" = "false,true" ] && [ "$st" = "$BEFORE_STATE" ] && [ "${SKIPPED_0024:-no}" = "yes" ] && ok=yes
+record "B01 database built from build_from_scratch.list up to before 0024 ($n steps; 0024 line not built), postgres not superuser, guards = Production read ($BEFORE_STATE)" "$ok" "steps=$n postgres=$shape state=$st skipped_0024=${SKIPPED_0024:-no}"
 [ "$ok" = yes ] || finish
 # ---- رؤية الجلسات: جلسة دور تاني idle in transaction؛ من غير pg_read_all_stats حالتها مخفية عن postgres ----
 { printf '%s\n' "begin;" "select 1;"; sleep 5; printf '%s\n' "commit;"; } | PGAPPNAME=ci0024_idle psql -X -q -tA -v ON_ERROR_STOP=1 -U "$SUPER" -d "$DB" -f - > "$TMP/idle.out" 2>&1 &
