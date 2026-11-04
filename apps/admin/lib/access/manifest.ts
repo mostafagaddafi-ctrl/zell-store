@@ -22,7 +22,7 @@ export type ManifestEntry = {
   mutates: boolean
   todayGuard: 'admin' | 'owner'
   todayFlag: boolean
-  forbiddenMessage: 'OWNER_ONLY_MESSAGE' | 'PRODUCT_DELETE_OWNER_ONLY_MESSAGE' | null
+  forbiddenMessage: 'OWNER_ONLY_MESSAGE' | 'PRODUCT_DELETE_OWNER_ONLY_MESSAGE' | 'ORDER_PURGE_OWNER_ONLY_MESSAGE' | null
   mapFailure: 'rejectedFailure' | null
 }
 
