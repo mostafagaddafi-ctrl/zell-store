@@ -13,7 +13,9 @@
 --   DELETE لصف لما current_user = zell_purge_definer والجدول من الجداول المعتمدة للحارس والطلب من طلبات العملية (إعداد محلي).
 --   غير كده نفس الرفض ونفس الكود. zell_order_trg_events_immutable و zell_create_order مابيتلمسوش.
 -- • الأكواد 45601..45610 (ZELL_PURGE_*).
--- الرجوع: 0024_order_delete_rollback.sql (بيرفض لو zell_purge_log فيه سطور). التحقق: 0024_order_delete_verify.sql ·
+-- • ترتيب المسح: قفل advisory shared (من غير انتظار) ← ROW EXCLUSIVE على الجداول التسعة (بيوقف أي تغيير FK) ← فحص شكل التوابع الكامل ←
+--   صفوف الطلبات ثم التوابع NOWAIT ← التذكرة ← البصمة ← الحذف ← سطر السجل.
+-- الرجوع: 0024_order_delete_rollback.sql (بياخد القفل exclusive، وبيرفض لو zell_purge_log فيه سطور أو لو دالة اتغيّرت). التحقق: 0024_order_delete_verify.sql ·
 -- الاختبار قبل التطبيق: 0024_order_delete_ptest.sql · CI: backend/db/ci/0024_sql_ci.sh
 -- التشغيل: سطر الموافقة بعد begin; (برّه الجسم):  set local zell.approved_by = 'owner-approval-YYYY-MM-DD-order-delete';
 --   ومفيش أي سطر تشغيل تاني (درس 0023).
@@ -62,17 +64,23 @@ begin
   if exists (select 1 from pg_catalog.pg_proc p where p.prosrc ~ '\m456(0[1-9]|10)\M') then
     raise exception 'ZELL_0024_CODE_TAKEN';
   end if;
-  select s.v into v_shape from (with recursive d(child, parent, conname, deltype) as (
-    select c.conrelid, c.confrelid, c.conname, c.confdeltype
-      from pg_catalog.pg_constraint c where c.contype = 'f' and c.confrelid = 'public.orders'::regclass
+  select s.v into v_shape from (with recursive d(coid, child) as (
+    select c.oid, c.conrelid from pg_catalog.pg_constraint c where c.contype = 'f' and c.confrelid = 'public.orders'::regclass
     union
-    select c.conrelid, c.confrelid, c.conname, c.confdeltype
-      from pg_catalog.pg_constraint c join d on c.confrelid = d.child where c.contype = 'f'
+    select c.oid, c.conrelid from pg_catalog.pg_constraint c join d on c.confrelid = d.child where c.contype = 'f'
   )
-  select pg_catalog.string_agg(cc.relname::text || '>' || pc.relname::text || ':' || d.conname::text || ':' || d.deltype::text, ','
-                               order by cc.relname::text collate "C", d.conname::text collate "C") as v
-    from d join pg_catalog.pg_class cc on cc.oid = d.child join pg_catalog.pg_class pc on pc.oid = d.parent) s;
-  if v_shape is distinct from 'order_events>orders:order_events_order_fkey:c,order_items>orders:order_items_order_id_fkey:c,order_payments>orders:order_payments_order_fkey:r,zell_order_customer_updates>orders:zell_order_customer_updates_order_fkey:r,zell_order_customer_updates_log>orders:zell_order_customer_updates_log_order_fkey:r,zell_order_customer_updates_log>zell_order_customer_updates:zell_order_customer_updates_log_update_fkey:r,zell_order_shipments>orders:zell_order_shipments_order_fkey:r,zell_order_shipments_log>orders:zell_order_shipments_log_order_fkey:r,zell_payment_commands>orders:zell_payment_commands_order_fkey:r' then
+  select pg_catalog.string_agg(x.v, ',' order by x.v collate "C") as v
+    from (select cn.nspname::text || '.' || cc.relname::text
+                 || '(' || (select pg_catalog.string_agg(a.attname::text, '+' order by k.i) from pg_catalog.unnest(c.conkey) with ordinality k(n, i)
+                              join pg_catalog.pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.n) || ')>'
+                 || pn.nspname::text || '.' || pc.relname::text
+                 || '(' || (select pg_catalog.string_agg(a.attname::text, '+' order by k.i) from pg_catalog.unnest(c.confkey) with ordinality k(n, i)
+                              join pg_catalog.pg_attribute a on a.attrelid = c.confrelid and a.attnum = k.n) || '):'
+                 || c.conname::text || ':' || c.confdeltype::text || ':' || c.confupdtype::text || ':' || c.confmatchtype::text || ':' || c.condeferrable::text as v
+            from d join pg_catalog.pg_constraint c on c.oid = d.coid
+                   join pg_catalog.pg_class cc on cc.oid = c.conrelid join pg_catalog.pg_namespace cn on cn.oid = cc.relnamespace
+                   join pg_catalog.pg_class pc on pc.oid = c.confrelid join pg_catalog.pg_namespace pn on pn.oid = pc.relnamespace) x) s;
+  if v_shape is distinct from 'public.order_events(order_id)>public.orders(id):order_events_order_fkey:c:a:s:false,public.order_items(order_id)>public.orders(id):order_items_order_id_fkey:c:a:s:false,public.order_payments(order_id)>public.orders(id):order_payments_order_fkey:r:a:s:false,public.zell_order_customer_updates(order_id)>public.orders(id):zell_order_customer_updates_order_fkey:r:a:s:false,public.zell_order_customer_updates_log(order_id)>public.orders(id):zell_order_customer_updates_log_order_fkey:r:a:s:false,public.zell_order_customer_updates_log(update_id)>public.zell_order_customer_updates(id):zell_order_customer_updates_log_update_fkey:r:a:s:false,public.zell_order_shipments(order_id)>public.orders(id):zell_order_shipments_order_fkey:r:a:s:false,public.zell_order_shipments_log(order_id)>public.orders(id):zell_order_shipments_log_order_fkey:r:a:s:false,public.zell_payment_commands(order_id)>public.orders(id):zell_payment_commands_order_fkey:r:a:s:false' then
     raise exception 'ZELL_0024_DEPENDENTS_DRIFT' using detail = coalesce(v_shape, '-');
   end if;
 end
@@ -228,17 +236,23 @@ returns text language sql immutable set search_path = '' as $fn$
 $fn$;
 create function public.zell_purge_shape_problem()
 returns text language sql stable set search_path = '' as $fn$
-  select case when s.v is distinct from 'order_events>orders:order_events_order_fkey:c,order_items>orders:order_items_order_id_fkey:c,order_payments>orders:order_payments_order_fkey:r,zell_order_customer_updates>orders:zell_order_customer_updates_order_fkey:r,zell_order_customer_updates_log>orders:zell_order_customer_updates_log_order_fkey:r,zell_order_customer_updates_log>zell_order_customer_updates:zell_order_customer_updates_log_update_fkey:r,zell_order_shipments>orders:zell_order_shipments_order_fkey:r,zell_order_shipments_log>orders:zell_order_shipments_log_order_fkey:r,zell_payment_commands>orders:zell_payment_commands_order_fkey:r' then coalesce(s.v, '-') end
-    from (with recursive d(child, parent, conname, deltype) as (
-    select c.conrelid, c.confrelid, c.conname, c.confdeltype
-      from pg_catalog.pg_constraint c where c.contype = 'f' and c.confrelid = 'public.orders'::regclass
+  select case when s.v is distinct from 'public.order_events(order_id)>public.orders(id):order_events_order_fkey:c:a:s:false,public.order_items(order_id)>public.orders(id):order_items_order_id_fkey:c:a:s:false,public.order_payments(order_id)>public.orders(id):order_payments_order_fkey:r:a:s:false,public.zell_order_customer_updates(order_id)>public.orders(id):zell_order_customer_updates_order_fkey:r:a:s:false,public.zell_order_customer_updates_log(order_id)>public.orders(id):zell_order_customer_updates_log_order_fkey:r:a:s:false,public.zell_order_customer_updates_log(update_id)>public.zell_order_customer_updates(id):zell_order_customer_updates_log_update_fkey:r:a:s:false,public.zell_order_shipments(order_id)>public.orders(id):zell_order_shipments_order_fkey:r:a:s:false,public.zell_order_shipments_log(order_id)>public.orders(id):zell_order_shipments_log_order_fkey:r:a:s:false,public.zell_payment_commands(order_id)>public.orders(id):zell_payment_commands_order_fkey:r:a:s:false' then coalesce(s.v, '-') end
+    from (with recursive d(coid, child) as (
+    select c.oid, c.conrelid from pg_catalog.pg_constraint c where c.contype = 'f' and c.confrelid = 'public.orders'::regclass
     union
-    select c.conrelid, c.confrelid, c.conname, c.confdeltype
-      from pg_catalog.pg_constraint c join d on c.confrelid = d.child where c.contype = 'f'
+    select c.oid, c.conrelid from pg_catalog.pg_constraint c join d on c.confrelid = d.child where c.contype = 'f'
   )
-  select pg_catalog.string_agg(cc.relname::text || '>' || pc.relname::text || ':' || d.conname::text || ':' || d.deltype::text, ','
-                               order by cc.relname::text collate "C", d.conname::text collate "C") as v
-    from d join pg_catalog.pg_class cc on cc.oid = d.child join pg_catalog.pg_class pc on pc.oid = d.parent) s
+  select pg_catalog.string_agg(x.v, ',' order by x.v collate "C") as v
+    from (select cn.nspname::text || '.' || cc.relname::text
+                 || '(' || (select pg_catalog.string_agg(a.attname::text, '+' order by k.i) from pg_catalog.unnest(c.conkey) with ordinality k(n, i)
+                              join pg_catalog.pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.n) || ')>'
+                 || pn.nspname::text || '.' || pc.relname::text
+                 || '(' || (select pg_catalog.string_agg(a.attname::text, '+' order by k.i) from pg_catalog.unnest(c.confkey) with ordinality k(n, i)
+                              join pg_catalog.pg_attribute a on a.attrelid = c.confrelid and a.attnum = k.n) || '):'
+                 || c.conname::text || ':' || c.confdeltype::text || ':' || c.confupdtype::text || ':' || c.confmatchtype::text || ':' || c.condeferrable::text as v
+            from d join pg_catalog.pg_constraint c on c.oid = d.coid
+                   join pg_catalog.pg_class cc on cc.oid = c.conrelid join pg_catalog.pg_namespace cn on cn.oid = cc.relnamespace
+                   join pg_catalog.pg_class pc on pc.oid = c.confrelid join pg_catalog.pg_namespace pn on pn.oid = pc.relnamespace) x) s
 $fn$;
 create function public.zell_purge_snapshot_hash(p_ids integer[])
 returns text language sql stable set search_path = '' set "TimeZone" = 'UTC' as $fn$
@@ -389,14 +403,34 @@ begin
   if v_session is null then
     raise exception 'ZELL_PURGE_TICKET_INVALID' using errcode = '45607';
   end if;
-  -- (2) any dependent outside the approved list = refuse (no uncounted cascade).
+  -- (2) the rollback takes this lock exclusive: no purge starts while it runs, and it waits for a running purge.
+  if not pg_catalog.pg_try_advisory_xact_lock_shared(pg_catalog.hashtextextended('zell_purge:orders', 0)) then
+    raise exception 'ZELL_PURGE_BUSY' using errcode = '45608', detail = 'maintenance';
+  end if;
+  -- (3) ROW EXCLUSIVE on orders and the 8 approved dependents until commit (zero-row UPDATE of the lock column; LOCK TABLE needs
+  --     table-level UPDATE/DELETE/TRUNCATE). It conflicts with every FK change on them (ADD = SHARE ROW EXCLUSIVE, DROP/ALTER =
+  --     ACCESS EXCLUSIVE), so the shape checked next is the shape the DELETE runs on. Normal writes are not blocked.
+  begin
+    update public.orders o set updated_at = o.updated_at where false;
+    update public.order_items t set order_id = t.order_id where false;
+    update public.order_events t set order_id = t.order_id where false;
+    update public.order_payments t set order_id = t.order_id where false;
+    update public.zell_payment_commands t set order_id = t.order_id where false;
+    update public.zell_order_shipments t set order_id = t.order_id where false;
+    update public.zell_order_shipments_log t set order_id = t.order_id where false;
+    update public.zell_order_customer_updates t set order_id = t.order_id where false;
+    update public.zell_order_customer_updates_log t set order_id = t.order_id where false;
+  exception when lock_not_available then
+    raise exception 'ZELL_PURGE_BUSY' using errcode = '45608', detail = 'tables';
+  end;
+  -- (4) any dependent outside the approved list, or an approved FK changed in any way = refuse (no uncounted cascade).
   v_problem := public.zell_purge_shape_problem();
   if v_problem is not null then
     raise exception 'ZELL_PURGE_UNAPPROVED_DEPENDENT' using errcode = '45604', detail = pg_catalog.left(v_problem, 500);
   end if;
-  -- (3a) the snapshot's orders, in id order (no lock held yet, so waiting here cannot form a cycle).
+  -- (5a) the snapshot's orders, in id order, never waiting.
   begin
-    perform 1 from public.orders o where o.id = any (v_ids) order by o.id for update;
+    perform 1 from public.orders o where o.id = any (v_ids) order by o.id for update nowait;
   exception when lock_not_available then
     raise exception 'ZELL_PURGE_BUSY' using errcode = '45608', detail = 'orders';
   end;
@@ -404,7 +438,7 @@ begin
   if v_locked <> p_count then
     raise exception 'ZELL_PURGE_SNAPSHOT_CHANGED' using errcode = '45605', detail = 'orders';
   end if;
-  -- (3b) every approved dependent row, fixed table order, never waiting while holding the orders.
+  -- (5b) every approved dependent row, fixed table order, never waiting.
   begin
     perform 1 from public.order_items t where t.order_id = any (v_ids) for update nowait;
     perform 1 from public.order_events t where t.order_id = any (v_ids) for update nowait;
@@ -417,7 +451,7 @@ begin
   exception when lock_not_available then
     raise exception 'ZELL_PURGE_BUSY' using errcode = '45608', detail = 'dependents';
   end;
-  -- (4) single-use ticket bound to owner, session and scope, consumed atomically.
+  -- (6) single-use ticket bound to owner, session and scope, consumed atomically.
   update public.zell_purge_reauth r
      set used_at = pg_catalog.clock_timestamp()
    where r.ticket = p_ticket and r.used_at is null and r.expires_at > pg_catalog.clock_timestamp()
@@ -426,7 +460,7 @@ begin
   if not found then
     raise exception 'ZELL_PURGE_TICKET_INVALID' using errcode = '45607';
   end if;
-  -- (5) same content hash as the preview, after the locks.
+  -- (7) same content hash as the preview, after the locks.
   if public.zell_purge_snapshot_hash(v_ids) is distinct from p_snapshot_hash then
     raise exception 'ZELL_PURGE_SNAPSHOT_CHANGED' using errcode = '45605', detail = 'content';
   end if;
@@ -436,7 +470,7 @@ begin
          coalesce(pg_catalog.sum(p.amount_piastres) filter (where p.kind = 'refund'), 0)
     into v_pay, v_rec, v_ref
     from public.order_payments p where p.order_id = any (v_ids);
-  -- (6) the guards allow DELETE only for these orders, this role and the approved tables.
+  -- (8) the guards allow DELETE only for these orders, this role and the approved tables.
   perform pg_catalog.set_config('zell.purge_order_ids', v_ids::text, true);
   delete from public.zell_order_customer_updates_log t where t.order_id = any (v_ids);
   delete from public.zell_order_customer_updates t where t.order_id = any (v_ids);
@@ -446,7 +480,7 @@ begin
   delete from public.order_payments t where t.order_id = any (v_ids);
   delete from public.orders o where o.id = any (v_ids);
   perform pg_catalog.set_config('zell.purge_order_ids', '', true);
-  -- (7) log without personal data.
+  -- (9) log without personal data.
   insert into public.zell_purge_log (actor, order_numbers, orders_count, payments_count, received_piastres, refunded_piastres)
   values (v_actor, v_numbers, p_count, v_pay, v_rec, v_ref);
   select pg_catalog.count(*)::integer into v_left from public.orders;
@@ -467,10 +501,10 @@ begin
   if not exists (select 1 from pg_catalog.pg_roles r where r.rolname = 'zell_purge_definer' and not r.rolcanlogin and not r.rolbypassrls and not r.rolinherit and not r.rolsuper)
      or (select pg_catalog.count(*) from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'zell\_purge\_%') <> 8
      or not exists (select 1 from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure('public.zell_purge_ids_hash(integer[])') and pg_catalog.md5(p.prosrc) = '84d52a5f10ec855f8358a4d8e7055077' and pg_catalog.pg_get_userbyid(p.proowner) = 'zell_purge_definer' and p.prosecdef = false)
-     or not exists (select 1 from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure('public.zell_purge_shape_problem()') and pg_catalog.md5(p.prosrc) = '757e7ca173717c6496505c0b24f4a38a' and pg_catalog.pg_get_userbyid(p.proowner) = 'zell_purge_definer' and p.prosecdef = false)
+     or not exists (select 1 from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure('public.zell_purge_shape_problem()') and pg_catalog.md5(p.prosrc) = 'f0b3fc593b80a362ee6a832f3bc781b9' and pg_catalog.pg_get_userbyid(p.proowner) = 'zell_purge_definer' and p.prosecdef = false)
      or not exists (select 1 from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure('public.zell_purge_snapshot_hash(integer[])') and pg_catalog.md5(p.prosrc) = 'de9442b871ac48af4a2d844ed66bc1e1' and pg_catalog.pg_get_userbyid(p.proowner) = 'zell_purge_definer' and p.prosecdef = false)
      or not exists (select 1 from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure('public.zell_purge_preview(integer[])') and pg_catalog.md5(p.prosrc) = '007aa2299b6733d97dd41a96303c2f7a' and pg_catalog.pg_get_userbyid(p.proowner) = 'zell_purge_definer' and p.prosecdef = true)
-     or not exists (select 1 from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure('public.zell_purge_orders(integer[], text, integer, uuid)') and pg_catalog.md5(p.prosrc) = 'ed31cbfba6bed01b319d1c405e7d2d3f' and pg_catalog.pg_get_userbyid(p.proowner) = 'zell_purge_definer' and p.prosecdef = true)
+     or not exists (select 1 from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure('public.zell_purge_orders(integer[], text, integer, uuid)') and pg_catalog.md5(p.prosrc) = '016f29ebb944ce061e57c2714d1fa044' and pg_catalog.pg_get_userbyid(p.proowner) = 'zell_purge_definer' and p.prosecdef = true)
      or not exists (select 1 from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure('public.zell_purge_reauth_begin(uuid)') and pg_catalog.md5(p.prosrc) = 'c7184a12872628261de514294251147c' and pg_catalog.pg_get_userbyid(p.proowner) = 'zell_purge_definer' and p.prosecdef = true)
      or not exists (select 1 from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure('public.zell_purge_reauth_finish(uuid, uuid, boolean, text, text, integer)') and pg_catalog.md5(p.prosrc) = '8a87110ffbcbc9c7d449c67b29911d70' and pg_catalog.pg_get_userbyid(p.proowner) = 'zell_purge_definer' and p.prosecdef = true)
      or not exists (select 1 from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure('public.zell_purge_trg_append_only()') and pg_catalog.md5(p.prosrc) = '78e8fdd2db353f13621c82c6cf545297' and pg_catalog.pg_get_userbyid(p.proowner) = 'postgres' and p.prosecdef = false)
@@ -492,17 +526,28 @@ begin
      or exists (select 1 from (values ('anon'), ('authenticated'), ('service_role')) r(n), (values ('public.zell_purge_log'), ('public.zell_purge_reauth'), ('public.zell_purge_attempts')) t(s)
                  where pg_catalog.has_table_privilege(r.n, t.s, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'))
      or (select pg_catalog.count(*) from pg_catalog.pg_policy po where po.polname like 'zell\_purge\_%') <> 32
+     or (select s.v from (select pg_catalog.string_agg(x.v, ',' order by x.v collate "C") as v
+    from (select p.schemaname::text || '.' || p.tablename::text || '/' || p.policyname::text || '/' || p.cmd || '/' || p.permissive || '/' || p.roles::text
+                 || '/' || coalesce(p.qual, '-') || '/' || coalesce(p.with_check, '-') as v
+            from pg_catalog.pg_policies p
+           where p.policyname like 'zell\_purge\_%' or 'zell_purge_definer' = any (p.roles)) x) s) is distinct from 'public.order_events/zell_purge_lock/UPDATE/PERMISSIVE/{zell_purge_definer}/true/false,public.order_events/zell_purge_select/SELECT/PERMISSIVE/{zell_purge_definer}/true/-,public.order_items/zell_purge_lock/UPDATE/PERMISSIVE/{zell_purge_definer}/true/false,public.order_items/zell_purge_select/SELECT/PERMISSIVE/{zell_purge_definer}/true/-,public.order_payments/zell_purge_delete/DELETE/PERMISSIVE/{zell_purge_definer}/true/-,public.order_payments/zell_purge_lock/UPDATE/PERMISSIVE/{zell_purge_definer}/true/false,public.order_payments/zell_purge_select/SELECT/PERMISSIVE/{zell_purge_definer}/true/-,public.orders/zell_purge_delete/DELETE/PERMISSIVE/{zell_purge_definer}/true/-,public.orders/zell_purge_lock/UPDATE/PERMISSIVE/{zell_purge_definer}/true/false,public.orders/zell_purge_select/SELECT/PERMISSIVE/{zell_purge_definer}/true/-,public.zell_order_customer_updates/zell_purge_delete/DELETE/PERMISSIVE/{zell_purge_definer}/true/-,public.zell_order_customer_updates/zell_purge_lock/UPDATE/PERMISSIVE/{zell_purge_definer}/true/false,public.zell_order_customer_updates/zell_purge_select/SELECT/PERMISSIVE/{zell_purge_definer}/true/-,public.zell_order_customer_updates_log/zell_purge_delete/DELETE/PERMISSIVE/{zell_purge_definer}/true/-,public.zell_order_customer_updates_log/zell_purge_lock/UPDATE/PERMISSIVE/{zell_purge_definer}/true/false,public.zell_order_customer_updates_log/zell_purge_select/SELECT/PERMISSIVE/{zell_purge_definer}/true/-,public.zell_order_shipments/zell_purge_delete/DELETE/PERMISSIVE/{zell_purge_definer}/true/-,public.zell_order_shipments/zell_purge_lock/UPDATE/PERMISSIVE/{zell_purge_definer}/true/false,public.zell_order_shipments/zell_purge_select/SELECT/PERMISSIVE/{zell_purge_definer}/true/-,public.zell_order_shipments_log/zell_purge_delete/DELETE/PERMISSIVE/{zell_purge_definer}/true/-,public.zell_order_shipments_log/zell_purge_lock/UPDATE/PERMISSIVE/{zell_purge_definer}/true/false,public.zell_order_shipments_log/zell_purge_select/SELECT/PERMISSIVE/{zell_purge_definer}/true/-,public.zell_payment_commands/zell_purge_delete/DELETE/PERMISSIVE/{zell_purge_definer}/true/-,public.zell_payment_commands/zell_purge_lock/UPDATE/PERMISSIVE/{zell_purge_definer}/true/false,public.zell_payment_commands/zell_purge_select/SELECT/PERMISSIVE/{zell_purge_definer}/true/-,public.zell_purge_attempts/zell_purge_attempts_insert/INSERT/PERMISSIVE/{zell_purge_definer}/-/true,public.zell_purge_attempts/zell_purge_attempts_select/SELECT/PERMISSIVE/{zell_purge_definer}/true/-,public.zell_purge_attempts/zell_purge_attempts_update/UPDATE/PERMISSIVE/{zell_purge_definer}/true/true,public.zell_purge_log/zell_purge_log_insert/INSERT/PERMISSIVE/{zell_purge_definer}/-/true,public.zell_purge_reauth/zell_purge_reauth_insert/INSERT/PERMISSIVE/{zell_purge_definer}/-/true,public.zell_purge_reauth/zell_purge_reauth_select/SELECT/PERMISSIVE/{zell_purge_definer}/true/-,public.zell_purge_reauth/zell_purge_reauth_update/UPDATE/PERMISSIVE/{zell_purge_definer}/true/true'
      or (select pg_catalog.count(*) from pg_catalog.pg_trigger g where g.tgrelid = 'public.zell_purge_log'::regclass and not g.tgisinternal and g.tgenabled = 'O') <> 2
-     or (select s.v from (with recursive d(child, parent, conname, deltype) as (
-    select c.conrelid, c.confrelid, c.conname, c.confdeltype
-      from pg_catalog.pg_constraint c where c.contype = 'f' and c.confrelid = 'public.orders'::regclass
+     or (select s.v from (with recursive d(coid, child) as (
+    select c.oid, c.conrelid from pg_catalog.pg_constraint c where c.contype = 'f' and c.confrelid = 'public.orders'::regclass
     union
-    select c.conrelid, c.confrelid, c.conname, c.confdeltype
-      from pg_catalog.pg_constraint c join d on c.confrelid = d.child where c.contype = 'f'
+    select c.oid, c.conrelid from pg_catalog.pg_constraint c join d on c.confrelid = d.child where c.contype = 'f'
   )
-  select pg_catalog.string_agg(cc.relname::text || '>' || pc.relname::text || ':' || d.conname::text || ':' || d.deltype::text, ','
-                               order by cc.relname::text collate "C", d.conname::text collate "C") as v
-    from d join pg_catalog.pg_class cc on cc.oid = d.child join pg_catalog.pg_class pc on pc.oid = d.parent) s) is distinct from 'order_events>orders:order_events_order_fkey:c,order_items>orders:order_items_order_id_fkey:c,order_payments>orders:order_payments_order_fkey:r,zell_order_customer_updates>orders:zell_order_customer_updates_order_fkey:r,zell_order_customer_updates_log>orders:zell_order_customer_updates_log_order_fkey:r,zell_order_customer_updates_log>zell_order_customer_updates:zell_order_customer_updates_log_update_fkey:r,zell_order_shipments>orders:zell_order_shipments_order_fkey:r,zell_order_shipments_log>orders:zell_order_shipments_log_order_fkey:r,zell_payment_commands>orders:zell_payment_commands_order_fkey:r'
+  select pg_catalog.string_agg(x.v, ',' order by x.v collate "C") as v
+    from (select cn.nspname::text || '.' || cc.relname::text
+                 || '(' || (select pg_catalog.string_agg(a.attname::text, '+' order by k.i) from pg_catalog.unnest(c.conkey) with ordinality k(n, i)
+                              join pg_catalog.pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.n) || ')>'
+                 || pn.nspname::text || '.' || pc.relname::text
+                 || '(' || (select pg_catalog.string_agg(a.attname::text, '+' order by k.i) from pg_catalog.unnest(c.confkey) with ordinality k(n, i)
+                              join pg_catalog.pg_attribute a on a.attrelid = c.confrelid and a.attnum = k.n) || '):'
+                 || c.conname::text || ':' || c.confdeltype::text || ':' || c.confupdtype::text || ':' || c.confmatchtype::text || ':' || c.condeferrable::text as v
+            from d join pg_catalog.pg_constraint c on c.oid = d.coid
+                   join pg_catalog.pg_class cc on cc.oid = c.conrelid join pg_catalog.pg_namespace cn on cn.oid = cc.relnamespace
+                   join pg_catalog.pg_class pc on pc.oid = c.confrelid join pg_catalog.pg_namespace pn on pn.oid = pc.relnamespace) x) s) is distinct from 'public.order_events(order_id)>public.orders(id):order_events_order_fkey:c:a:s:false,public.order_items(order_id)>public.orders(id):order_items_order_id_fkey:c:a:s:false,public.order_payments(order_id)>public.orders(id):order_payments_order_fkey:r:a:s:false,public.zell_order_customer_updates(order_id)>public.orders(id):zell_order_customer_updates_order_fkey:r:a:s:false,public.zell_order_customer_updates_log(order_id)>public.orders(id):zell_order_customer_updates_log_order_fkey:r:a:s:false,public.zell_order_customer_updates_log(update_id)>public.zell_order_customer_updates(id):zell_order_customer_updates_log_update_fkey:r:a:s:false,public.zell_order_shipments(order_id)>public.orders(id):zell_order_shipments_order_fkey:r:a:s:false,public.zell_order_shipments_log(order_id)>public.orders(id):zell_order_shipments_log_order_fkey:r:a:s:false,public.zell_payment_commands(order_id)>public.orders(id):zell_payment_commands_order_fkey:r:a:s:false'
      or pg_catalog.has_schema_privilege('zell_purge_definer', 'public', 'CREATE') then
     raise exception 'ZELL_0024_POST_SHAPE';
   end if;
