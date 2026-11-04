@@ -592,12 +592,13 @@ okc=$(cat "$TMP"/c5_*.out | grep -c '"deleted": 1')
 ok=no; [ "$okc" = "1" ] && ! grep -q '40P01' "$TMP"/c5_*.out && [ -z "$(oid_of FLM-CIFFFF)" ] && ok=yes
 record "C05 two sessions with the same ticket at the same time -> exactly one purge succeeds, no deadlock" "$ok" "1=$(tailof "$TMP/c5_1.out") 2=$(tailof "$TMP/c5_2.out")"
 reset_attempts
+q "insert into public.orders (order_number, customer_name, customer_phone, governorate, address, subtotal_piastres, shipping_piastres, total_piastres) values ('FLM-CIHHHH', 'عميل ح', '01000002408', 'القاهرة', 'عنوان CI طويل كفاية', 30000, 5000, 35000)" > /dev/null
 PALL=$(pv "null")
 IDS=$(as_user "$OWNER_ID" "$SESS" "select pg_catalog.array_to_string(array(select pg_catalog.jsonb_array_elements_text(public.zell_purge_preview(null) -> 'ids')), ',')")
 T=$(issue "$OWNER_ID" "$SESS" "$(f1 "$PALL")" "$(f2 "$PALL")" "$(f3 "$PALL")")
 q "insert into public.orders (order_number, customer_name, customer_phone, governorate, address, subtotal_piastres, shipping_piastres, total_piastres) values ('FLM-CIGGGG', 'عميل ز', '01000002407', 'القاهرة', 'عنوان CI طويل كفاية', 30000, 5000, 35000)" > /dev/null
 r=$(purge "array[$IDS]::integer[]" "$(f2 "$PALL")" "$(f3 "$PALL")" "$T")
-ok=no; printf '%s' "$r" | grep -q '"remaining_orders": 1' && [ -n "$(oid_of FLM-CIGGGG)" ] && [ "$(q "select pg_catalog.count(*) from public.orders")" = "1" ] && ok=yes
+ok=no; printf '%s' "$r" | grep -q '"remaining_orders": 1' && [ -n "$(oid_of FLM-CIGGGG)" ] && [ -z "$(oid_of FLM-CIHHHH)" ] && [ "$(q "select pg_catalog.count(*) from public.orders")" = "1" ] && ok=yes
 record "C06 delete-all from the preview: an order added after the preview stays (remaining 1), everything in the snapshot gone" "$ok" "ids=$IDS r=$r"
 
 # ---- 8) الرجوع بعد مسح فعلي · verify ----
