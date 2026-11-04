@@ -6,12 +6,15 @@ import { ORDER_STATUS_LABELS } from '../../lib/enums'
 import { formatDateTime, formatPiastres } from '../../lib/format'
 import { previewOrderPurgeAction, purgeOrdersAction } from '../../lib/orderPurgeActions'
 import {
+  EMPTY_PURGE_FORM,
   ORDER_PURGE_MESSAGES,
   ORDER_PURGE_TEXT,
+  purgeCanConfirm,
   purgeDoneNotice,
+  purgeFormAfterFailure,
   purgePhrase,
   purgeSummary,
-  type PurgePreview,
+  type PurgeForm,
   type PurgeScope,
 } from '../../lib/orders/purge'
 import { useMutationsEnabled } from '../../lib/readiness'
@@ -22,21 +25,20 @@ import { Card } from '../ui/Field'
  * ORDER-DELETE (المرحلة C) — كارت حذف الطلبات للمالك بس (الصفحة مابتعرضهوش لغيره، والقرار النهائي في الداتابيز):
  *   single = في صفحة الطلب (الطلب ده بس) · all = في الإعدادات (كل الطلبات الموجودة لحظة المعاينة).
  * الخطوات (العقد §١ و§٥): «عرض ما سيُحذف» ← المعاينة من الداتابيز (القايمة كاملة + الإجماليات + البصمة) ← جملة التأكيد بالعدد ·
- * مربع «backup» للمسح الشامل بس · الباسورد ← «حذف نهائي» مرة واحدة. الباسورد بيتمسح من الخانة بعد أي محاولة. لو القايمة اتغيّرت
- * أو النتيجة مش معروفة: «عرض القائمة من جديد» (معاينة جديدة وبصمة جديدة)، ومفيش أي إعادة تلقائية للحذف.
+ * مربع «backup» للمسح الشامل بس · الباسورد ← «حذف نهائي» مرة واحدة. الباسورد بيتمسح من الخانة مع الإرسال. بعد أي فشل
+ * غير VALIDATION (نتيجة مجهولة · اللقطة اتغيّرت · طلب اتمسح · التذكرة · مشغول · الصلاحية) المعاينة والتأكيدات بتتلغي
+ * (purgeFormAfterFailure)، ومفيش تأكيد غير بمعاينة جديدة وتأكيدات جديدة (purgeCanConfirm). مفيش أي إعادة تلقائية للحذف.
  */
 export function OrderPurgeCard({ scope, orderId }: { scope: PurgeScope; orderId?: number }) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
   const inFlight = useRef(false)
   const [loading, setLoading] = useState(false)
-  const [preview, setPreview] = useState<PurgePreview | null>(null)
-  const [phrase, setPhrase] = useState('')
-  const [backup, setBackup] = useState(false)
-  const [password, setPassword] = useState('')
+  const [form, setForm] = useState<PurgeForm>(EMPTY_PURGE_FORM)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const preview = form.preview
 
   const title = scope === 'single' ? ORDER_PURGE_TEXT.singleTitle : ORDER_PURGE_TEXT.allTitle
   const intro = scope === 'single' ? ORDER_PURGE_TEXT.singleIntro : ORDER_PURGE_TEXT.allIntro
@@ -50,13 +52,10 @@ export function OrderPurgeCard({ scope, orderId }: { scope: PurgeScope; orderId?
     setLoading(true)
     setError(null)
     setNotice(null)
-    setPreview(null)
-    setPhrase('')
-    setBackup(false)
-    setPassword('')
+    setForm(EMPTY_PURGE_FORM)
     try {
       const result = await previewOrderPurgeAction(scope === 'single' && orderId !== undefined ? [orderId] : null)
-      if (result.ok) setPreview(result.data)
+      if (result.ok) setForm({ ...EMPTY_PURGE_FORM, preview: result.data })
       else setError(result.message)
     } catch {
       setError(ORDER_PURGE_MESSAGES.previewUnavailable)
@@ -67,22 +66,12 @@ export function OrderPurgeCard({ scope, orderId }: { scope: PurgeScope; orderId?
 
   function cancel() {
     if (busy) return
-    setPreview(null)
-    setPhrase('')
-    setBackup(false)
-    setPassword('')
+    setForm(EMPTY_PURGE_FORM)
     setError(null)
   }
 
   const expected = preview !== null ? purgePhrase(preview.count) : ''
-  const ready =
-    preview !== null &&
-    preview.count > 0 &&
-    phrase.trim() === expected &&
-    (scope === 'single' || backup) &&
-    password.length > 0 &&
-    mutationsOn &&
-    !busy
+  const ready = purgeCanConfirm(form, scope, mutationsOn, busy)
 
   async function confirmPurge() {
     if (preview === null || !ready || inFlight.current) return
@@ -95,14 +84,15 @@ export function OrderPurgeCard({ scope, orderId }: { scope: PurgeScope; orderId?
       idsHash: preview.idsHash,
       snapshotHash: preview.snapshotHash,
       count: preview.count,
-      phrase,
-      backupConfirmed: scope === 'all' ? backup : false,
-      password,
+      phrase: form.phrase,
+      backupConfirmed: scope === 'all' ? form.backup : false,
+      password: form.password,
     }
-    setPassword('')
+    setForm((f) => ({ ...f, password: '' }))
     try {
       const result = await purgeOrdersAction(request)
       if (!result.ok) {
+        setForm((f) => purgeFormAfterFailure(f, result))
         setError(result.message)
         return
       }
@@ -111,12 +101,12 @@ export function OrderPurgeCard({ scope, orderId }: { scope: PurgeScope; orderId?
         router.refresh()
         return
       }
-      setPreview(null)
-      setPhrase('')
-      setBackup(false)
+      setForm(EMPTY_PURGE_FORM)
       setNotice(purgeDoneNotice(result.data))
       router.refresh()
     } catch {
+      // النتيجة مش معروفة: المعاينة بتتلغي ومفيش تأكيد غير بعد معاينة جديدة.
+      setForm((f) => purgeFormAfterFailure(f, { code: 'INTERNAL' }))
       setError(ORDER_PURGE_MESSAGES.internal)
     } finally {
       setBusy(false)
@@ -184,8 +174,11 @@ export function OrderPurgeCard({ scope, orderId }: { scope: PurgeScope; orderId?
               </span>
               <input
                 className="w-full rounded border border-line bg-surface p-2 text-xs"
-                value={phrase}
-                onChange={(e) => setPhrase(e.target.value)}
+                value={form.phrase}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setForm((f) => ({ ...f, phrase: v }))
+                }}
                 disabled={busy}
                 autoComplete="off"
               />
@@ -193,7 +186,15 @@ export function OrderPurgeCard({ scope, orderId }: { scope: PurgeScope; orderId?
 
             {scope === 'all' ? (
               <label className="flex items-center gap-2 text-xs text-fg">
-                <input type="checkbox" checked={backup} onChange={(e) => setBackup(e.target.checked)} disabled={busy} />
+                <input
+                  type="checkbox"
+                  checked={form.backup}
+                  onChange={(e) => {
+                    const v = e.target.checked
+                    setForm((f) => ({ ...f, backup: v }))
+                  }}
+                  disabled={busy}
+                />
                 <span>{ORDER_PURGE_TEXT.backupLabel}</span>
               </label>
             ) : null}
@@ -203,8 +204,11 @@ export function OrderPurgeCard({ scope, orderId }: { scope: PurgeScope; orderId?
               <input
                 type="password"
                 className="w-full rounded border border-line bg-surface p-2 text-xs"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={form.password}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setForm((f) => ({ ...f, password: v }))
+                }}
                 disabled={busy}
                 autoComplete="current-password"
               />
