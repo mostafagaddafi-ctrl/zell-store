@@ -393,7 +393,7 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | الدالة | المالك · EXECUTE | بتعمل إيه |
 | --- | --- | --- |
 | `zell_purge_preview(integer[])` | `zell_purge_definer` · `authenticated` بس (stable · definer · TimeZone UTC) | المالك بس: القايمة (الرقم · التاريخ · الاسم والتليفون · الحالة · الإجمالي · الدفعات) + `ids_hash` + `snapshot_hash` (بصمة محتوى الطلب وكل توابعه). `null` = كل الطلبات |
-| `zell_purge_orders(integer[], text, integer, uuid)` | نفسه · `authenticated` بس (definer · TimeZone UTC · lock_timeout 3s) | المالك بس، معاملة واحدة: فحص التوابع ← قفل الطلبات بالترتيب ← التوابع `NOWAIT` ← استهلاك التذكرة ← البصمة ← الحذف ← سطر السجل. بيرجّع اللي اتمسح والفاضل |
+| `zell_purge_orders(integer[], text, integer, uuid)` | نفسه · `authenticated` بس (definer · TimeZone UTC · lock_timeout 3s) | المالك بس، معاملة واحدة: قفل advisory shared (الرجوع بياخده exclusive) ← ROW EXCLUSIVE على الجداول التسعة ← فحص شكل التوابع الكامل ← صفوف الطلبات ثم التوابع `NOWAIT` ← استهلاك التذكرة ← البصمة ← الحذف ← سطر السجل. بيرجّع اللي اتمسح والفاضل |
 | `zell_purge_reauth_begin(uuid)` · `zell_purge_reauth_finish(uuid, uuid, boolean, text, text, integer)` | نفسه · `service_role` بس | الحد (5 محاولات / 15 دقيقة، بيعدّ قبل الباسورد) والتذكرة (دقيقتين، استعمال واحد، مربوطة بالمالك والجلسة ونطاق العملية) |
 | `zell_purge_ids_hash` · `zell_purge_shape_problem` · `zell_purge_snapshot_hash` | نفسه · مفيش | داخلية |
 | `zell_purge_trg_append_only()` | `postgres` · مفيش | حارس `zell_purge_log` (45610)، من غير استثناء |
@@ -401,3 +401,4 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 - **الجداول:** `zell_purge_log` (append-only: أرقام الطلبات · العدد · المالك · الوقت · عدد الدفعات · المقبوض · المردود، من غير بيانات شخصية) · `zell_purge_reauth` (التذاكر) · `zell_purge_attempts` (عدّاد المحاولات). مالكهم `postgres`، RLS، وصفر لـ `anon` و`authenticated` و`service_role`.
 - **تغيير في دوال موجودة:** `zell_payment_trg_append_only` · `zell_shipment_trg_append_only` · `zell_customer_update_trg_append_only`: DELETE مسموح بس لـ `zell_purge_definer` على جداولها المعتمدة (مش `zell_payment_config_log`) ولطلبات العملية؛ غير كده نفس الرفض ونفس الكود. `zell_order_trg_events_immutable` و`zell_create_order` مابيتلمسوش.
 - **الأكواد:** 45601..45610 (`ZELL_PURGE_*`، التفاصيل في العقد §١٣).
+- **الرجوع:** `0024_order_delete_rollback.sql` بياخد نفس قفل الـ advisory exclusive، وبيرفض لو السجل فيه سطور أو لو أي دالة `zell_purge_*` أو حارس من التلاتة مش ببصمة 0024 (العقد §١٣).
