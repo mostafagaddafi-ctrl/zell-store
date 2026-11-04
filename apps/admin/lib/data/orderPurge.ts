@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { createAuthClient } from '../auth/supabaseServer'
-import { ORDER_PURGE_MESSAGES, parsePurgePreview, purgeFailure, validIds, type PurgePreviewResult } from '../orders/purge'
+import { ORDER_PURGE_MESSAGES, parsePurgePreview, previewFailure, validIds, type PurgePreviewResult } from '../orders/purge'
 
 /**
  * ORDER-DELETE (المرحلة C) — معاينة الحذف (zell_purge_preview، 0024) بجلسة المستخدم: anon key + كوكيز الجلسة، من غير service_role
@@ -16,8 +16,8 @@ export async function readOrderPurgePreview(ids: number[] | null): Promise<Purge
     const supabase = await createAuthClient()
     const result = await supabase.rpc('zell_purge_preview', { p_ids: ids }).abortSignal(AbortSignal.timeout(TIMEOUT_MS))
     if (result.error !== null) {
-      const failure = purgeFailure(result.error)
-      return { ok: false, code: failure.code, message: failure.code === 'INTERNAL' ? ORDER_PURGE_MESSAGES.previewUnavailable : failure.message }
+      const failure = previewFailure(result.error)
+      return { ok: false, code: failure.code, message: failure.message }
     }
     const preview = parsePurgePreview(result.data as unknown)
     if (preview === null) return { ok: false, code: 'INTERNAL', message: ORDER_PURGE_MESSAGES.previewUnavailable }
