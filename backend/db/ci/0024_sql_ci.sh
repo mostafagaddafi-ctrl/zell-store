@@ -4,8 +4,9 @@
 # بيغطي (العقد docs/contracts/ORDER-DELETE.md §٦): شكل المعاملة · md5 الجسم · سطر الموافقة برّه الملف · الـ 9 verify قبل وبعد ·
 # ptest ومابيسيبش أثر · حراس الـ preflight · رجوع المعاملة كلها · التطبيق · verify 0024 · بصمة كل حاجة برّه الكائنات الجديدة والحراس التلاتة ·
 # عقد الاستدعاء · الرجوع (فاضي) ثم إعادة التطبيق · رفض الإعادة · الصلاحيات · التذكرة (جلسة · نطاق · مدة · استعمال واحد) · اللقطة وبصمة المحتوى ·
-# التابع مش المعتمد · المسح الناجح والسجل من غير بيانات شخصية · الحراس القايمة بالحرف · الكوبون · الحد · جلستين (دفعة · قفل رسالة وشحنة ·
-# تعديل وقت المسح · تذكرة مرتين · طلب جديد بعد المعاينة) ومفيش deadlock · رفض الرجوع بعد مسح فعلي.
+# التابع مش المعتمد وFK معتمد اتنقل لعمود تاني بنفس الاسم · المسح الناجح والسجل من غير بيانات شخصية · الحراس القايمة بالحرف · الكوبون · الحد ·
+# جلستين (دفعة · تعديل رسالة وحفظ شحنة بالدوال الحقيقية · تذكرة مرتين · طلب جديد بعد المعاينة · الرجوع وقت مسح · قفل الرجوع)
+# ومفيش deadlock · رفض الرجوع لو دالة اتغيّرت أو بعد مسح فعلي · verify V07 بيمسك policy زيادة أو متغيّرة.
 # ممنوع يتشغّل على أي داتابيز غير الحاوية المؤقتة.
 set -uo pipefail
 
@@ -35,7 +36,7 @@ OWNER_ID='00000000-0000-4000-8000-0000000000b1'
 ADMIN_ID='00000000-0000-4000-8000-0000000000b2'
 SESS='00000000-0000-4000-8000-00000000c001'
 SESS2='00000000-0000-4000-8000-00000000c002'
-EXPECTED="S01 S02 S03 B01 E01 T01 T02 G01 G02 Z01 A01 A02 A03 E02 K01 RB1 A04 R01 X01 F01 F02 F03 F04 F05 F06 F07 F08 F09 F10 F11 F12 F13 F14 F15 F16 F17 C01 C02 C03 C04 C05 C06 RB2 A05"
+EXPECTED="S01 S02 S03 B01 E01 T01 T02 G01 G02 Z01 A01 A02 A03 E02 K01 RB1 A04 R01 RB3 V7A V7B X01 F01 F02 F03 F04 F05 F06 F07 F08 F09 F10 F18 C07 C08 F11 F12 F13 F14 F15 F16 F17 C01 C02 C03 C04 C05 C06 RB2 A05"
 BEFORE_STATE='0|0|7bdc5a72585917ba4e27f7c902bd15ad|0'
 AFTER_STATE='1|8|002afae51685f2ac8e4e718d33035997|1'
 
@@ -75,13 +76,14 @@ state() {
        || '|' || (pg_catalog.to_regclass('public.zell_purge_log') is not null)::int"
 }
 # بصمة مستقلة لكل حاجة برّه الكائنات الجديدة والحراس التلاتة، md5 لكل جزء (الدوال · منح الجداول · منح الأعمدة · الأدوار · الـ policies · الـ triggers · القيود · الصفوف).
-# ACL فاضي (NULL) = acldefault المالك، علشان GRANT ثم REVOKE مايبانش كأنه تغيير.
+# منح zell_purge_definer المستثناة بالحرف بس: EXECUTE على دوال الهوية التلاتة · SELECT على التسعة · DELETE على السبعة · UPDATE على orders.updated_at وorder_id التوابع؛
+# والـ policies الـ 32 بالاسم والجدول. أي منحة أو policy تانية للدور بتغيّر البصمة. ACL فاضي (NULL) = acldefault المالك.
 fp_out() {
-  q "select pg_catalog.concat_ws(':', pg_catalog.md5(coalesce((select pg_catalog.string_agg(z.v, ',' order by z.v) from (select p.oid::regprocedure::text || '=' || coalesce((select pg_catalog.string_agg(y.v, ',' order by y.v) from (select case when x.grantee = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(x.grantee) end || ':' || x.privilege_type as v from pg_catalog.aclexplode(coalesce(p.proacl, pg_catalog.acldefault('f', p.proowner))) x where x.grantee = 0 or pg_catalog.pg_get_userbyid(x.grantee) <> 'zell_purge_definer') y), '-') || '=' || pg_catalog.md5(p.prosrc) || '=' || pg_catalog.pg_get_userbyid(p.proowner) as v from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname not like 'zell\_purge\_%' and p.proname not in ('zell_payment_trg_append_only', 'zell_shipment_trg_append_only', 'zell_customer_update_trg_append_only')) z), '')),
-       pg_catalog.md5(coalesce((select pg_catalog.string_agg(z.v, ',' order by z.v) from (select c.relname || '=' || coalesce((select pg_catalog.string_agg(y.v, ',' order by y.v) from (select case when x.grantee = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(x.grantee) end || ':' || x.privilege_type as v from pg_catalog.aclexplode(coalesce(c.relacl, pg_catalog.acldefault(case when c.relkind = 'S' then 's' else 'r' end::\"char\", c.relowner))) x where x.grantee = 0 or pg_catalog.pg_get_userbyid(x.grantee) <> 'zell_purge_definer') y), '-') as v from pg_catalog.pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'v', 'm', 'S') and c.relname not like 'zell\_purge\_%') z), '')),
-       pg_catalog.md5(coalesce((select pg_catalog.string_agg(z.v, ',' order by z.v) from (select c.relname || '.' || a.attname || '=' || (select pg_catalog.string_agg(y.v, ',' order by y.v) from (select case when x.grantee = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(x.grantee) end || ':' || x.privilege_type as v from pg_catalog.aclexplode(a.attacl) x where x.grantee = 0 or pg_catalog.pg_get_userbyid(x.grantee) <> 'zell_purge_definer') y) as v from pg_catalog.pg_attribute a join pg_catalog.pg_class c on c.oid = a.attrelid where c.relnamespace = 'public'::regnamespace and a.attacl is not null and exists (select 1 from pg_catalog.aclexplode(a.attacl) x where x.grantee = 0 or pg_catalog.pg_get_userbyid(x.grantee) <> 'zell_purge_definer')) z), '')),
+  q "select pg_catalog.concat_ws(':', pg_catalog.md5(coalesce((select pg_catalog.string_agg(z.v, ',' order by z.v) from (select p.oid::regprocedure::text || '=' || coalesce((select pg_catalog.string_agg(y.v, ',' order by y.v) from (select case when x.grantee = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(x.grantee) end || ':' || x.privilege_type as v from pg_catalog.aclexplode(coalesce(p.proacl, pg_catalog.acldefault('f', p.proowner))) x where not coalesce(x.grantee <> 0 and pg_catalog.pg_get_userbyid(x.grantee) = 'zell_purge_definer' and x.privilege_type = 'EXECUTE' and p.oid in (pg_catalog.to_regprocedure('public.zell_order_actor(boolean)'), pg_catalog.to_regprocedure('public.zell_order_claims_actor()'), pg_catalog.to_regprocedure('public.zell_order_admin_role(uuid)')), false)) y), '-') || '=' || pg_catalog.md5(p.prosrc) || '=' || pg_catalog.pg_get_userbyid(p.proowner) as v from pg_catalog.pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname not like 'zell\_purge\_%' and p.proname not in ('zell_payment_trg_append_only', 'zell_shipment_trg_append_only', 'zell_customer_update_trg_append_only')) z), '')),
+       pg_catalog.md5(coalesce((select pg_catalog.string_agg(z.v, ',' order by z.v) from (select c.relname || '=' || coalesce((select pg_catalog.string_agg(y.v, ',' order by y.v) from (select case when x.grantee = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(x.grantee) end || ':' || x.privilege_type as v from pg_catalog.aclexplode(coalesce(c.relacl, pg_catalog.acldefault(case when c.relkind = 'S' then 's' else 'r' end::\"char\", c.relowner))) x where not coalesce(x.grantee <> 0 and pg_catalog.pg_get_userbyid(x.grantee) = 'zell_purge_definer' and ((x.privilege_type = 'SELECT' and c.relname in ('orders', 'order_items', 'order_events', 'order_payments', 'zell_payment_commands', 'zell_order_shipments', 'zell_order_shipments_log', 'zell_order_customer_updates', 'zell_order_customer_updates_log')) or (x.privilege_type = 'DELETE' and c.relname in ('orders', 'order_payments', 'zell_payment_commands', 'zell_order_shipments', 'zell_order_shipments_log', 'zell_order_customer_updates', 'zell_order_customer_updates_log'))), false)) y), '-') as v from pg_catalog.pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'v', 'm', 'S') and c.relname not like 'zell\_purge\_%') z), '')),
+       pg_catalog.md5(coalesce((select pg_catalog.string_agg(z.v, ',' order by z.v) from (select c.relname || '.' || a.attname || '=' || (select pg_catalog.string_agg(y.v, ',' order by y.v) from (select case when x.grantee = 0 then 'PUBLIC' else pg_catalog.pg_get_userbyid(x.grantee) end || ':' || x.privilege_type as v from pg_catalog.aclexplode(a.attacl) x where not coalesce(x.grantee <> 0 and pg_catalog.pg_get_userbyid(x.grantee) = 'zell_purge_definer' and x.privilege_type = 'UPDATE' and ((c.relname = 'orders' and a.attname = 'updated_at') or (c.relname in ('order_items', 'order_events', 'order_payments', 'zell_payment_commands', 'zell_order_shipments', 'zell_order_shipments_log', 'zell_order_customer_updates', 'zell_order_customer_updates_log') and a.attname = 'order_id')), false)) y) as v from pg_catalog.pg_attribute a join pg_catalog.pg_class c on c.oid = a.attrelid where c.relnamespace = 'public'::regnamespace and a.attacl is not null and exists (select 1 from pg_catalog.aclexplode(a.attacl) x where not coalesce(x.grantee <> 0 and pg_catalog.pg_get_userbyid(x.grantee) = 'zell_purge_definer' and x.privilege_type = 'UPDATE' and ((c.relname = 'orders' and a.attname = 'updated_at') or (c.relname in ('order_items', 'order_events', 'order_payments', 'zell_payment_commands', 'zell_order_shipments', 'zell_order_shipments_log', 'zell_order_customer_updates', 'zell_order_customer_updates_log') and a.attname = 'order_id')), false))) z), '')),
        pg_catalog.md5(coalesce((select pg_catalog.string_agg(z.v, ',' order by z.v) from (select r.rolname::text as v from pg_catalog.pg_roles r where r.rolname <> 'zell_purge_definer') z), '')),
-       pg_catalog.md5(coalesce((select pg_catalog.string_agg(z.v, ',' order by z.v) from (select po.polrelid::regclass::text || '/' || po.polname as v from pg_catalog.pg_policy po where po.polname not like 'zell\_purge\_%') z), '')),
+       pg_catalog.md5(coalesce((select pg_catalog.string_agg(z.v, ',' order by z.v) from (select po.polrelid::regclass::text || '/' || po.polname as v from pg_catalog.pg_policy po join pg_catalog.pg_class c on c.oid = po.polrelid where not (c.relnamespace = 'public'::regnamespace and (c.relname::text || '/' || po.polname::text) in ('orders/zell_purge_select', 'orders/zell_purge_lock', 'orders/zell_purge_delete', 'order_items/zell_purge_select', 'order_items/zell_purge_lock', 'order_events/zell_purge_select', 'order_events/zell_purge_lock', 'order_payments/zell_purge_select', 'order_payments/zell_purge_lock', 'order_payments/zell_purge_delete', 'zell_payment_commands/zell_purge_select', 'zell_payment_commands/zell_purge_lock', 'zell_payment_commands/zell_purge_delete', 'zell_order_shipments/zell_purge_select', 'zell_order_shipments/zell_purge_lock', 'zell_order_shipments/zell_purge_delete', 'zell_order_shipments_log/zell_purge_select', 'zell_order_shipments_log/zell_purge_lock', 'zell_order_shipments_log/zell_purge_delete', 'zell_order_customer_updates/zell_purge_select', 'zell_order_customer_updates/zell_purge_lock', 'zell_order_customer_updates/zell_purge_delete', 'zell_order_customer_updates_log/zell_purge_select', 'zell_order_customer_updates_log/zell_purge_lock', 'zell_order_customer_updates_log/zell_purge_delete', 'zell_purge_log/zell_purge_log_insert', 'zell_purge_reauth/zell_purge_reauth_select', 'zell_purge_reauth/zell_purge_reauth_insert', 'zell_purge_reauth/zell_purge_reauth_update', 'zell_purge_attempts/zell_purge_attempts_select', 'zell_purge_attempts/zell_purge_attempts_insert', 'zell_purge_attempts/zell_purge_attempts_update'))) z), '')),
        pg_catalog.md5(coalesce((select pg_catalog.string_agg(z.v, ',' order by z.v) from (select g.tgrelid::regclass::text || '/' || g.tgname || '/' || g.tgenabled::text as v from pg_catalog.pg_trigger g join pg_catalog.pg_class c on c.oid = g.tgrelid where not g.tgisinternal and c.relname not like 'zell\_purge\_%') z), '')),
        pg_catalog.md5(coalesce((select pg_catalog.string_agg(z.v, ',' order by z.v) from (select c.relname || '.' || co.conname || '=' || pg_catalog.pg_get_constraintdef(co.oid) as v from pg_catalog.pg_constraint co join pg_catalog.pg_class c on c.oid = co.conrelid where co.connamespace = 'public'::regnamespace and c.relname not like 'zell\_purge\_%') z), '')),
        pg_catalog.md5(coalesce((select (select pg_catalog.count(*) from public.orders) || ',' || (select pg_catalog.count(*) from public.order_payments) || ',' || (select pg_catalog.count(*) from public.admin_users) || ',' || (select pg_catalog.md5(coalesce(pg_catalog.string_agg(s.key || '=' || s.value::text, ',' order by s.key), '')) from public.settings s)), '')))"
@@ -104,6 +106,14 @@ issue() {
 }
 pv() { as_user "$OWNER_ID" "$SESS" "select (x.p ->> 'ids_hash') || '|' || (x.p ->> 'snapshot_hash') || '|' || (x.p ->> 'count') from (select public.zell_purge_preview($1) as p) x"; }
 purge() { as_user "$OWNER_ID" "${5:-$SESS}" "select public.zell_purge_orders($1, '$2', $3, '$4'::uuid)::text"; }
+bg_purge() { # $1 ids $2 snap $3 count $4 ticket $5 out $6 app — the purge, then 3 s holding its locks before commit
+  printf '%s\n' "begin;" "select pg_catalog.set_config('request.jwt.claims', '$(claims "$OWNER_ID" "$SESS")', true);" "set local role authenticated;" \
+    "select public.zell_purge_orders($1, '$2', $3, '$4'::uuid)::text;" "select pg_catalog.pg_sleep(3);" "commit;" \
+    | PGAPPNAME="$6" psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=sqlstate -U postgres -d "$DB" -f - > "$5" 2>&1
+}
+verify_only_v07() { # verify FAIL with V07 the only failing check
+  [ "$(summary_of "$1" | cut -d'|' -f7)" = "FAIL" ] && [ "$(grep -cE '^[0-9]+\|check\|[^|]*\|[^|]*\|f\|' "$1")" = "1" ] && grep -qE '^[0-9]+\|check\|V07\|[^|]*\|f\|' "$1"
+}
 oid_of() { q "select o.id from public.orders o where o.order_number = '$1'"; }
 f1() { printf '%s' "$1" | cut -d'|' -f1; }
 f2() { printf '%s' "$1" | cut -d'|' -f2; }
@@ -238,6 +248,41 @@ record "A04 re-apply after rollback + verify PASS" "$ok" "state=$(state) $(summa
 run_appr "$APPLY" "ci-0024" "$TMP/r1.out"
 ok=no; has "$TMP/r1.out" 'ZELL_0024_ALREADY_APPLIED' && [ "$(state)" = "$AFTER_STATE" ] && ok=yes
 record "R01 apply twice -> ZELL_0024_ALREADY_APPLIED, nothing changed" "$ok" "$(tailof "$TMP/r1.out")"
+cat > "$TMP/drift_guard.sql" <<'SQL'
+create or replace function public.zell_payment_trg_append_only()
+returns trigger language plpgsql set search_path = '' as $fn$
+begin
+  raise exception 'ZELL_PAY_APPEND_ONLY' using errcode = '45427', detail = tg_table_name || '.' || pg_catalog.lower(tg_op);
+end
+$fn$;
+SQL
+cat > "$TMP/drift_fn.sql" <<'SQL'
+grant create on schema public to zell_purge_definer;
+set local role zell_purge_definer;
+create or replace function public.zell_purge_ids_hash(p_ids integer[])
+returns text language sql immutable set search_path = '' as $fn$ select 'drift'::text $fn$;
+reset role;
+SQL
+rb3=""
+for v in guard fn; do
+  { printf '%s\n' "begin;" "set local zell.approved_by = 'ci-0024-rollback';"; cat "$TMP/drift_$v.sql"; sed '1,/^begin;$/d' "$ROLLBACK"; } \
+    | psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f - > "$TMP/rb3_$v.out" 2>&1
+  if has "$TMP/rb3_$v.out" 'ZELL_0024_ROLLBACK_DRIFT'; then rb3="$rb3$v:drift,"; else rb3="$rb3$v:$(tailof "$TMP/rb3_$v.out"),"; fi
+done
+run_file "$VERIFY" "$TMP/v24rb3.out"
+ok=no; [ "$rb3" = "guard:drift,fn:drift," ] && [ "$(state)" = "$AFTER_STATE" ] && [ "$(summary_of "$TMP/v24rb3.out" | cut -d'|' -f7)" = "PASS" ] && [ "$(fp_out)" = "$FP0" ] && ok=yes
+record "RB3 rollback when a guard (old body) or a zell_purge_* function differs from 0024 -> ZELL_0024_ROLLBACK_DRIFT before any change; nothing changed, verify PASS" "$ok" "$rb3 state=$(state) $(summary_of "$TMP/v24rb3.out")"
+q "create policy ci_0024_extra on public.products for select to zell_purge_definer using (true)" > "$TMP/v7a.sql.out"
+run_file "$VERIFY" "$TMP/v7a.out"
+q "drop policy ci_0024_extra on public.products" >> "$TMP/v7a.sql.out"
+ok=no; verify_only_v07 "$TMP/v7a.out" && [ "$(fp_out)" = "$FP0" ] && ok=yes
+record "V7A an extra policy for zell_purge_definer (other name, other table) -> verify FAIL on V07 only; dropped again" "$ok" "$(summary_of "$TMP/v7a.out") $(fails_of "$TMP/v7a.out") $(tailof "$TMP/v7a.sql.out")"
+q "alter policy zell_purge_lock on public.order_items with check (true)" > "$TMP/v7b.sql.out"
+run_file "$VERIFY" "$TMP/v7b.out"
+q "alter policy zell_purge_lock on public.order_items with check (false)" >> "$TMP/v7b.sql.out"
+run_file "$VERIFY" "$TMP/v7b2.out"
+ok=no; verify_only_v07 "$TMP/v7b.out" && [ "$(summary_of "$TMP/v7b2.out" | cut -d'|' -f7)" = "PASS" ] && [ "$(fp_out)" = "$FP0" ] && ok=yes
+record "V7B zell_purge_lock on order_items changed to with check (true) -> verify FAIL on V07 only; restored -> PASS" "$ok" "$(summary_of "$TMP/v7b.out") $(fails_of "$TMP/v7b.out") after=$(summary_of "$TMP/v7b2.out") $(tailof "$TMP/v7b.sql.out")"
 
 # ---- 5) بيانات CI ----
 su_sql > "$TMP/x1.log" <<SQL
@@ -270,6 +315,7 @@ select o.id, x.k, x.a, 'balance', 'CI', true, '$OWNER_ID', x.cid, pg_catalog.md5
                                     ('FLM-CIBBBB', 'payment', 5000, '00000000-0000-4000-8000-0000000000a3'::uuid, 5000)) x(num, k, a, cid, after) on x.num = o.order_number;
 update public.orders o set paid_piastres = 8000 where o.order_number = 'FLM-CIAAAA';
 update public.orders o set paid_piastres = 5000 where o.order_number = 'FLM-CIBBBB';
+update public.orders o set status = 'confirmed' where o.order_number = 'FLM-CIBBBB';
 insert into public.zell_order_shipments (order_id, carrier, updated_by) select o.id, 'CI Carrier', '$OWNER_ID' from public.orders o where o.order_number = 'FLM-CIBBBB';
 insert into public.zell_order_shipments_log (order_id, actor, new_value) select o.id, '$OWNER_ID', '{"carrier": "CI Carrier"}'::jsonb from public.orders o where o.order_number = 'FLM-CIBBBB';
 insert into public.zell_order_customer_updates (order_id, text, created_by, updated_by) select o.id, 'رسالة CI', '$OWNER_ID', '$OWNER_ID' from public.orders o where o.order_number = 'FLM-CIBBBB';
@@ -345,6 +391,49 @@ q "drop table public.ci_0024_dep" > /dev/null
 ok=no; [ "$r" != "${r%45604*}" ] && [ "$(oid_of FLM-CICCCC)" = "$OC" ] && ok=yes
 record "F10 a table with an FK on orders outside the approved list -> 45604 (no uncounted cascade), nothing changed" "$ok" "r=$r"
 reset_attempts
+PC=$(pv "array[$OC]::integer[]")
+T=$(issue "$OWNER_ID" "$SESS" "$(f1 "$PC")" "$(f2 "$PC")" 1)
+fkq="select pg_catalog.pg_get_constraintdef(c.oid) from pg_catalog.pg_constraint c where c.conrelid = 'public.order_items'::regclass and c.conname = 'order_items_order_id_fkey'"
+fk0=$(q "$fkq")
+it0=$(q "select pg_catalog.count(*) from public.order_items t where t.order_id = $OC")
+su_q "$DB" -c "alter table public.order_items add column ci_0024_oid integer" \
+  -c "alter table public.order_items drop constraint order_items_order_id_fkey, add constraint order_items_order_id_fkey foreign key (ci_0024_oid) references public.orders (id) on delete cascade" > "$TMP/f18a.log" 2>&1
+r=$(purge "array[$OC]::integer[]" "$(f2 "$PC")" 1 "$T")
+su_q "$DB" -c "alter table public.order_items drop constraint order_items_order_id_fkey, add constraint order_items_order_id_fkey $fk0" \
+  -c "alter table public.order_items drop column ci_0024_oid" > "$TMP/f18b.log" 2>&1
+fk1=$(q "$fkq")
+ok=no; [ "$r" != "${r%45604*}" ] && [ "$(oid_of FLM-CICCCC)" = "$OC" ] && [ "$(q "select pg_catalog.count(*) from public.order_items t where t.order_id = $OC")" = "$it0" ] && [ -n "$fk0" ] && [ "$fk1" = "$fk0" ] && ok=yes
+record "F18 order_items_order_id_fkey moved to another column, same name and delete type -> 45604, nothing changed (FK restored byte for byte)" "$ok" "r=$r fk=$fk0 -> $fk1 $(tailof "$TMP/f18a.log") $(tailof "$TMP/f18b.log")"
+reset_attempts
+PC=$(pv "array[$OC]::integer[]")
+T=$(issue "$OWNER_ID" "$SESS" "$(f1 "$PC")" "$(f2 "$PC")" 1)
+bg_purge "array[$OC]::integer[]" "$(f2 "$PC")" 1 "$T" "$TMP/c7p.out" ci0024_purge7 &
+hp=$!
+if wait_app ci0024_purge7; then
+  t0=$(now_ms); run_appr "$ROLLBACK" "ci-0024-rollback" "$TMP/c7r.out"; t1=$(now_ms)
+  wait "$hp"
+  ok=no
+  has "$TMP/c7p.out" '"deleted": 1' && has "$TMP/c7r.out" 'ZELL_0024_ROLLBACK_PURGES_EXIST' && [ $((t1 - t0)) -ge 1000 ] && ! grep -q '40P01' "$TMP/c7p.out" "$TMP/c7r.out" \
+    && [ "$(state)" = "$AFTER_STATE" ] && [ -z "$(oid_of FLM-CICCCC)" ] && [ "$(q "select pg_catalog.count(*) from public.zell_purge_log")" = "1" ] && ok=yes
+  record "C07 rollback while the first purge holds its locks waits for it ($((t1 - t0)) ms), re-checks the log under the lock -> ZELL_0024_ROLLBACK_PURGES_EXIST; purge done; no deadlock" "$ok" "purge=$(tailof "$TMP/c7p.out") rollback=$(tailof "$TMP/c7r.out")"
+else
+  wait "$hp"; record "C07 rollback during a purge" no "purge session never reached its sleep: $(tailof "$TMP/c7p.out")"
+fi
+reset_attempts
+PA=$(pv "array[$OA]::integer[]")
+T=$(issue "$OWNER_ID" "$SESS" "$(f1 "$PA")" "$(f2 "$PA")" 1)
+printf '%s\n' "begin;" "select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('zell_purge:orders', 0));" "select pg_catalog.pg_sleep(4);" "commit;" \
+  | PGAPPNAME=ci0024_c08 psql -X -q -tA -v VERBOSITY=sqlstate -U postgres -d "$DB" -f - > "$TMP/c8h.out" 2>&1 &
+hh=$!
+if wait_app ci0024_c08; then
+  t0=$(now_ms); r=$(purge "array[$OA]::integer[]" "$(f2 "$PA")" 1 "$T"); t1=$(now_ms)
+  wait "$hh"
+  ok=no; [ "$r" != "${r%45608*}" ] && [ $((t1 - t0)) -lt 2500 ] && [ "$(oid_of FLM-CIAAAA)" = "$OA" ] && ok=yes
+  record "C08 a session holds the rollback's advisory lock exclusive -> purge returns 45608 at once ($((t1 - t0)) ms), nothing changed" "$ok" "r=$r holder=$(tailof "$TMP/c8h.out")"
+else
+  wait "$hh"; record "C08 purge while the rollback lock is held" no "holder never reached its sleep: $(tailof "$TMP/c8h.out")"
+fi
+reset_attempts
 PA=$(pv "array[$OA]::integer[]")
 before=$(q "select pg_catalog.count(*) from public.orders")
 T=$(issue "$OWNER_ID" "$SESS" "$(f1 "$PA")" "$(f2 "$PA")" 1)
@@ -352,13 +441,14 @@ r=$(purge "array[$OA]::integer[]" "$(f2 "$PA")" 1 "$T")
 left=$(q "select (select pg_catalog.count(*) from public.orders) || '|' || (select pg_catalog.count(*) from public.order_items t where t.order_id = $OA) || '|' || (select pg_catalog.count(*) from public.order_events t where t.order_id = $OA) || '|' || (select pg_catalog.count(*) from public.order_payments t where t.order_id = $OA) || '|' || (select pg_catalog.count(*) from public.zell_payment_commands t where t.order_id = $OA)")
 log=$(q "select l.order_numbers::text || '|' || l.orders_count || '|' || l.payments_count || '|' || l.received_piastres || '|' || l.refunded_piastres || '|' || (l.actor = '$OWNER_ID')::text from public.zell_purge_log l order by l.id desc limit 1")
 cols=$(q "select pg_catalog.string_agg(a.attname, ',' order by a.attnum) from pg_catalog.pg_attribute a where a.attrelid = 'public.zell_purge_log'::regclass and a.attnum > 0 and not a.attisdropped")
+LOGN=$(q "select pg_catalog.count(*) from public.zell_purge_log")
 ok=no
-[ "$left" = "$((before - 1))|0|0|0|0" ] && [ "$log" = "{FLM-CIAAAA}|1|2|10000|2000|true" ] \
+[ "$left" = "$((before - 1))|0|0|0|0" ] && [ "$log" = "{FLM-CIAAAA}|1|2|10000|2000|true" ] && [ "$LOGN" = "2" ] \
   && [ "$cols" = "id,purged_at,actor,order_numbers,orders_count,payments_count,received_piastres,refunded_piastres" ] \
   && printf '%s' "$r" | grep -q '"deleted": 1' && ok=yes
 record "F11 delete one order: order + items + events + payments + commands gone · others intact · log row without personal data" "$ok" "r=$r left=$left log=$log cols=$cols"
 r=$(purge "array[$OA]::integer[]" "$(f2 "$PA")" 1 "$T")
-ok=no; { [ "$r" != "${r%45605*}" ] || [ "$r" != "${r%45607*}" ]; } && [ "$(q "select pg_catalog.count(*) from public.zell_purge_log")" = "1" ] && ok=yes
+ok=no; { [ "$r" != "${r%45605*}" ] || [ "$r" != "${r%45607*}" ]; } && [ "$(q "select pg_catalog.count(*) from public.zell_purge_log")" = "$LOGN" ] && ok=yes
 record "F12 the same ticket again -> refused, no second log row" "$ok" "r=$r"
 q "do \$f13\$
 declare v text := ''; s text;
@@ -380,18 +470,21 @@ begin
         delete from public.zell_payment_config_log; s := 'ok'; exception when others then s := sqlstate; end; reset role; v := v || 'rolecfg:' || s || ',';
   begin set local role zell_purge_definer; perform 1 from public.order_payments t where t.order_id = $OB for update; s := 'ok'; exception when others then s := sqlstate; end; reset role; v := v || 'rolelock:' || s || ',';
   begin set local role zell_purge_definer; update public.order_payments t set note = 'x' where t.order_id = $OB; s := 'ok'; exception when others then s := sqlstate; end; reset role; v := v || 'roleupd:' || s || ',';
-  begin set local role zell_purge_definer; update public.zell_order_shipments t set carrier = 'x' where t.order_id = $OB; s := 'ok'; exception when others then s := sqlstate; end; reset role; v := v || 'roleshpupd:' || s;
+  begin set local role zell_purge_definer; update public.zell_order_shipments t set carrier = 'x' where t.order_id = $OB; s := 'ok'; exception when others then s := sqlstate; end; reset role; v := v || 'roleshpupd:' || s || ',';
+  begin set local role zell_purge_definer; update public.orders t set updated_at = t.updated_at where t.id = $OB; s := 'ok'; exception when others then s := sqlstate; end; reset role; v := v || 'rolecolord:' || s || ',';
+  begin set local role zell_purge_definer; update public.order_items t set order_id = t.order_id where t.order_id = $OB; s := 'ok'; exception when others then s := sqlstate; end; reset role; v := v || 'rolecolitem:' || s || ',';
+  begin set local role zell_purge_definer; update public.zell_order_shipments t set order_id = t.order_id where t.order_id = $OB; s := 'ok'; exception when others then s := sqlstate; end; reset role; v := v || 'rolecolshp:' || s;
   raise notice 'F13=%', v;
 end
 \$f13\$" > "$TMP/f13.out" 2>&1
 got=$(grep -o 'F13=.*' "$TMP/f13.out" | head -n 1)
-exp='F13=pay:45427,cmd:45427,shp:45413,shplog:45413,cu:45413,culog:45413,payupd:45427,shplogupd:45413,paytrunc:45427,shpupd:ok,cuupd:ok,roleother:45427,rolecfg:42501,rolelock:ok,roleupd:42501,roleshpupd:42501'
+exp='F13=pay:45427,cmd:45427,shp:45413,shplog:45413,cu:45413,culog:45413,payupd:45427,shplogupd:45413,paytrunc:45427,shpupd:ok,cuupd:ok,roleother:45427,rolecfg:42501,rolelock:ok,roleupd:42501,roleshpupd:42501,rolecolord:42501,rolecolitem:42501,rolecolshp:42501'
 ok=no; [ "$got" = "$exp" ] && ok=yes
-record "F13 existing guards byte for byte: direct DELETE/UPDATE/TRUNCATE refused with the same codes · shipment and message edits still allowed · the role: other orders refused, config log refused, lock works, real UPDATE refused" "$ok" "got=$got"
+record "F13 existing guards byte for byte: direct DELETE/UPDATE/TRUNCATE refused with the same codes · shipment and message edits still allowed · the role: other orders refused, config log refused, lock works, real UPDATE refused (ungranted columns: privilege · the granted lock columns orders.updated_at / order_items.order_id / zell_order_shipments.order_id: RLS with check (false))" "$ok" "got=$got"
 r1=$(q "update public.zell_purge_log l set payments_count = 0" | tr '\n' ' ')
 r2=$(q "delete from public.zell_purge_log" | tr '\n' ' ')
 r3=$(q "truncate public.zell_purge_log" | tr '\n' ' ')
-ok=no; printf '%s' "$r1$r2$r3" | grep -o 'ZELL_PURGE_LOG_APPEND_ONLY' | wc -l | grep -qx 3 && [ "$(q "select pg_catalog.count(*) from public.zell_purge_log")" = "1" ] && ok=yes
+ok=no; printf '%s' "$r1$r2$r3" | grep -o 'ZELL_PURGE_LOG_APPEND_ONLY' | wc -l | grep -qx 3 && [ "$(q "select pg_catalog.count(*) from public.zell_purge_log")" = "$LOGN" ] && ok=yes
 record "F14 zell_purge_log: update / delete / truncate refused (append-only, no exception)" "$ok" "$r1 | $r2 | $r3"
 reset_attempts
 used0=$(q "select pg_catalog.count(*) from public.orders o join public.coupons c on c.id = o.coupon_id where c.code = 'CI0024A' and o.status <> 'cancelled'")
@@ -425,11 +518,6 @@ ok=no; { [ "$r" != "${r%45401*}" ] || [ "$r" != "${r%45400*}" ]; } && [ "$(oid_o
 record "F17 owner deactivated between ticket and use -> refused (owner re-checked), nothing changed" "$ok" "r=$r"
 
 # ---- 7) جلستين ----
-bg_purge() { # $1 ids $2 snap $3 count $4 ticket $5 out $6 app
-  printf '%s\n' "begin;" "select pg_catalog.set_config('request.jwt.claims', '$(claims "$OWNER_ID" "$SESS")', true);" "set local role authenticated;" \
-    "select public.zell_purge_orders($1, '$2', $3, '$4'::uuid)::text;" "select pg_catalog.pg_sleep(3);" "commit;" \
-    | PGAPPNAME="$6" psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=sqlstate -U postgres -d "$DB" -f - > "$5" 2>&1
-}
 reset_attempts
 PE=$(pv "array[$OE]::integer[]")
 T=$(issue "$OWNER_ID" "$SESS" "$(f1 "$PE")" "$(f2 "$PE")" 1)
@@ -445,38 +533,49 @@ if wait_app ci0024_purge; then
 else
   wait "$hp"; record "C01 a payment during the purge" no "purge session never reached its sleep: $(tailof "$TMP/c1p.out")"
 fi
-holder() { # $1 table $2 out $3 app
-  printf '%s\n' "begin;" "select 1 from public.$1 t where t.order_id = $OB for update;" "select pg_catalog.pg_sleep(4);" "commit;" \
-    | PGAPPNAME="$3" psql -X -q -tA -v VERBOSITY=sqlstate -U "$SUPER" -d "$DB" -f - > "$2" 2>&1
+holder_fn() { # $1 sql $2 out $3 app — the admin calls a real TR2 function, holds its locks 4 s, then rolls back (no data change)
+  printf '%s\n' "begin;" "select pg_catalog.set_config('request.jwt.claims', '$(claims "$ADMIN_ID" "$SESS2")', true);" "set local role authenticated;" \
+    "$1;" "select pg_catalog.pg_sleep(4);" "rollback;" \
+    | PGAPPNAME="$3" psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=sqlstate -U postgres -d "$DB" -f - > "$2" 2>&1
 }
-for pair in "C02:zell_order_customer_updates" "C03:zell_order_shipments"; do
-  cid=${pair%%:*}; tbl=${pair##*:}
+msg_ver() { q "select u.id || '|' || u.updated_at from public.zell_order_customer_updates u where u.order_id = $OB order by u.id limit 1"; }
+shp_ver() { q "select s.updated_at from public.zell_order_shipments s where s.order_id = $OB"; }
+for cid in C02 C03; do
   reset_attempts
   PB=$(pv "array[$OB]::integer[]")
   T=$(issue "$OWNER_ID" "$SESS" "$(f1 "$PB")" "$(f2 "$PB")" 1)
-  holder "$tbl" "$TMP/$cid.h.out" "ci0024_$cid" &
+  if [ "$cid" = "C02" ]; then
+    mv=$(msg_ver)
+    sql="select public.zell_customer_update_edit('FLM-CIBBBB', $(f1 "$mv"), '$(f2 "$mv")'::timestamptz, 'تعديل وقت المسح') ->> 'changed'"
+    what="zell_customer_update_edit (message row FOR UPDATE + log insert)"
+  else
+    sql="select public.zell_shipment_save('FLM-CIBBBB', '$(shp_ver)'::timestamptz, 'CI Carrier 3', null, null, null, null) ->> 'changed'"
+    what="zell_shipment_save (order FOR NO KEY UPDATE + shipment FOR UPDATE)"
+  fi
+  holder_fn "$sql" "$TMP/$cid.h.out" "ci0024_$cid" &
   hh=$!
   if wait_app "ci0024_$cid"; then
     t0=$(now_ms); r=$(purge "array[$OB]::integer[]" "$(f2 "$PB")" 1 "$T"); t1=$(now_ms)
     wait "$hh"
-    ok=no; [ "$r" != "${r%45608*}" ] && [ $((t1 - t0)) -lt 2500 ] && [ "$(oid_of FLM-CIBBBB)" = "$OB" ] && ! grep -q '40P01' "$TMP/$cid.h.out" && ok=yes
-    record "$cid a session holds a $tbl row -> purge returns 45608 at once ($((t1 - t0)) ms), nothing changed, no deadlock" "$ok" "r=$r holder=$(tailof "$TMP/$cid.h.out")"
+    ok=no; [ "$r" != "${r%45608*}" ] && [ $((t1 - t0)) -lt 2500 ] && [ "$(oid_of FLM-CIBBBB)" = "$OB" ] && grep -qx 'true' "$TMP/$cid.h.out" && ! grep -q '40P01' "$TMP/$cid.h.out" && ok=yes
+    record "$cid the admin is inside $what -> purge returns 45608 at once ($((t1 - t0)) ms), nothing changed, no deadlock" "$ok" "r=$r holder=$(tailof "$TMP/$cid.h.out")"
   else
-    wait "$hh"; record "$cid a session holds a $tbl row" no "holder never reached its sleep: $(tailof "$TMP/$cid.h.out")"
+    wait "$hh"; record "$cid the admin inside $what" no "holder never reached its sleep: $(tailof "$TMP/$cid.h.out")"
   fi
 done
 reset_attempts
 PB=$(pv "array[$OB]::integer[]")
 T=$(issue "$OWNER_ID" "$SESS" "$(f1 "$PB")" "$(f2 "$PB")" 1)
+mv=$(msg_ver)
 bg_purge "array[$OB]::integer[]" "$(f2 "$PB")" 1 "$T" "$TMP/c4p.out" ci0024_purge4 &
 hp=$!
 if wait_app ci0024_purge4; then
   t0=$(now_ms)
-  psql -X -q -tA -v VERBOSITY=sqlstate -U "$SUPER" -d "$DB" -c "update public.zell_order_customer_updates t set text = 'تعديل وقت المسح' where t.order_id = $OB returning t.id" < /dev/null > "$TMP/c4u.out" 2>&1
+  r=$(as_user "$ADMIN_ID" "$SESS2" "select public.zell_customer_update_edit('FLM-CIBBBB', $(f1 "$mv"), '$(f2 "$mv")'::timestamptz, 'تعديل وقت المسح') ->> 'changed'")
   t1=$(now_ms)
   wait "$hp"
-  ok=no; has "$TMP/c4p.out" '"deleted": 1' && [ ! -s "$TMP/c4u.out" ] && [ $((t1 - t0)) -ge 1000 ] && ! grep -q '40P01' "$TMP/c4p.out" "$TMP/c4u.out" && [ -z "$(oid_of FLM-CIBBBB)" ] && ok=yes
-  record "C04 a message edit while the purge holds the locks waits ($((t1 - t0)) ms), then finds nothing (row deleted); purge done; no deadlock" "$ok" "purge=$(tailof "$TMP/c4p.out") edit=$(tailof "$TMP/c4u.out")"
+  ok=no; has "$TMP/c4p.out" '"deleted": 1' && [ "$r" != "${r%45403*}" ] && [ $((t1 - t0)) -ge 1000 ] && ! grep -q '40P01' "$TMP/c4p.out" && [ "$r" = "${r%40P01*}" ] && [ -z "$(oid_of FLM-CIBBBB)" ] && ok=yes
+  record "C04 the admin's zell_customer_update_edit while the purge holds the locks waits ($((t1 - t0)) ms), then 45403 (row gone); purge done; no deadlock" "$ok" "purge=$(tailof "$TMP/c4p.out") edit=$r"
 else
   wait "$hp"; record "C04 a message edit during the purge" no "purge session never reached its sleep: $(tailof "$TMP/c4p.out")"
 fi
