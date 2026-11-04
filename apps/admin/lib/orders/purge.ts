@@ -54,6 +54,8 @@ export const ORDER_PURGE_MESSAGES = {
   backup: 'يجب تأكيد أخذ نسخة احتياطية قبل المسح الشامل.',
   passwordEmpty: 'اكتب كلمة المرور.',
   previewUnavailable: 'تعذّر تحميل القائمة الآن. حاول مرة أخرى.',
+  previewInvalid: 'بيانات المعاينة غير صحيحة. حدّث الصفحة.',
+  previewNotFound: 'أحد الطلبات المطلوبة غير موجود الآن. لو كانت هناك محاولة حذف سابقة فربما حُذف بها؛ راجع قائمة الطلبات.',
   internal: 'حدث خطأ غير متوقع. اعرض القائمة من جديد للتأكد مما حُذف قبل أي محاولة أخرى.',
 }
 
@@ -290,6 +292,109 @@ export function purgeFailure(error: unknown): PurgeFailure {
     default:
       return { code: 'INTERNAL', message: ORDER_PURGE_MESSAGES.internal }
   }
+}
+
+/**
+ * خطأ المعاينة (مش الحذف) — رسايل منفصلة عن رفض الحذف: اختفاء طلب وقت القراية مابيثبتش إن محاولة حذف سابقة فشلت
+ * (ممكن تكون نجحت والرد اتقطع)، فمفيش هنا «لم يُحذف شيء».
+ */
+export function previewFailure(error: unknown): PurgeFailure {
+  switch (purgeErrorCode(error)) {
+    case '45400':
+      return { code: 'UNAUTHENTICATED', message: ORDER_PURGE_MESSAGES.unauthenticated }
+    case '45401':
+    case '45402':
+    case '45603':
+      return { code: 'FORBIDDEN', message: ORDER_PURGE_MESSAGES.forbidden }
+    case '45601':
+      return { code: 'VALIDATION', message: ORDER_PURGE_MESSAGES.previewInvalid }
+    case '45602':
+      return { code: 'NOT_FOUND', message: ORDER_PURGE_MESSAGES.previewNotFound }
+    default:
+      return { code: 'INTERNAL', message: ORDER_PURGE_MESSAGES.previewUnavailable }
+  }
+}
+
+/** حالة الكارت (المعاينة + التأكيدات). */
+export type PurgeForm = { preview: PurgePreview | null; phrase: string; backup: boolean; password: string }
+export const EMPTY_PURGE_FORM: PurgeForm = { preview: null, phrase: '', backup: false, password: '' }
+
+/**
+ * بعد فشل الحذف: VALIDATION (الباسورد غلط · القفل · التأكيدات) = المعاينة لسه صالحة والباسورد بس بيتمسح. أي حاجة تانية
+ * (نتيجة مجهولة · اللقطة اتغيّرت · طلب اتمسح · العدد · التذكرة · مشغول · الصلاحية · الجلسة) = المعاينة القديمة والتأكيدات
+ * بتتلغي بالكامل، ومفيش تأكيد غير بعد معاينة جديدة وتأكيدات جديدة.
+ */
+export function purgeFormAfterFailure(form: PurgeForm, failure: { code: MutationErrorCode }): PurgeForm {
+  if (failure.code === 'VALIDATION') return { ...form, password: '' }
+  return EMPTY_PURGE_FORM
+}
+
+/** زرار «حذف نهائي» بيتفعّل بس بمعاينة صالحة + جملة العدد بالظبط + backup (للمسح الشامل) + باسورد + علم التعديلات. */
+export function purgeCanConfirm(form: PurgeForm, scope: PurgeScope, mutationsOn: boolean, busy: boolean): boolean {
+  const p = form.preview
+  if (p === null || p.count < 1 || !mutationsOn || busy) return false
+  if (form.phrase.trim() !== purgePhrase(p.count)) return false
+  if (scope === 'all' && !form.backup) return false
+  return form.password.length > 0
+}
+
+/** خيارات عميل الباسورد المؤقت: من غير حفظ جلسة ولا تجديد ولا قراية من الرابط (ومن غير كوكيز: createClient مش عميل الصفحة). */
+export const TEMP_AUTH_OPTIONS = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+export type TempAuthOptions = typeof TEMP_AUTH_OPTIONS
+
+export type TempAuthClient = {
+  auth: {
+    signInWithPassword(credentials: { email: string; password: string }): Promise<{
+      data: { user: { id: string } | null; session: unknown } | null
+      error: { status?: number } | null
+    }>
+    signOut(options: { scope: 'local' }): Promise<{ error: unknown } | undefined>
+  }
+}
+
+/**
+ * فحص باسورد المالك بعميل مؤقت منفصل (العقد §٥-٣ (٢)). العميل الأصلي (جلسة المتصفح والكوكيز) مابيتلمسش هنا خالص.
+ *   true  = الباسورد صح لنفس المستخدم، والجلسة المؤقتة اتلغت (scope: local) والإلغاء رجع من غير خطأ.
+ *   false = بيانات دخول غلط (400) ومفيش جلسة اتعملت.
+ *   null  = مش محسوم: أي خطأ تاني · هوية مختلفة · مفيش جلسة · الإلغاء فشل أو مش معروف. null = مفيش تذكرة ومفيش حذف.
+ * لو اتعملت جلسة مؤقتة لأي سبب، بتتلغي قبل أي نتيجة (حتى لو الهوية مختلفة).
+ */
+export async function verifyOwnerPassword(
+  makeTempClient: (options: TempAuthOptions) => TempAuthClient,
+  email: string,
+  userId: string,
+  password: string,
+): Promise<boolean | null> {
+  if (email === '' || userId === '' || password === '') return null
+  let client: TempAuthClient
+  try {
+    client = makeTempClient(TEMP_AUTH_OPTIONS)
+  } catch {
+    return null
+  }
+  let signed: Awaited<ReturnType<TempAuthClient['auth']['signInWithPassword']>>
+  try {
+    signed = await client.auth.signInWithPassword({ email, password })
+  } catch {
+    return null
+  }
+  const hasSession = signed.data !== null && signed.data !== undefined && signed.data.session !== null && signed.data.session !== undefined
+  let cleaned = !hasSession
+  if (hasSession) {
+    try {
+      const out = await client.auth.signOut({ scope: 'local' })
+      cleaned = out === undefined || out === null || out.error === null || out.error === undefined
+    } catch {
+      cleaned = false
+    }
+  }
+  if (signed.error !== null && signed.error !== undefined) {
+    if (hasSession) return null
+    return signed.error.status === 400 ? false : null
+  }
+  if (!hasSession || !cleaned) return null
+  const user = signed.data === null ? null : signed.data.user
+  return user !== null && user.id === userId ? true : null
 }
 
 /** رد zell_purge_reauth_begin: allowed true/false. */
