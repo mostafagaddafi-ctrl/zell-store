@@ -3,7 +3,7 @@
 -- • معاملة read only: أول جملة begin وآخر جملة rollback، وصف واحد في SELECT واحد. مفيش كتابة ولا DDL، ومفيش بيانات شخصية
 --   في الناتج (البصمات md5 لنص الصفوف مرتّبة بنصّها، والأعداد بس).
 -- • الوقت UTC (timezone = UTC جوه المعاملة)، ومهلة للجملة وللمعاملة الخاملة 15s.
--- • الأعمدة بالترتيب (30):
+-- • الأعمدة بالترتيب (31):
 --     1 observed_at_utc
 --     2 purge_role · 3 purge_fns · 4 purge_tables · 5 purge_policies — كائنات 0024 (قبل التطبيق: false · 0 · 0 · 0)
 --     6 guards — md5 الحراس الأربعة: payment,shipment,customer_update,events_immutable
@@ -11,9 +11,11 @@
 --     8 shape_ok — شكل التوابع (نفس تعبير verify V09) = النص المعتمد في العقد §١٣ بالحرف
 --     9..26 لكل جدول من التسعة: العدد والبصمة (orders · order_items · order_events · order_payments · zell_payment_commands ·
 --           zell_order_shipments · zell_order_shipments_log · zell_order_customer_updates · zell_order_customer_updates_log)
---     27 orders_by_status · 28 idle_tx (وقف لو > 0) · 29 stop_locks (وقف لو > 0) · 30 all_locks (معلومة)
+--     27 orders_by_status · 28 idle_tx (وقف لو > 0) · 29 stop_locks (وقف لو > 0) · 30 admin_users_locks (وقف لو > 0) · 31 all_locks (معلومة)
 -- • idle_tx = جلسات «idle in transaction» في نفس القاعدة غيرنا. stop_locks = أقفال جلسات تانية على الجداول التسعة مستنية، أو أقوى
 --   من RowExclusive، أو ماسكها جلسة idle in transaction. all_locks = كل أقفال الجلسات التانية على الجداول دي.
+-- • admin_users_locks = كل أقفال الجلسات التانية على public.admin_users في نفس القاعدة، أي نوع، ممنوحة أو مستنية (زي أثر 0021-P؛
+--   04-DB-SAFETY دروس 0021-P §٤). لازم 0 في أثر الخطوة 1، وزي الـ baseline (0) في كل أثر بعده.
 
 begin;
 set transaction read only;
@@ -84,6 +86,9 @@ select
       and (not l.granted
            or l.mode in ('ShareUpdateExclusiveLock', 'ShareLock', 'ShareRowExclusiveLock', 'ExclusiveLock', 'AccessExclusiveLock')
            or a.state in ('idle in transaction', 'idle in transaction (aborted)'))) as stop_locks,
+  (select pg_catalog.count(*) from pg_catalog.pg_locks l
+    where l.database = (select d.oid from pg_catalog.pg_database d where d.datname = pg_catalog.current_database())
+      and l.pid <> pg_catalog.pg_backend_pid() and l.relation = 'public.admin_users'::regclass) as admin_users_locks,
   (select pg_catalog.count(*) from pg_catalog.pg_locks l
     where l.database = (select d.oid from pg_catalog.pg_database d where d.datname = pg_catalog.current_database())
       and l.pid <> pg_catalog.pg_backend_pid() and l.relation in (select t.rel from t)) as all_locks;
