@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { PageHeader } from '../../../components/shell/PageHeader'
 import { DeliverySettingsCard } from '../../../components/settings/DeliverySettingsCard'
 import { SettingsEditor } from '../../../components/settings/SettingsEditor'
+import { OrderPurgeCard } from '../../../components/orders/OrderPurgeCard'
 import { SystemHealthView } from '../../../components/settings/SystemHealthView'
 import { adminData } from '../../../lib/adminData'
 import { pageWithAccess } from '../../../lib/access/instance'
@@ -23,6 +24,8 @@ export default pageWithAccess('zell.settings.view', async function SettingsPage(
         <SystemHealthView health={health} />
         <DeliverySettingsCard key={delivery?.updatedAt ?? 'none'} settings={delivery} canSave={ctx.identity.role === 'owner'} />
         <SettingsEditor settings={settings} />
+        {/* ORDER-DELETE (المرحلة C): مسح كل الطلبات — للمالك بس (قرار المالك §١٠)، والقرار النهائي في الداتابيز. */}
+        {ctx.identity.role === 'owner' ? <OrderPurgeCard scope="all" /> : null}
       </div>
     </>
   )

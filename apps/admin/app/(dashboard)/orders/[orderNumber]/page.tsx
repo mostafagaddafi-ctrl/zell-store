@@ -13,6 +13,7 @@ import { adminData } from '../../../../lib/adminData'
 import { formatDateTime, formatLength, formatPiastres } from '../../../../lib/format'
 import { couponValueLabel, discountRowLabel, discountRowValue, orderTotalFormula } from '../../../../lib/coupons/form'
 import { pageWithAccess } from '../../../../lib/access/instance'
+import { OrderPurgeCard } from '../../../../components/orders/OrderPurgeCard'
 import { OrderCallCard, OrderCustomerEditor, OrderDeliveryCard, OrderFollowUpCard } from '../../../../components/orders/OrderCycle'
 import { OrderTimeline } from '../../../../components/orders/OrderTimeline'
 import { getOrderCycleView } from '../../../../lib/data/orderCycle'
@@ -269,6 +270,9 @@ export default pageWithAccess('zell.orders.view', async function OrderDetailPage
               إعادة إرسال الإشعار
             </Button>
           </Card>
+
+          {/* ORDER-DELETE (المرحلة C): حذف الطلب نهائيًا — للمالك بس، والقرار النهائي في الداتابيز. */}
+          {ctx.identity.role === 'owner' ? <OrderPurgeCard scope="single" orderId={order.id} /> : null}
         </div>
       </div>
     </>

@@ -6,6 +6,13 @@
     "A map-based call (ORDER_FUNCTIONS) is checked for EVERY name in the map, even if a given call site uses a subset.",
     "Any new non-parseable site, or an exception that no longer matches a site, fails until reviewed."
   ],
+  "later": [
+    {
+      "migration": "0024_order_delete.sql",
+      "names": ["zell_purge_preview", "zell_purge_orders", "zell_purge_reauth_begin", "zell_purge_reauth_finish"],
+      "reason": "applied + verified on Production 2026-11-04 (#199) and in build_from_scratch.list after 0022 and 0023 (#200). Skipped only by 0022_sql_ci.sh and 0023_sql_ci.sh (--later skip), which build the list up to before their own migration; checked everywhere else (BASELINE K01/K02, 0024 K01)."
+    }
+  ],
   "excluded_paths": [
     {
       "pattern": "\\.cases\\.tsx?$",

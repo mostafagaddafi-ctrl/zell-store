@@ -412,7 +412,8 @@ record "IMP5 impact query after re-apply = the after-apply result (columns 2-31)
 # ---- 10b) عقد استدعاء التطبيقات على البناء الكامل + 0022 (المرحلة B، العقد §٧-أ) ----
 # نفس حارس BASELINE (call_contract.mjs) بـ --pending require: نداءات zell_product_delete* بتتفحص فعليًا (الوجود · أسماء المعاملات ·
 # EXECUTE لـ authenticated · مفيش لـ anon و service_role)، زي ما هتتفحص في build_from_scratch بعد المرحلة C.
-if node "$CIDIR/call_contract.mjs" --root "$ROOT" --policy "$CIDIR/call_contract_policy.json" --sql "$TMP/cc.sql" --pending require > "$TMP/cc_static.log" 2>&1; then
+# --later skip: الداتابيز هنا مبنية لحد قبل 0022، فدوال الـ migrations اللي بعدها في القايمة (0024) مش موجودة (call_contract_policy.json later).
+if node "$CIDIR/call_contract.mjs" --root "$ROOT" --policy "$CIDIR/call_contract_policy.json" --sql "$TMP/cc.sql" --pending require --later skip > "$TMP/cc_static.log" 2>&1; then
   psql -X -q -tA -v ON_ERROR_STOP=1 -U "$SUPER" -d "$DB" -f "$TMP/cc.sql" < /dev/null > "$TMP/cc_db.log" 2>&1; rc=$?
   fails=$(grep -c '^CALL FAIL ' "$TMP/cc_db.log" || true)
   passes=$(grep -c '^CALL PASS ' "$TMP/cc_db.log" || true)
