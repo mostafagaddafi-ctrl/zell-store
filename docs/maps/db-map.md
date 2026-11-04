@@ -24,8 +24,7 @@
 | `zell_erp_definer` | `0021p_zell_erp_access` | مالك دوال المحوّل والواجهة `erp_actor_status_v1`. مالوش أي صلاحية على `admin_users` |
 | `zell_order_definer` | `0021a_a1_order_cycle` | مالك دوال دورة الطلب `zell_order_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS). على `orders`: SELECT + UPDATE لأعمدة الدورة بس. ومالك `zell_checkout_delivery_periods` (0021-D)، وبعد P1/P2: `zell_payment_*` (ماعدا الـ triggers) و`zell_checkout_confirmation_fee` (§٧-ب)، وبعد 0021-D2: `zell_delivery_settings_get` / `_save` و`zell_checkout_delivery_settings` (§٧-ج)، وبعد 0021-TR: `zell_checkout_track_order` و SELECT على ٨ أعمدة من `order_items` بـ policy قراية (§٩)، وبعد EXPRESS-SHIPPING: `zell_shipping_options_get` / `_save` / `_checkout` و SELECT + UPDATE على `zell_shipping_options` و SELECT + INSERT على سجله (§١٠)، وبعد TRACK-ORDER v2: 9 دوال `zell_shipment_*` و`zell_customer_update_*` (ماعدا الـ triggers) و SELECT + INSERT + UPDATE على `zell_order_shipments` و`zell_order_customer_updates` و SELECT + INSERT على سجلاتهم (§١١)، ومفيش صلاحية جديدة على `orders` ولا `order_events` ولا `order_payments` |
 | `zell_catalog_definer` | `0022_product_delete` | مالك دوال حذف المنتج (NOLOGIN · NOINHERIT · NOBYPASSRLS، عضوية `postgres` بـ SET بس) — §١٢. صلاحيات أعمدة + 17 policy باسم `zell_catalog_definer_*` بس، ومفيش أي صلاحية على `orders` ولا قراية أسماء أو أسعار المنتجات (متطبّق ومتحقق منه على Production 2026-10-26) |
-| `zell_purge_definer` | `0024_order_delete` | مالك دوال حذف الطلبات (NOLOGIN · NOINHERIT · NOBYPASSRLS، عضوية `postgres` بـ SET بس). SELECT على الجداول التسعة · DELETE على السبعة اللي مالهاش cascade · UPDATE على عمود واحد لكل جدول للقفل بس · 32 policy باسم `zell_purge_*` (متطبّق ومتحقق منه على Production 2026-11-04، قسم «حذف الطلبات» تحت) |
-| `zell_purge_definer` | `0024_order_delete` | مالك دوال حذف الطلبات `zell_purge_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS، عضوية `postgres` بـ SET بس) — §١٤. على جداول الطلبات التسعة: SELECT · UPDATE على عمود واحد للقفل بس (policy `with check (false)`) · DELETE على 7. **مش متطبّق لسه** |
+| `zell_purge_definer` | `0024_order_delete` | مالك دوال حذف الطلبات `zell_purge_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS، عضوية `postgres` بـ SET بس) — §١٤. على جداول الطلبات التسعة: SELECT · UPDATE على عمود واحد للقفل بس (policy `with check (false)`) · DELETE على 7. **متطبّق ومتحقق منه على Production 2026-11-04** (§١٤) |
 
 ---
 
@@ -387,9 +386,11 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 - الأقسام فوق (§١ · §٢ · §٥ · §١٢) اتحدّثت في المرحلة C.
 
 
-## ١٤) حذف الطلبات للمالك (0024 — ORDER-DELETE B) — مكتوب، ومش متطبّق على Production
+## ١٤) حذف الطلبات للمالك (0024 — ORDER-DELETE) — متطبّق على Production 2026-11-04
 
 - العقد: `docs/contracts/ORDER-DELETE.md` (معتمد #197، والمرحلة B §١٣). الملفات: `migrations/0024_order_delete.sql` + `_ptest` + `_verify` + `_rollback`، وCI `ci/0024_sql_ci.sh` (job `sql-0024`). سطر الموافقة بس بعد `begin;` (`owner-approval-YYYY-MM-DD-order-delete`).
+
+- **الحالة (2026-11-04):** اتطبّق 03:43:02–03:43:05Z من ملفات main `2d2f976` (#198) بسطر `owner-approval-2026-11-04-order-delete`، واتحقق منه (verify 0024 + الـ 9 verify PASS). خطة التشغيل ونتايجها بالحرف في #199 (اتدمجت بعد التطبيق، main `749558c`). 0024 في بناء CI من #200، واللوحة من #201. قرايات بس: `0024_order_delete_impact.sql` (الأثر) و`0024_order_delete_baseline_read.sql` (#200). **الرجوع مقفول:** المالك حذف من اللوحة (منقول منه)، و`_rollback` بيرفض لو `zell_purge_log` فيه سطور. العقد §١٤.
 
 | الدالة | المالك · EXECUTE | بتعمل إيه |
 | --- | --- | --- |
@@ -403,10 +404,3 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 - **تغيير في دوال موجودة:** `zell_payment_trg_append_only` · `zell_shipment_trg_append_only` · `zell_customer_update_trg_append_only`: DELETE مسموح بس لـ `zell_purge_definer` على جداولها المعتمدة (مش `zell_payment_config_log`) ولطلبات العملية؛ غير كده نفس الرفض ونفس الكود. `zell_order_trg_events_immutable` و`zell_create_order` مابيتلمسوش.
 - **الأكواد:** 45601..45610 (`ZELL_PURGE_*`، التفاصيل في العقد §١٣).
 - **الرجوع:** `0024_order_delete_rollback.sql` بياخد نفس قفل الـ advisory exclusive، وبيرفض لو السجل فيه سطور أو لو أي دالة `zell_purge_*` أو حارس من التلاتة مش ببصمة 0024 (العقد §١٣).
-
-## حذف الطلبات — 0024 ORDER-DELETE (متطبّق 2026-11-04)
-- **الدوال (مملوكة لـ `zell_purge_definer`):** `zell_purge_preview(p_ids)` و`zell_purge_orders(p_ids, p_snapshot_hash, p_count, p_ticket)` بـ EXECUTE لـ `authenticated` بس (المالك من الجلسة) · `zell_purge_reauth_begin(p_actor)` و`zell_purge_reauth_finish(p_actor, p_session, p_ok, p_ids_hash, p_snapshot_hash, p_count)` لـ `service_role` بس · `zell_purge_ids_hash` · `zell_purge_snapshot_hash` · `zell_purge_shape_problem` · `zell_purge_trg_append_only` داخلية.
-- **الجداول:** `zell_purge_log` (سطر لكل حذف من غير بيانات شخصية: الأرقام · العدد · الدفعات · المقبوض · المردود · مين · إمتى؛ append-only) · `zell_purge_reauth` (التذاكر: دقيقتين، استعمال واحد، مربوطة بالمالك والجلسة والنطاق) · `zell_purge_attempts` (5 غلط / 15 دقيقة = قفل 15 دقيقة).
-- **الحراس:** `zell_payment_trg_append_only` و`zell_shipment_trg_append_only` و`zell_customer_update_trg_append_only` بيسمحوا بـ DELETE بس لـ `zell_purge_definer` ولطلبات العملية (`zell.purge_order_ids`). `zell_order_trg_events_immutable` و`zell_create_order` ماتغيّروش.
-- **الأكواد:** 45601–45608 (`ZELL_PURGE_*`) · 45610 سجل الحذف append-only.
-- **الرجوع:** `0024_order_delete_rollback.sql` بيرفض لو `zell_purge_log` فيه سطور، وده حصل بعد أول حذف (2026-11-04)، فالرجوع مقفول.
