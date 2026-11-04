@@ -115,8 +115,11 @@ with fn(name, owner) as (
          (select count(*) from pg_catalog.pg_policies p where p.schemaname = 'public'
             and ((p.tablename = 'orders' and p.policyname like 'zell\_order\_definer\_%') or p.tablename in (select tbl.name from tbl))
             and p.roles = array['zell_order_definer']::name[]) = 7
-         and not exists (select 1 from pg_catalog.pg_policies p where p.schemaname = 'public' and p.policyname not like 'zell\_purge\_%'
-                          and p.tablename in (select tbl.name from tbl) and p.roles <> array['zell_order_definer']::name[]),
+         and not exists (select 1 from pg_catalog.pg_policies p where p.schemaname = 'public'
+                          and p.tablename in (select tbl.name from tbl) and p.roles <> array['zell_order_definer']::name[]
+                          and (p.tablename::text, p.policyname::text, p.cmd, p.permissive, p.roles::text, coalesce(p.qual, '-'), coalesce(p.with_check, '-'))
+                              not in (values ('order_events', 'zell_purge_select', 'SELECT', 'PERMISSIVE', '{zell_purge_definer}', 'true', '-'),
+                                             ('order_events', 'zell_purge_lock', 'UPDATE', 'PERMISSIVE', '{zell_purge_definer}', 'true', 'false'))),
          null
   union all
   select 'V12', 'every order since the first created event has its created event',
