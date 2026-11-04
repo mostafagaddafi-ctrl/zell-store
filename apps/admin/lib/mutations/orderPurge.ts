@@ -5,13 +5,14 @@ import { authCredentials } from '../auth/env'
 import { createAuthClient } from '../auth/supabaseServer'
 import { restRpc } from '../data/client'
 import type { MutationResult } from '../mutations'
-import { ORDER_PURGE_MESSAGES, runOrderPurge, sessionIdFromToken, type PurgeRequest, type PurgeResult } from '../orders/purge'
+import { ORDER_PURGE_MESSAGES, runOrderPurge, sessionIdFromToken, verifyOwnerPassword, type PurgeRequest, type PurgeResult, type TempAuthClient } from '../orders/purge'
 
 /**
  * ORDER-DELETE (المرحلة C) — الحذف (العقد docs/contracts/ORDER-DELETE.md §٥-٣):
  *   1. zell_purge_reauth_begin(actor) بـ service_role: بيقفل عدّاد المالك ويعدّ المحاولة قبل فحص الباسورد.
- *   2. الباسورد بعميل Supabase منفصل على السيرفر من غير كوكيز ومن غير حفظ جلسة (signInWithPassword لإيميل المالك من جلسته
- *      الحالية)؛ لو نجح بتتلغي الجلسة المؤقتة دي بس (scope: local)، وجلسة المالك في المتصفح زي ما هي.
+ *   2. الباسورد عن طريق verifyOwnerPassword (lib/orders/purge.ts، مختبرة بعميل محاكاة): عميل Supabase منفصل من createClient
+ *      بخيارات TEMP_AUTH_OPTIONS (من غير كوكيز ولا حفظ جلسة)، وأي جلسة مؤقتة اتعملت بتتلغي (scope: local) قبل أي نتيجة،
+ *      ولو الإلغاء فشل أو الهوية مختلفة = مش محسوم = مفيش تذكرة ولا حذف. العميل الأصلي مابيتلمسش.
  *   3. zell_purge_reauth_finish بـ service_role: غلط = مفيش تذكرة · صح = تذكرة دقيقتين لاستعمال واحد، مربوطة بالمالك وبالجلسة
  *      الأصلية (session_id من توكن الجلسة) وبنطاق العملية.
  *   4. zell_purge_orders بجلسة المستخدم والتذكرة. الداتابيز بتفحص المالك والتذكرة والبصمة والعدد تاني.
@@ -34,14 +35,14 @@ export async function purgeOrders(identity: { userId: string; email: string }, r
 
   return runOrderPurge(request, {
     begin: () => restRpc<unknown>('zell_purge_reauth_begin', { p_actor: identity.userId }),
-    verifyPassword: async () => {
+    verifyPassword: () => {
       const { url, anonKey } = authCredentials()
-      const temp = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
-      const signed = await temp.auth.signInWithPassword({ email: identity.email, password: request.password })
-      if (signed.error !== null) return signed.error.status === 400 ? false : null
-      if (signed.data.user?.id !== identity.userId) return null
-      await temp.auth.signOut({ scope: 'local' }).catch(() => undefined)
-      return true
+      return verifyOwnerPassword(
+        (options) => createClient(url, anonKey, options) as unknown as TempAuthClient,
+        identity.email,
+        identity.userId,
+        request.password,
+      )
     },
     finish: (ok: boolean) =>
       restRpc<unknown>('zell_purge_reauth_finish', {
