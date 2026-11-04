@@ -39,6 +39,7 @@ const SUITES = [
   { name: 'storefront-link', dir: 'lib/storefront', entry: 'link.cases.ts', run: 'runStorefrontLinkCases' },
   { name: 'policy-save', dir: 'lib/content', entry: 'policySave.cases.ts', run: 'runPolicySaveCases' },
   { name: 'product-delete', dir: 'lib/products', entry: 'deleteProduct.cases.ts', run: 'runProductDeleteCases' },
+  { name: 'order-purge', dir: 'lib/orders', entry: 'purge.cases.ts', run: 'runOrderPurgeCases' },
 ]
 
 const COMPILER_OPTIONS = {
