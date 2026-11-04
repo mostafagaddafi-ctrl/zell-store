@@ -329,7 +329,8 @@ for item in $VLIST; do tag=${item%%:*}; cmp -s "$TMP/vec_before_$tag" "$TMP/vec_
 ok=no; verifies_pass after && [ -z "$diffs" ] && ok=yes
 record "E02 the same 9 verifies after 0023 = PASS, and every check_id=ok vector = before" "$ok" "vectors changed:${diffs:- none} $(verifies_detail after)"
 # نفس حارس BASELINE K02 (call_contract.mjs) على الداتابيز بعد 0023: كل دالة بتناديها التطبيقات موجودة بأسماء معاملاتها وصلاحياتها.
-if node "$CIDIR/call_contract.mjs" --root "$ROOT" --policy "$CIDIR/call_contract_policy.json" --sql "$TMP/cc.sql" > "$TMP/cc_static.log" 2>&1; then
+# --later skip: الداتابيز هنا مبنية لحد قبل 0023، فدوال الـ migrations اللي بعدها في القايمة (0024) مش موجودة (call_contract_policy.json later).
+if node "$CIDIR/call_contract.mjs" --root "$ROOT" --policy "$CIDIR/call_contract_policy.json" --sql "$TMP/cc.sql" --later skip > "$TMP/cc_static.log" 2>&1; then
   psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U "$SUPER" -d "$DB" -f "$TMP/cc.sql" < /dev/null > "$TMP/cc_db.log" 2>&1; rc=$?
   fails=$(grep -c '^CALL FAIL ' "$TMP/cc_db.log" || true)
   passes=$(grep -c '^CALL PASS ' "$TMP/cc_db.log" || true)
