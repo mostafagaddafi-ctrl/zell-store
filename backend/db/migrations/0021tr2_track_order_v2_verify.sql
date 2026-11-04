@@ -48,7 +48,20 @@ with tbl as (
   select 'V02', 'policies: one per table, for zell_order_definer only',
          (select count(*) from pg_catalog.pg_policies p join tbl on tbl.relname = p.tablename
            where p.schemaname = 'public' and p.roles = array['zell_order_definer']::name[]) = 4
-         and (select count(*) from pg_catalog.pg_policies p join tbl on tbl.relname = p.tablename where p.schemaname = 'public' and p.policyname not like 'zell\_purge\_%') = 4,
+         and (select count(*) from pg_catalog.pg_policies p join tbl on tbl.relname = p.tablename where p.schemaname = 'public'
+                and (p.tablename::text, p.policyname::text, p.cmd, p.permissive, p.roles::text, coalesce(p.qual, '-'), coalesce(p.with_check, '-'))
+                    not in (values ('zell_order_shipments', 'zell_purge_select', 'SELECT', 'PERMISSIVE', '{zell_purge_definer}', 'true', '-'),
+                                   ('zell_order_shipments', 'zell_purge_lock', 'UPDATE', 'PERMISSIVE', '{zell_purge_definer}', 'true', 'false'),
+                                   ('zell_order_shipments', 'zell_purge_delete', 'DELETE', 'PERMISSIVE', '{zell_purge_definer}', 'true', '-'),
+                                   ('zell_order_shipments_log', 'zell_purge_select', 'SELECT', 'PERMISSIVE', '{zell_purge_definer}', 'true', '-'),
+                                   ('zell_order_shipments_log', 'zell_purge_lock', 'UPDATE', 'PERMISSIVE', '{zell_purge_definer}', 'true', 'false'),
+                                   ('zell_order_shipments_log', 'zell_purge_delete', 'DELETE', 'PERMISSIVE', '{zell_purge_definer}', 'true', '-'),
+                                   ('zell_order_customer_updates', 'zell_purge_select', 'SELECT', 'PERMISSIVE', '{zell_purge_definer}', 'true', '-'),
+                                   ('zell_order_customer_updates', 'zell_purge_lock', 'UPDATE', 'PERMISSIVE', '{zell_purge_definer}', 'true', 'false'),
+                                   ('zell_order_customer_updates', 'zell_purge_delete', 'DELETE', 'PERMISSIVE', '{zell_purge_definer}', 'true', '-'),
+                                   ('zell_order_customer_updates_log', 'zell_purge_select', 'SELECT', 'PERMISSIVE', '{zell_purge_definer}', 'true', '-'),
+                                   ('zell_order_customer_updates_log', 'zell_purge_lock', 'UPDATE', 'PERMISSIVE', '{zell_purge_definer}', 'true', 'false'),
+                                   ('zell_order_customer_updates_log', 'zell_purge_delete', 'DELETE', 'PERMISSIVE', '{zell_purge_definer}', 'true', '-'))) = 4,
          null
   union all
   select 'V03', 'no table / sequence privileges for anon, authenticated, service_role',
