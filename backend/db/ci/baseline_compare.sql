@@ -8,8 +8,9 @@
 -- owner-approved read-only Production read of the same expressions (results in the phase C PR).
 -- ORDER-DELETE phase C1: otbl / ocols / opol for orders and order_items include 0024 (zell_purge_definer: SELECT + DELETE on orders,
 -- SELECT on order_items, UPDATE on orders.updated_at and order_items.order_id; policies zell_purge_select / _lock / _delete),
--- applied + verified on Production 2026-11-04 (#199). These six values are DERIVED FROM THE CI BUILD WITH 0024 and are NOT YET
--- CONFIRMED by a live Production read. The read text is migrations/0024_order_delete_baseline_read.sql (tested by C02).
+-- applied + verified on Production 2026-11-04 (#199). These six values were derived from the CI build with 0024 and then CONFIRMED
+-- by an owner-approved read-only catalog read on Production, 2026-11-04 05:09 UTC (migrations/0024_order_delete_baseline_read.sql,
+-- tested by C02). Results recorded in #200 from the executor's handoff; not an independent read by the reviewer.
 -- =====================================================================
 \set ON_ERROR_STOP on
 set search_path = pg_catalog, pg_temp;
