@@ -65,7 +65,7 @@
 | `zell_order_gate` | `0021a_a1_order_cycle` | البوابة: صف واحد، مقفول افتراضيًا، بيتغيّر بـ `zell_order_set_gate` بس (45414) |
 | `zell_order_config_log` | `0021a_a1_order_cycle` | سجل append-only لتغييرات البوابة والفترات (مين · إمتى · من/لـ · الموافقة) |
 
-### موعد التسليم في Checkout (0021-D2 W1 — مش متطبّق لسه)
+### موعد التسليم في Checkout (0021-D2 W1 — متطبّق 2026-10-12)
 
 الاتنين مالكهم `postgres`، RLS وpolicy لـ `zell_order_definer` بس، وصفر صلاحيات لـ `anon` و`authenticated` و`service_role`.
 
@@ -74,14 +74,14 @@
 | `zell_delivery_settings` | `0021d2_delivery_settings` | صف واحد: العميل يختار الموعد · إظهار السطر · نص السطر (≤ 300 بعد trim) · `updated_at` · `updated_by`. القيم وقت التطبيق = السلوك الحالي (العميل بيختار، ومفيش سطر). مايتمسحش (45413) |
 | `zell_delivery_settings_log` | `0021d2_delivery_settings` | سجل append-only لكل تغيير (الممثل · القديم · الجديد · الوقت). UPDATE وDELETE وTRUNCATE = 45413، والرجوع بيرفض بأي سطر |
 
-### الشحن السريع ومدة الشحن (EXPRESS-SHIPPING W1 — مش متطبّق لسه)
+### الشحن السريع ومدة الشحن (EXPRESS-SHIPPING W1 — متطبّق، اتأكد 2026-10-15)
 
 | الجدول | اتعرّف في | بيعمل إيه |
 | --- | --- | --- |
 | `zell_shipping_options` | `0021ex_express_shipping` | صف واحد: `express_enabled` (المفتاح العام) · `governorates` (لكل محافظة: مدة العادي الاختيارية · السريع متاح · سعره الكامل · مدته) · `updated_at` · `updated_by`. القيم وقت التطبيق: السريع مقفول و`{}`. مايتمسحش (45413). سعر العادي بيفضل في `settings.shipping_rates` |
 | `zell_shipping_options_log` | `0021ex_express_shipping` | سجل append-only لكل تغيير (الممثل · القديم · الجديد · الوقت). UPDATE وDELETE وTRUNCATE = 45413، والرجوع بيرفض بأي سطر |
 
-### الشحنة ورسايل العميل (TRACK-ORDER v2 W1 — مش متطبّق لسه)
+### الشحنة ورسايل العميل (TRACK-ORDER v2 W1 — متطبّق 2026-10-15)
 
 كلها مالكها `postgres`، RLS وpolicy `zell_order_definer_all` لـ `zell_order_definer` بس، وصفر صلاحيات لـ `anon` و`authenticated` و`service_role`.
 
@@ -118,14 +118,14 @@
 | --- | --- | --- |
 | `generate_order_number()` | `0005a` (مسودة) | رقم الطلب في المسودة القديمة |
 | `create_order(…)` | `0005c` (مسودة) | إنشاء الطلب في المسودة القديمة (اتستبدلت بـ `zell_create_order`) |
-| `zell_create_order(…)` | `0006b` | إنشاء الطلب ذرّيًا: التسعير، والـ idempotency، والإيصال. **اتعادت كتابتها في** 0006c (`receipt_expires_at`) · 0015 (العروض) · 0016 (القطعة) · 0018 (التركيب والمنطقة، ١٢ معامل) · 0019 (الكوبون) · 0021-D (الموعد المفضّل، ١٤ معامل: `p_preferred_delivery`) · 0021-A P1 (لقطة `confirmation_fee_piastres`، نفس التوقيع) · EXPRESS-SHIPPING W1 (١٥ معامل: `p_shipping_method`، والقديمة بتتشال — §١٠، مش متطبّق). بيناديها المتجر (`/api/orders`) |
+| `zell_create_order(…)` | `0006b` | إنشاء الطلب ذرّيًا: التسعير، والـ idempotency، والإيصال. **اتعادت كتابتها في** 0006c (`receipt_expires_at`) · 0015 (العروض) · 0016 (القطعة) · 0018 (التركيب والمنطقة، ١٢ معامل) · 0019 (الكوبون) · 0021-D (الموعد المفضّل، ١٤ معامل: `p_preferred_delivery`) · 0021-A P1 (لقطة `confirmation_fee_piastres`، نفس التوقيع) · EXPRESS-SHIPPING W1 (١٥ معامل: `p_shipping_method`، والقديمة اتشالت — §١٠، متطبّق). بيناديها المتجر (`/api/orders`) |
 | `zell_get_order_receipt(…)` | `0006b` | الإيصال بالتوكن. اتعدّلت في 0016 · 0018 · 0019 |
 | `zell_preview_coupon(…)` | `0019` | معاينة الكوبون قبل الطلب (`/api/coupons/preview`) |
 | `zell_checkout_delivery_periods()` | `0021d` | أوقات فترات التسليم للـ Checkout من `order_delivery_periods` (مالكها `zell_order_definer`، `service_role` بس) |
 | `zell_payment_*` (24: 10 عامة · 11 داخلية · 3 triggers) | `0021a_p1` | الدفعات ورسوم التأكيد بهوية الجلسة. الجرد الكامل في §٧-ب تحت |
 | `zell_checkout_confirmation_fee()` | `0021a_p2` | إعداد رسوم التأكيد والسياسة للـ Checkout (مالكها `zell_order_definer`، `service_role` بس) — §٧-ب |
-| `zell_checkout_delivery_settings()` | `0021d2` | إعداد موعد التسليم للـ Checkout و`/api/orders`: `{customer_choice_enabled, note}` (`note` بس لو السطر متفعّل). مالكها `zell_order_definer`، `service_role` بس — §٧-ج (W1، مش متطبّق) |
-| `zell_shipping_options_checkout()` | `0021ex` | إعداد الشحن السريع ومدة الشحن للـ Checkout: `{express_enabled, governorates}`. مالكها `zell_order_definer`، `service_role` بس — §١٠ (W1، مش متطبّق) |
+| `zell_checkout_delivery_settings()` | `0021d2` | إعداد موعد التسليم للـ Checkout و`/api/orders`: `{customer_choice_enabled, note}` (`note` بس لو السطر متفعّل). مالكها `zell_order_definer`، `service_role` بس — §٧-ج (W1، متطبّق 2026-10-12) |
+| `zell_shipping_options_checkout()` | `0021ex` | إعداد الشحن السريع ومدة الشحن للـ Checkout: `{express_enabled, governorates}`. مالكها `zell_order_definer`، `service_role` بس — §١٠ (W1، متطبّق) |
 | `zell_orders_cancelled_final()` | `0019` | دالة الـ trigger `orders_cancelled_final` (BEFORE UPDATE OF status): الإلغاء نهائي، والطلب الملغي مايرجعش (45080)، علشان استخدام الكوبون مايتعدّاش |
 
 ## ٤) دوال اللوحة (الكتابة الذرّية)
@@ -237,7 +237,7 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 
 ## ٧-ج) دوال موعد التسليم في Checkout (0021-D2 W1)
 
-> **مش متطبّقة على Production** (المرجع `08-HANDOFF-NOW.md`). التفاصيل: `docs/contracts/0021-D2.md` §٢ و§١٠. الكود الجديد 45430 بس.
+> **متطبّقة على Production 2026-10-12** (المرجع `08-HANDOFF-NOW.md`؛ verify PASS على Production آخر مرة 2026-11-04 ضمن تشغيل 0024). التفاصيل: `docs/contracts/0021-D2.md` §٢ و§١٠. الكود الجديد 45430 بس.
 
 | الدالة | المالك · EXECUTE | بتعمل إيه |
 | --- | --- | --- |
@@ -271,7 +271,7 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 
 ## ٩) تتبّع الطلب للعميل (0021-TR W1)
 
-> **مش متطبّقة على Production** (المرجع `08-HANDOFF-NOW.md`). العقد: `docs/contracts/TRACK-ORDER.md` §٢ و§٦. مفيش أكواد أخطاء جديدة.
+> **متطبّقة على Production 2026-10-14** (المرجع `08-HANDOFF-NOW.md`؛ verify PASS على Production آخر مرة 2026-11-04 ضمن تشغيل 0024). العقد: `docs/contracts/TRACK-ORDER.md` §٢ و§٦. مفيش أكواد أخطاء جديدة.
 
 | الدالة | المالك · EXECUTE | بتعمل إيه |
 | --- | --- | --- |
@@ -291,7 +291,7 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 
 ## ١٠) الشحن السريع ومدة الشحن (EXPRESS-SHIPPING W1)
 
-> **مش متطبّق على Production** (المرجع `08-HANDOFF-NOW.md`). العقد: `docs/contracts/EXPRESS-SHIPPING.md` (§٢ و§٧-٢). الأكواد الجديدة 45431 (السريع مش متاح) و45432 (طريقة أو إعداد شحن غلط).
+> **متطبّق على Production** (المرجع `08-HANDOFF-NOW.md`: التاريخ واسم الموافقة مش متسجّلين، واتأكد في قرايات 2026-10-15؛ verify PASS على Production آخر مرة 2026-11-04 ضمن تشغيل 0024). العقد: `docs/contracts/EXPRESS-SHIPPING.md` (§٢ و§٧-٢). الأكواد الجديدة 45431 (السريع مش متاح) و45432 (طريقة أو إعداد شحن غلط).
 
 | الدالة | المالك · EXECUTE | بتعمل إيه |
 | --- | --- | --- |
@@ -314,7 +314,7 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 
 ## ١١) التتبّع الكامل: الشحنة ورسايل العميل (TRACK-ORDER v2 W1)
 
-> **مش متطبّق على Production** (المرجع `08-HANDOFF-NOW.md`). العقد: `docs/contracts/TRACK-ORDER-v2.md` (§٢ · §٥ · §٦ · §١٦). الأكواد الجديدة 45433 (تحقق الشحنة) و45434 (تحقق الرسايل)، والحقل في `detail`.
+> **متطبّق على Production 2026-10-15** (المرجع `08-HANDOFF-NOW.md`؛ verify PASS على Production آخر مرة 2026-11-04 ضمن تشغيل 0024). العقد: `docs/contracts/TRACK-ORDER-v2.md` (§٢ · §٥ · §٦ · §١٦). الأكواد الجديدة 45433 (تحقق الشحنة) و45434 (تحقق الرسايل)، والحقل في `detail`.
 
 | الدالة | المالك · EXECUTE | بتعمل إيه |
 | --- | --- | --- |
