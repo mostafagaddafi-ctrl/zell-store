@@ -3,7 +3,7 @@
 -- • معاملة read only: أول جملة begin وآخر جملة rollback، وصف واحد في SELECT واحد. مفيش كتابة ولا DDL، ومفيش بيانات شخصية
 --   في الناتج (البصمات md5 لنص الصفوف مرتّبة بنصّها، والأعداد بس).
 -- • الوقت UTC (timezone = UTC جوه المعاملة)، ومهلة للجملة وللمعاملة الخاملة 15s.
--- • الأعمدة بالترتيب (31):
+-- • الأعمدة بالترتيب (32):
 --     1 observed_at_utc
 --     2 purge_role · 3 purge_fns · 4 purge_tables · 5 purge_policies — كائنات 0024 (قبل التطبيق: false · 0 · 0 · 0)
 --     6 guards — md5 الحراس الأربعة: payment,shipment,customer_update,events_immutable
@@ -11,11 +11,15 @@
 --     8 shape_ok — شكل التوابع (نفس تعبير verify V09) = النص المعتمد في العقد §١٣ بالحرف
 --     9..26 لكل جدول من التسعة: العدد والبصمة (orders · order_items · order_events · order_payments · zell_payment_commands ·
 --           zell_order_shipments · zell_order_shipments_log · zell_order_customer_updates · zell_order_customer_updates_log)
---     27 orders_by_status · 28 idle_tx (وقف لو > 0) · 29 stop_locks (وقف لو > 0) · 30 admin_users_locks (وقف لو > 0) · 31 all_locks (معلومة)
+--     27 orders_by_status · 28 idle_tx (وقف لو > 0) · 29 stop_locks (وقف لو > 0) · 30 admin_users_locks (وقف لو > 0) · 31 sessions_visible (وقف لو مش t)
+--     32 all_locks (معلومة)
 -- • idle_tx = جلسات «idle in transaction» في نفس القاعدة غيرنا. stop_locks = أقفال جلسات تانية على الجداول التسعة مستنية، أو أقوى
 --   من RowExclusive، أو ماسكها جلسة idle in transaction. all_locks = كل أقفال الجلسات التانية على الجداول دي.
 -- • admin_users_locks = كل أقفال الجلسات التانية على public.admin_users في نفس القاعدة، أي نوع، ممنوحة أو مستنية (زي أثر 0021-P؛
 --   04-DB-SAFETY دروس 0021-P §٤). لازم 0 في أثر الخطوة 1، وزي الـ baseline (0) في كل أثر بعده.
+-- • sessions_visible = المستخدم الحالي عنده صلاحيات pg_read_all_stats (pg_has_role … USAGE = شرط Postgres لعرض حالة جلسات الأدوار
+--   التانية في pg_stat_activity)، ومفيش جلسة تانية في نفس القاعدة حالتها مخفية ('<insufficient privilege>'). لو مش t: idle_tx
+--   وstop_locks بيرجعوا NULL مش 0 (الرؤية مش كفاية أو مش معروفة)، والخطة بتقف. الاستعلام مابيمنحش أي صلاحية.
 
 begin;
 set transaction read only;
@@ -27,6 +31,11 @@ with t(rel) as (
   values ('public.orders'::regclass), ('public.order_items'::regclass), ('public.order_events'::regclass), ('public.order_payments'::regclass),
          ('public.zell_payment_commands'::regclass), ('public.zell_order_shipments'::regclass), ('public.zell_order_shipments_log'::regclass),
          ('public.zell_order_customer_updates'::regclass), ('public.zell_order_customer_updates_log'::regclass)
+), vis(ok) as (
+  select coalesce(pg_catalog.pg_has_role('pg_read_all_stats', 'USAGE')
+                  and not exists (select 1 from pg_catalog.pg_stat_activity a
+                                   where a.datname = pg_catalog.current_database() and a.pid <> pg_catalog.pg_backend_pid()
+                                     and a.query = '<insufficient privilege>'), false)
 ), shp(v) as (
   with recursive d(coid, child) as (
       select c.oid, c.conrelid from pg_catalog.pg_constraint c where c.contype = 'f' and c.confrelid = 'public.orders'::regclass
@@ -77,18 +86,19 @@ select
   (select pg_catalog.count(*) from public.zell_order_customer_updates_log) as customer_updates_log,
   (select pg_catalog.md5(coalesce(pg_catalog.string_agg(x::text, '|' order by x::text collate "C"), '')) from public.zell_order_customer_updates_log x) as customer_updates_log_fp,
   (select coalesce(pg_catalog.string_agg(s.status::text || '=' || s.n::text, ',' order by s.status::text), '') from (select o.status, pg_catalog.count(*) as n from public.orders o group by o.status) s) as orders_by_status,
-  (select pg_catalog.count(*) from pg_catalog.pg_stat_activity a
+  (select case when vs.ok then (select pg_catalog.count(*) from pg_catalog.pg_stat_activity a
     where a.datname = pg_catalog.current_database() and a.pid <> pg_catalog.pg_backend_pid()
-      and a.state in ('idle in transaction', 'idle in transaction (aborted)')) as idle_tx,
-  (select pg_catalog.count(*) from pg_catalog.pg_locks l left join pg_catalog.pg_stat_activity a on a.pid = l.pid
+      and a.state in ('idle in transaction', 'idle in transaction (aborted)')) end from vis vs) as idle_tx,
+  (select case when vs.ok then (select pg_catalog.count(*) from pg_catalog.pg_locks l left join pg_catalog.pg_stat_activity a on a.pid = l.pid
     where l.database = (select d.oid from pg_catalog.pg_database d where d.datname = pg_catalog.current_database())
       and l.pid <> pg_catalog.pg_backend_pid() and l.relation in (select t.rel from t)
       and (not l.granted
            or l.mode in ('ShareUpdateExclusiveLock', 'ShareLock', 'ShareRowExclusiveLock', 'ExclusiveLock', 'AccessExclusiveLock')
-           or a.state in ('idle in transaction', 'idle in transaction (aborted)'))) as stop_locks,
+           or a.state in ('idle in transaction', 'idle in transaction (aborted)'))) end from vis vs) as stop_locks,
   (select pg_catalog.count(*) from pg_catalog.pg_locks l
     where l.database = (select d.oid from pg_catalog.pg_database d where d.datname = pg_catalog.current_database())
       and l.pid <> pg_catalog.pg_backend_pid() and l.relation = 'public.admin_users'::regclass) as admin_users_locks,
+  (select vs.ok from vis vs) as sessions_visible,
   (select pg_catalog.count(*) from pg_catalog.pg_locks l
     where l.database = (select d.oid from pg_catalog.pg_database d where d.datname = pg_catalog.current_database())
       and l.pid <> pg_catalog.pg_backend_pid() and l.relation in (select t.rel from t)) as all_locks;
