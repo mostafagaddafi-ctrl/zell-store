@@ -16,7 +16,7 @@ import { Num } from './Num'
  *
  * «أضف الكل» زرار واضح في أول الكارت (اللي هيركّب بنفسه غالبًا محتاج الأدوات كلها): بيحط كل الأدوات بعدد 1
  * (أو العدد المختار لو أكتر) — بنفس الأسعار ومن غير أي خصم، ومن غير إضافة تلقائية من غير ضغطة. اسم الأداة
- * وصورتها لينك لصفحتها في تبويب جديد، علشان اختيارات صفحة الفيلم ماتضيعش.
+ * وصورتها لينك لصفحتها في نفس التبويب (قرار المالك).
  */
 export function AddonsPicker({
   addons,
@@ -107,9 +107,7 @@ export function AddonsPicker({
             <li key={addon.id} className="flex items-center gap-3 px-4 py-3">
               <Link
                 href={'/product/' + String(addon.id)}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={'افتح صفحة ' + addon.name_ar + ' في تبويب جديد'}
+                aria-label={'افتح صفحة ' + addon.name_ar}
                 className="shrink-0"
               >
                 <ImageSlot
@@ -123,7 +121,7 @@ export function AddonsPicker({
               </Link>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-fg">
-                  <Link href={'/product/' + String(addon.id)} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                  <Link href={'/product/' + String(addon.id)} className="hover:underline">
                     {addon.name_ar}
                   </Link>
                 </p>
