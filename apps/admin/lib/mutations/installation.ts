@@ -4,6 +4,10 @@ import {
   INSTALLATION_LIMITS,
   installationGovernorates,
   isInstallationMoney,
+  isInstallationMode,
+  parseInstallerOnlyIds,
+  INSTALLER_ONLY_MAX_PRODUCTS,
+  type InstallationMode,
   type InstallationAreas,
   type InstallationConfig,
 } from '@zell/core'
@@ -35,6 +39,10 @@ export type InstallationInput = {
   note: string
   feePerMeterPiastres: number | null
   areas: InstallationAreas
+  /** INSTALLER-ONLY — طريقة التركيب (الغايب = 'choice'). */
+  mode?: InstallationMode
+  /** INSTALLER-ONLY — أفلام «فني فقط» لما mode = 'installer_products'. */
+  installerOnlyProductIds?: number[]
 }
 
 /** منطقة متحفظة للفني ومش موجودة في الشحن (اتشالت أو اتغير اسمها). */
@@ -59,6 +67,8 @@ export async function installerAreasMissingFromShipping(): Promise<OrphanArea[]>
 
 function sameConfig(a: InstallationConfig, b: InstallationConfig): boolean {
   if (a.enabled !== b.enabled || a.note !== b.note || a.feePerMeterPiastres !== b.feePerMeterPiastres) return false
+  if ((a.mode ?? 'choice') !== (b.mode ?? 'choice')) return false
+  if ((a.installerOnlyProductIds ?? []).join(',') !== (b.installerOnlyProductIds ?? []).join(',')) return false
   const flat = (areas: InstallationAreas): string =>
     Object.entries(areas)
       .flatMap(([governorate, list]) => Object.entries(list).map(([area, travel]) => governorate + '|' + area + '|' + String(travel)))
@@ -80,6 +90,23 @@ export async function saveInstallation(raw: unknown, rawExpected: unknown): Prom
   const note = typeof input['note'] === 'string' ? input['note'].trim() : ''
   if (note.length > INSTALLATION_LIMITS.note) {
     return { ok: false, code: 'VALIDATION', message: 'سطر التوضيح أطول من ' + String(INSTALLATION_LIMITS.note) + ' حرف' }
+  }
+
+  // INSTALLER-ONLY — الغايب = 'choice' (نسخة لوحة قديمة)
+  const modeRaw = input['mode'] === undefined ? 'choice' : input['mode']
+  if (!isInstallationMode(modeRaw)) return { ok: false, code: 'VALIDATION', message: 'طريقة التركيب مش صحيحة' }
+  const mode: InstallationMode = modeRaw
+  const idsRaw = input['installerOnlyProductIds'] === undefined ? [] : input['installerOnlyProductIds']
+  if (
+    !Array.isArray(idsRaw) ||
+    idsRaw.length > INSTALLER_ONLY_MAX_PRODUCTS ||
+    idsRaw.some((id) => typeof id !== 'number' || !Number.isInteger(id) || id <= 0)
+  ) {
+    return { ok: false, code: 'VALIDATION', message: 'منتجات «فني فقط» مش صحيحة' }
+  }
+  const installerOnlyProductIds = parseInstallerOnlyIds(idsRaw)
+  if (mode === 'installer_products' && installerOnlyProductIds.length === 0) {
+    return { ok: false, code: 'VALIDATION', message: 'اختار منتج واحد على الأقل لـ«فني فقط — منتجات معينة»' }
   }
 
   let fee: number | null = null
@@ -130,7 +157,14 @@ export async function saveInstallation(raw: unknown, rawExpected: unknown): Prom
       return { ok: false, code: 'VALIDATION', message: 'اكتب سعر تركيب المتر' }
     }
 
-    const value: Record<string, unknown> = { enabled, note, areas, governorates: installationGovernorates(areas) }
+    const value: Record<string, unknown> = {
+      enabled,
+      note,
+      areas,
+      governorates: installationGovernorates(areas),
+      mode,
+      installerOnlyProductIds,
+    }
     if (fee !== null) value['feePerMeterPiastres'] = fee
 
     if (rawExpected === null) {
@@ -157,7 +191,7 @@ export async function saveInstallation(raw: unknown, rawExpected: unknown): Prom
     }
 
     const stored = await readInstallationRecord()
-    const expected: InstallationConfig = { enabled, note, feePerMeterPiastres: fee, areas }
+    const expected: InstallationConfig = { enabled, note, feePerMeterPiastres: fee, areas, mode, installerOnlyProductIds }
     if (stored.updatedAt === null || !sameConfig(stored.config, expected)) return toInternalFailure(null)
     return { ok: true, data: stored }
   } catch (error) {
