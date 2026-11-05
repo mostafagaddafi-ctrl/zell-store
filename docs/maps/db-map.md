@@ -404,3 +404,23 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 - **تغيير في دوال موجودة:** `zell_payment_trg_append_only` · `zell_shipment_trg_append_only` · `zell_customer_update_trg_append_only`: DELETE مسموح بس لـ `zell_purge_definer` على جداولها المعتمدة (مش `zell_payment_config_log`) ولطلبات العملية؛ غير كده نفس الرفض ونفس الكود. `zell_order_trg_events_immutable` و`zell_create_order` مابيتلمسوش.
 - **الأكواد:** 45601..45610 (`ZELL_PURGE_*`، التفاصيل في العقد §١٣).
 - **الرجوع:** `0024_order_delete_rollback.sql` بياخد نفس قفل الـ advisory exclusive، وبيرفض لو السجل فيه سطور أو لو أي دالة `zell_purge_*` أو حارس من التلاتة مش ببصمة 0024 (العقد §١٣).
+
+## ١٥) الانتقال بدل الشحن مع الفني (0025 — INSTALLER-SHIPPING B) — **مش متطبّق على Production**
+
+> ملفات بس (المرحلة B). التطبيق خطوة Production لوحدها بموافقة المالك بعد قبول C (العقد `docs/contracts/INSTALLER-SHIPPING.md` §٨). لحد التطبيق، §١٠ هو الحالة على Production.
+
+| الدالة | المالك · EXECUTE | بعد التطبيق |
+| --- | --- | --- |
+| `zell_create_order(…)` (15) | `postgres` · `service_role` و`zell_order_writer` (زي ما هي بالظبط؛ create or replace من غير drop) | طلب بفني اتقبل: الشحن 0، ولقطة `shipping_method` و`shipping_days_min/max` = NULL، واختيار الشحن الصحيح (`standard`/`express`) بيتجاهل (مفيش 45431)؛ القيمة غير المعروفة لسه 45432. طلب من غير فني زي ما هو بالحرف. رسوم التأكيد بتاخد الشحن 0 (طريقة «shipping» = البديل). البصمة `03e839e30fe7d0c9354d1df4f21b71b3` (القديمة `62924d0fe9b1563e76c54bbddfb628b4`) |
+
+- مفيش جدول ولا عمود ولا قيد ولا منحة جديدة، ومفيش تعديل في `zell_payment_*`.
+- **فحوص التحقق اللي بتثبّت البصمة القديمة:** EX V09 و P1 V06 و 0024 V04 بيفشلوا بعد التطبيق (من غير تعديل). التحقق الجديد `0025_installer_shipping_verify.sql` (6 فحوص): التوقيع · البصمة · المالك وsecurity definer وsearch_path · الصلاحيات بالظبط · قدرة المالك على حساب الرسوم وقراية الإعداد · شرط 0024 V04 للحراس بالحرف.
+- **قايمة البناء:** سطر 0025 في `build_from_scratch.list` في PR لوحده بعد التطبيق والتحقق ونشر C (العقد §٨-7).
+- **الرجوع:** `_rollback.sql` بموافقة لوحدها بيرجّع جسم 0021ex بالحرف بنفس التوقيع والمالك والصلاحيات؛ الطلبات اللي اتعملت بعد التطبيق بتفضل بلقطتها.
+
+| الملف | بيعمل إيه |
+| --- | --- |
+| `migrations/0025_installer_shipping.sql` | التعديل (الجسم بين `-- >>> 0025 BODY` و`-- <<<`)، ومحتاج سطر `zell.approved_by` بعد `begin;` (`owner-approval-YYYY-MM-DD-installer-shipping`) |
+| `migrations/0025_installer_shipping_ptest.sql` | smoke قبل التطبيق (4 حالات): الجسم منسوخ بالحرف (CI بيقارن md5)، ونداءين مرفوضين قبل أي إدخال، والنتيجة صفوف |
+| `migrations/0025_installer_shipping_verify.sql` · `_rollback.sql` | التحقق (6 فحوص) · الرجوع (محتاج سطر موافقة `…-installer-shipping-rollback`) |
+| `ci/0025_sql_ci.sh` · `ci/0025_flows.sql` | CI: بناء من القايمة كلها · حراس الـ preflight · ptest · التطبيق · الـ 10 verify قبل وبعد · مقارنة القديم بالجديد (6300 حالة × 7 نداءات) · 15 سيناريو بأرقام محسوبة · اختبارات سالبة · الرجوع وإعادة التطبيق |
