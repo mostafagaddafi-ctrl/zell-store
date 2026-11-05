@@ -11,6 +11,32 @@
 
 export const INSTALLATION_LIMITS = { note: 300, area: 40, maxPiastres: 1_000_000 } as const
 
+/**
+ * INSTALLER-ONLY (قرار المالك 2026-11-05) — طريقة التركيب من صفحة «فني التركيب» في اللوحة:
+ *   choice              العميل يختار (زي ما هو — الافتراضي، والإعداد القديم من غير mode)
+ *   installer_all       فني فقط لكل أفلام المقاس
+ *   installer_products  فني فقط للمنتجات في installerOnlyProductIds
+ */
+export const INSTALLATION_MODES = ['choice', 'installer_all', 'installer_products'] as const
+export type InstallationMode = (typeof INSTALLATION_MODES)[number]
+export const INSTALLER_ONLY_MAX_PRODUCTS = 500
+
+export function isInstallationMode(value: unknown): value is InstallationMode {
+  return typeof value === 'string' && (INSTALLATION_MODES as readonly string[]).includes(value)
+}
+
+/** معرّفات منتجات: أرقام صحيحة موجبة من غير تكرار، بالترتيب، لحد الأقصى. أي قيمة غلط بتتشال. */
+export function parseInstallerOnlyIds(value: unknown): number[] {
+  if (!Array.isArray(value)) return []
+  const out: number[] = []
+  for (const item of value) {
+    if (typeof item !== 'number' || !Number.isInteger(item) || item <= 0 || out.includes(item)) continue
+    out.push(item)
+    if (out.length >= INSTALLER_ONLY_MAX_PRODUCTS) break
+  }
+  return out
+}
+
 /** { محافظة: { منطقة: انتقال الفني بالقرش } } — المنطقة الموجودة هنا = متاحة للفني. */
 export type InstallationAreas = Record<string, Record<string, number>>
 
@@ -20,6 +46,10 @@ export type InstallationConfig = {
   /** null = لسه متحددش، والفني مش متاح لحد ما يتكتب. */
   feePerMeterPiastres: number | null
   areas: InstallationAreas
+  /** INSTALLER-ONLY — ناقص = 'choice' (العميل يختار). */
+  mode?: InstallationMode
+  /** INSTALLER-ONLY — أفلام «فني فقط» لما mode = 'installer_products'. */
+  installerOnlyProductIds?: number[]
 }
 
 /** رقم صحيح بالقرش من min لحد الأقصى — نفس حدود zell_create_order. */
@@ -49,11 +79,14 @@ export function parseInstallationConfig(value: unknown): InstallationConfig {
     }
   }
   const fee = raw['feePerMeterPiastres']
+  const mode = raw['mode']
   return {
     enabled: raw['enabled'] === true,
     note: typeof raw['note'] === 'string' ? raw['note'] : '',
     feePerMeterPiastres: isInstallationMoney(fee, 1) ? fee : null,
     areas,
+    mode: isInstallationMode(mode) ? mode : 'choice',
+    installerOnlyProductIds: parseInstallerOnlyIds(raw['installerOnlyProductIds']),
   }
 }
 
@@ -107,4 +140,27 @@ export function installationTravelPiastres(config: InstallationConfig, governora
 export function installationReadyGovernorates(config: InstallationConfig): string[] {
   if (!config.enabled || config.feePerMeterPiastres === null) return []
   return installationGovernorates(config.areas)
+}
+
+/**
+ * INSTALLER-ONLY (قرار المالك 2026-11-05) — المنتج ده «فني فقط»؟ عرض بس: zell_create_order مالهاش دعوة بيه.
+ * بس لما الفني متاح فعلًا (installationReadyGovernorates مش فاضية) — لو الخدمة مقفولة أو مالهاش سعر أو مناطق،
+ * كل حاجة شغالة زي ما هي والعميل بيختار عادي.
+ */
+export function installerRequiredFor(config: InstallationConfig, productId: number): boolean {
+  if (installationReadyGovernorates(config).length === 0) return false
+  if (config.mode === 'installer_all') return true
+  if (config.mode === 'installer_products') return (config.installerOnlyProductIds ?? []).includes(productId)
+  return false
+}
+
+/**
+ * INSTALLER-ONLY — الطلب كله «فني فقط» لو فيه منتج بالمقاس واحد «فني فقط» (الاختيار واحد للطلب كله).
+ * منتجات القطعة (الأدوات) مش داخلة.
+ */
+export function orderRequiresInstaller(
+  config: InstallationConfig,
+  products: ReadonlyArray<{ id: number; sale_unit?: string }>,
+): boolean {
+  return products.some((product) => product.sale_unit !== 'piece' && installerRequiredFor(config, product.id))
 }
