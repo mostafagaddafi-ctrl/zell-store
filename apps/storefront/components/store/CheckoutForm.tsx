@@ -14,6 +14,7 @@ import {
   installationFeePiastres,
   installationLengthCm,
   installationReadyGovernorates,
+  orderRequiresInstaller,
   installationToolsFingerprint,
   installationToolsHref,
   installationTravelPiastres,
@@ -332,7 +333,15 @@ export function CheckoutForm({
   // الكارت بيظهر والتأكيد مقفول لحد ما العميل يختار. بعد قراءة السلة بس (cart.ready).
   const installFee = settings.installation.feePerMeterPiastres
   const choiceAvailable = meterLengthCm > 0 && installerGovernorates.length > 0 && installFee !== null
-  const choiceRequired = cart.ready && choiceAvailable && cart.installMode === 'unset'
+  // INSTALLER-ONLY (قرار المالك 2026-11-05) — فيلم «فني فقط» في السلة: الفني لازم يتختار صراحة، إلا لو المحافظة
+  // أو المنطقة المختارة مفيهاش فني — ساعتها زي النهارده بالظبط (رسالة «مش متاح» و«هركّبه بنفسي»).
+  const installerOnlyOrder = choiceAvailable && orderRequiresInstaller(settings.installation, entries.map((entry) => entry.product))
+  const installerOnlyHere =
+    installerOnlyOrder &&
+    (values.governorate === '' || installerChoices.length > 0) &&
+    (selectedArea === '' || installerChoices.includes(selectedArea))
+  const choiceRequired =
+    cart.ready && choiceAvailable && (cart.installMode === 'unset' || (installerOnlyHere && cart.installMode !== 'installer'))
   // الكارت بيفضل ظاهر بعد الاختيار — مايختفيش من تحت إيد العميل وهو بيتنقّل بالأسهم
   const [askChoice, setAskChoice] = useState(false)
   useEffect(() => {
@@ -535,6 +544,7 @@ export function CheckoutForm({
             lengthCm={meterLengthCm}
             governorates={installerGovernorates}
             context="cart"
+            installerOnly={installerOnlyHere}
           />
         ) : null}
         <div className="space-y-5 rounded-lg border border-border bg-card p-4 sm:p-6">
@@ -709,7 +719,11 @@ export function CheckoutForm({
             <div className="space-y-2">
               <button
                 type="button"
-                onClick={() => setInstallation((current) => !current)}
+                onClick={() => {
+                  // INSTALLER-ONLY: الفني مايتشالش هنا لما المحافظة والمنطقة فيهم فني
+                  if (installerOnlyHere && installationChosen) return
+                  setInstallation((current) => !current)
+                }}
                 aria-pressed={installationChosen}
                 className={
                   'flex w-full items-center gap-3 rounded-lg border-2 p-4 text-right transition-colors ' +
@@ -756,10 +770,16 @@ export function CheckoutForm({
                       : 'الفني مش متاح في ' + selectedArea + ' حاليًا.'}
                   </p>
                   <p className="mt-1 text-muted">متاح في: {installerChoices.join('، ')}</p>
-                  <p className="mt-1 text-muted">ممكن تكمل الطلب من غير فني وتختار أدوات التركيب المناسبة.</p>
-                  <button type="button" onClick={chooseSelf} className={buttonClasses('secondary', 'md', 'mt-2 w-full')}>
-                    {selfLabel}
-                  </button>
+                  {/* INSTALLER-ONLY (العقد §٣-٥): المحافظة فيها فني والمنطقة لسه مااتختارتش = مفيش «هركّبه بنفسي» هنا؛
+                      الاستثناء الحقيقي (منطقة أو محافظة مفيهاش فني) بيفضل زي ما هو (§٤) */}
+                  {installerOnlyHere ? null : (
+                    <>
+                      <p className="mt-1 text-muted">ممكن تكمل الطلب من غير فني وتختار أدوات التركيب المناسبة.</p>
+                      <button type="button" onClick={chooseSelf} className={buttonClasses('secondary', 'md', 'mt-2 w-full')}>
+                        {selfLabel}
+                      </button>
+                    </>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -917,13 +937,17 @@ export function CheckoutForm({
           ) : coupon.state.rejection !== null ? (
             <p className="text-center text-xs font-medium text-danger">{coupon.state.rejection}</p>
           ) : choiceRequired ? (
-            <p className="text-center text-xs font-medium text-danger">اختار «هتركّبه إزاي؟» فوق الأول عشان نكمل.</p>
+            <p className="text-center text-xs font-medium text-danger">
+              {installerOnlyHere ? 'طلبك فيه منتج بيتركّب مع فني — اختار «محتاج فني تركيب» فوق عشان نكمل.' : 'اختار «هتركّبه إزاي؟» فوق الأول عشان نكمل.'}
+            </p>
           ) : toolsDecisionPending ? (
             <p className="text-center text-xs font-medium text-danger">قرّر الأول: تشيل أدوات التركيب ولا تخليها في الطلب.</p>
           ) : couponBlock !== null ? (
             <p className="text-center text-xs font-medium text-danger">{couponBlock}</p>
           ) : submitBlocked ? (
-            <p className="text-center text-xs font-medium text-danger">اختار منطقة متاح فيها الفني، أو «هركّبه بنفسي».</p>
+            <p className="text-center text-xs font-medium text-danger">
+              {installerOnlyHere ? 'اختار منطقة متاح فيها الفني.' : 'اختار منطقة متاح فيها الفني، أو «هركّبه بنفسي».'}
+            </p>
           ) : touched && invalid ? (
             <p className="text-center text-xs font-medium text-danger">راجع البيانات المطلوبة</p>
           ) : null}

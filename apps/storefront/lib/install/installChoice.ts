@@ -33,3 +33,17 @@ export function revealToolsOnChange(previous: InstallMode, next: ChosenInstallMo
 export function showToolSuggestions(state: { installer: boolean; choicePending: boolean; choiceRequired: boolean; addonCount: number }): boolean {
   return !(state.installer || state.choicePending || state.choiceRequired || state.addonCount === 0)
 }
+
+/** INSTALLER-ONLY — سطر توضيح تحت «هتركّبه إزاي؟» لما الفني بس هو المتاح. */
+export function installerOnlyLine(context: 'product' | 'cart'): string {
+  return context === 'product' ? 'المنتج ده بيتركّب مع فني تركيب بس.' : 'طلبك فيه منتج بيتركّب مع فني تركيب بس.'
+}
+
+/**
+ * لازم اختيار صريح قبل الإضافة أو الطلب: لسه مااختارش (unset)، أو INSTALLER-ONLY والاختيار الحالي مش «فني».
+ * قبل قراية الاختيار المحفوظ (ready = false) أو من غير الكارت: مفيش قفل.
+ */
+export function installChoiceRequired(state: { showChoice: boolean; ready: boolean; mode: InstallMode; installerOnly: boolean }): boolean {
+  if (!state.showChoice || !state.ready) return false
+  return state.mode === 'unset' || (state.installerOnly && state.mode !== 'installer')
+}

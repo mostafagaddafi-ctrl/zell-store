@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: 'فني التركيب' }
 export const dynamic = 'force-dynamic'
 
 export default pageWithAccess('zell.installation.view', async function InstallationPage(_ctx) {
-  const { record, groups } = await readInstallation()
+  const { record, groups, films } = await readInstallation()
 
   return (
     <>
@@ -17,7 +17,7 @@ export default pageWithAccess('zell.installation.view', async function Installat
         description="سعر تركيب المتر، والمناطق المتاحة للفني، ومصاريف انتقاله لكل منطقة — أسماء المناطق من صفحة الشحن"
       />
       {/* key = الطابع: «تجاهل وحدّث» بيجيب نسخة السيرفر في محرر جديد */}
-      <InstallationEditor key={record.updatedAt ?? 'new'} initial={record} groups={groups} />
+      <InstallationEditor key={record.updatedAt ?? 'new'} initial={record} groups={groups} films={films} />
     </>
   )
 })

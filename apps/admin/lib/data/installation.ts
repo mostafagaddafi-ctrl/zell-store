@@ -45,7 +45,20 @@ export async function readInstallationRecord(): Promise<InstallationRecord> {
   return { config: parseInstallationConfig(row?.value), updatedAt: row ? row.updated_at : null }
 }
 
-export async function readInstallation(): Promise<{ record: InstallationRecord; groups: ShippingAreaGroup[] }> {
-  const [record, groups] = await Promise.all([readInstallationRecord(), readShippingAreaGroups()])
-  return { record, groups }
+/** INSTALLER-ONLY — فيلم بالمقاس لقايمة «فني فقط — منتجات معينة» (النشط والمخفي). */
+export type InstallationFilm = { id: number; name: string; isActive: boolean }
+
+export async function readInstallationFilms(): Promise<InstallationFilm[]> {
+  const rows = await restGet<{ id: number; name_ar: string; is_active: boolean; sale_unit: string }>(
+    'products',
+    'select=id,name_ar,is_active,sale_unit&order=sort_order.asc,id.asc',
+  )
+  return rows.rows
+    .filter((row) => row.sale_unit !== 'piece')
+    .map((row) => ({ id: Number(row.id), name: row.name_ar, isActive: row.is_active }))
+}
+
+export async function readInstallation(): Promise<{ record: InstallationRecord; groups: ShippingAreaGroup[]; films: InstallationFilm[] }> {
+  const [record, groups, films] = await Promise.all([readInstallationRecord(), readShippingAreaGroups(), readInstallationFilms()])
+  return { record, groups, films }
 }
