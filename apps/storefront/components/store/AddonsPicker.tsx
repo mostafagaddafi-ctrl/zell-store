@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, Minus, Plus, Wrench } from 'lucide-react'
+import Link from 'next/link'
+import { Check, ChevronDown, ChevronUp, Minus, Plus, Wrench } from 'lucide-react'
 import { discountInfo, formatPiastres, maxQuantityOf, primaryImage, type StoreProduct } from '@zell/core'
+import { buttonClasses } from '../ui/Button'
 import { ImageSlot } from '../ui/ImageSlot'
 import { Num } from './Num'
 
@@ -11,6 +13,10 @@ import { Num } from './Num'
  *
  * العنوان من «عنوان جزء الإضافات» في اللوحة. كل إضافة: صورة · اسم · سعر
  * القطعة · عدد. السعر هنا للعرض بس — zell_create_order بتسعّر من الداتابيز.
+ *
+ * «أضف الكل» زرار واضح في أول الكارت (اللي هيركّب بنفسه غالبًا محتاج الأدوات كلها): بيحط كل الأدوات بعدد 1
+ * (أو العدد المختار لو أكتر) — بنفس الأسعار ومن غير أي خصم، ومن غير إضافة تلقائية من غير ضغطة. اسم الأداة
+ * وصورتها لينك لصفحتها في تبويب جديد، علشان اختيارات صفحة الفيلم ماتضيعش.
  */
 export function AddonsPicker({
   addons,
@@ -64,7 +70,7 @@ export function AddonsPicker({
                 <Num>{String(pickedCount)}</Num> {pickedCount === 1 ? 'إضافة' : 'إضافات'} · <Num>{formatPiastres(total)}</Num>
               </>
             ) : (
-              'محتاجها؟ دوس واختار اللي ناقصك — أو خد الباكدج كاملة'
+              'محتاجها؟ دوس واختار اللي ناقصك — أو أضفهم كلهم مرة واحدة'
             )}
           </span>
         </span>
@@ -76,6 +82,21 @@ export function AddonsPicker({
 
       {open ? (
         <>
+      {addons.length > 1 ? (
+        <div className="border-b border-border px-4 py-3">
+          {allPicked ? (
+            <p role="status" className="flex items-center justify-center gap-1.5 text-sm font-semibold text-brand">
+              <Check className="h-4 w-4" aria-hidden="true" />
+              اتضافوا كلهم
+            </p>
+          ) : (
+            <button type="button" onClick={pickAll} className={buttonClasses('primary', 'md', 'w-full')}>
+              أضف الكل ({addons.length === 2 ? 'أداتين' : <><Num>{String(addons.length)}</Num> {addons.length <= 10 ? 'أدوات' : 'أداة'}</>}) ·{' '}
+              <Num>{formatPiastres(allPrice)}</Num>
+            </button>
+          )}
+        </div>
+      ) : null}
       <ul className="divide-y divide-border">
         {addons.map((addon) => {
           const quantity = qty(addon.id)
@@ -84,16 +105,28 @@ export function AddonsPicker({
           const discount = discountInfo(addon)
           return (
             <li key={addon.id} className="flex items-center gap-3 px-4 py-3">
-              <ImageSlot
-                ratio="1/1"
-                fit="cover"
-                src={image?.url ?? null}
-                alt={image?.alt ?? addon.name_ar}
-                sizes="56px"
-                className="h-14 w-14 shrink-0 rounded-lg border border-border"
-              />
+              <Link
+                href={'/product/' + String(addon.id)}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={'افتح صفحة ' + addon.name_ar + ' في تبويب جديد'}
+                className="shrink-0"
+              >
+                <ImageSlot
+                  ratio="1/1"
+                  fit="cover"
+                  src={image?.url ?? null}
+                  alt={image?.alt ?? addon.name_ar}
+                  sizes="56px"
+                  className="h-14 w-14 shrink-0 rounded-lg border border-border"
+                />
+              </Link>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-fg">{addon.name_ar}</p>
+                <p className="truncate text-sm font-semibold text-fg">
+                  <Link href={'/product/' + String(addon.id)} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    {addon.name_ar}
+                  </Link>
+                </p>
                 <p className="text-xs text-muted">
                   {discount ? (
                     <span className="me-1 line-through">
@@ -154,15 +187,6 @@ export function AddonsPicker({
         ) : (
           <span className="text-xs text-muted">مفيش إضافات مختارة</span>
         )}
-        {!allPicked && addons.length > 1 ? (
-          <button
-            type="button"
-            onClick={pickAll}
-            className="h-10 rounded-lg bg-brand/10 px-3 text-sm font-semibold text-brand transition-colors hover:bg-brand/15"
-          >
-            خد الكل · <Num>{formatPiastres(allPrice)}</Num>
-          </button>
-        ) : null}
       </div>
         </>
       ) : null}
