@@ -2,7 +2,8 @@
 --
 -- • قبل التطبيق بس: الـ preflight جوه الجسم بيرفض لو الجسم الجديد متطبّق (ZELL_0025_ALREADY_APPLIED) أو لو الجسم مش 0021ex.
 -- • معاملة واحدة: أول جملة begin وآخر جملة rollback، والنتيجة صفوف في SELECT واحد. الجسم منسوخ بالحرف (md5 في CI).
--- • النداءين التجريبيين (P03 و P04) مرفوضين قبل أي إدخال، ومفيش أي طلب بيتعمل؛ وكله بيترجع.
+-- • النداءين التجريبيين (P03 و P04) مرفوضين قبل أي إدخال بالكود والرسالة المتوقعين بالظبط (45023 ZELL_CART_INVALID ·
+--   45432 ZELL_SHIPPING_METHOD_INVALID)؛ أي خطأ تاني (صلاحيات أو تنفيذ) = fail. مفيش أي طلب بيتعمل، وكله بيترجع.
 -- • الأثر على Production: create or replace بياخد قفل على الدالة لحد الـ rollback، فالتشغيل في وقت هادي.
 -- • المتوقع: PASS (4 نجاح، 0 فشل).
 
@@ -887,6 +888,7 @@ declare
   v_n0 bigint;
   v_n1 bigint;
   v_state text;
+  v_msg text;
   v_ok boolean;
 begin
   select pg_catalog.md5(p.prosrc) = '03e839e30fe7d0c9354d1df4f21b71b3' and pg_catalog.pg_get_userbyid(p.proowner) = 'postgres' and p.prosecdef
@@ -916,12 +918,14 @@ begin
     v_state := 'no error';
   exception when others then
     v_state := sqlstate;
+    v_msg := sqlerrm;
   end;
   select pg_catalog.count(*) into v_n1 from public.orders;
-  perform pg_temp.zt('P03 new body runs: invalid cart with installation is rejected before any insert',
-                     v_state is distinct from 'no error' and v_n1 = v_n0, 'sqlstate=' || coalesce(v_state, '-'));
+  perform pg_temp.zt('P03 new body runs: invalid cart with installation is rejected with exactly 45023 ZELL_CART_INVALID before any insert',
+                     v_state = '45023' and v_msg = 'ZELL_CART_INVALID' and v_n1 = v_n0, 'sqlstate=' || coalesce(v_state, '-') || ' ' || coalesce(v_msg, ''));
 
   v_state := null;
+  v_msg := null;
   begin
     perform public.zell_create_order(p_items => '[]'::jsonb, p_customer_name => 'عميل الاختبار', p_customer_phone => '01000000000',
                                      p_governorate => 'القاهرة', p_address => 'ptest address long enough', p_notes => null,
@@ -931,10 +935,11 @@ begin
     v_state := 'no error';
   exception when others then
     v_state := sqlstate;
+    v_msg := sqlerrm;
   end;
   select pg_catalog.count(*) into v_n1 from public.orders;
-  perform pg_temp.zt('P04 unknown shipping method with installation is still rejected with 45432, before any insert',
-                     v_state = '45432' and v_n1 = v_n0, 'sqlstate=' || coalesce(v_state, '-'));
+  perform pg_temp.zt('P04 unknown shipping method with installation is still rejected with exactly 45432 ZELL_SHIPPING_METHOD_INVALID, before any insert',
+                     v_state = '45432' and v_msg = 'ZELL_SHIPPING_METHOD_INVALID' and v_n1 = v_n0, 'sqlstate=' || coalesce(v_state, '-') || ' ' || coalesce(v_msg, ''));
 end
 $zT$;
 
