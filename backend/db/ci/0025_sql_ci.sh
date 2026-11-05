@@ -7,7 +7,7 @@
 # حراس الـ preflight (الموافقة · المتصل · بصمة مختلفة · search_path مختلف · overload · مالك مختلف) من غير أثر · ptest من غير أثر ·
 # التطبيق: البصمة الجديدة والمالك والصلاحيات بالحرف وبصمة كل حاجة تانية زي ما هي · رفض الإعادة · verify 0025 ·
 # بعد التطبيق: EX V09 و P1 V06 و 0024 V04 بس اللي بيفشلوا، والباقي PASS من غير أخطاء تنفيذ ولا فحوص ناقصة ·
-# مقارنة القديم بالجديد والسيناريوهات (0025_flows.sql) · اختبارات سالبة (منح anon · منح PUBLIC · سحب zell_order_writer · جسم حارس ·
+# مقارنة القديم بالجديد والسيناريوهات (0025_flows.sql) · حساب المتجر (core) = الداتابيز بعد 0025 (0025_core_parity.mjs، المرحلة C) · اختبارات سالبة (منح anon · منح PUBLIC · سحب zell_order_writer · جسم حارس ·
 # خاصية حارس · security definer للدالة · grant option · overload · توقيع ناقص) بتوقّع verify 0025 من غير أخطاء تنفيذ · الرجوع (من غير موافقة · بموافقة · مرة تانية) ثم ptest وإعادة التطبيق.
 # ممنوع يتشغّل على أي داتابيز غير الحاوية المؤقتة.
 set -uo pipefail
@@ -40,7 +40,7 @@ SEEN=" "
 OLD_MD5=62924d0fe9b1563e76c54bbddfb628b4
 NEW_MD5=03e839e30fe7d0c9354d1df4f21b71b3
 CO="public.zell_create_order(jsonb, text, text, text, text, text, text, text, text, text, text, boolean, text, jsonb, text)"
-EXPECTED="S01 S02 S03 S04 B01 V01 E01 E02 E03 E04 E05 E06 P01 A01 A02 A03 V02 V03 P02 F01 N01 N02 N03 N04 N05 N06 N07 N08 N09 RB1 RB2 RB3 RB4 RA1"
+EXPECTED="S01 S02 S03 S04 B01 V01 E01 E02 E03 E04 E05 E06 P01 A01 A02 A03 V02 V03 P02 F01 C01 N01 N02 N03 N04 N05 N06 N07 N08 N09 RB1 RB2 RB3 RB4 RA1"
 VLIST="A1:0021a_a1_order_cycle_verify.sql:7 D:0021d_preferred_delivery_verify.sql:7 P1:0021a_p1_payments_verify.sql:7 P2:0021a_p2_checkout_fee_verify.sql:7 D2:0021d2_delivery_settings_verify.sql:7 TR:0021tr_track_order_verify.sql:7 TR2:0021tr2_track_order_v2_verify.sql:7 EX:0021ex_express_shipping_verify.sql:7 0021-P:0021p_access_verify.sql:11 0024:0024_order_delete_verify.sql:7"
 US="$(printf '\037')"
 
@@ -259,6 +259,18 @@ FL=$(grep '^0|summary|' "$TMP/flows.out" | cut -d'|' -f7-9)
 ok=no; [ "$rc" = "0" ] && [ "$FL" = "PASS|23|0" ] && [ "$(co_state)" = "$ST1" ] && [ "$(fp)" = "$FP0" ] && ok=yes
 record "F01 flows: old/new parity matrix (6300 cases x 7 calls) + 15 hand-computed scenarios = PASS 23/0, rolled back without trace" "$ok" "rc=$rc $FL $(grep -E '^[0-9]+\|test\|' "$TMP/flows.out" | grep '|fail|' | tr '\n' ' ' | cut -c1-1500) $(tailof "$TMP/flows.out")"
 grep -E '^[0-9]+\|test\|' "$TMP/flows.out" | cut -d'|' -f3,5,6 | cut -c1-700
+
+# ---- 6ب) حساب المتجر (packages/core) = الداتابيز بعد 0025 (المرحلة C) ----
+if node --experimental-strip-types "$CIDIR/0025_core_parity.mjs" > "$TMP/cp.sql" 2> "$TMP/cp.err"; then
+  CP_N=$(sed -n 's/^-- cases: \([0-9]*\) .*/\1/p' "$TMP/cp.sql" | head -n 1)
+  CP=$(psql -X -q -tA -v ON_ERROR_STOP=1 -U postgres -d "$DB" -f "$TMP/cp.sql" 2>&1 | tail -n 1)
+else
+  CP_N=0
+  CP="node failed: $(tail -n 5 "$TMP/cp.err" | tr '\n' ' ')"
+fi
+ok=no
+if [ -n "$CP_N" ] && [ "$CP_N" -ge 2000 ] 2> /dev/null && [ "$CP" = "$CP_N|0|" ] && [ "$(co_state)" = "$ST1" ] && [ "$(fp)" = "$FP0" ]; then ok=yes; fi
+record "C01 storefront core (installerShipping + shipping, installation, coupon, deposit) = zell_create_order after 0025: $CP_N cases, 0 mismatches, rolled back without trace" "$ok" "$(head -n 1 "$TMP/cp.sql") result=$CP"
 
 # ---- 7) اختبارات سالبة: verify 0025 لازم يمسك الخلل ----
 q "grant execute on function $CO to anon" > "$TMP/n1a.log"; N1=$(v25 n1); q "revoke execute on function $CO from anon" > "$TMP/n1b.log"
