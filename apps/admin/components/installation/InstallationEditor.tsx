@@ -3,12 +3,12 @@
 import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { INSTALLATION_LIMITS, type InstallationAreas } from '@zell/core'
+import { INSTALLATION_LIMITS, type InstallationAreas, type InstallationMode } from '@zell/core'
 import { saveInstallationAction } from '../../lib/actions'
 import { useSaveAction } from '../../lib/client/useSaveAction'
 import { formatPiastres, piastresToPounds } from '../../lib/format'
 import type { InstallationInput } from '../../lib/mutations/installation'
-import type { InstallationRecord, ShippingAreaGroup } from '../../lib/data/installation'
+import type { InstallationFilm, InstallationRecord, ShippingAreaGroup } from '../../lib/data/installation'
 import { useMutationsEnabled } from '../../lib/readiness'
 import { Button } from '../ui/Button'
 import { FailureBanner } from '../ui/FailureBanner'
@@ -17,9 +17,24 @@ import { SaveBar } from '../ui/SaveBar'
 import { Switch } from '../ui/Switch'
 
 /** المسودة بالجنيه كنص زي ما الأدمن بيكتب. المنطقة المفعّلة = موجودة في areas. */
-type Draft = { enabled: boolean; note: string; fee: string; areas: Record<string, Record<string, string>> }
+type Draft = {
+  enabled: boolean
+  note: string
+  fee: string
+  areas: Record<string, Record<string, string>>
+  /** INSTALLER-ONLY */
+  mode: InstallationMode
+  productIds: number[]
+}
 
 const MAX_POUNDS = INSTALLATION_LIMITS.maxPiastres / 100
+
+/** INSTALLER-ONLY (قرار المالك 2026-11-05) — طريقة التركيب. */
+const MODE_OPTIONS: Array<{ value: InstallationMode; title: string; hint: string }> = [
+  { value: 'choice', title: 'العميل يختار', hint: 'زي ما هو: «هركّبه بنفسي» أو «محتاج فني تركيب».' },
+  { value: 'installer_all', title: 'فني فقط — كل المنتجات', hint: 'كل أفلام المقاس بتتركّب مع فني بس.' },
+  { value: 'installer_products', title: 'فني فقط — منتجات معينة', hint: 'اختار المنتجات من القايمة تحت.' },
+]
 
 /** «100» أو «99.5» → قرش. فاضي · سالب · أكتر من رقمين عشريين · فوق الحد = null. */
 function toPiastres(text: string, min: 0 | 1): number | null {
@@ -46,7 +61,14 @@ function toDraft(record: InstallationRecord, groups: ShippingAreaGroup[]): Draft
     if (Object.keys(out).length > 0) areas[group.governorate] = out
   }
   const fee = record.config.feePerMeterPiastres
-  return { enabled: record.config.enabled, note: record.config.note, fee: fee === null ? '' : piastresToPounds(fee), areas }
+  return {
+    enabled: record.config.enabled,
+    note: record.config.note,
+    fee: fee === null ? '' : piastresToPounds(fee),
+    areas,
+    mode: record.config.mode ?? 'choice',
+    productIds: record.config.installerOnlyProductIds ?? [],
+  }
 }
 
 function orphansOf(areas: InstallationAreas, groups: ShippingAreaGroup[]): string[] {
@@ -82,7 +104,13 @@ function validate(draft: Draft): Checked {
     if (Object.keys(out).length > 0) areas[governorate] = out
   }
   if (fee === null && (draft.enabled || count > 0)) return { ok: false, error: 'اكتب سعر تركيب المتر' }
-  return { ok: true, input: { enabled: draft.enabled, note: draft.note, feePerMeterPiastres: fee, areas } }
+  if (draft.mode === 'installer_products' && draft.productIds.length === 0) {
+    return { ok: false, error: 'اختار منتج واحد على الأقل لـ«فني فقط — منتجات معينة»' }
+  }
+  return {
+    ok: true,
+    input: { enabled: draft.enabled, note: draft.note, feePerMeterPiastres: fee, areas, mode: draft.mode, installerOnlyProductIds: draft.productIds },
+  }
 }
 
 /**
@@ -93,7 +121,15 @@ function validate(draft: Draft): Checked {
  *    والصفحة بتركّب المحرر من جديد بـ key = الطابع.
  * ⚠️ الحساب نفسه في الداتابيز (zell_create_order) — هنا إعداد بس.
  */
-export function InstallationEditor({ initial, groups }: { initial: InstallationRecord; groups: ShippingAreaGroup[] }) {
+export function InstallationEditor({
+  initial,
+  groups,
+  films,
+}: {
+  initial: InstallationRecord
+  groups: ShippingAreaGroup[]
+  films: InstallationFilm[]
+}) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
   const { state, failure, warning, run, retry, markDirty } = useSaveAction()
@@ -148,6 +184,17 @@ export function InstallationEditor({ initial, groups }: { initial: InstallationR
       delete areas[governorate]
       return { ...current, areas }
     })
+  }
+
+  function toggleProduct(id: number, on: boolean) {
+    update((current) => ({
+      ...current,
+      productIds: on
+        ? current.productIds.includes(id)
+          ? current.productIds
+          : [...current.productIds, id]
+        : current.productIds.filter((item) => item !== id),
+    }))
   }
 
   function save() {
@@ -240,6 +287,76 @@ export function InstallationEditor({ initial, groups }: { initial: InstallationR
               disabled={locked}
             />
           </Field>
+        </div>
+      </Card>
+
+      {/* INSTALLER-ONLY (قرار المالك 2026-11-05) — طريقة التركيب: العميل يختار · فني فقط لكل المنتجات · لمنتجات معينة */}
+      <Card title="طريقة التركيب">
+        <div className="space-y-3">
+          <p className="text-xs text-muted">
+            «فني فقط» بيخفي «هركّبه بنفسي» واقتراحات الأدوات من المنتج، والطلب كله بيبقى بفني. لو منطقة العميل مفيهاش فني، الطلب
+            بيكمل زي النهارده من غير فني. ترجع للوضع العادي باختيار «العميل يختار» والحفظ.
+          </p>
+          <div role="radiogroup" aria-label="طريقة التركيب" className="grid gap-2">
+            {MODE_OPTIONS.map((option) => (
+              <label
+                key={option.value}
+                className={
+                  'flex cursor-pointer items-start gap-2.5 rounded-lg border-2 p-3 text-sm ' +
+                  (draft.mode === option.value ? 'border-brand bg-brand/5' : 'border-border')
+                }
+              >
+                <input
+                  type="radio"
+                  name="installation-mode"
+                  value={option.value}
+                  checked={draft.mode === option.value}
+                  onChange={() => update((current) => ({ ...current, mode: option.value }))}
+                  disabled={locked}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
+                />
+                <span className="min-w-0">
+                  <span className="block font-semibold text-fg">{option.title}</span>
+                  <span className="block text-xs text-muted">{option.hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+
+          {draft.mode === 'installer_products' ? (
+            films.length === 0 ? (
+              <p className="text-xs text-muted">مفيش أفلام بالمقاس.</p>
+            ) : (
+              <fieldset className="space-y-1 rounded-lg border border-border p-3">
+                <legend className="px-1 text-xs font-semibold text-fg">
+                  المنتجات اللي بتتركّب مع فني بس ({String(draft.productIds.length)})
+                </legend>
+                <ul className="max-h-72 space-y-1 overflow-y-auto">
+                  {films.map((film) => (
+                    <li key={film.id}>
+                      <label className="flex cursor-pointer items-center gap-2 py-1 text-sm text-fg">
+                        <input
+                          type="checkbox"
+                          checked={draft.productIds.includes(film.id)}
+                          onChange={(event) => toggleProduct(film.id, event.target.checked)}
+                          disabled={locked}
+                          className="h-4 w-4 shrink-0 accent-brand"
+                        />
+                        <span>{film.name}</span>
+                        {film.isActive ? null : <span className="text-xs text-muted">(مخفي)</span>}
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </fieldset>
+            )
+          ) : null}
+
+          {draft.mode !== 'choice' && (!draft.enabled || fee === null || enabledAreas === 0) ? (
+            <p className="text-xs font-semibold text-gold">
+              «فني فقط» مش هيشتغل غير لما الفني يكون شغال وليه سعر ومنطقة مفعّلة — لحد كده العميل بيختار عادي.
+            </p>
+          ) : null}
         </div>
       </Card>
 
