@@ -5,6 +5,8 @@ import {
   PREFERRED_DELIVERY_PENDING,
   SHIPPING_METHOD_LABELS,
   shippingDaysLine,
+  installerDeliveryShown,
+  INSTALLER_DELIVERY_LABEL,
   formatLength,
   formatPiastres,
   isValidOrderNumber,
@@ -244,10 +246,13 @@ export default async function OrderReceiptPage({
             <span>الإجمالي الفرعي</span>
             <span><Num>{formatPiastres(receipt.subtotal_piastres)}</Num></span>
           </div>
-          <div className="flex justify-between text-muted">
-            <span>{shippingSnapshot !== null ? 'الشحن — ' + SHIPPING_METHOD_LABELS[shippingSnapshot.method] : 'الشحن'}</span>
-            <span><Num>{formatPiastres(receipt.shipping_piastres)}</Num></span>
-          </div>
+          {/* INSTALLER-SHIPPING — فني وشحن محفوظ 0 = من غير سطر شحن (القرار من لقطة الطلب). الطلب القديم بشحن > 0 زي ما هو. */}
+          {installerDeliveryShown(receipt.installation_requested === true, receipt.shipping_piastres) ? null : (
+            <div className="flex justify-between text-muted">
+              <span>{shippingSnapshot !== null ? 'الشحن — ' + SHIPPING_METHOD_LABELS[shippingSnapshot.method] : 'الشحن'}</span>
+              <span><Num>{formatPiastres(receipt.shipping_piastres)}</Num></span>
+            </div>
+          )}
           {shippingSnapshot !== null && shippingSnapshot.days !== null ? (
             <p className="text-xs text-muted">
               <Num>{shippingDaysLine(shippingSnapshot.days)}</Num>
@@ -269,9 +274,9 @@ export default async function OrderReceiptPage({
                 <span><Num>{formatPiastres(receipt.installation_piastres ?? 0)}</Num></span>
               </div>
               <div className="flex justify-between text-muted">
-                <span>انتقال الفني</span>
+                <span>{installerDeliveryShown(true, receipt.shipping_piastres) ? INSTALLER_DELIVERY_LABEL : 'انتقال الفني'}</span>
                 <span>
-                  {(receipt.installation_travel_piastres ?? 0) === 0 ? (
+                  {(receipt.installation_travel_piastres ?? 0) === 0 && !installerDeliveryShown(true, receipt.shipping_piastres) ? (
                     'مجاني'
                   ) : (
                     <Num>{formatPiastres(receipt.installation_travel_piastres ?? 0)}</Num>
