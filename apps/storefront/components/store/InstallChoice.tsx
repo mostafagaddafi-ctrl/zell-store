@@ -5,6 +5,7 @@ import { HardHat, Wrench } from 'lucide-react'
 import { formatLength, formatPiastres, installationFeePiastres } from '@zell/core'
 import type { ChosenInstallMode, InstallMode } from '../../lib/cart'
 import { Num } from './Num'
+import { installerOnlyLine } from '../../lib/install/installChoice'
 
 const OPTIONS: Array<{ value: ChosenInstallMode; title: string; hint: string }> = [
   { value: 'self', title: 'هركّبه بنفسي', hint: 'تختار أدوات التركيب اللي محتاجها' },
@@ -29,6 +30,7 @@ export function InstallChoice({
   lengthCm,
   governorates,
   context,
+  installerOnly = false,
 }: {
   mode: InstallMode
   onChange: (next: ChosenInstallMode) => void
@@ -38,17 +40,22 @@ export function InstallChoice({
   /** المحافظات اللي فيها منطقة متاحة للفني (من إعداد اللوحة). */
   governorates: string[]
   context: 'product' | 'cart'
+  /** INSTALLER-ONLY — «فني فقط» من اللوحة: خيار الفني لوحده وسطر توضيح، ومن غير «بنفسي». */
+  installerOnly?: boolean
 }) {
   const name = useId()
   const hintId = useId()
   const unset = mode === 'unset'
+  // INSTALLER-ONLY والاختيار الحالي مش فني (لسه، أو «بنفسي» من قبل) = لازم يختار الفني صراحة
+  const needsPick = unset || (installerOnly && mode !== 'installer')
   const estimate = installationFeePiastres(feePerMeterPiastres, lengthCm)
 
   return (
-    <fieldset className="rounded-lg border border-border bg-card p-4" {...(unset ? { 'aria-describedby': hintId } : {})}>
+    <fieldset className="rounded-lg border border-border bg-card p-4" {...(needsPick ? { 'aria-describedby': hintId } : {})}>
       <legend className="px-1 text-sm font-bold text-fg">هتركّبه إزاي؟</legend>
-      <div className="mt-1 grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
-        {OPTIONS.map((option) => {
+      {installerOnly ? <p className="px-1 text-xs font-semibold text-fg">{installerOnlyLine(context)}</p> : null}
+      <div className={'mt-1 grid grid-cols-1 gap-2' + (installerOnly ? '' : ' min-[380px]:grid-cols-2')}>
+        {(installerOnly ? OPTIONS.filter((option) => option.value === 'installer') : OPTIONS).map((option) => {
           const selected = mode === option.value
           const Icon = option.value === 'installer' ? HardHat : Wrench
           return (
@@ -84,9 +91,9 @@ export function InstallChoice({
         })}
       </div>
 
-      {unset ? (
+      {needsPick ? (
         <p id={hintId} className="mt-2 text-xs font-semibold text-fg">
-          اختار هتركّبه إزاي عشان نكمل
+          {installerOnly ? 'اختار «محتاج فني تركيب» عشان نكمل' : 'اختار هتركّبه إزاي عشان نكمل'}
         </p>
       ) : null}
 
