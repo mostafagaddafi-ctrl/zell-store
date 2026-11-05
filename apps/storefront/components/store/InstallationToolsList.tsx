@@ -8,6 +8,8 @@ import { useCart } from '../../lib/cart'
 import { Button, buttonClasses } from '../ui/Button'
 import { ImageSlot } from '../ui/ImageSlot'
 import { Num } from './Num'
+import { ProductQuickView } from './ProductQuickView'
+import type { QuickView } from '../../lib/quickView'
 
 /** صف أداة جاهز للعرض — بيتبني على السيرفر من نفس بيانات المتجر المكاشة. */
 export type ToolRow = {
@@ -20,6 +22,8 @@ export type ToolRow = {
   max: number
   /** أسماء الأفلام المناسبة — من الأفلام المعروضة في الصفحة بس. */
   films: string[]
+  /** تفاصيل نافذة المنتج (ProductQuickView) — من نفس بيانات المنتج (quickViewOf). */
+  info: QuickView
 }
 
 /**
@@ -31,13 +35,16 @@ export type ToolRow = {
  *    مابتعدّيش الحد.
  * ⚠️ مفيش تحويل: «كمّل لإتمام الطلب» و«افتح السلة» ظاهرين دايمًا، فالزبون
  *    يقدر يكمّل من غير أدوات.
- * اسم الأداة وصورتها لينك لصفحتها (منتج بالعدد عادي) في تبويب جديد، علشان العدّاد المختار ماتضيعش.
+ * اسم الأداة وصورتها بيفتحوا تفاصيلها في نافذة فوق نفس الصفحة (ProductQuickView — قرار المالك 2026-11-05)،
+ * فيها نفس العدّاد وزرار X للقفل، علشان العدّاد المختار مايضيعش.
  */
 export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]; checkoutLabel: string }) {
   const cart = useCart()
   const baseId = useId()
   const [picked, setPicked] = useState<Record<number, number>>({})
   const [added, setAdded] = useState(0)
+  // الأداة المفتوحة في النافذة (null = مقفولة)
+  const [viewId, setViewId] = useState<number | null>(null)
 
   const inCart = (id: number): number => {
     if (!cart.ready) return 0
@@ -56,6 +63,38 @@ export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]
   // السلة جاهزة وفاضية → «شوف الأفلام» بدل «كمّل لإتمام الطلب» (مفيش حاجة تتطلب). «افتح السلة» ظاهر دايمًا.
   const cartEmpty = cart.ready && cart.count === 0
 
+  // عدّاد الأداة — نفسه في الصف وفي النافذة: نفس change ونفس الحد، مفيش منطق جديد
+  const counterFor = (row: ToolRow, label: { 'aria-labelledby': string } | { 'aria-label': string }) => {
+    const quantity = quantityOf(row)
+    const left = room(row)
+    return (
+      <div role="group" {...label} className="flex items-center gap-0.5 rounded border border-border">
+        <button
+          type="button"
+          aria-label={'قلّل ' + row.name}
+          disabled={quantity <= 0}
+          onClick={() => change(row, quantity - 1)}
+          className="relative flex h-8 w-8 items-center justify-center rounded text-muted transition-colors before:absolute before:-inset-1.5 before:content-[''] hover:bg-border/40 hover:text-fg disabled:opacity-40"
+        >
+          <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+        <output aria-live="polite" className="min-w-[2.5rem] text-center text-sm font-bold text-fg">
+          <Num>{String(quantity)}</Num>
+        </output>
+        <button
+          type="button"
+          aria-label={'زوّد ' + row.name}
+          disabled={quantity >= left}
+          onClick={() => change(row, quantity + 1)}
+          className="relative flex h-8 w-8 items-center justify-center rounded text-muted transition-colors before:absolute before:-inset-1.5 before:content-[''] hover:bg-border/40 hover:text-fg disabled:opacity-40"
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      </div>
+    )
+  }
+  const viewed = viewId === null ? undefined : rows.find((row) => row.id === viewId)
+
   const totalQuantity = rows.reduce((sum, row) => sum + quantityOf(row), 0)
   const totalPiastres = rows.reduce((sum, row) => sum + quantityOf(row) * row.pricePiastres, 0)
 
@@ -73,19 +112,18 @@ export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]
     <div className="space-y-4">
       <ul className="space-y-3">
         {rows.map((row) => {
-          const quantity = quantityOf(row)
           const already = inCart(row.id)
           const left = room(row)
           const nameId = baseId + '-tool-' + String(row.id)
           return (
             <li key={row.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
               <div className="flex gap-3">
-                <Link
-                  href={'/product/' + String(row.id)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={'افتح صفحة ' + row.name + ' في تبويب جديد'}
-                  className="shrink-0"
+                <button
+                  type="button"
+                  onClick={() => setViewId(row.id)}
+                  aria-haspopup="dialog"
+                  aria-label={'تفاصيل ' + row.name}
+                  className="shrink-0 rounded"
                 >
                   <ImageSlot
                     ratio="1/1"
@@ -95,12 +133,12 @@ export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]
                     sizes="72px"
                     className="h-[72px] w-[72px] shrink-0"
                   />
-                </Link>
+                </button>
                 <div className="min-w-0 flex-1">
                   <p id={nameId} className="line-clamp-2 text-sm font-bold leading-5 text-fg">
-                    <Link href={'/product/' + String(row.id)} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    <button type="button" onClick={() => setViewId(row.id)} aria-haspopup="dialog" className="text-right hover:underline">
                       {row.name}
-                    </Link>
+                    </button>
                   </p>
                   <p className="mt-1 text-sm">
                     <span className="font-extrabold text-fg">
@@ -127,29 +165,7 @@ export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]
               <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
                 <span className="text-xs text-muted">{left === 0 ? 'وصلت لأقصى كمية' : 'الكمية'}</span>
                 {/* مدمج زي أدوات السلة: الإطار والأيقونات صغيرين بصريًا، ومساحة اللمس 44px عن طريق before */}
-                <div role="group" aria-labelledby={nameId} className="flex items-center gap-0.5 rounded border border-border">
-                  <button
-                    type="button"
-                    aria-label={'قلّل ' + row.name}
-                    disabled={quantity <= 0}
-                    onClick={() => change(row, quantity - 1)}
-                    className="relative flex h-8 w-8 items-center justify-center rounded text-muted transition-colors before:absolute before:-inset-1.5 before:content-[''] hover:bg-border/40 hover:text-fg disabled:opacity-40"
-                  >
-                    <Minus className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
-                  <output aria-live="polite" className="min-w-[2.5rem] text-center text-sm font-bold text-fg">
-                    <Num>{String(quantity)}</Num>
-                  </output>
-                  <button
-                    type="button"
-                    aria-label={'زوّد ' + row.name}
-                    disabled={quantity >= left}
-                    onClick={() => change(row, quantity + 1)}
-                    className="relative flex h-8 w-8 items-center justify-center rounded text-muted transition-colors before:absolute before:-inset-1.5 before:content-[''] hover:bg-border/40 hover:text-fg disabled:opacity-40"
-                  >
-                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
-                </div>
+                {counterFor(row, { 'aria-labelledby': nameId })}
               </div>
             </li>
           )
@@ -193,6 +209,15 @@ export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]
           </Link>
         </div>
       </div>
+
+      <ProductQuickView view={viewed ? viewed.info : null} onClose={() => setViewId(null)}>
+        {viewed ? (
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-muted">{room(viewed) === 0 ? 'وصلت لأقصى كمية' : 'الكمية'}</span>
+            {counterFor(viewed, { 'aria-label': 'الكمية: ' + viewed.name })}
+          </div>
+        ) : null}
+      </ProductQuickView>
     </div>
   )
 }
