@@ -7,6 +7,7 @@ import { buttonClasses } from '../../components/ui/Button'
 import { BackButton } from '../../components/ui/BackButton'
 import { Container } from '../../components/ui/Container'
 import { getStorefrontData } from '../../lib/data/source'
+import { quickViewOf } from '../../lib/quickView'
 
 /**
  * صفحة «أدوات التركيب».
@@ -52,6 +53,7 @@ export default async function InstallationToolsPage({ searchParams }: PageProps)
       imageAlt: image?.alt || tool.name_ar,
       max: maxQuantityOf(tool),
       films: films.map((film) => film.name_ar),
+      info: quickViewOf(tool),
     }
   })
 
