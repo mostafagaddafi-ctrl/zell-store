@@ -6,6 +6,7 @@ import { ArrowLeft, Check, Loader2, ShoppingBag } from 'lucide-react'
 import {
   formatLength,
   installationReadyGovernorates,
+  installerRequiredFor,
   maxQuantityOf,
   validateLength,
   widthOptionsOf,
@@ -24,7 +25,7 @@ import { Num } from './Num'
 import { GiftNote } from './GiftNote'
 import { SizePanel } from './SizePanel'
 import { AddonsPicker } from './AddonsPicker'
-import { currentInstallModeLine, revealToolsOnChange, showToolSuggestions } from '../../lib/install/installChoice'
+import { currentInstallModeLine, installChoiceRequired, revealToolsOnChange, showToolSuggestions } from '../../lib/install/installChoice'
 import { InstallChoice } from './InstallChoice'
 import type { SizeDecision } from '../../lib/size/sizeEntry'
 
@@ -58,15 +59,17 @@ export function ProductBuy({
   const installerGovernorates = installation ? installationReadyGovernorates(installation) : []
   const fee = installation?.feePerMeterPiastres ?? null
   const showChoice = installerGovernorates.length > 0 && fee !== null
+  // INSTALLER-ONLY — المنتج ده «فني فقط» من اللوحة: الفني لوحده، ومن غير «بنفسي» ولا اقتراحات أدوات
+  const installerOnly = showChoice && installation !== null && installerRequiredFor(installation, product.id)
   const installer = showChoice && cart.installMode === 'installer'
   // قبل قراءة الاختيار المحفوظ (cart.ready) مانعرضش «بنفسي» الافتراضي — كان بيظهر الأدوات لحظة ويخفيها
   const choicePending = showChoice && !cart.ready
   // «هتركّبه إزاي؟» لازم يبقى اختيار صريح: قبل ما العميل يختار (unset) الإضافة والطلب مقفولين
   // والسبب ظاهر جنب الأزرار. فيلم من غير الكارت أو منتج بالقطعة مابيتأثروش.
-  const choiceRequired = showChoice && cart.ready && cart.installMode === 'unset'
+  const choiceRequired = installChoiceRequired({ showChoice, ready: cart.ready, mode: cart.installMode, installerOnly })
   const choiceHintId = useId()
   // سطر الاختيار الحالي (null لو لسه مااختارش)
-  const currentLine = currentInstallModeLine(cart.installMode)
+  const currentLine = installerOnly ? null : currentInstallModeLine(cart.installMode)
   const [revealTools, setRevealTools] = useState(false)
   const toolsRef = useRef<HTMLParagraphElement>(null)
   // «هركّبه بنفسي» بعد «فني»: الأدوات بتظهر والتركيز يروح لها (سلس، وفوري مع reduced motion).
@@ -207,6 +210,7 @@ export function ProductBuy({
             lengthCm={lengthCm}
             governorates={installerGovernorates}
             context="product"
+            installerOnly={installerOnly}
           />
           {/* الاختيار واحد للطلب كله (cart.installMode): لو متحدد، سطر واضح بالقيمة الحالية وإنها للطلب كله وبتتغيّر من هنا */}
           {currentLine !== null ? <p className="text-sm text-fg">{currentLine}</p> : null}
@@ -214,7 +218,7 @@ export function ProductBuy({
       ) : null}
 
       {/* مع الفني اقتراحات الأدوات بتختفي — مش محتاجها. وقبل الاختيار مابتظهرش عشان «بنفسي» مايبانش افتراضي */}
-      {!showToolSuggestions({ installer, choicePending, choiceRequired, addonCount: addons.length }) ? null : (
+      {!showToolSuggestions({ installer: installer || installerOnly, choicePending, choiceRequired, addonCount: addons.length }) ? null : (
         <div className="space-y-2">
           {showChoice ? (
             <p ref={toolsRef} tabIndex={-1} className="scroll-mt-24 text-sm font-semibold text-fg outline-none">
@@ -265,7 +269,9 @@ export function ProductBuy({
         </Button>
         {choiceRequired ? (
           <p id={choiceHintId} className="text-center text-xs font-semibold text-fg">
-            اختار «هتركّبه إزاي؟» فوق الأول — بنفسي ولا مع فني — عشان تضيف أو تطلب.
+            {installerOnly
+              ? 'المنتج ده بيتركّب مع فني — اختار «محتاج فني تركيب» فوق الأول عشان تضيف أو تطلب.'
+              : 'اختار «هتركّبه إزاي؟» فوق الأول — بنفسي ولا مع فني — عشان تضيف أو تطلب.'}
           </p>
         ) : null}
       </div>
