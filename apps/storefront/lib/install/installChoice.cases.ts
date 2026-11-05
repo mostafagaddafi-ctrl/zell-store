@@ -4,7 +4,15 @@
  */
 
 import type { InstallMode } from '../cart'
-import { INSTALL_MODE_LABELS, currentInstallModeLine, revealToolsOnChange, showToolSuggestions } from './installChoice'
+import { installerRequiredFor, orderRequiresInstaller, parseInstallationConfig } from '@zell/core'
+import {
+  INSTALL_MODE_LABELS,
+  currentInstallModeLine,
+  installChoiceRequired,
+  installerOnlyLine,
+  revealToolsOnChange,
+  showToolSuggestions,
+} from './installChoice'
 
 export type InstallCaseFailure = { name: string; expected: string; actual: string }
 
@@ -52,6 +60,56 @@ export function runInstallChoiceCases(): { passed: number; failures: InstallCase
     showToolSuggestions({ installer: false, choicePending: true, choiceRequired: false, addonCount: 3 }),
     showToolSuggestions({ installer: false, choicePending: false, choiceRequired: true, addonCount: 3 }),
   ], [false, false])
+
+  // INSTALLER-ONLY (قرار المالك 2026-11-05): «فني فقط» لكل المنتجات أو لمنتجات معينة
+  const ready = (extra: Record<string, unknown>) =>
+    parseInstallationConfig({ enabled: true, feePerMeterPiastres: 1000, areas: { 'القاهرة': { 'مدينة نصر': 0 } }, ...extra })
+  check('I01 old setting without mode = the customer chooses (nothing changes)', [ready({}).mode, ready({}).installerOnlyProductIds, installerRequiredFor(ready({}), 5)], ['choice', [], false])
+  check(
+    'I02 bad mode or bad ids are ignored',
+    [ready({ mode: 'x' }).mode, ready({ mode: 'installer_products', installerOnlyProductIds: [5, 5, -1, 2.5, '7', 9] }).installerOnlyProductIds],
+    ['choice', [5, 9]],
+  )
+  check('I03 installer_all: every film', [installerRequiredFor(ready({ mode: 'installer_all' }), 5), installerRequiredFor(ready({ mode: 'installer_all' }), 6)], [true, true])
+  check(
+    'I04 installer_products: only the listed films',
+    [
+      installerRequiredFor(ready({ mode: 'installer_products', installerOnlyProductIds: [5] }), 5),
+      installerRequiredFor(ready({ mode: 'installer_products', installerOnlyProductIds: [5] }), 6),
+    ],
+    [true, false],
+  )
+  check(
+    'I05 service off, no fee, or no area: never installer-only',
+    [
+      installerRequiredFor(ready({ mode: 'installer_all', enabled: false }), 5),
+      installerRequiredFor(ready({ mode: 'installer_all', feePerMeterPiastres: null }), 5),
+      installerRequiredFor(ready({ mode: 'installer_all', areas: {} }), 5),
+    ],
+    [false, false, false],
+  )
+  check(
+    'I06 order: one installer-only film = the whole order; pieces never count',
+    [
+      orderRequiresInstaller(ready({ mode: 'installer_products', installerOnlyProductIds: [5] }), [{ id: 6 }, { id: 5 }]),
+      orderRequiresInstaller(ready({ mode: 'installer_products', installerOnlyProductIds: [5] }), [{ id: 6 }]),
+      orderRequiresInstaller(ready({ mode: 'installer_all' }), [{ id: 7, sale_unit: 'piece' }]),
+    ],
+    [true, false, false],
+  )
+  check(
+    'I07 choice required: unset always; installer-only until the installer is picked',
+    [
+      installChoiceRequired({ showChoice: true, ready: true, mode: 'unset', installerOnly: false }),
+      installChoiceRequired({ showChoice: true, ready: true, mode: 'self', installerOnly: false }),
+      installChoiceRequired({ showChoice: true, ready: true, mode: 'self', installerOnly: true }),
+      installChoiceRequired({ showChoice: true, ready: true, mode: 'installer', installerOnly: true }),
+      installChoiceRequired({ showChoice: true, ready: false, mode: 'unset', installerOnly: true }),
+      installChoiceRequired({ showChoice: false, ready: true, mode: 'unset', installerOnly: false }),
+    ],
+    [true, false, true, false, false, false],
+  )
+  check('I08 installer-only lines', [installerOnlyLine('product'), installerOnlyLine('cart')], ['المنتج ده بيتركّب مع فني تركيب بس.', 'طلبك فيه منتج بيتركّب مع فني تركيب بس.'])
 
   return { passed, failures }
 }
