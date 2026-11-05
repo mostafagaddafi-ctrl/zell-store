@@ -31,7 +31,7 @@ export type ToolRow = {
  *    مابتعدّيش الحد.
  * ⚠️ مفيش تحويل: «كمّل لإتمام الطلب» و«افتح السلة» ظاهرين دايمًا، فالزبون
  *    يقدر يكمّل من غير أدوات.
- * اسم الأداة وصورتها لينك لصفحتها (منتج بالعدد عادي) في تبويب جديد، علشان العدّاد المختار ماتضيعش.
+ * اسم الأداة وصورتها لينك لصفحتها (منتج بالعدد عادي) في نفس التبويب (قرار المالك).
  */
 export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]; checkoutLabel: string }) {
   const cart = useCart()
@@ -82,9 +82,7 @@ export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]
               <div className="flex gap-3">
                 <Link
                   href={'/product/' + String(row.id)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={'افتح صفحة ' + row.name + ' في تبويب جديد'}
+                  aria-label={'افتح صفحة ' + row.name}
                   className="shrink-0"
                 >
                   <ImageSlot
@@ -98,7 +96,7 @@ export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]
                 </Link>
                 <div className="min-w-0 flex-1">
                   <p id={nameId} className="line-clamp-2 text-sm font-bold leading-5 text-fg">
-                    <Link href={'/product/' + String(row.id)} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    <Link href={'/product/' + String(row.id)} className="hover:underline">
                       {row.name}
                     </Link>
                   </p>
