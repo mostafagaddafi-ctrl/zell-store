@@ -76,8 +76,11 @@ function expected(cart, combo, coupon, method, cfg) {
   let snap = 'standard'
   if (method === 'express' && !inst) {
     const offer = expressOffer(OPTIONS, gov)
-    if (offer === null) errors.push('45431')
-    else { ship = offer.pricePiastres; snap = 'express' }
+    // «سريع» مش متاح من غير فني = رفض قبل أي إدخال، ومتغطّي في 0021ex_core_parity.mjs و0025_flows.sql (F03)؛ برّه المقارنة دي
+    // (وكمان علشان رقم الكود مايتكتبش هنا: EX S05).
+    if (offer === null) return null
+    ship = offer.pricePiastres
+    snap = 'express'
   } else {
     ship = standardShippingPiastres(gov, subtotal, RATES, 0, FREE)
   }
