@@ -188,3 +188,90 @@ html:has(.zell-drawer[open]) {
     animation: none;
   }
 }
+
+/* =====================================================================
+   نافذة المنتج السريعة (ProductQuickView) — قرار المالك 2026-11-05
+   =====================================================================
+   الموبايل: لوحة من تحت بعرض الشاشة، أعلى ارتفاع 88% من الشاشة، والجزء
+   اللي في النص بيسكرول لوحده (العنوان وزرار X فوق والعدّاد تحت ثابتين).
+   من sm: نافذة في نص الشاشة بعرض min(92vw, 30rem).
+
+   ⚠️ نفس سبب «.zell-drawer»: UA stylesheet بيحدد max-width/max-height
+   و border و padding لأي dialog، فلازم قيم صريحة هنا مش كلاسات Tailwind.
+   ⚠️ display: flex على [open] بس — لو على الكلاس نفسه الحوار هيظهر وهو مقفول.
+   ⚠️ ::backdrop بلون حرفي (نفس سبب الـ Drawer).
+   ===================================================================== */
+.zell-sheet {
+  position: fixed;
+  top: auto;
+  bottom: 0;
+  left: 0;
+  right: 0;
+
+  width: 100%;
+  max-width: none;
+  height: auto;
+  max-height: 88vh;
+  max-height: 88dvh;
+
+  margin: 0;
+  padding: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  border: 0;
+  border-radius: 1rem 1rem 0 0;
+  overflow: hidden;
+
+  background-color: hsl(var(--card));
+  color: hsl(var(--fg));
+  box-shadow: 0 -12px 48px rgb(18 35 58 / 0.22);
+}
+
+.zell-sheet[open] {
+  display: flex;
+  flex-direction: column;
+  animation: zell-sheet-in 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.zell-sheet::backdrop {
+  background-color: rgb(18 35 58 / 0.55);
+}
+
+.zell-sheet[open]::backdrop {
+  animation: zell-fade-in 220ms ease-out;
+}
+
+@media (min-width: 640px) {
+  .zell-sheet {
+    top: 0;
+    bottom: 0;
+    margin: auto;
+    width: min(92vw, 30rem);
+    height: fit-content;
+    max-height: 85vh;
+    max-height: 85dvh;
+    padding-bottom: 0;
+    border-radius: 1rem;
+    box-shadow: 0 12px 48px rgb(18 35 58 / 0.22);
+  }
+
+  .zell-sheet[open] {
+    animation-name: zell-fade-in;
+  }
+}
+
+/* الصفحة تحت النافذة ماتتحركش مع السكرول */
+html:has(.zell-sheet[open]) {
+  overflow: hidden;
+}
+
+@keyframes zell-sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zell-sheet[open],
+  .zell-sheet[open]::backdrop {
+    animation: none;
+  }
+}
