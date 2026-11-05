@@ -11,6 +11,7 @@ import {
   installationLengthCm,
   installationToolsHref,
   installationReadyGovernorates,
+  orderRequiresInstaller,
   isPiece,
   lineTotalPiastres,
   maxQuantityOf,
@@ -118,9 +119,12 @@ export function CartView({
   const installerGovernorates = installation ? installationReadyGovernorates(installation) : []
   const fee = installation?.feePerMeterPiastres ?? null
   const showChoice = meterCm > 0 && installerGovernorates.length > 0 && fee !== null
+  // INSTALLER-ONLY — فيلم «فني فقط» في السلة = الطلب كله بفني (الاختيار واحد للطلب كله)
+  const installerOnly =
+    showChoice && installation !== null && orderRequiresInstaller(installation, entries.map((entry) => entry.product))
   const installer = showChoice && cart.installMode === 'installer'
   // أفلام بالمقاس والخدمة ظاهرة والعميل لسه ما اختارش → مفيش انتقال لـCheckout لحد ما يختار
-  const choiceRequired = showChoice && cart.installMode === 'unset'
+  const choiceRequired = showChoice && (cart.installMode === 'unset' || (installerOnly && cart.installMode !== 'installer'))
   // أدوات التركيب = نفس تعريف Checkout (cartInstallationTools): قطعة في السلة مربوطة كإضافة بفيلم
   // بالمقاس موجود في نفس السلة. مع الفني بتتوضّح بس — مابتتشالش لوحدها (القرار الإلزامي في Checkout).
   const cartTools = cartInstallationTools(
@@ -257,6 +261,7 @@ export function CartView({
               lengthCm={meterCm}
               governorates={installerGovernorates}
               context="cart"
+              installerOnly={installerOnly}
             />
           ) : null}
           {toolEntries.length > 0 ? (
@@ -295,7 +300,9 @@ export function CartView({
                     كمّل بيانات التوصيل
                   </button>
                   <p id="cart-install-choice-required" className="text-center text-xs font-semibold text-fg">
-                    اختار «هتركّبه إزاي؟» الأول — بنفسي ولا مع فني — عشان نكمل.
+                    {installerOnly
+                      ? 'طلبك فيه منتج بيتركّب مع فني — اختار «محتاج فني تركيب» الأول عشان نكمل.'
+                      : 'اختار «هتركّبه إزاي؟» الأول — بنفسي ولا مع فني — عشان نكمل.'}
                   </p>
                 </div>
               ) : (
