@@ -241,8 +241,11 @@ export function trackMoneyLines(order: TrackedOrder): { charges: TrackMoneyLine[
   const m = order.money
   const charges: TrackMoneyLine[] = [{ label: 'الأصناف', amountPiastres: m.itemsPiastres, minus: false }]
   if (m.discountPiastres > 0) charges.push({ label: 'الخصم', amountPiastres: m.discountPiastres, minus: true })
-  // INSTALLER-SHIPPING — طلب بفني (أجر أو انتقال محفوظ؛ التتبّع مابيرجّعش علامة الفني) وشحنه المحفوظ 0 = من غير سطر شحن،
-  // والانتقال «توصيل وانتقال الفني» بقيمته. الطلب القديم بشحن > 0 = السطور القديمة بالظبط.
+  // INSTALLER-SHIPPING — طلب بفني وشحنه المحفوظ 0 = من غير سطر شحن، والانتقال «توصيل وانتقال الفني» بقيمته. الطلب القديم بشحن > 0 =
+  // السطور القديمة بالظبط.
+  // ⚠ قيد معلن (قرار المالك 2026-11-05، العقد §٣-٣): رد zell_checkout_track_order مافيهوش علامة الفني، فـ«بفني» هنا = أجر تركيب أو
+  // انتقال محفوظ > 0. طلب بفني أجره وانتقاله الاتنين 0 (إعداد نادر) بيظهر هنا بسطر «الشحن: 0» زي الطلب من غير فني؛ المبالغ والإجمالي
+  // صح، والفرق في اسم السطر في التتبّع بس. إضافة العلامة للرد = عقد وSQL لوحدهم.
   const installerDelivery = installerDeliveryShown(m.installationPiastres > 0 || m.travelPiastres > 0, m.shippingPiastres)
   if (!installerDelivery) {
     charges.push({ label: order.shipping?.method === 'express' ? 'الشحن السريع' : 'الشحن', amountPiastres: m.shippingPiastres, minus: false })
