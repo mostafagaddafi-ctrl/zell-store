@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Gift } from 'lucide-react'
-import { formatPiastres } from '@zell/core'
+import { INSTALLER_DELIVERY_LABEL, formatPiastres } from '@zell/core'
 import { DISCOUNT_SIGN } from '../../lib/orders/coupon'
 import { estimatedTotalPiastres } from '../../lib/orders/couponCheckout'
 import { CHECKOUT_FEE_TEXT, checkoutFeeSplit, type CheckoutFee } from '../../lib/orders/confirmationFee'
@@ -19,6 +19,7 @@ export function OrderSummary({
   discount,
   confirmationFee,
   shippingLabel,
+  installerDelivery = false,
 }: {
   subtotalPiastres: number
   /** null = المحافظة لسه مش متحددة */
@@ -41,6 +42,11 @@ export function OrderSummary({
   confirmationFee?: { fee: CheckoutFee; madeToMeasure: boolean; installation: boolean } | null
   /** EXPRESS-SHIPPING — «الشحن العادي» / «الشحن السريع» لما الاختيار ظاهر. ناقص = «الشحن». */
   shippingLabel?: string
+  /**
+   * INSTALLER-SHIPPING (العقد §٣-٣) — فني جاهز: من غير سطر شحن، والانتقال سطر واحد «توصيل وانتقال الفني» بقيمته
+   * (من غير «مجاني»). الشحن اللي بيتبعت هنا = 0 فبيدخل الإجمالي والمقدّم صفر.
+   */
+  installerDelivery?: boolean
 }) {
   const line = trustLine ?? 'الدفع عند الاستلام · توصيل لكل محافظات مصر'
   const installationShown = typeof installationPiastres === 'number' && typeof installationTravelPiastres === 'number'
@@ -80,6 +86,7 @@ export function OrderSummary({
             </dd>
           </div>
         ) : null}
+        {installerDelivery ? null : (
         <Row
           label={shippingLabel ?? 'الشحن'}
           value={
@@ -90,13 +97,14 @@ export function OrderSummary({
             )
           }
         />
+        )}
         {typeof installationPiastres === 'number' && typeof installationTravelPiastres === 'number' ? (
           <>
             <Row label="أجر التركيب" value={<Num>{formatPiastres(installationPiastres)}</Num>} />
             <Row
-              label="انتقال الفني"
+              label={installerDelivery ? INSTALLER_DELIVERY_LABEL : 'انتقال الفني'}
               value={
-                installationTravelPiastres === 0 ? (
+                installationTravelPiastres === 0 && !installerDelivery ? (
                   <span className="text-accent">مجاني</span>
                 ) : (
                   <Num>{formatPiastres(installationTravelPiastres)}</Num>
