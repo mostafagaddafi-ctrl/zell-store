@@ -259,6 +259,20 @@ export function runAdminCouponCases(): AdminCouponCaseFailure[] {
       totalPiastres: 97000,
     }),
   )
+  // INSTALLER-SHIPPING — طلب بفني وشحن محفوظ 0 (بعد 0025): من غير «الشحن»، والانتقال «توصيل وانتقال الفني»
+  check(
+    'order: formula with installer and stored shipping 0',
+    'الأصناف 600 ج.م \u2212 الخصم 60 ج.م + التركيب 300 ج.م + توصيل وانتقال الفني 50 ج.م = 890 ج.م',
+    orderTotalFormula({
+      subtotalPiastres: 60000,
+      discountPiastres: 6000,
+      shippingPiastres: 0,
+      installationRequested: true,
+      installationPiastres: 30000,
+      installationTravelPiastres: 5000,
+      totalPiastres: 89000,
+    }),
+  )
   check(
     'order: formula without installer',
     'الأصناف 600 ج.م \u2212 الخصم 60 ج.م + الشحن 80 ج.م = 620 ج.م',
