@@ -138,6 +138,12 @@ function displayCases(): void {
     [old.charges.reduce((sum, line) => sum + (line.minus ? -line.amountPiastres : line.amountPiastres), 0) === old.totalPiastres,
      fresh.charges.reduce((sum, line) => sum + (line.minus ? -line.amountPiastres : line.amountPiastres), 0) === fresh.totalPiastres],
     [true, true])
+  // قيد معلن (قرار المالك 2026-11-05): التتبّع مالوش علامة الفني؛ طلب بفني أجره وانتقاله 0 بيظهر زي الطلب من غير فني، والمبالغ صح.
+  const zeroInstaller = trackMoneyLines(tracked({ items: 600, shipping: 0, installation: 0, travel: 0 }, null))
+  check('I17 documented tracking limitation: installer order with fee 0 and travel 0 shows «الشحن: 0» (no installer signal in the tracking reply); amounts still add up',
+    [zeroInstaller.charges.map((line) => line.label + '=' + String(line.amountPiastres)),
+     zeroInstaller.charges.reduce((sum, line) => sum + (line.minus ? -line.amountPiastres : line.amountPiastres), 0) === zeroInstaller.totalPiastres],
+    [['الأصناف=600', 'الشحن=0'], true])
 }
 
 export async function runInstallerShippingCases(): Promise<InstallerShippingCaseReport> {
