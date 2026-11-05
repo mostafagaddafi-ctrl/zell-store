@@ -81,6 +81,7 @@
 | --- | --- |
 | `src/pricing.ts` | **التسعير — المرجع الوحيد** |
 | `src/shippingOptions.ts` | EXPRESS-SHIPPING: الشحن العادي والسريع للعرض بنفس قواعد `zell_create_order` (CI بيقارنهم: `backend/db/ci/0021ex_core_parity.mjs`) · المدة «من الشحن» · لقطة الطلب · حقل `shippingMethod`. من غير أي import عن قصد |
+| `src/installerShipping.ts` | INSTALLER-SHIPPING: الشحن المحسوب مع الفني الجاهز (0، زي `zell_create_order` بعد 0025؛ CI بيقارنهم: `backend/db/ci/0025_core_parity.mjs`) · قاعدة العرض من لقطة الطلب (فني + شحن محفوظ 0 = من غير سطر شحن، و«توصيل وانتقال الفني»). من غير أي import عن قصد |
 | `src/addons.ts` | الإضافات (القطعة) |
 | `src/installation.ts` | حساب فني التركيب |
 | `src/coupons.ts` (+ `coupons.cases.ts`) | حساب الكوبون |
