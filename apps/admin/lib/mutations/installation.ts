@@ -94,7 +94,7 @@ export async function saveInstallation(raw: unknown, rawExpected: unknown): Prom
 
   // INSTALLER-ONLY — الغايب = 'choice' (نسخة لوحة قديمة)
   const modeRaw = input['mode'] === undefined ? 'choice' : input['mode']
-  if (!isInstallationMode(modeRaw)) return { ok: false, code: 'VALIDATION', message: 'طريقة التركيب مش صحيحة' }
+  if (!isInstallationMode(modeRaw)) return { ok: false, code: 'VALIDATION', message: 'طريقة التركيب غير صحيحة.' }
   const mode: InstallationMode = modeRaw
   const idsRaw = input['installerOnlyProductIds'] === undefined ? [] : input['installerOnlyProductIds']
   if (
@@ -102,11 +102,11 @@ export async function saveInstallation(raw: unknown, rawExpected: unknown): Prom
     idsRaw.length > INSTALLER_ONLY_MAX_PRODUCTS ||
     idsRaw.some((id) => typeof id !== 'number' || !Number.isInteger(id) || id <= 0)
   ) {
-    return { ok: false, code: 'VALIDATION', message: 'منتجات «فني فقط» مش صحيحة' }
+    return { ok: false, code: 'VALIDATION', message: 'قائمة منتجات «فني فقط» غير صحيحة.' }
   }
   const installerOnlyProductIds = parseInstallerOnlyIds(idsRaw)
   if (mode === 'installer_products' && installerOnlyProductIds.length === 0) {
-    return { ok: false, code: 'VALIDATION', message: 'اختار منتج واحد على الأقل لـ«فني فقط — منتجات معينة»' }
+    return { ok: false, code: 'VALIDATION', message: 'يُرجى اختيار منتج واحد على الأقل لخيار «فني فقط — منتجات محددة».' }
   }
 
   let fee: number | null = null
