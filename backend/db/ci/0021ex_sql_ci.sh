@@ -287,9 +287,12 @@ C_FILE=$(codes < "$APPLY")
 C_EXP=$(printf '%s\n' $C_NEW 45404 45413 | sort -u | tr '\n' ' ')
 ok=no; if [ "$C_ADD" = "45431 45432 " ] && [ -z "$C_DEL" ] && [ "$C_FILE" = "$C_EXP" ] && [ -n "$C_OLD" ]; then ok=yes; fi
 record "S04 error codes: zell_create_order = P1 codes + 45431 / 45432 · the rest of the migration adds 45404 / 45413 (A1) only" "$ok" "add=$C_ADD del=$C_DEL file=$C_FILE"
-OTHER=$(grep -rlE '4543[12]' "$ROOT/backend" 2> /dev/null | grep -v '/0021ex_' | grep -v '\.md$' | tr '\n' ' ')
+# INSTALLER-SHIPPING (0025): ملفات 0025 التلاتة اللي بتحمل جسم zell_create_order بتاع 0021ex نفسه (التطبيق · الـ ptest · الرجوع)
+# وملف سيناريوهاتها اللي بيختبر الكودين نفسهم، مستثناة بالاسم بالظبط بس؛ أي ملف تاني فيه الكودين لسه بيوقّع S05.
+OTHER=$(grep -rlE '4543[12]' "$ROOT/backend" 2> /dev/null | grep -v '/0021ex_' | grep -v '\.md$' \
+  | grep -vE '/backend/db/(migrations/0025_installer_shipping(_ptest|_rollback)?\.sql|ci/0025_flows\.sql)$' | tr '\n' ' ')
 ok=no; if [ -z "$OTHER" ]; then ok=yes; fi
-record "S05 45431 / 45432 unused in any other database code file under backend/ (0021ex_* and Markdown docs excluded)" "$ok" "$OTHER"
+record "S05 45431 / 45432 unused in any other database code file under backend/ (0021ex_*, Markdown docs, and by exact name the 0025 apply/ptest/rollback carrying the same zell_create_order body + 0025_flows.sql excluded)" "$ok" "$OTHER"
 diff --minimal <(extract_def "$CO14" "$P1APPLY") <(extract_def "$CO15" "$APPLY") > "$TMP/body.diff"
 DDEL=$(grep -c '^<' "$TMP/body.diff"); DADD=$(grep -c '^>' "$TMP/body.diff")
 ok=no; if [ "$DDEL" = "3" ] && [ "$DADD" = "61" ] && grep -q '^< CREATE OR REPLACE FUNCTION public.zell_create_order(' "$TMP/body.diff"; then ok=yes; fi
