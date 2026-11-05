@@ -422,5 +422,6 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | --- | --- |
 | `migrations/0025_installer_shipping.sql` | التعديل (الجسم بين `-- >>> 0025 BODY` و`-- <<<`)، ومحتاج سطر `zell.approved_by` بعد `begin;` (`owner-approval-YYYY-MM-DD-installer-shipping`) |
 | `migrations/0025_installer_shipping_ptest.sql` | smoke قبل التطبيق (4 حالات): الجسم منسوخ بالحرف (CI بيقارن md5)، ونداءين مرفوضين قبل أي إدخال، والنتيجة صفوف |
+| `migrations/0025_installer_shipping_impact.sql` | استعلام الأثر (قراية بس، 15 عمود) قبل كل خطوة Production وبعدها: بصمة الدالة · الصلاحيات كاملة ومنها grant option (وقف لو مش بالظبط) · الحراس · الأعداد · idle_tx · رؤية الجلسات |
 | `migrations/0025_installer_shipping_verify.sql` · `_rollback.sql` | التحقق (6 فحوص) · الرجوع (محتاج سطر موافقة `…-installer-shipping-rollback`) |
 | `ci/0025_sql_ci.sh` · `ci/0025_flows.sql` | CI: بناء من القايمة كلها · حراس الـ preflight · ptest · التطبيق · الـ 10 verify قبل وبعد · مقارنة القديم بالجديد (6300 حالة × 7 نداءات) · 15 سيناريو بأرقام محسوبة · اختبارات سالبة · الرجوع وإعادة التطبيق |
