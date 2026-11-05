@@ -31,9 +31,9 @@ const MAX_POUNDS = INSTALLATION_LIMITS.maxPiastres / 100
 
 /** INSTALLER-ONLY (قرار المالك 2026-11-05) — طريقة التركيب. */
 const MODE_OPTIONS: Array<{ value: InstallationMode; title: string; hint: string }> = [
-  { value: 'choice', title: 'العميل يختار', hint: 'زي ما هو: «هركّبه بنفسي» أو «محتاج فني تركيب».' },
-  { value: 'installer_all', title: 'فني فقط — كل المنتجات', hint: 'كل أفلام المقاس بتتركّب مع فني بس.' },
-  { value: 'installer_products', title: 'فني فقط — منتجات معينة', hint: 'اختار المنتجات من القايمة تحت.' },
+  { value: 'choice', title: 'العميل يختار', hint: 'الوضع الحالي: يختار العميل بين «هركّبه بنفسي» و«محتاج فني تركيب».' },
+  { value: 'installer_all', title: 'فني فقط — كل المنتجات', hint: 'تُركَّب جميع أفلام المقاس بواسطة فني فقط.' },
+  { value: 'installer_products', title: 'فني فقط — منتجات محددة', hint: 'اختر المنتجات من القائمة أدناه.' },
 ]
 
 /** «100» أو «99.5» → قرش. فاضي · سالب · أكتر من رقمين عشريين · فوق الحد = null. */
@@ -105,7 +105,7 @@ function validate(draft: Draft): Checked {
   }
   if (fee === null && (draft.enabled || count > 0)) return { ok: false, error: 'اكتب سعر تركيب المتر' }
   if (draft.mode === 'installer_products' && draft.productIds.length === 0) {
-    return { ok: false, error: 'اختار منتج واحد على الأقل لـ«فني فقط — منتجات معينة»' }
+    return { ok: false, error: 'يُرجى اختيار منتج واحد على الأقل لخيار «فني فقط — منتجات محددة».' }
   }
   return {
     ok: true,
@@ -294,8 +294,8 @@ export function InstallationEditor({
       <Card title="طريقة التركيب">
         <div className="space-y-3">
           <p className="text-xs text-muted">
-            «فني فقط» بيخفي «هركّبه بنفسي» واقتراحات الأدوات من المنتج، والطلب كله بيبقى بفني. لو منطقة العميل مفيهاش فني، الطلب
-            بيكمل زي النهارده من غير فني. ترجع للوضع العادي باختيار «العميل يختار» والحفظ.
+            عند اختيار «فني فقط» يُخفى خيار «هركّبه بنفسي» واقتراحات الأدوات في صفحة المنتج، ويصبح الطلب كله بفني. إذا لم تتوفر
+            خدمة التركيب في منطقة العميل، يُستكمل الطلب دون فني كما هو الحال الآن. للعودة إلى الوضع المعتاد اختر «العميل يختار» ثم احفظ.
           </p>
           <div role="radiogroup" aria-label="طريقة التركيب" className="grid gap-2">
             {MODE_OPTIONS.map((option) => (
@@ -325,11 +325,11 @@ export function InstallationEditor({
 
           {draft.mode === 'installer_products' ? (
             films.length === 0 ? (
-              <p className="text-xs text-muted">مفيش أفلام بالمقاس.</p>
+              <p className="text-xs text-muted">لا توجد أفلام تُباع بالمقاس.</p>
             ) : (
               <fieldset className="space-y-1 rounded-lg border border-border p-3">
                 <legend className="px-1 text-xs font-semibold text-fg">
-                  المنتجات اللي بتتركّب مع فني بس ({String(draft.productIds.length)})
+                  المنتجات التي تُركَّب بواسطة فني فقط ({String(draft.productIds.length)})
                 </legend>
                 <ul className="max-h-72 space-y-1 overflow-y-auto">
                   {films.map((film) => (
@@ -354,7 +354,7 @@ export function InstallationEditor({
 
           {draft.mode !== 'choice' && (!draft.enabled || fee === null || enabledAreas === 0) ? (
             <p className="text-xs font-semibold text-gold">
-              «فني فقط» مش هيشتغل غير لما الفني يكون شغال وليه سعر ومنطقة مفعّلة — لحد كده العميل بيختار عادي.
+              لن يعمل «فني فقط» إلا إذا كانت خدمة التركيب مفعّلة ولها سعر متر ومنطقة مفعّلة واحدة على الأقل، وحتى ذلك الحين يختار العميل كالمعتاد.
             </p>
           ) : null}
         </div>
