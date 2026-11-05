@@ -770,10 +770,16 @@ export function CheckoutForm({
                       : 'الفني مش متاح في ' + selectedArea + ' حاليًا.'}
                   </p>
                   <p className="mt-1 text-muted">متاح في: {installerChoices.join('، ')}</p>
-                  <p className="mt-1 text-muted">ممكن تكمل الطلب من غير فني وتختار أدوات التركيب المناسبة.</p>
-                  <button type="button" onClick={chooseSelf} className={buttonClasses('secondary', 'md', 'mt-2 w-full')}>
-                    {selfLabel}
-                  </button>
+                  {/* INSTALLER-ONLY (العقد §٣-٥): المحافظة فيها فني والمنطقة لسه مااتختارتش = مفيش «هركّبه بنفسي» هنا؛
+                      الاستثناء الحقيقي (منطقة أو محافظة مفيهاش فني) بيفضل زي ما هو (§٤) */}
+                  {installerOnlyHere ? null : (
+                    <>
+                      <p className="mt-1 text-muted">ممكن تكمل الطلب من غير فني وتختار أدوات التركيب المناسبة.</p>
+                      <button type="button" onClick={chooseSelf} className={buttonClasses('secondary', 'md', 'mt-2 w-full')}>
+                        {selfLabel}
+                      </button>
+                    </>
+                  )}
                 </div>
               ) : null}
             </div>
