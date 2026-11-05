@@ -8,7 +8,7 @@
 # التطبيق: البصمة الجديدة والمالك والصلاحيات بالحرف وبصمة كل حاجة تانية زي ما هي · رفض الإعادة · verify 0025 ·
 # بعد التطبيق: EX V09 و P1 V06 و 0024 V04 بس اللي بيفشلوا، والباقي PASS من غير أخطاء تنفيذ ولا فحوص ناقصة ·
 # مقارنة القديم بالجديد والسيناريوهات (0025_flows.sql) · اختبارات سالبة (منح anon · منح PUBLIC · سحب zell_order_writer · جسم حارس ·
-# خاصية حارس · security definer للدالة) بتوقّع verify 0025 · الرجوع (من غير موافقة · بموافقة · مرة تانية) ثم ptest وإعادة التطبيق.
+# خاصية حارس · security definer للدالة · grant option · overload · توقيع ناقص) بتوقّع verify 0025 من غير أخطاء تنفيذ · الرجوع (من غير موافقة · بموافقة · مرة تانية) ثم ptest وإعادة التطبيق.
 # ممنوع يتشغّل على أي داتابيز غير الحاوية المؤقتة.
 set -uo pipefail
 
@@ -40,7 +40,7 @@ SEEN=" "
 OLD_MD5=62924d0fe9b1563e76c54bbddfb628b4
 NEW_MD5=03e839e30fe7d0c9354d1df4f21b71b3
 CO="public.zell_create_order(jsonb, text, text, text, text, text, text, text, text, text, text, boolean, text, jsonb, text)"
-EXPECTED="S01 S02 S03 S04 B01 V01 E01 E02 E03 E04 E05 E06 P01 A01 A02 A03 V02 V03 P02 F01 N01 N02 N03 N04 N05 N06 RB1 RB2 RB3 RB4 RA1"
+EXPECTED="S01 S02 S03 S04 B01 V01 E01 E02 E03 E04 E05 E06 P01 A01 A02 A03 V02 V03 P02 F01 N01 N02 N03 N04 N05 N06 N07 N08 N09 RB1 RB2 RB3 RB4 RA1"
 VLIST="A1:0021a_a1_order_cycle_verify.sql:7 D:0021d_preferred_delivery_verify.sql:7 P1:0021a_p1_payments_verify.sql:7 P2:0021a_p2_checkout_fee_verify.sql:7 D2:0021d2_delivery_settings_verify.sql:7 TR:0021tr_track_order_verify.sql:7 TR2:0021tr2_track_order_v2_verify.sql:7 EX:0021ex_express_shipping_verify.sql:7 0021-P:0021p_access_verify.sql:11 0024:0024_order_delete_verify.sql:7"
 US="$(printf '\037')"
 
@@ -284,6 +284,15 @@ record "N05 shipment guard made security definer -> verify 0025 FAIL on V06 only
 q "alter function $CO security invoker" > "$TMP/n6a.log"; N6=$(v25 n6); q "alter function $CO security definer" > "$TMP/n6b.log"
 ok=no; case "$N6" in "FAIL rc=0 checks=6 fails=V03,") ok=yes ;; esac; [ "$(co_state)" = "$ST1" ] || ok=no
 record "N06 zell_create_order made security invoker -> verify 0025 FAIL on V03 only; restored with the same ACL" "$ok" "$N6 state=$(co_state) $(cat "$TMP/n6a.log" "$TMP/n6b.log" | tr '\n' ' ')"
+q "grant execute on function $CO to service_role with grant option" > "$TMP/n7a.log"; N7=$(v25 n7); q "revoke grant option for execute on function $CO from service_role" > "$TMP/n7b.log"
+ok=no; case "$N7" in "FAIL rc=0 checks=6 fails=V04,") ok=yes ;; esac; [ "$(co_state)" = "$ST1" ] || ok=no
+record "N07 EXECUTE re-granted to service_role WITH GRANT OPTION (same grantee set) -> verify 0025 FAIL on V04 only; grant option revoked, ACL identical" "$ok" "$N7 state=$(co_state) $(cat "$TMP/n7a.log" "$TMP/n7b.log" | tr '\n' ' ')"
+q "create function public.zell_create_order(integer) returns integer language sql as 'select 1'" > "$TMP/n8a.log"; N8=$(v25 n8); q "drop function public.zell_create_order(integer)" > "$TMP/n8b.log"
+ok=no; case "$N8" in "FAIL rc=0 checks=6 fails=V01,") ok=yes ;; esac; [ "$(co_state)" = "$ST1" ] || ok=no
+record "N08 a second zell_create_order (overload) -> verify 0025 returns rows (no execution error): FAIL on V01 only; removed" "$ok" "$N8 $(tailof "$TMP/v25.n8.out" | tr "$US" '|') $(cat "$TMP/n8a.log" "$TMP/n8b.log" | tr '\n' ' ')"
+q "alter function $CO rename to zell_create_order_ci_renamed" > "$TMP/n9a.log"; N9=$(v25 n9); q "alter function public.zell_create_order_ci_renamed(jsonb, text, text, text, text, text, text, text, text, text, text, boolean, text, jsonb, text) rename to zell_create_order" > "$TMP/n9b.log"
+ok=no; case "$N9" in "FAIL rc=0 checks=6 fails=V01,V02,V03,V04,") ok=yes ;; esac; [ "$(co_state)" = "$ST1" ] || ok=no
+record "N09 no zell_create_order with the 15-argument signature (renamed) -> verify 0025 returns rows (no execution error): FAIL on V01-V04; renamed back, state identical" "$ok" "$N9 $(tailof "$TMP/v25.n9.out" | tr "$US" '|') $(cat "$TMP/n9a.log" "$TMP/n9b.log" | tr '\n' ' ')"
 V2B=$(v25 v2b)
 [ "$V2B" = "PASS rc=0 checks=6 fails=" ] || echo "NOTE verify 0025 after negative tests: $V2B"
 
