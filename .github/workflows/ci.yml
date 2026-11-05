@@ -856,7 +856,7 @@ jobs:
           if [ "$EVENT" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           if [ "$EVENT" = "pull_request" ]; then range="$BASE_SHA...HEAD"; else range="$BEFORE_SHA..HEAD"; fi
           if ! changed=$(git diff --name-only "$range" 2>/dev/null); then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if printf '%s\n' "$changed" | grep -Eq '^(backend/db/migrations/|backend/db/ci/0025_|backend/db/ci/build_from_scratch\.list$|backend/db/ci/platform_|backend/db/ci/fixtures/|backend/db/baseline/|backend/db/schema\.sql$|backend/db/ci/0021p_txn_shape\.py$|\.github/workflows/ci\.yml$)'; then
+          if printf '%s\n' "$changed" | grep -Eq '^(backend/db/migrations/|backend/db/ci/0025_|packages/core/|backend/db/ci/build_from_scratch\.list$|backend/db/ci/platform_|backend/db/ci/fixtures/|backend/db/baseline/|backend/db/schema\.sql$|backend/db/ci/0021p_txn_shape\.py$|\.github/workflows/ci\.yml$)'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -885,6 +885,12 @@ jobs:
 
       - name: psql client
         run: psql --version
+
+      # Node لـ C01 (0025_core_parity.mjs: حساب packages/core = الداتابيز بعد 0025، من غير أي dependency) — زي sql-0024.
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       - name: SQL suite (0025 on a database built from the whole build_from_scratch.list)
         run: bash backend/db/ci/0025_sql_ci.sh
