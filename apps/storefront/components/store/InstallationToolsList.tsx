@@ -31,6 +31,7 @@ export type ToolRow = {
  *    مابتعدّيش الحد.
  * ⚠️ مفيش تحويل: «كمّل لإتمام الطلب» و«افتح السلة» ظاهرين دايمًا، فالزبون
  *    يقدر يكمّل من غير أدوات.
+ * اسم الأداة وصورتها لينك لصفحتها (منتج بالعدد عادي) في تبويب جديد، علشان العدّاد المختار ماتضيعش.
  */
 export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]; checkoutLabel: string }) {
   const cart = useCart()
@@ -79,17 +80,27 @@ export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]
           return (
             <li key={row.id} className="rounded-lg border border-border bg-card p-3 sm:p-4">
               <div className="flex gap-3">
-                <ImageSlot
-                  ratio="1/1"
-                  fit="contain"
-                  src={row.imageUrl}
-                  alt={row.imageAlt}
-                  sizes="72px"
-                  className="h-[72px] w-[72px] shrink-0"
-                />
+                <Link
+                  href={'/product/' + String(row.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={'افتح صفحة ' + row.name + ' في تبويب جديد'}
+                  className="shrink-0"
+                >
+                  <ImageSlot
+                    ratio="1/1"
+                    fit="contain"
+                    src={row.imageUrl}
+                    alt={row.imageAlt}
+                    sizes="72px"
+                    className="h-[72px] w-[72px] shrink-0"
+                  />
+                </Link>
                 <div className="min-w-0 flex-1">
                   <p id={nameId} className="line-clamp-2 text-sm font-bold leading-5 text-fg">
-                    {row.name}
+                    <Link href={'/product/' + String(row.id)} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                      {row.name}
+                    </Link>
                   </p>
                   <p className="mt-1 text-sm">
                     <span className="font-extrabold text-fg">
