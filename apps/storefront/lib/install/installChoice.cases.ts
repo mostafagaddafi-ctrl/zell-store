@@ -109,7 +109,7 @@ export function runInstallChoiceCases(): { passed: number; failures: InstallCase
     ],
     [true, false, true, false, false, false],
   )
-  check('I08 installer-only lines', [installerOnlyLine('product'), installerOnlyLine('cart')], ['المنتج ده بيتركّب مع فني تركيب بس.', 'طلبك فيه منتج بيتركّب مع فني تركيب بس.'])
+  check('I08 installer-only lines', [installerOnlyLine('product'), installerOnlyLine('cart')], ['المنتج ده متاح بفني.', 'طلبك فيه منتج بيتركّب مع فني تركيب بس.'])
 
   return { passed, failures }
 }

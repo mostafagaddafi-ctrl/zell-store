@@ -9,7 +9,7 @@ import { installerOnlyLine } from '../../lib/install/installChoice'
 
 const OPTIONS: Array<{ value: ChosenInstallMode; title: string; hint: string }> = [
   { value: 'self', title: 'هركّبه بنفسي', hint: 'تختار أدوات التركيب اللي محتاجها' },
-  { value: 'installer', title: 'محتاج فني تركيب', hint: 'فني يركّبهولك — أجر بالمتر + انتقال' },
+  { value: 'installer', title: 'محتاج فني تركيب', hint: 'أجر بالمتر + انتقال حسب منطقتك' },
 ]
 
 /**

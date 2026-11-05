@@ -36,7 +36,7 @@ export function showToolSuggestions(state: { installer: boolean; choicePending: 
 
 /** INSTALLER-ONLY — سطر توضيح تحت «هتركّبه إزاي؟» لما الفني بس هو المتاح. */
 export function installerOnlyLine(context: 'product' | 'cart'): string {
-  return context === 'product' ? 'المنتج ده بيتركّب مع فني تركيب بس.' : 'طلبك فيه منتج بيتركّب مع فني تركيب بس.'
+  return context === 'product' ? 'المنتج ده متاح بفني.' : 'طلبك فيه منتج بيتركّب مع فني تركيب بس.'
 }
 
 /**
