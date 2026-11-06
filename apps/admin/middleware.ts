@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createMiddlewareClient } from './lib/auth/supabaseMiddleware'
+import { createMiddlewareClient, redirectWithCookies } from './lib/auth/supabaseMiddleware'
 
 /**
  * تجديد الجلسة + توجيه مبدئي.
@@ -17,16 +17,7 @@ function isPublic(pathname: string): boolean {
   return pathname.startsWith('/auth/')
 }
 
-/** نقل كوكيز الجلسة المجدّدة على رد التوجيه، وإلا التجديد بيضيع. */
-function redirectWithCookies(target: URL, carrier: NextResponse | null): NextResponse {
-  const redirectResponse = NextResponse.redirect(target)
-  if (carrier) {
-    for (const cookie of carrier.cookies.getAll()) {
-      redirectResponse.cookies.set(cookie)
-    }
-  }
-  return redirectResponse
-}
+// redirectWithCookies (نقل كوكيز الجلسة المجدّدة على رد التوجيه) اتنقلت لـ lib/auth/supabaseMiddleware.ts من غير تغيير.
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname, search } = request.nextUrl
