@@ -179,6 +179,12 @@ export async function runAuthCookieCases(): Promise<AuthCookieCaseReport> {
   const env = process.env as Record<string, string | undefined>
   const saved = { url: env['SUPABASE_URL'], key: env['SUPABASE_ANON_KEY'], node: env['NODE_ENV'] }
   const savedFetch = globalThis.fetch
+  // supabase-js بيعمل عميل realtime وقت إنشاء العميل، وrealtime-js بيدوّر على WebSocket ساعتها (Node 20 في CI مفيهوش
+  // WebSocket أصلي؛ Edge وNode الأحدث فيهم). مفيش اتصال بيتفتح في الحالات دي، فـ class فاضية كفاية، وبترجع زي ما كانت بعدها.
+  const g = globalThis as unknown as Record<string, unknown>
+  const hadWebSocket = typeof g['WebSocket'] !== 'undefined'
+  const savedWebSocket = g['WebSocket']
+  if (!hadWebSocket) g['WebSocket'] = class CasesWebSocket {}
   const log: FetchLog = { calls: [], unexpected: [] }
   let signIn: () => Record<string, unknown> = () => session(nowSeconds() + 3600, 'refresh-1')
   const credentials = { email: USER.email, password: 'cases-password' }
@@ -294,6 +300,8 @@ export async function runAuthCookieCases(): Promise<AuthCookieCaseReport> {
     check('no unexpected network call', '[]', JSON.stringify(log.unexpected))
   } finally {
     globalThis.fetch = savedFetch
+    if (hadWebSocket) g['WebSocket'] = savedWebSocket
+    else delete g['WebSocket']
     restoreEnv(env, 'SUPABASE_URL', saved.url)
     restoreEnv(env, 'SUPABASE_ANON_KEY', saved.key)
     restoreEnv(env, 'NODE_ENV', saved.node)
