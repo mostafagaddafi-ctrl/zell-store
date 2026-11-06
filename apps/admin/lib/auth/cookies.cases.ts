@@ -208,13 +208,10 @@ export async function runAuthCookieCases(): Promise<AuthCookieCaseReport> {
     })
 
     await step('C2+C5', async () => {
-      const seed = fakeStore()
-      signIn = () => session(nowSeconds() - 120, 'refresh-expired')
-      await serverClient(seed).auth.signInWithPassword(credentials)
-      await settle()
-      signIn = () => session(nowSeconds() + 3600, 'refresh-1')
-      const cookieHeader = [...seed.jar].map(([name, value]) => name + '=' + value).join('; ')
-      check('C2 expired session cookie seeded', 'true', String(cookieHeader.includes(COOKIE_NAME)))
+      // جلسة منتهية بنفس الشكل اللي المكتبة بتكتبه (base64- + base64url لـ JSON الجلسة؛ اتأكد من C1/CI). الدخول بجلسة منتهية
+      // مايتسجّلش منتهي (المكتبة بتجدّده قبل ما يتكتب)، فالكوكي بيتبني هنا مباشرة.
+      const expired = session(nowSeconds() - 120, 'refresh-expired')
+      const cookieHeader = COOKIE_NAME + '=base64-' + b64url(JSON.stringify(expired))
 
       const request = new NextRequest(ADMIN_ORIGIN + '/orders', { headers: { cookie: cookieHeader } })
       const before = log.calls.length
@@ -222,9 +219,7 @@ export async function runAuthCookieCases(): Promise<AuthCookieCaseReport> {
       const user = await supabase.auth.getUser()
       await settle()
       const c2Calls = log.calls.slice(before)
-      const seeded = seed.jar.get(COOKIE_NAME) ?? ''
-      const seededExpiresAt = seeded.startsWith('base64-') ? String((JSON.parse(atob(seeded.slice(7).replace(/-/g, '+').replace(/_/g, '/'))) as { expires_at?: number }).expires_at ?? null) : 'not base64'
-      check('C2 refresh call made', 'true', c2Calls.includes('POST /auth/v1/token?grant_type=refresh_token') ? 'true' : 'false; calls=' + JSON.stringify(c2Calls) + '; seeded expires_at=' + seededExpiresAt + '; now=' + String(nowSeconds()))
+      check('C2 refresh call made', 'true', c2Calls.includes('POST /auth/v1/token?grant_type=refresh_token') ? 'true' : 'false; calls=' + JSON.stringify(c2Calls))
       check('C2 user after refresh', USER.id, String(user.data.user?.id ?? null))
       const response = getResponse()
       const all = setCookies(response).filter((c) => SESSION_NAME.test(c.name))
