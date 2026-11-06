@@ -208,8 +208,9 @@ export async function runAuthCookieCases(): Promise<AuthCookieCaseReport> {
     })
 
     await step('C2+C5', async () => {
-      // جلسة منتهية بنفس الشكل اللي المكتبة بتكتبه (base64- + base64url لـ JSON الجلسة؛ اتأكد من C1/CI). الدخول بجلسة منتهية
-      // مايتسجّلش منتهي (المكتبة بتجدّده قبل ما يتكتب)، فالكوكي بيتبني هنا مباشرة.
+      // جلسة منتهية بنفس الشكل اللي المكتبة بتكتبه (base64- + base64url لـ JSON الجلسة؛ اتأكد بفك كوكي اتكتب فعلًا في CI).
+      // الكوكي بيتبني هنا مباشرة: في CI، الكوكي اللي اتكتب بعد دخول برد جلسة منتهية طلع بتاريخ صلاحية جديد (+3600)،
+      // فماينفعش كبذرة لحالة التجديد. السبب مااتحققش من مصدر المكتبة، ومش جزء من الحالة.
       const expired = session(nowSeconds() - 120, 'refresh-expired')
       const cookieHeader = COOKIE_NAME + '=base64-' + b64url(JSON.stringify(expired))
 
