@@ -1,7 +1,7 @@
 /**
  * حالات اختبار PR5 (أكواد الخصم في اللوحة) — منطق خالص بس، من غير أي نداء داتابيز ولا كتابة.
- * runAdminCouponCases() بترجّع الحالات اللي فشلت بس (فاضية = كله تمام). الـCI بيعمل typecheck
- * للملف ده، ومحدش بيستورده فمابيدخلش في الـbundle.
+ * runAdminCouponCases() بترجّع { passed, failures } (failures فاضية = كله تمام). بتتشغّل فعليًا في CI من مشغّل
+ * حالات اللوحة (suite coupons)، ومحدش بيستورد الملف فمابيدخلش في الـbundle.
  *
  * ⚠️ مفيش هنا أي إنشاء كوبون ولا تغيير coupons_enabled ولا حالة أوردر.
  */
@@ -36,6 +36,7 @@ import {
 } from './form'
 
 export type AdminCouponCaseFailure = { name: string; expected: string; actual: string }
+export type AdminCouponCaseReport = { passed: number; failures: AdminCouponCaseFailure[] }
 
 const PERCENT: CouponInput = {
   code: ' zell10 ',
@@ -115,10 +116,12 @@ const ROW: CouponRow = {
   references: [{ count: 4 }],
 }
 
-export function runAdminCouponCases(): AdminCouponCaseFailure[] {
+export function runAdminCouponCases(): AdminCouponCaseReport {
   const failures: AdminCouponCaseFailure[] = []
+  let passed = 0
   const check = (name: string, expected: string, actual: string) => {
-    if (expected !== actual) failures.push({ name, expected, actual })
+    if (expected === actual) passed += 1
+    else failures.push({ name, expected, actual })
   }
 
   // ── الصلاحية: المالك بس (السيرفر بيطبقها في كل action قبل أي حاجة) ──
@@ -293,5 +296,5 @@ export function runAdminCouponCases(): AdminCouponCaseFailure[] {
   check('new: table targets (gate closed)', 'confirmed,cancelled', allowedTargets('new', false).join(','))
   check('cancelled: message', 'هذا الطلب ملغى، والإلغاء نهائي ولا يمكن إعادته لأي حالة أخرى.', ORDER_CANCELLED_FINAL_MESSAGE)
 
-  return failures
+  return { passed, failures }
 }
