@@ -7,8 +7,10 @@
  * dependency جديدة ولا تغيير في pnpm-lock.yaml) لـ CommonJS في مجلد مؤقت، وبعدين بيشغّل
  * دالة الحالات فعليًا ويطبع كل فشل بالتفصيل.
  *
- * ⚠️ الملفات اللي بتتشغّل لازم تكون خالية من server-only ومن أي استيراد قيمة برّه المجلد
- *    (استيراد الأنواع بس مسموح لأنه بيتشال وقت التحويل). لو حد كسر القاعدة دي التشغيل بيفشل.
+ * ⚠️ الملفات اللي بتتشغّل لازم تكون خالية من server-only ومن أي استيراد قيمة برّه المجلد غير @zell/core
+ *    (استيراد الأنواع بس مسموح لأنه بيتشال وقت التحويل). لو حد كسر القاعدة دي التشغيل بيفشل. استثناء: مجلدات
+ *    also في الـ suite بتتحوّل قبلها (المجلد نفسه بس، من غير اللي جواه)، فاستيراد قيمة منها مسموح.
+ * @zell/core: زي apps/storefront/scripts/run-cases.mjs، packages/core/src بيتحوّل لـ node_modules/@zell/core المؤقت.
  *
  * سطر النتيجة:  ZELL_ADMIN_CASES_RESULT pass=<n> fail=<n>
  * والخروج بكود 1 لو فيه أي فشل، أو لو مفيش ولا حالة اتشغّلت.
@@ -22,6 +24,7 @@ import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
 const appRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
+const coreSrc = join(appRoot, '..', '..', 'packages', 'core', 'src')
 
 const SUITES = [
   { name: 'access', dir: 'lib/access', entry: 'access.cases.ts', run: 'runAccessCases' },
@@ -40,6 +43,8 @@ const SUITES = [
   { name: 'policy-save', dir: 'lib/content', entry: 'policySave.cases.ts', run: 'runPolicySaveCases' },
   { name: 'product-delete', dir: 'lib/products', entry: 'deleteProduct.cases.ts', run: 'runProductDeleteCases' },
   { name: 'order-purge', dir: 'lib/orders', entry: 'purge.cases.ts', run: 'runOrderPurgeCases' },
+  // أكواد الخصم: الحالات كانت بتتعمل typecheck بس ومابتتشغّلش (مراجعة أمنية 2026-11).
+  { name: 'coupons', dir: 'lib/coupons', entry: 'form.cases.ts', run: 'runAdminCouponCases', also: ['lib', 'lib/orders'] },
 ]
 
 const COMPILER_OPTIONS = {
@@ -47,6 +52,24 @@ const COMPILER_OPTIONS = {
   target: ts.ScriptTarget.ES2022,
   esModuleInterop: true,
   isolatedModules: true,
+}
+
+function transpileDir(srcDir, outDir) {
+  mkdirSync(outDir, { recursive: true })
+  for (const file of readdirSync(srcDir)) {
+    if (!file.endsWith('.ts') || file.endsWith('.d.ts')) continue
+    const source = readFileSync(join(srcDir, file), 'utf8')
+    const result = ts.transpileModule(source, { fileName: file, reportDiagnostics: true, compilerOptions: COMPILER_OPTIONS })
+    if (result.diagnostics && result.diagnostics.length > 0) {
+      const text = ts.formatDiagnostics(result.diagnostics, {
+        getCanonicalFileName: (name) => name,
+        getCurrentDirectory: () => srcDir,
+        getNewLine: () => '\n',
+      })
+      throw new Error('تحويل ' + srcDir + '/' + file + ' فشل:\n' + text)
+    }
+    writeFileSync(join(outDir, file.replace(/\.ts$/, '.js')), result.outputText)
+  }
 }
 
 const outRoot = mkdtempSync(join(tmpdir(), 'zell-admin-cases-'))
@@ -57,25 +80,14 @@ let totalPass = 0
 let totalFail = 0
 
 try {
-  for (const suite of SUITES) {
-    const srcDir = join(appRoot, suite.dir)
-    const outDir = join(outRoot, suite.dir)
-    mkdirSync(outDir, { recursive: true })
+  const coreOut = join(outRoot, 'node_modules', '@zell', 'core')
+  transpileDir(coreSrc, coreOut)
+  writeFileSync(join(coreOut, 'package.json'), '{ "name": "@zell/core", "type": "commonjs", "main": "index.js" }\n')
 
-    for (const file of readdirSync(srcDir)) {
-      if (!file.endsWith('.ts') || file.endsWith('.d.ts')) continue
-      const source = readFileSync(join(srcDir, file), 'utf8')
-      const result = ts.transpileModule(source, { fileName: file, reportDiagnostics: true, compilerOptions: COMPILER_OPTIONS })
-      if (result.diagnostics && result.diagnostics.length > 0) {
-        const text = ts.formatDiagnostics(result.diagnostics, {
-          getCanonicalFileName: (name) => name,
-          getCurrentDirectory: () => srcDir,
-          getNewLine: () => '\n',
-        })
-        throw new Error('تحويل ' + suite.dir + '/' + file + ' فشل:\n' + text)
-      }
-      writeFileSync(join(outDir, file.replace(/\.ts$/, '.js')), result.outputText)
-    }
+  for (const suite of SUITES) {
+    for (const extra of suite.also || []) transpileDir(join(appRoot, extra), join(outRoot, extra))
+    const outDir = join(outRoot, suite.dir)
+    transpileDir(join(appRoot, suite.dir), outDir)
 
     const mod = require(join(outDir, suite.entry.replace(/\.ts$/, '.js')))
     const runner = mod[suite.run]
