@@ -50,6 +50,10 @@ jobs:
       - name: Build storefront
         run: pnpm --filter @zell/storefront build
 
+      # COOKIES-HEADERS §٤-٢ — الـ headers النهائية لكل مسار عيّنة من routes-manifest بعد البناء (من غير شبكة).
+      - name: "security headers: storefront"
+        run: node scripts/check-security-headers.mjs storefront
+
       # لوحة التحكم بتتبني في CI بس **ما بتتنشرش** — مشروع Vercel
       # مربوط على apps/storefront فقط.
       - name: Typecheck admin
@@ -80,6 +84,9 @@ jobs:
 
       - name: Build admin
         run: pnpm --filter @zell/admin build
+
+      - name: "security headers: admin"
+        run: node scripts/check-security-headers.mjs admin
 
   # 0021-P — job منفصل جوه نفس الـ workflow: بيشتغل لما ملفات 0021-P تتغيّر بس (غير كده بيظهر skipped).
   sql-0021d-changes:
