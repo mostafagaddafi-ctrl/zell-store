@@ -103,19 +103,35 @@ const sources = new Map()
 for (const f of files) sources.set(f, stripComments(fs.readFileSync(path.join(root, f), 'utf8')))
 
 // Name maps: export const NAME = { key: 'zell_x', ... } (as const) — every value a string literal.
+// The object body is read entry by entry (readArg stops at each top-level comma, so it is called until the closing
+// brace). Before 2026-11 only the first entry was read, so a map call was checked for one name only (ORDER_FUNCTIONS:
+// 1 of 29). An exported object with a 'zell_'/'erp_' value whose entries do not all parse as names is MAP_UNPARSED
+// (fails) instead of being skipped silently. Self-test: backend/db/ci/call_contract.selftest.mjs.
 const maps = new Map()
+const mapProblems = []
 for (const [f, s] of sources) {
   const re = /export\s+const\s+([A-Z][A-Z0-9_]*)\s*(?::[^=]+)?=\s*\{/g
   let m
   while ((m = re.exec(s))) {
-    const [body] = readArg(s, m.index + m[0].length)
+    const parts = []
+    let i = m.index + m[0].length
+    let term = ','
+    while (term === ',') {
+      const [part, next, t] = readArg(s, i)
+      parts.push(part)
+      i = next + 1
+      term = t
+    }
+    const entries = parts.filter(Boolean)
     const vals = []
-    let all = true
-    for (const part of body.split(',').map((x) => x.trim()).filter(Boolean)) {
+    let all = term === '}'
+    for (const part of entries) {
       const mm = part.match(/^[A-Za-z_$][\w$]*\s*:\s*'([a-z][a-z0-9_]*)'$/)
       if (mm) vals.push(mm[1]); else all = false
     }
-    if (all && vals.length && vals.every((v) => /^(zell|erp)_/.test(v))) maps.set(m[1], { file: f, names: vals })
+    const line = s.slice(0, m.index).split('\n').length
+    if (all && vals.length && vals.every((v) => /^(zell|erp)_/.test(v))) maps.set(m[1], { file: f, line, names: vals })
+    else if (entries.some((p) => /:\s*'(zell|erp)_/.test(p))) mapProblems.push(f + ':' + line + ' ' + m[1])
   }
 }
 
@@ -155,6 +171,7 @@ for (const [f, s] of sources) {
 const exc = policy.exceptions || []
 const used = new Set()
 let bad = 0
+for (const p of mapProblems) { console.log('MAP_UNPARSED ' + p); bad++ }
 for (const s of sites) {
   if (s.kind === 'ok') continue
   const k = exc.findIndex((e) => e.file === s.file && e.first_arg === s.first_arg && e.kind === s.kind)
@@ -218,5 +235,6 @@ const sql = [
 fs.writeFileSync(opt.sql, sql)
 const counts = { files: files.length, sites: sites.length, ok: sites.filter((s) => s.kind === 'ok').length, params_unknown: sites.filter((s) => s.kind === 'params_unknown').length, name_unparsed: sites.filter((s) => s.kind === 'name_unparsed').length, maps: [...maps.keys()].sort(), checks: rows.length }
 console.log('ZELL_CALLS ' + JSON.stringify(counts))
+for (const [k, v] of [...maps].sort()) console.log('MAP ' + k + ' ' + v.file + ':' + v.line + ' names=' + v.names.length)
 for (const s of sites) console.log('SITE ' + s.kind + ' ' + s.file + ':' + s.line + ' ' + s.role + ' ' + (s.names ? s.names.join(',') : '?') + ' params=' + (s.params ? s.params.join(',') : '?') + ' first_arg=' + s.first_arg)
 process.exit(bad ? 1 : 0)
