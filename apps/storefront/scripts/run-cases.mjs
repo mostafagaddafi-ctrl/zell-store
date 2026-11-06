@@ -30,6 +30,7 @@ const SUITES = [
   { name: 'home', dir: 'lib/home', entry: 'homeLayout.cases.ts', run: 'runHomeLayoutCases' },
   { name: 'track', dir: 'lib/orders', entry: 'trackOrder.cases.ts', run: 'runTrackOrderCases' },
   { name: 'shipping', dir: 'lib/orders', entry: 'shipping.cases.ts', run: 'runShippingCases' },
+  { name: 'installer-shipping', dir: 'lib/orders', entry: 'installerShipping.cases.ts', run: 'runInstallerShippingCases' },
   { name: 'size', dir: 'lib/size', entry: 'sizeEntry.cases.ts', run: 'runSizeCases' },
   { name: 'size-texts', dir: 'lib/size', entry: 'sizeTexts.cases.ts', run: 'runSizeTextsCases' },
   { name: 'nav', dir: 'lib/nav', entry: 'storeNav.cases.ts', run: 'runStoreNavCases' },

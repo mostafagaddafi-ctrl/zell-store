@@ -23,6 +23,7 @@ import {
   type CouponKind,
 } from '@zell/core'
 import { formatDateTime, formatPiastres } from '../format'
+import { INSTALLER_DELIVERY_LABEL, installerDeliveryShown } from '@zell/core'
 
 export const COUPON_NOTE_MAX = 500
 /** أقصى int4 — حد max_uses و max_uses_per_phone في الداتابيز. */
@@ -510,10 +511,15 @@ export function orderTotalFormula(parts: {
   const terms = [
     'الأصناف ' + formatPiastres(parts.subtotalPiastres),
     MINUS + ' الخصم ' + formatPiastres(parts.discountPiastres),
-    '+ الشحن ' + formatPiastres(parts.shippingPiastres),
   ]
+  // INSTALLER-SHIPPING — طلب بفني وشحنه المحفوظ 0: من غير «الشحن»، والانتقال «توصيل وانتقال الفني» (من لقطة الطلب).
+  const installerDelivery = installerDeliveryShown(parts.installationRequested, parts.shippingPiastres)
+  if (!installerDelivery) terms.push('+ الشحن ' + formatPiastres(parts.shippingPiastres))
   if (parts.installationRequested) {
-    terms.push('+ التركيب ' + formatPiastres(parts.installationPiastres), '+ الانتقال ' + formatPiastres(parts.installationTravelPiastres))
+    terms.push(
+      '+ التركيب ' + formatPiastres(parts.installationPiastres),
+      (installerDelivery ? '+ ' + INSTALLER_DELIVERY_LABEL + ' ' : '+ الانتقال ') + formatPiastres(parts.installationTravelPiastres),
+    )
   }
   return terms.join(' ') + ' = ' + formatPiastres(parts.totalPiastres)
 }

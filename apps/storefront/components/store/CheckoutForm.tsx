@@ -12,6 +12,7 @@ import {
   hasErrors,
   installationAreasIn,
   installationFeePiastres,
+  chargedShippingPiastres,
   installationLengthCm,
   installationReadyGovernorates,
   orderRequiresInstaller,
@@ -46,7 +47,15 @@ import { couponBlockReason, couponDraftCode, couponPayloadField, estimateCoupon,
 import { useCheckoutCoupon } from '../../lib/useCheckoutCoupon'
 import type { CheckoutFee } from '../../lib/orders/confirmationFee'
 import { deliveryNote, showDeliveryChoice, type CheckoutDeliverySettings } from '../../lib/orders/deliverySettings'
-import { SHIPPING_CHOICE_TEXT, shippingChoiceView, shippingSubmitField, shippingSummaryLabel, strandedNotice } from '../../lib/orders/shippingChoice'
+import {
+  SHIPPING_CHOICE_TEXT,
+  checkoutShippingField,
+  shippingBlockShown,
+  shippingChoiceShown,
+  shippingChoiceView,
+  shippingSummaryLabel,
+  strandedNotice,
+} from '../../lib/orders/shippingChoice'
 import { Button, buttonClasses } from '../ui/Button'
 import { Field, inputClasses, textareaClasses } from '../ui/Field'
 import { ImageSlot } from '../ui/ImageSlot'
@@ -326,6 +335,9 @@ export function CheckoutForm({
       : null
   // مختار فني والمنطقة ناقصة أو مش متاحة → الإرسال مقفول لحد ما يختار متاحة أو «هركّبه بنفسي»
   const installationBlocked = installationChosen && !installationReady
+  // INSTALLER-SHIPPING (العقد §٣-٣) — فني جاهز = الشحن 0 (zell_create_order بعد 0025)، والانتقال هو مصاريف التوصيل.
+  // الفني مش متاح أو اتحوّل لـ«بنفسي» = الشحن العادي يرجع (installationReady = false).
+  const chargedShipping = chargedShippingPiastres(installationReady, shipping)
   // PR4 — نية فني والمحافظة مالهاش فني: الطلب مايكملش من غير ما العميل يختار «هركّبه بنفسي»
   const installerGovernorates = installationReadyGovernorates(settings.installation)
   const intentStranded = installation && values.governorate !== '' && meterLengthCm > 0 && installerChoices.length === 0
@@ -382,7 +394,7 @@ export function CheckoutForm({
     couponEstimate.kind === 'ok' ? { code: couponEstimate.code, piastres: couponEstimate.discountPiastres } : null
 
   const submitBlocked =
-    installationBlocked || intentStranded || choiceRequired || toolsDecisionPending || couponBlock !== null || shippingView.stranded
+    installationBlocked || intentStranded || choiceRequired || toolsDecisionPending || couponBlock !== null || shippingBlockShown(shippingView, installationReady)
 
   // «هركّبه بنفسي وشوف أدوات التركيب»: الاختيار يرجع «بنفسي» (بيتحفظ في السلة)، والعميل يروح لأدوات
   // أفلام سلته بنفس معيار زرار السلة. مفيش صفحة أدوات أو مفيش أدوات → يفضل هنا برسالة، من غير رابط ميت.
@@ -433,7 +445,8 @@ export function CheckoutForm({
       return
     }
     // EXPRESS-SHIPPING — سريع مختار ومش متاح دلوقتي = مفيش إرسال ولا canonical ولا مفتاح جديد (الحاجز فوق بيقفل الزرار كمان)
-    const shippingField = shippingSubmitField(shippingView)
+    // INSTALLER-SHIPPING — مع فني جاهز مفيش shippingMethod خالص (الداتابيز بتتجاهله كمان)
+    const shippingField = checkoutShippingField(shippingView, installationReady)
     if (shippingField === null) return
 
     coupon.submitStart()
@@ -620,7 +633,7 @@ export function CheckoutForm({
             </Field>
           ) : null}
 
-          {shippingView.offer !== null ? (
+          {shippingChoiceShown(shippingView, installationReady) && shippingView.offer !== null ? (
             <fieldset className="space-y-2">
               <legend className="mb-1 text-sm font-semibold text-fg">طريقة الشحن</legend>
               <label
@@ -677,7 +690,7 @@ export function CheckoutForm({
             </fieldset>
           ) : null}
 
-          {shippingView.blocked !== null ? (
+          {shippingBlockShown(shippingView, installationReady) ? (
             <div role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-xs text-fg">
               <p className="font-semibold">
                 {shippingView.blocked === 'unread' ? SHIPPING_CHOICE_TEXT.unread : strandedNotice(values.governorate)}
@@ -907,8 +920,9 @@ export function CheckoutForm({
 
           <OrderSummary
             subtotalPiastres={subtotal}
-            shippingPiastres={shipping}
+            shippingPiastres={chargedShipping}
             shippingLabel={shippingSummaryLabel(shippingView)}
+            installerDelivery={installationReady}
             installationPiastres={installationFee}
             installationTravelPiastres={installationReady ? travel : null}
             discount={couponDiscount}

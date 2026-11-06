@@ -7,7 +7,7 @@
 # حراس الـ preflight (الموافقة · المتصل · بصمة مختلفة · search_path مختلف · overload · مالك مختلف) من غير أثر · ptest من غير أثر ·
 # التطبيق: البصمة الجديدة والمالك والصلاحيات بالحرف وبصمة كل حاجة تانية زي ما هي · رفض الإعادة · verify 0025 ·
 # بعد التطبيق: EX V09 و P1 V06 و 0024 V04 بس اللي بيفشلوا، والباقي PASS من غير أخطاء تنفيذ ولا فحوص ناقصة ·
-# مقارنة القديم بالجديد والسيناريوهات (0025_flows.sql) · اختبارات سالبة (منح anon · منح PUBLIC · سحب zell_order_writer · جسم حارس ·
+# مقارنة القديم بالجديد والسيناريوهات (0025_flows.sql) · حساب المتجر (core) = الداتابيز بعد 0025 (0025_core_parity.mjs، المرحلة C) · اختبارات سالبة (منح anon · منح PUBLIC · سحب zell_order_writer · جسم حارس ·
 # خاصية حارس · security definer للدالة · grant option · overload · توقيع ناقص) بتوقّع verify 0025 من غير أخطاء تنفيذ · الرجوع (من غير موافقة · بموافقة · مرة تانية) ثم ptest وإعادة التطبيق.
 # ممنوع يتشغّل على أي داتابيز غير الحاوية المؤقتة.
 set -uo pipefail
@@ -27,6 +27,7 @@ APPLY="$MIG/0025_installer_shipping.sql"
 PTEST="$MIG/0025_installer_shipping_ptest.sql"
 VERIFY="$MIG/0025_installer_shipping_verify.sql"
 ROLLBACK="$MIG/0025_installer_shipping_rollback.sql"
+IMPACT="$MIG/0025_installer_shipping_impact.sql"
 EXAPPLY="$MIG/0021ex_express_shipping.sql"
 FLOWS="$CIDIR/0025_flows.sql"
 SHAPE="$CIDIR/0021p_txn_shape.py"
@@ -40,7 +41,7 @@ SEEN=" "
 OLD_MD5=62924d0fe9b1563e76c54bbddfb628b4
 NEW_MD5=03e839e30fe7d0c9354d1df4f21b71b3
 CO="public.zell_create_order(jsonb, text, text, text, text, text, text, text, text, text, text, boolean, text, jsonb, text)"
-EXPECTED="S01 S02 S03 S04 B01 V01 E01 E02 E03 E04 E05 E06 P01 A01 A02 A03 V02 V03 P02 F01 N01 N02 N03 N04 N05 N06 N07 N08 N09 RB1 RB2 RB3 RB4 RA1"
+EXPECTED="S01 S02 S03 S04 B01 V01 M01 M02 M05 E01 E02 E03 E04 E05 E06 P01 M07 A01 A02 A03 V02 M03 V03 P02 F01 C01 N01 N02 N03 N04 N05 N06 N07 M04 N08 N09 RB1 RB2 M06 RB3 RB4 RA1"
 VLIST="A1:0021a_a1_order_cycle_verify.sql:7 D:0021d_preferred_delivery_verify.sql:7 P1:0021a_p1_payments_verify.sql:7 P2:0021a_p2_checkout_fee_verify.sql:7 D2:0021d2_delivery_settings_verify.sql:7 TR:0021tr_track_order_verify.sql:7 TR2:0021tr2_track_order_v2_verify.sql:7 EX:0021ex_express_shipping_verify.sql:7 0021-P:0021p_access_verify.sql:11 0024:0024_order_delete_verify.sql:7"
 US="$(printf '\037')"
 
@@ -142,6 +143,16 @@ v25() {
 # ptest: الحكم وعدد النجاح والفشل.
 ptest_line() { local rc; run_file "$PTEST" "$TMP/pt.$1.out"; rc=$?; echo "rc=$rc $(grep '^0|summary|' "$TMP/pt.$1.out" | cut -d'|' -f7-9)"; }
 
+# استعلام الأثر (0025_installer_shipping_impact.sql) بالحرف زي Production (postgres مش superuser): صف واحد بـ 15 عمود مفصولة بـ US.
+# postgres في CI مالوش pg_read_all_stats؛ القرايات المعتادة بتمنحه مؤقتًا حوالين النداء بس (زي 0024)، وM05 من غيرها.
+impact() { psql -X -q -tA -F "$US" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$IMPACT" < /dev/null > "$TMP/imp_$1.out" 2>&1; echo "$?" > "$TMP/imp_$1.rc"; }
+impact_v() { su_q "$DB" -c "grant pg_read_all_stats to postgres" > "$TMP/impv_$1.log" 2>&1; impact "$1"; su_q "$DB" -c "revoke pg_read_all_stats from postgres" >> "$TMP/impv_$1.log" 2>&1; }
+imp_valid() { [ "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" = "0" ] && [ "$(grep -c . "$TMP/imp_$1.out")" = "1" ] && [ "$(awk -F "$US" 'NF {print NF}' "$TMP/imp_$1.out")" = "15" ]; }
+imp_f() { grep -v '^$' "$TMP/imp_$1.out" | head -n 1 | cut -d "$US" -f "$2"; }
+imp_detail() { printf 'rc=%s %s' "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" "$(tr "$US" '|' < "$TMP/imp_$1.out" | tr '\n' ' ' | cut -c1-900)"; }
+# البوابة قبل أي خطوة Production: الصلاحيات بالظبط (5) · idle_tx = 0 (13) · الرؤية (14) · التوقيع (15) · المالك وsecdef وsearch_path (3).
+imp_gate() { imp_valid "$1" && [ "$(imp_f "$1" 5)" = "t" ] && [ "$(imp_f "$1" 13)" = "0" ] && [ "$(imp_f "$1" 14)" = "t" ] && [ "$(imp_f "$1" 15)" = "t" ] && [ "$(imp_f "$1" 3)" = 'postgres|true|{"search_path=\"\""}' ]; }
+
 # ---- 1) فحوص ثابتة ----
 if python3 "$SHAPE" --selftest > "$TMP/shape_self.out" 2>&1 && python3 "$SHAPE" "$PTEST" "$VERIFY" "$FLOWS" > "$TMP/shape.out" 2>&1; then ok=yes; else ok=no; fi
 record "S01 transaction shape: ptest / verify / flows = begin ... one SELECT ... rollback (checker self-test first)" "$ok" "$(tailof "$TMP/shape.out") $(tailof "$TMP/shape_self.out")"
@@ -164,6 +175,10 @@ if [ "$(grep -c . "$TMP/src_ex.txt")" -gt 300 ] && [ "$d_minus" = "1" ] && [ "$d
    && grep -qx ">   elsif v_method = 'express' then" "$TMP/src.diff" && cmp -s "$TMP/src_ex.txt" "$TMP/src_rb.txt" \
    && [ "$(grep -c 'zell_create_order(' "$APPLY")" -ge 1 ] && ! grep -qi 'drop function' "$APPLY" "$ROLLBACK"; then ok=yes; fi
 record "S04 apply body = 0021ex body + the one replacement only (-1/+10 lines); rollback body = 0021ex body byte for byte; no drop function" "$ok" "lines_ex=$(grep -c . "$TMP/src_ex.txt") lines_rb=$(grep -c . "$TMP/src_rb.txt") minus=$d_minus plus=$d_plus $(head -c 600 "$TMP/src.diff" | tr '\n' ' ')"
+
+ok=no
+if python3 "$SHAPE" "$IMPACT" > "$TMP/shape_imp.out" 2>&1 && [ "$(grep -cx 'begin;' "$IMPACT")" = "1" ] && [ "$(grep -cx 'set transaction read only;' "$IMPACT")" = "1" ] && [ "$(grep -cx 'rollback;' "$IMPACT")" = "1" ] && ! grep -q '{{' "$IMPACT"; then ok=yes; fi
+record "M01 impact query: transaction shape = begin ... one SELECT ... rollback, read only, no double braces (Retool)" "$ok" "$(tailof "$TMP/shape_imp.out")"
 
 # ---- 2) بناء الداتابيز من القايمة الصريحة كلها (لحد 0024) ----
 fresh=$(su_q postgres -c "select pg_catalog.count(*) from pg_catalog.pg_roles where rolname in ('postgres','anon','authenticated','service_role')")
@@ -203,6 +218,15 @@ verifies before
 ok=no
 [ "$(grep -c . "$TMP/ver_before.txt")" = "10" ] && ! grep -qvE ' rc=0 verdict=PASS checks=[1-9][0-9]* fails=$' "$TMP/ver_before.txt" && ok=yes
 record "V01 before 0025: the nine verifies + 0024 verify = PASS (zell_create_order = 0021ex body)" "$ok" "$(verifies_detail before)"
+impact_v b
+ok=no
+if imp_gate b && [ "$(imp_f b 2)" = "1:$OLD_MD5" ] && ! imp_f b 4 | grep -q '\*' && imp_f b 4 | grep -q 'service_role=X/' && imp_f b 4 | grep -q 'zell_order_writer=X/' \
+   && [ "$(imp_f b 9)" = "0" ]; then ok=yes; fi
+record "M02 impact before 0025 (step 1 gate): create_order 1:old md5, owner postgres + secdef + search_path empty, ACL exact (3 entries, no grant option), idle_tx 0, sessions visible" "$ok" "$(imp_detail b)"
+impact n
+ok=no
+if imp_valid n && [ "$(imp_f n 14)" = "f" ] && [ -z "$(imp_f n 13)" ] && ! imp_gate n; then ok=yes; fi
+record "M05 impact without pg_read_all_stats: sessions_visible = f, idle_tx NULL (not 0), the gate stops" "$ok" "$(imp_detail n)"
 
 # ---- 3) حراس الـ preflight: كله بيترفض ومن غير أثر ----
 run_file "$APPLY" "$TMP/e1.out"
@@ -229,6 +253,11 @@ PT1=$(ptest_line p1)
 ok=no; [ "$PT1" = "rc=0 PASS|4|0" ] && [ "$(co_state)" = "$ST0" ] && [ "$(fp)" = "$FP0" ] && ok=yes
 record "P01 ptest before apply = PASS 4/0, and nothing left behind (zell_create_order and the full fingerprint unchanged)" "$ok" "$PT1 $(grep -E '^[0-9]+\|test\|' "$TMP/pt.p1.out" | grep '|fail|' | tr '\n' ' ' | cut -c1-600) $(tailof "$TMP/pt.p1.out")"
 
+impact_v p
+ok=no
+if imp_gate p && [ "$(imp_f p 2-15)" = "$(imp_f b 2-15)" ]; then ok=yes; fi
+record "M07 impact after the ptest = the step 1 read (columns 2-15), gate still open" "$ok" "$(imp_detail p)"
+
 # ---- 5) التطبيق ----
 run_appr "$APPLY" 'ci-0025-apply' "$TMP/a1.out"; rc=$?
 ST1=$(co_state)
@@ -243,6 +272,10 @@ record "A03 second apply -> ZELL_0025_ALREADY_APPLIED, nothing changed" "$ok" "$
 V2=$(v25 v2)
 ok=no; [ "$V2" = "PASS rc=0 checks=6 fails=" ] && ok=yes
 record "V02 verify 0025 = PASS (6 checks)" "$ok" "$V2 $(tailof "$TMP/v25.v2.out" | tr "$US" '|')"
+impact_v a
+ok=no
+if imp_gate a && [ "$(imp_f a 2)" = "1:$NEW_MD5" ] && [ "$(imp_f a 3-15)" = "$(imp_f b 3-15)" ]; then ok=yes; fi
+record "M03 impact after apply: create_order 1:new md5 only; owner/secdef/search_path, full ACL, guards, payment functions, fee config, counts identical to step 1" "$ok" "$(imp_detail a)"
 verifies after
 sed -e 's/^EX rc=0 verdict=PASS \(checks=[0-9]*\) fails=$/EX rc=0 verdict=FAIL \1 fails=V09,/' \
     -e 's/^P1 rc=0 verdict=PASS \(checks=[0-9]*\) fails=$/P1 rc=0 verdict=FAIL \1 fails=V06,/' \
@@ -259,6 +292,18 @@ FL=$(grep '^0|summary|' "$TMP/flows.out" | cut -d'|' -f7-9)
 ok=no; [ "$rc" = "0" ] && [ "$FL" = "PASS|23|0" ] && [ "$(co_state)" = "$ST1" ] && [ "$(fp)" = "$FP0" ] && ok=yes
 record "F01 flows: old/new parity matrix (6300 cases x 7 calls) + 15 hand-computed scenarios = PASS 23/0, rolled back without trace" "$ok" "rc=$rc $FL $(grep -E '^[0-9]+\|test\|' "$TMP/flows.out" | grep '|fail|' | tr '\n' ' ' | cut -c1-1500) $(tailof "$TMP/flows.out")"
 grep -E '^[0-9]+\|test\|' "$TMP/flows.out" | cut -d'|' -f3,5,6 | cut -c1-700
+
+# ---- 6ب) حساب المتجر (packages/core) = الداتابيز بعد 0025 (المرحلة C) ----
+if node --experimental-strip-types "$CIDIR/0025_core_parity.mjs" > "$TMP/cp.sql" 2> "$TMP/cp.err"; then
+  CP_N=$(sed -n 's/^-- cases: \([0-9]*\) .*/\1/p' "$TMP/cp.sql" | head -n 1)
+  CP=$(psql -X -q -tA -v ON_ERROR_STOP=1 -U postgres -d "$DB" -f "$TMP/cp.sql" 2>&1 | tail -n 1)
+else
+  CP_N=0
+  CP="node failed: $(tail -n 5 "$TMP/cp.err" | tr '\n' ' ')"
+fi
+ok=no
+if [ -n "$CP_N" ] && [ "$CP_N" -ge 2000 ] 2> /dev/null && [ "$CP" = "$CP_N|0|" ] && [ "$(co_state)" = "$ST1" ] && [ "$(fp)" = "$FP0" ]; then ok=yes; fi
+record "C01 storefront core (installerShipping + shipping, installation, coupon, deposit) = zell_create_order after 0025: $CP_N cases, 0 mismatches, rolled back without trace" "$ok" "$(head -n 1 "$TMP/cp.sql") result=$CP"
 
 # ---- 7) اختبارات سالبة: verify 0025 لازم يمسك الخلل ----
 q "grant execute on function $CO to anon" > "$TMP/n1a.log"; N1=$(v25 n1); q "revoke execute on function $CO from anon" > "$TMP/n1b.log"
@@ -287,6 +332,10 @@ record "N06 zell_create_order made security invoker -> verify 0025 FAIL on V03 o
 q "grant execute on function $CO to service_role with grant option" > "$TMP/n7a.log"; N7=$(v25 n7); q "revoke grant option for execute on function $CO from service_role" > "$TMP/n7b.log"
 ok=no; case "$N7" in "FAIL rc=0 checks=6 fails=V04,") ok=yes ;; esac; [ "$(co_state)" = "$ST1" ] || ok=no
 record "N07 EXECUTE re-granted to service_role WITH GRANT OPTION (same grantee set) -> verify 0025 FAIL on V04 only; grant option revoked, ACL identical" "$ok" "$N7 state=$(co_state) $(cat "$TMP/n7a.log" "$TMP/n7b.log" | tr '\n' ' ')"
+q "grant execute on function $CO to service_role with grant option" > "$TMP/m4a.log"; impact_v g1; q "revoke grant option for execute on function $CO from service_role" > "$TMP/m4b.log"; impact_v g2
+ok=no
+if imp_valid g1 && [ "$(imp_f g1 5)" = "f" ] && imp_f g1 4 | grep -q 'service_role=X\*/' && ! imp_gate g1 && imp_gate g2 && [ "$(imp_f g2 3-15)" = "$(imp_f a 3-15)" ]; then ok=yes; fi
+record "M04 impact catches a grant option (EXECUTE ... WITH GRANT OPTION to service_role): co_acl shows X*, co_acl_ok = f, the gate stops; after revoking it the read is identical" "$ok" "$(imp_detail g1) || $(imp_detail g2)"
 q "create function public.zell_create_order(integer) returns integer language sql as 'select 1'" > "$TMP/n8a.log"; N8=$(v25 n8); q "drop function public.zell_create_order(integer)" > "$TMP/n8b.log"
 ok=no; case "$N8" in "FAIL rc=0 checks=6 fails=V01,") ok=yes ;; esac; [ "$(co_state)" = "$ST1" ] || ok=no
 record "N08 a second zell_create_order (overload) -> verify 0025 returns rows (no execution error): FAIL on V01 only; removed" "$ok" "$N8 $(tailof "$TMP/v25.n8.out" | tr "$US" '|') $(cat "$TMP/n8a.log" "$TMP/n8b.log" | tr '\n' ' ')"
@@ -305,6 +354,10 @@ verifies rb
 RBV=$(v25 rb)
 ok=no; [ "$rc" = "0" ] && [ "$(co_state)" = "$ST0" ] && [ "$(fp)" = "$FP0" ] && cmp -s "$TMP/ver_before.txt" "$TMP/ver_rb.txt" && [ "$RBV" = "FAIL rc=0 checks=6 fails=V02," ] && ok=yes
 record "RB2 rollback: 0021ex body back (md5, owner, ACL identical), everything else unchanged, the ten verifies PASS again, verify 0025 fails on V02 only" "$ok" "rc=$rc state=$(co_state) v25=$RBV $(verifies_detail rb) $(tailof "$TMP/rb2.out")"
+impact_v r
+ok=no
+if imp_gate r && [ "$(imp_f r 2-15)" = "$(imp_f b 2-15)" ]; then ok=yes; fi
+record "M06 impact after rollback = the step 1 read (columns 2-15)" "$ok" "$(imp_detail r)"
 run_appr "$ROLLBACK" 'ci-0025-rollback-again' "$TMP/rb3.out"
 ok=no; has "$TMP/rb3.out" 'ZELL_0025R_NOT_APPLIED' && [ "$(co_state)" = "$ST0" ] && ok=yes
 record "RB3 second rollback -> ZELL_0025R_NOT_APPLIED, nothing changed" "$ok" "$(tailof "$TMP/rb3.out")"

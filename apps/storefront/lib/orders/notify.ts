@@ -18,7 +18,7 @@ import { restPatch, restSelect } from '../data/rpc'
 import { fetchOrderMoney } from './receiptMoney'
 import { DISCOUNT_SIGN, discountLabel, discountLine } from './coupon'
 import { PREFERRED_DELIVERY_PENDING, isDeliveryPeriod, preferredDeliveryLine } from '@zell/core'
-import { parseShippingSnapshot, shippingSnapshotLine } from '@zell/core'
+import { INSTALLER_DELIVERY_LABEL, installerDeliveryShown, parseShippingSnapshot, shippingSnapshotLine } from '@zell/core'
 
 const TELEGRAM_TIMEOUT_MS = 5000
 const MAX_NOTIFY_ERROR = 200
@@ -129,10 +129,12 @@ function buildMessage(order: NotifyOrder, feePiastres: number = 0): string {
 
   // 0018 — فني بالسعر: الأجر والانتقال من لقطة الأوردر وداخلين في الإجمالي
   const priced = order.installation_requested === true
+  // INSTALLER-SHIPPING — فني وشحن محفوظ 0 = من غير سطر شحن، والانتقال «توصيل وانتقال الفني» (من لقطة الطلب)
+  const installerDelivery = installerDeliveryShown(priced, order.shipping_piastres)
   lines.push(
     '',
     '<b>الإجمالي الفرعي:</b> ' + escapeHtml(money(order.subtotal_piastres)),
-    '<b>الشحن:</b> ' + escapeHtml(money(order.shipping_piastres)),
+    ...(installerDelivery ? [] : ['<b>الشحن:</b> ' + escapeHtml(money(order.shipping_piastres))]),
   )
   // EXPRESS-SHIPPING — نوع الشحن ومدته من لقطة الطلب (الطلب القديم من غير سطر)
   const shippingSnapshot = parseShippingSnapshot(order.shipping_method, order.shipping_days_min, order.shipping_days_max)
@@ -145,7 +147,9 @@ function buildMessage(order: NotifyOrder, feePiastres: number = 0): string {
         : ''
     lines.push(
       '<b>أجر التركيب:</b> ' + escapeHtml(money(order.installation_piastres ?? 0) + breakdown),
-      '<b>انتقال الفني:</b> ' + escapeHtml(travel === 0 ? 'مجاني' : money(travel)),
+      installerDelivery
+        ? '<b>' + INSTALLER_DELIVERY_LABEL + ':</b> ' + escapeHtml(money(travel))
+        : '<b>انتقال الفني:</b> ' + escapeHtml(travel === 0 ? 'مجاني' : money(travel)),
     )
   }
   // 0019 — الخصم من لقطة الأوردر قبل الإجمالي. من غير كوبون مفيش سطر والرسالة زي ما هي بالظبط.

@@ -89,3 +89,21 @@ export function parseDraftShippingMethod(value: unknown): { ok: true; method: 'e
   if (value === 'express') return { ok: true, method: 'express' }
   return { ok: false }
 }
+
+/**
+ * INSTALLER-SHIPPING (العقد §٣-٣) — مع فني جاهز: مفيش shippingMethod في الـ body (حتى لو مسودة قديمة فيها «سريع»)، ومفيش قفل
+ * بسبب السريع، واختيار «عادي/سريع» مايظهرش. من غير فني جاهز = سلوك EXPRESS بالحرف.
+ */
+export function checkoutShippingField(view: ShippingChoiceView, installationReady: boolean): { shippingMethod?: 'express' } | null {
+  return installationReady ? {} : shippingSubmitField(view)
+}
+
+/** اختيار «شحن عادي / شحن سريع» ظاهر؟ */
+export function shippingChoiceShown(view: ShippingChoiceView, installationReady: boolean): boolean {
+  return view.offer !== null && !installationReady
+}
+
+/** رسالة «السريع مش متاح» وقفل الإرسال بسببها؟ */
+export function shippingBlockShown(view: ShippingChoiceView, installationReady: boolean): boolean {
+  return view.blocked !== null && !installationReady
+}

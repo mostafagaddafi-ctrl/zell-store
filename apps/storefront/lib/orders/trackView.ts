@@ -10,7 +10,7 @@
  *   • المبالغ: المدفوع والمردود والصافي والمتبقي سطور منفصلة. الملغي والمرفوض: مفيش «المتبقي»، و«مبلغ مدفوع» لو الصافي > ٠.
  */
 
-import { preferredDeliveryLine, type OrderStatus } from '@zell/core'
+import { INSTALLER_DELIVERY_LABEL, installerDeliveryShown, preferredDeliveryLine, type OrderStatus } from '@zell/core'
 import type { TrackedHistoryEntry, TrackedOrder } from './trackOrder'
 
 export const TRACK_TIME_ZONE = 'Africa/Cairo'
@@ -241,9 +241,18 @@ export function trackMoneyLines(order: TrackedOrder): { charges: TrackMoneyLine[
   const m = order.money
   const charges: TrackMoneyLine[] = [{ label: 'الأصناف', amountPiastres: m.itemsPiastres, minus: false }]
   if (m.discountPiastres > 0) charges.push({ label: 'الخصم', amountPiastres: m.discountPiastres, minus: true })
-  charges.push({ label: order.shipping?.method === 'express' ? 'الشحن السريع' : 'الشحن', amountPiastres: m.shippingPiastres, minus: false })
+  // INSTALLER-SHIPPING — طلب بفني وشحنه المحفوظ 0 = من غير سطر شحن، والانتقال «توصيل وانتقال الفني» بقيمته. الطلب القديم بشحن > 0 =
+  // السطور القديمة بالظبط.
+  // ⚠ قيد معلن (قرار المالك 2026-11-05، العقد §٣-٣): رد zell_checkout_track_order مافيهوش علامة الفني، فـ«بفني» هنا = أجر تركيب أو
+  // انتقال محفوظ > 0. طلب بفني أجره وانتقاله الاتنين 0 (إعداد نادر) بيظهر هنا بسطر «الشحن: 0» زي الطلب من غير فني؛ المبالغ والإجمالي
+  // صح، والفرق في اسم السطر في التتبّع بس. إضافة العلامة للرد = عقد وSQL لوحدهم.
+  const installerDelivery = installerDeliveryShown(m.installationPiastres > 0 || m.travelPiastres > 0, m.shippingPiastres)
+  if (!installerDelivery) {
+    charges.push({ label: order.shipping?.method === 'express' ? 'الشحن السريع' : 'الشحن', amountPiastres: m.shippingPiastres, minus: false })
+  }
   if (m.installationPiastres > 0) charges.push({ label: 'التركيب', amountPiastres: m.installationPiastres, minus: false })
-  if (m.travelPiastres > 0) charges.push({ label: 'انتقال الفني', amountPiastres: m.travelPiastres, minus: false })
+  if (installerDelivery) charges.push({ label: INSTALLER_DELIVERY_LABEL, amountPiastres: m.travelPiastres, minus: false })
+  else if (m.travelPiastres > 0) charges.push({ label: 'انتقال الفني', amountPiastres: m.travelPiastres, minus: false })
 
   const payments: TrackMoneyLine[] = []
   if (order.status === 'cancelled' || order.status === 'refused') {

@@ -22,7 +22,7 @@ import { getOrderPaymentsView } from '../../../../lib/data/orderPayments'
 import { OrderShipmentCard } from '../../../../components/orders/OrderShipmentCard'
 import { OrderCustomerUpdatesCard } from '../../../../components/orders/OrderCustomerUpdatesCard'
 import { getOrderTrackAdminView } from '../../../../lib/data/orderTrack'
-import { shippingSnapshotLine } from '@zell/core'
+import { INSTALLER_DELIVERY_LABEL, installerDeliveryShown, shippingSnapshotLine } from '@zell/core'
 
 type PageProps = { params: Promise<{ orderNumber: string }> }
 
@@ -72,8 +72,9 @@ export default pageWithAccess('zell.orders.view', async function OrderDetailPage
                   (order.installationLengthCm !== null && order.installationRatePiastres !== null
                     ? ' (' + formatLength(order.installationLengthCm) + ' × ' + formatPiastres(order.installationRatePiastres) + ' للمتر)'
                     : '') +
-                  ' · انتقال الفني ' +
-                  (order.installationTravelPiastres === 0 ? 'مجاني' : formatPiastres(order.installationTravelPiastres)) +
+                  (installerDeliveryShown(order.installationRequested, order.shippingPiastres)
+                    ? ' · ' + INSTALLER_DELIVERY_LABEL + ' ' + formatPiastres(order.installationTravelPiastres)
+                    : ' · انتقال الفني ' + (order.installationTravelPiastres === 0 ? 'مجاني' : formatPiastres(order.installationTravelPiastres))) +
                   (order.shippingArea ? ' · ' + order.shippingArea : '') +
                   ' — الاتنين داخلين في الإجمالي. كلّمه واتفق على المعاد.'}
               </p>
@@ -128,14 +129,21 @@ export default pageWithAccess('zell.orders.view', async function OrderDetailPage
             <dl className="mt-4 space-y-1.5 text-sm">
               <Row label="الأصناف" value={formatPiastres(order.subtotalPiastres)} />
               {order.coupon ? <Row label={discountRowLabel(order.coupon.code)} value={discountRowValue(order.coupon.discountPiastres)} /> : null}
-              <Row label="الشحن" value={formatPiastres(order.shippingPiastres)} />
+              {/* INSTALLER-SHIPPING — طلب بفني وشحنه المحفوظ 0: من غير سطر شحن، والانتقال «توصيل وانتقال الفني» (من لقطة الطلب) */}
+              {installerDeliveryShown(order.installationRequested, order.shippingPiastres) ? null : (
+                <Row label="الشحن" value={formatPiastres(order.shippingPiastres)} />
+              )}
               {order.shipping !== null ? <Row label="نوع الشحن" value={shippingSnapshotLine(order.shipping)} /> : null}
               {order.installationRequested ? (
                 <>
                   <Row label="أجر التركيب" value={formatPiastres(order.installationPiastres)} />
                   <Row
-                    label="انتقال الفني"
-                    value={order.installationTravelPiastres === 0 ? 'مجاني' : formatPiastres(order.installationTravelPiastres)}
+                    label={installerDeliveryShown(order.installationRequested, order.shippingPiastres) ? INSTALLER_DELIVERY_LABEL : 'انتقال الفني'}
+                    value={
+                      order.installationTravelPiastres === 0 && !installerDeliveryShown(order.installationRequested, order.shippingPiastres)
+                        ? 'مجاني'
+                        : formatPiastres(order.installationTravelPiastres)
+                    }
                   />
                 </>
               ) : null}
