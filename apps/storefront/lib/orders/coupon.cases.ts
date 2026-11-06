@@ -1,7 +1,7 @@
 /**
  * حالات اختبار PR3 (كوبون المتجر) — من غير مكتبة اختبار (الريبو مافيهوش test runner).
- * runStorefrontCouponCases() بترجّع الحالات اللي فشلت بس (فاضية = كله تمام). الـCI بيعمل typecheck
- * للملف ده، ومحدش بيستورده فمابيدخلش في الـbundle.
+ * runStorefrontCouponCases() بترجّع { passed, failures } (failures فاضية = كله تمام). بتتشغّل فعليًا في CI من مشغّل
+ * حالات المتجر (suite coupon)، ومحدش بيستورد الملف فمابيدخلش في الـbundle.
  *
  * ⚠️ مفيش أي نداء حقيقي هنا: الـrpc في حالات المعاينة مزيّف، ومفيش zell_create_order خالص.
  */
@@ -14,6 +14,7 @@ import { codeFromSqlError, orderFailure, previewCodeFromSqlError, statusFor } fr
 import { isCreateOrderResult, orderSuccessBody } from './result'
 
 export type StorefrontCouponCaseFailure = { name: string; expected: string; actual: string }
+export type StorefrontCouponCaseReport = { passed: number; failures: StorefrontCouponCaseFailure[] }
 
 // ───────────────────────── canonical ─────────────────────────
 
@@ -258,10 +259,12 @@ const EXPECTED_VALID_BODY =
 
 // ───────────────────────── runner ─────────────────────────
 
-export async function runStorefrontCouponCases(): Promise<StorefrontCouponCaseFailure[]> {
+export async function runStorefrontCouponCases(): Promise<StorefrontCouponCaseReport> {
   const failures: StorefrontCouponCaseFailure[] = []
+  let passed = 0
   const check = (name: string, expected: string, actual: string) => {
-    if (expected !== actual) failures.push({ name, expected, actual })
+    if (expected === actual) passed += 1
+    else failures.push({ name, expected, actual })
   }
 
   for (const [name, order, expected] of CANONICAL_CASES) {
@@ -345,5 +348,5 @@ export async function runStorefrontCouponCases(): Promise<StorefrontCouponCaseFa
     }
   }
 
-  return failures
+  return { passed, failures }
 }
