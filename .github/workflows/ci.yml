@@ -59,6 +59,11 @@ jobs:
       - name: Admin cases
         run: pnpm --filter @zell/admin cases
 
+      # عقد الاستدعاء: اختبار ذاتي لقراية خرايط الأسماء في call_contract.mjs (كل أسماء الخريطة + MAP_UNPARSED)،
+      # من غير داتابيز، في كل PR. التشغيل الفعلي على الداتابيز المبنية فضل في jobs الـ SQL زي ما هو.
+      - name: "call contract: name-map parser selftest"
+        run: node backend/db/ci/call_contract.selftest.mjs
+
       # 0021-P — فاحص الحراس: اختبار ذاتي، و enforce على اللوحة كلها (أي finding = فشل — من ب2)،
       # وجدول الربط (manifest) = الكود، وقايمة الصلاحيات في الكود = catalog الداتابيز. العقد: docs/contracts/0021-P-code.md §٥–٧.
       - name: "0021-P: access checker selftest"

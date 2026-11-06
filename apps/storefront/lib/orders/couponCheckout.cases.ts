@@ -1,7 +1,7 @@
 /**
  * حالات اختبار PR4 (كوبون صفحة الطلب) — من غير مكتبة اختبار ومن غير أي نداء شبكة.
- * runCheckoutCouponCases() بترجّع الحالات اللي فشلت بس (فاضية = كله تمام). الـCI بيعمل typecheck
- * للملف ده، ومحدش بيستورده فمابيدخلش في الـbundle.
+ * runCheckoutCouponCases() بترجّع { passed, failures } (failures فاضية = كله تمام). بتتشغّل فعليًا في CI من مشغّل
+ * حالات المتجر (suite coupon-checkout)، ومحدش بيستورد الملف فمابيدخلش في الـbundle.
  */
 
 import type { CouponTerms } from '@zell/core'
@@ -26,6 +26,7 @@ import {
 } from './couponCheckout'
 
 export type CheckoutCouponCaseFailure = { name: string; expected: string; actual: string }
+export type CheckoutCouponCaseReport = { passed: number; failures: CheckoutCouponCaseFailure[] }
 
 function pct(code: string, percentOff: number, maxDiscountPiastres: number | null = null, minSubtotalPiastres = 0): CouponTerms {
   return { code, kind: 'percent', percentOff, amountOffPiastres: null, maxDiscountPiastres, minSubtotalPiastres }
@@ -82,10 +83,12 @@ const BASE_PAYLOAD: OrderRequest = {
   items: [{ productId: 7, lengthCm: 150 }],
 }
 
-export function runCheckoutCouponCases(): CheckoutCouponCaseFailure[] {
+export function runCheckoutCouponCases(): CheckoutCouponCaseReport {
   const failures: CheckoutCouponCaseFailure[] = []
+  let passed = 0
   const check = (name: string, expected: string, actual: string) => {
-    if (expected !== actual) failures.push({ name, expected, actual })
+    if (expected === actual) passed += 1
+    else failures.push({ name, expected, actual })
   }
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
@@ -260,5 +263,5 @@ export function runCheckoutCouponCases(): CheckoutCouponCaseFailure[] {
   ])
   check('no coupon: state untouched', 'true', String(same(noCoupon, INITIAL_COUPON_STATE)))
 
-  return failures
+  return { passed, failures }
 }

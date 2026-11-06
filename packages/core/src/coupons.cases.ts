@@ -1,13 +1,14 @@
 /**
  * حالات اختبار أكواد الخصم — من غير أي مكتبة اختبار (الريبو مافيهوش test runner).
- * runCouponCases() بترجّع الحالات اللي فشلت بس (فاضية = كله تمام). الـCI بيعمل typecheck للملف ده،
- * ومش متصدّر من index فمابيدخلش في المتجر ولا اللوحة.
+ * runCouponCases() بترجّع { passed, failures } (failures فاضية = كله تمام). بتتشغّل فعليًا في CI من مشغّل حالات المتجر
+ * (suite core-coupons)، ومش متصدّرة من index فمابتدخلش في المتجر ولا اللوحة.
  *
  * PTEST_0019 = نفس الأرقام اللي 0019_coupons_ptest.sql ثبّتها على Production (جوه معاملات بترجع).
  */
 import { couponDiscountPiastres, normalizeCouponCode, parseCouponPreview, type CouponDiscountResult, type CouponTerms } from './coupons'
 
 export type CouponCaseFailure = { name: string; expected: string; actual: string }
+export type CouponCaseReport = { passed: number; failures: CouponCaseFailure[] }
 
 function pct(code: string, percentOff: number, maxDiscountPiastres: number | null = null, minSubtotalPiastres = 0): CouponTerms {
   return { code, kind: 'percent', percentOff, amountOffPiastres: null, maxDiscountPiastres, minSubtotalPiastres }
@@ -146,10 +147,12 @@ export const PREVIEW_CASES: ReadonlyArray<readonly [string, unknown, string]> = 
   ['string', 'ZELL10', 'null'],
 ]
 
-export function runCouponCases(): CouponCaseFailure[] {
+export function runCouponCases(): CouponCaseReport {
   const failures: CouponCaseFailure[] = []
+  let passed = 0
   const check = (name: string, expected: string, actual: string) => {
-    if (expected !== actual) failures.push({ name, expected, actual })
+    if (expected === actual) passed += 1
+    else failures.push({ name, expected, actual })
   }
   for (const [name, raw, expected] of NORMALIZE_CASES) {
     check('normalize: ' + name, String(expected), String(normalizeCouponCode(raw)))
@@ -162,5 +165,5 @@ export function runCouponCases(): CouponCaseFailure[] {
     const terms = parseCouponPreview(raw)
     check('preview: ' + name, expected, terms === null ? 'null' : show(couponDiscountPiastres(terms, 60000)))
   }
-  return failures
+  return { passed, failures }
 }
