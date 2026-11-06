@@ -11,12 +11,14 @@
  *    (استيراد الأنواع بس مسموح لأنه بيتشال وقت التحويل). لو حد كسر القاعدة دي التشغيل بيفشل. استثناء: مجلدات
  *    also في الـ suite بتتحوّل قبلها (المجلد نفسه بس، من غير اللي جواه)، فاستيراد قيمة منها مسموح.
  * @zell/core: زي apps/storefront/scripts/run-cases.mjs، packages/core/src بيتحوّل لـ node_modules/@zell/core المؤقت.
+ * link في الـ suite: حزم بالاسم من node_modules بتاع اللوحة بتتربط (symlink للمسار الحقيقي) في node_modules المؤقت،
+ *    عشان الحالات تشغّل المكتبة الحقيقية (auth-cookies: @supabase/ssr وnext). من غير dependency جديدة.
  *
  * سطر النتيجة:  ZELL_ADMIN_CASES_RESULT pass=<n> fail=<n>
  * والخروج بكود 1 لو فيه أي فشل، أو لو مفيش ولا حالة اتشغّلت.
  */
 
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -45,6 +47,8 @@ const SUITES = [
   { name: 'order-purge', dir: 'lib/orders', entry: 'purge.cases.ts', run: 'runOrderPurgeCases' },
   // أكواد الخصم: الحالات كانت بتتعمل typecheck بس ومابتتشغّلش (مراجعة أمنية 2026-11).
   { name: 'coupons', dir: 'lib/coupons', entry: 'form.cases.ts', run: 'runAdminCouponCases', also: ['lib', 'lib/orders'] },
+  // COOKIES-HEADERS §٣ — كوكيز الجلسة المكتوبة فعليًا بالمكتبة الحقيقية وfetch مزيّف. آخر suite لأنها بتغيّر متغيرات البيئة وfetch (وبترجّعهم).
+  { name: 'auth-cookies', dir: 'lib/auth', entry: 'cookies.cases.ts', run: 'runAuthCookieCases', link: ['@supabase/ssr', 'next'] },
 ]
 
 const COMPILER_OPTIONS = {
@@ -73,6 +77,16 @@ function transpileDir(srcDir, outDir) {
 }
 
 const outRoot = mkdtempSync(join(tmpdir(), 'zell-admin-cases-'))
+const linked = new Set()
+
+function linkPackage(name) {
+  if (linked.has(name)) return
+  const target = realpathSync(join(appRoot, 'node_modules', name))
+  const link = join(outRoot, 'node_modules', name)
+  mkdirSync(dirname(link), { recursive: true })
+  symlinkSync(target, link, 'dir')
+  linked.add(name)
+}
 writeFileSync(join(outRoot, 'package.json'), '{ "type": "commonjs" }\n')
 const require = createRequire(join(outRoot, 'index.js'))
 
@@ -85,6 +99,7 @@ try {
   writeFileSync(join(coreOut, 'package.json'), '{ "name": "@zell/core", "type": "commonjs", "main": "index.js" }\n')
 
   for (const suite of SUITES) {
+    for (const name of suite.link || []) linkPackage(name)
     for (const extra of suite.also || []) transpileDir(join(appRoot, extra), join(outRoot, extra))
     const outDir = join(outRoot, suite.dir)
     transpileDir(join(appRoot, suite.dir), outDir)
