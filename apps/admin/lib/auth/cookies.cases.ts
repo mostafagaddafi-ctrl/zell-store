@@ -221,7 +221,10 @@ export async function runAuthCookieCases(): Promise<AuthCookieCaseReport> {
       const { supabase, getResponse } = createMiddlewareClient(request, new Headers(request.headers))
       const user = await supabase.auth.getUser()
       await settle()
-      check('C2 refresh call made', 'true', String(log.calls.slice(before).includes('POST /auth/v1/token?grant_type=refresh_token')))
+      const c2Calls = log.calls.slice(before)
+      const seeded = seed.jar.get(COOKIE_NAME) ?? ''
+      const seededExpiresAt = seeded.startsWith('base64-') ? String((JSON.parse(atob(seeded.slice(7).replace(/-/g, '+').replace(/_/g, '/'))) as { expires_at?: number }).expires_at ?? null) : 'not base64'
+      check('C2 refresh call made', 'true', c2Calls.includes('POST /auth/v1/token?grant_type=refresh_token') ? 'true' : 'false; calls=' + JSON.stringify(c2Calls) + '; seeded expires_at=' + seededExpiresAt + '; now=' + String(nowSeconds()))
       check('C2 user after refresh', USER.id, String(user.data.user?.id ?? null))
       const response = getResponse()
       const all = setCookies(response).filter((c) => SESSION_NAME.test(c.name))
