@@ -8,7 +8,9 @@
  * الفرق: ملفات المتجر بتستورد @zell/core، فالمشغّل بيحوّل packages/core/src كمان لـ node_modules/@zell/core المؤقت.
  *
  * ⚠️ الملفات اللي بتتشغّل لازم تكون خالية من server-only ومن أي استيراد قيمة برّه المجلد غير @zell/core
- *    (استيراد الأنواع بس مسموح لأنه بيتشال وقت التحويل).
+ *    (استيراد الأنواع بس مسموح لأنه بيتشال وقت التحويل). استثناء: مجلدات also في الـ suite بتتحوّل قبلها
+ *    (المجلد نفسه بس، من غير اللي جواه)، فاستيراد قيمة منها مسموح.
+ * suite فيها core: true = ملف حالات من packages/core/src نفسه، بيتشغّل من node_modules/@zell/core المؤقت.
  *
  * سطر النتيجة:  ZELL_STOREFRONT_CASES_RESULT pass=<n> fail=<n>
  * والخروج بكود 1 لو فيه أي فشل، أو لو مفيش ولا حالة اتشغّلت.
@@ -37,6 +39,10 @@ const SUITES = [
   { name: 'policies', dir: 'lib/policies', entry: 'policies.cases.ts', run: 'runPolicyCases' },
   { name: 'seo', dir: 'lib/seo', entry: 'structuredData.cases.ts', run: 'runSeoCases' },
   { name: 'buy-now', dir: 'lib/buy', entry: 'buyNow.cases.ts', run: 'runBuyNowCases' },
+  // أكواد الخصم: الحالات كانت بتتعمل typecheck بس ومابتتشغّلش (مراجعة أمنية 2026-11).
+  { name: 'coupon', dir: 'lib/orders', entry: 'coupon.cases.ts', run: 'runStorefrontCouponCases' },
+  { name: 'coupon-checkout', dir: 'lib/orders', entry: 'couponCheckout.cases.ts', run: 'runCheckoutCouponCases', also: ['lib', 'lib/size'] },
+  { name: 'core-coupons', core: true, entry: 'coupons.cases.ts', run: 'runCouponCases' },
 ]
 
 const COMPILER_OPTIONS = {
@@ -77,8 +83,12 @@ try {
   writeFileSync(join(coreOut, 'package.json'), '{ "name": "@zell/core", "type": "commonjs", "main": "index.js" }\n')
 
   for (const suite of SUITES) {
-    const outDir = join(outRoot, suite.dir)
-    transpileDir(join(appRoot, suite.dir), outDir)
+    let outDir = coreOut
+    if (!suite.core) {
+      for (const extra of suite.also || []) transpileDir(join(appRoot, extra), join(outRoot, extra))
+      outDir = join(outRoot, suite.dir)
+      transpileDir(join(appRoot, suite.dir), outDir)
+    }
     const mod = require(join(outDir, suite.entry.replace(/\.ts$/, '.js')))
     const runner = mod[suite.run]
     if (typeof runner !== 'function') throw new Error(suite.entry + ' مافيهوش ' + suite.run)
