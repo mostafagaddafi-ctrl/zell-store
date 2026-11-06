@@ -210,7 +210,7 @@ shape=$(su_q "$DB" -c "select rolsuper::text || ',' || rolbypassrls::text from p
 ST0=$(co_state)
 ok=no
 case "$ST0" in "1|$OLD_MD5|postgres|true|{\"search_path=\\\"\\\"\"}|"*) ok=yes ;; esac
-[ "$n" -gt 10 ] && [ "$shape" = "false,true" ] && [ "$last" = "migrations/0024_order_delete.sql" ] && [ "$(printenv SKIPPED_0025 || true)" = "" ] && [ "${SKIPPED_0025:-no}" = "yes" ] || ok=no
+[ "$n" -gt 10 ] && [ "$shape" = "false,true" ] && [ "$last" = "migrations/0024_order_delete.sql" ] && [ "${SKIPPED_0025:-no}" = "yes" ] || ok=no
 record "B01 database built from build_from_scratch.list up to before 0025 ($n steps, last $last; 0025 line not built: ${SKIPPED_0025:-no}), postgres not superuser, zell_create_order = 0021ex body owned by postgres" "$ok" "steps=$n last=$last postgres=$shape state=$ST0"
 [ "$ok" = yes ] || finish
 ACL0=$(printf '%s' "$ST0" | cut -d'|' -f6-)
