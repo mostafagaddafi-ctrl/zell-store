@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # INSTALLER-SHIPPING B (0025) — اختبار SQL في CI: Postgres 17 مؤقت، والداتابيز مبنية من الصفر بالقايمة الصريحة كلها
-# (backend/db/ci/build_from_scratch.list لحد 0024؛ postgres مش superuser زي Production)، وبعدين 0025 فوقها. مفيش أي اتصال بـ Supabase،
+# (backend/db/ci/build_from_scratch.list لحد قبل سطر 0025؛ postgres مش superuser زي Production)، وبعدين 0025 فوقها. مفيش أي اتصال بـ Supabase،
 # ولا بيانات ولا مفاتيح من Production.
 # بيغطي (العقد docs/contracts/INSTALLER-SHIPPING.md §٦): شكل المعاملة · md5 الجسم (ptest = apply) · سطر الموافقة برّه الملفات ·
 # الفرق عن جسم 0021ex = التعديل الواحد بس، والرجوع = جسم 0021ex بالحرف · الـ 10 verify قبل التطبيق (التسعة + 0024) ·
@@ -190,6 +190,8 @@ n=0
 last=""
 while IFS='|' read -r kind rel _reason; do
   case "$kind" in ''|'#'*|exclude) continue ;; apply|baseline|fixture|check) ;; *) stop "B01 build list" "unknown kind $kind" ;; esac
+  # 0025 نفسها في القايمة بعد التطبيق على Production (العقد §٨-7): هنا البناء لحد قبلها، والملف بيتطبّق ويتختبر تحت.
+  [ "$rel" = "migrations/0025_installer_shipping.sql" ] && { SKIPPED_0025=yes; break; }
   f="$DBDIR/$rel"
   [ -f "$f" ] || stop "B01 build list" "missing $rel"
   n=$((n + 1))
@@ -208,8 +210,8 @@ shape=$(su_q "$DB" -c "select rolsuper::text || ',' || rolbypassrls::text from p
 ST0=$(co_state)
 ok=no
 case "$ST0" in "1|$OLD_MD5|postgres|true|{\"search_path=\\\"\\\"\"}|"*) ok=yes ;; esac
-[ "$n" -gt 10 ] && [ "$shape" = "false,true" ] && [ "$last" = "migrations/0024_order_delete.sql" ] || ok=no
-record "B01 database built from the whole build_from_scratch.list ($n steps, last $last), postgres not superuser, zell_create_order = 0021ex body owned by postgres" "$ok" "steps=$n last=$last postgres=$shape state=$ST0"
+[ "$n" -gt 10 ] && [ "$shape" = "false,true" ] && [ "$last" = "migrations/0024_order_delete.sql" ] && [ "${SKIPPED_0025:-no}" = "yes" ] || ok=no
+record "B01 database built from build_from_scratch.list up to before 0025 ($n steps, last $last; 0025 line not built: ${SKIPPED_0025:-no}), postgres not superuser, zell_create_order = 0021ex body owned by postgres" "$ok" "steps=$n last=$last postgres=$shape state=$ST0"
 [ "$ok" = yes ] || finish
 ACL0=$(printf '%s' "$ST0" | cut -d'|' -f6-)
 FP0=$(fp)
