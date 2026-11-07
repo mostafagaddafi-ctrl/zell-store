@@ -141,6 +141,8 @@ const KNOWN_SENTINELS = [
   'ZELL_ORDER_CANCELLED_FINAL',
   // 0022 — trigger zell_catalog_home_products_guard (45507): حفظ قايمة الرئيسية بـ id لمنتج مش موجود
   'ZELL_HOME_PRODUCTS_MISSING',
+  // 0026 — trigger zell_catalog_products_activation_guard (45705): تفعيل منتج أو إنشاء منتج ظاهر من غير صورة رئيسية من المعرض
+  'ZELL_PRODUCT_NEEDS_PRIMARY_IMAGE',
   // 0020 — trigger zinv_products_sale_unit (45217) على products: لسه موجود على Production لحد المرحلة B
   //    في INVENTORY-REMOVAL، فحفظ المنتج بيترجمه لرسالة واضحة (lib/mutations/products.ts). باقي أسماء المخزون اتشالت مع كوده.
   'ZELL_INV_SALE_UNIT_LOCKED',
