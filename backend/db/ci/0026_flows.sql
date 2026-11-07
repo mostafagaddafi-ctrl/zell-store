@@ -5,7 +5,7 @@
 -- • العقد docs/contracts/IMAGE-DELETE.md §٨: الحذف والترقية والرفض والهويات والأدوار، حارس التفعيل، جملة التراجع المشروطة
 --   (§٥-ج)، وسيناريو ضياع رد الإدخال (§٥-د) في جزء الداتابيز. التزامن بجلستين حقيقيتين في سكربت الـ CI (K01..K08).
 -- • معاملة واحدة: أول جملة begin وآخر جملة rollback، والنتيجة صفوف في SELECT واحد (فحص الشكل في CI).
--- • المتوقع: PASS بـ 18 نجاح و 0 فشل.
+-- • المتوقع: PASS بـ 19 نجاح و 0 فشل.
 
 begin;
 set local idle_in_transaction_session_timeout = '60s';
@@ -255,12 +255,18 @@ begin
                            'product-images', 'products/ci26/x.jpg', 'replaced'));
   perform pg_temp.zt('F18 zell_catalog_definer cannot record a reason other than removed / product_deleted (RLS 42501)',
     pg_temp.st(r) = '42501' and not exists (select 1 from public.storage_orphans s where s.object_path = 'products/ci26/x.jpg'), r);
+
+  -- F19 سحب UPDATE (product_id): الدور مايقدرش ينقل صورة رئيسية لمنتج تاني رغم policy الترقية (العقد §٤)
+  r := pg_temp.call_raw('zell_catalog_definer', '',
+         pg_catalog.format('update public.product_images set product_id = %s where id = %s returning 1', q, ib));
+  perform pg_temp.zt('F19 zell_catalog_definer cannot move a primary image to another product (product_id, 42501)',
+    pg_temp.st(r) = '42501' and (select i.product_id from public.product_images i where i.id = ib) = p, r);
 end
 $flows$;
 
 select s.n, s.id, s.outcome, s.detail
   from (select 0 as n, 'summary'::text as id,
-               case when pg_catalog.count(*) filter (where r.outcome = 'fail') = 0 and pg_catalog.count(*) = 18 then 'PASS' else 'FAIL' end as outcome,
+               case when pg_catalog.count(*) filter (where r.outcome = 'fail') = 0 and pg_catalog.count(*) = 19 then 'PASS' else 'FAIL' end as outcome,
                'pass=' || pg_catalog.count(*) filter (where r.outcome = 'pass') || ' fail=' || pg_catalog.count(*) filter (where r.outcome = 'fail') as detail
           from pg_temp.zt_results r
         union all
