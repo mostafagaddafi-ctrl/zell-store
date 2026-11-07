@@ -43,29 +43,27 @@ with f as (
                                  and t.tgattr::text = f.att::text) from f), false),
          'trigger zell_catalog_products_activation_guard: before insert or update of is_active, for each row, enabled'
   union all
-  select 5, 'V05', (select pg_catalog.count(*) from pg_catalog.pg_policies p
-                     where p.schemaname = 'public' and p.roles = array['zell_catalog_definer']::name[]
-                       and ((p.tablename = 'product_images' and p.policyname = 'zell_catalog_definer_image_delete'
-                             and p.cmd = 'DELETE' and p.qual = 'true' and p.with_check is null)
-                         or (p.tablename = 'product_images' and p.policyname = 'zell_catalog_definer_image_promote'
-                             and p.cmd = 'UPDATE' and p.qual = 'true' and p.with_check like '%is_primary%'
-                             and p.with_check like '%cover%' and p.with_check like '%gallery%')
-                         or (p.tablename = 'storage_orphans' and p.policyname = 'zell_catalog_definer_insert_removed'
-                             and p.cmd = 'INSERT' and p.qual is null and p.with_check like '%removed%'
-                             and p.with_check like '%cleaned_at IS NULL%'))) = 3,
-         'policies: image_delete (DELETE) · image_promote (UPDATE, primary cover gallery) · insert_removed (INSERT, removed)'
+  select 5, 'V05', (select pg_catalog.string_agg(p.tablename::text || '.' || p.policyname::text || ':' || p.cmd || ':' || p.permissive || ':'
+                   || pg_catalog.array_to_string(p.roles, ',') || ':' || coalesce(p.qual, '-') || ':' || coalesce(p.with_check, '-'),
+                 ' | ' order by p.tablename::text collate "C", p.policyname::text collate "C")
+               from pg_catalog.pg_policies p
+              where p.schemaname = 'public' and p.tablename in ('product_images', 'products', 'storage_orphans')
+                and p.roles && array['zell_catalog_definer', 'public']::name[]) = 'product_images.zell_catalog_definer_image_delete:DELETE:PERMISSIVE:zell_catalog_definer:true:- | product_images.zell_catalog_definer_image_promote:UPDATE:PERMISSIVE:zell_catalog_definer:true:(is_primary AND (fit = ''cover''::text) AND (kind = ''gallery''::text)) | product_images.zell_catalog_definer_lock:UPDATE:PERMISSIVE:zell_catalog_definer:true:false | product_images.zell_catalog_definer_select:SELECT:PERMISSIVE:zell_catalog_definer:true:- | products.zell_catalog_definer_delete:DELETE:PERMISSIVE:zell_catalog_definer:true:- | products.zell_catalog_definer_lock:UPDATE:PERMISSIVE:zell_catalog_definer:true:false | products.zell_catalog_definer_select:SELECT:PERMISSIVE:zell_catalog_definer:true:- | storage_orphans.zell_catalog_definer_insert:INSERT:PERMISSIVE:zell_catalog_definer:-:((reason = ''product_deleted''::text) AND (cleaned_at IS NULL)) | storage_orphans.zell_catalog_definer_insert_removed:INSERT:PERMISSIVE:zell_catalog_definer:-:((reason = ''removed''::text) AND (cleaned_at IS NULL)) | storage_orphans.zell_catalog_definer_lock:UPDATE:PERMISSIVE:zell_catalog_definer:true:false | storage_orphans.zell_catalog_definer_select:SELECT:PERMISSIVE:zell_catalog_definer:true:-',
+         'policies of zell_catalog_definer (and PUBLIC) on product_images / products / storage_orphans = expected text exactly'
   union all
-  select 6, 'V06', pg_catalog.has_table_privilege('zell_catalog_definer', 'public.product_images', 'DELETE')
-                    and pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', 'kind', 'SELECT')
-                    and pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', 'is_primary', 'SELECT')
-                    and pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', 'sort_order', 'SELECT')
-                    and pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', 'is_primary', 'UPDATE')
-                    and pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', 'fit', 'UPDATE')
-                    and pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', 'updated_at', 'UPDATE')
-                    and not pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', 'kind', 'UPDATE')
-                    and not pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', 'object_path', 'UPDATE')
-                    and not pg_catalog.has_table_privilege('zell_catalog_definer', 'public.product_images', 'INSERT'),
-         'zell_catalog_definer on product_images: DELETE + SELECT (kind, is_primary, sort_order) + UPDATE (is_primary, fit, updated_at) only'
+  select 6, 'V06', (select pg_catalog.string_agg(t.n || ':S=' || coalesce((select pg_catalog.string_agg(a.attname::text, ',' order by a.attname::text collate "C") from pg_catalog.pg_attribute a where a.attrelid = t.o and a.attnum > 0 and not a.attisdropped and pg_catalog.has_column_privilege('zell_catalog_definer', t.o, a.attnum, 'SELECT')), '')
+                 || ';U=' || coalesce((select pg_catalog.string_agg(a.attname::text, ',' order by a.attname::text collate "C") from pg_catalog.pg_attribute a where a.attrelid = t.o and a.attnum > 0 and not a.attisdropped and pg_catalog.has_column_privilege('zell_catalog_definer', t.o, a.attnum, 'UPDATE')), '')
+                 || ';I=' || coalesce((select pg_catalog.string_agg(a.attname::text, ',' order by a.attname::text collate "C") from pg_catalog.pg_attribute a where a.attrelid = t.o and a.attnum > 0 and not a.attisdropped and pg_catalog.has_column_privilege('zell_catalog_definer', t.o, a.attnum, 'INSERT')), '')
+                 || ';D=' || pg_catalog.has_table_privilege('zell_catalog_definer', t.o, 'DELETE')::text
+                 || ';G=' || (exists (select 1 from pg_catalog.pg_class c, pg_catalog.aclexplode(c.relacl) x
+                                       where c.oid = t.o and x.grantee = 'zell_catalog_definer'::regrole and x.is_grantable)
+                              or exists (select 1 from pg_catalog.pg_attribute a, pg_catalog.aclexplode(a.attacl) x
+                                          where a.attrelid = t.o and x.grantee = 'zell_catalog_definer'::regrole and x.is_grantable))::text,
+                 ' | ' order by t.n collate "C")
+               from (values ('product_images'::text, 'public.product_images'::regclass::oid),
+                            ('products'::text, 'public.products'::regclass::oid),
+                            ('storage_orphans'::text, 'public.storage_orphans'::regclass::oid)) t(n, o)) = 'product_images:S=bucket,id,is_primary,kind,object_path,product_id,sort_order;U=fit,is_primary,updated_at;I=;D=true;G=false | products:S=id,is_active,updated_at;U=updated_at;I=;D=true;G=false | storage_orphans:S=bucket,cleaned_at,id,object_path;U=cleaned_at;I=bucket,object_path,reason;D=false;G=false',
+         'zell_catalog_definer column grants on product_images / products / storage_orphans = expected exactly, no grant option'
   union all
   select 7, 'V07', not pg_catalog.has_schema_privilege('zell_catalog_definer', 'public', 'CREATE')
                     and exists (select 1 from pg_catalog.pg_roles r where r.rolname = 'zell_catalog_definer'
