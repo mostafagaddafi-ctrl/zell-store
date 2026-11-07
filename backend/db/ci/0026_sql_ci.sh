@@ -4,9 +4,11 @@
 # ولا بيانات ولا مفاتيح من Production.
 # بيغطي (العقد docs/contracts/IMAGE-DELETE.md §٨): شكل المعاملة · md5 الجسم (ptest = apply) · سطر الموافقة برّه الملفات ·
 # استعلام الأثر قبل وبعد (البيانات زي ما هي) · حراس الـ preflight من غير أثر · ptest قبل التطبيق بس · التطبيق ورفض الإعادة ·
-# verify · السيناريوهات (0026_flows.sql) · التزامن بجلستين حقيقيتين (حذف ↔ تفعيل في الترتيبين · حذفين · set_primary ·
-# reorder · حذف المنتج · التراجع المشروط ↔ set_primary · من غير deadlock) · الرجوع (من غير موافقة · بموافقة · مرة تانية) ثم
-# ptest وإعادة التطبيق.
+# verify (ومعاه منحة/policy زيادة = FAIL) · خط أساس الصلاحيات (منحة/policy زيادة قبل التطبيق = رفض) · السيناريوهات (0026_flows.sql) ·
+# التزامن بجلستين حقيقيتين مع إثبات التداخل من pg_stat_activity (الأولى ماسكة القفل في pg_sleep والتانية مستنية Lock قبل ما
+# الأولى تسيبه؛ غير كده الحالة تفشل): حذف ↔ تفعيل في الترتيبين · حذفين · set_primary · reorder · حذف المنتج · التراجع المشروط ↔
+# set_primary · حذف ↔ إضافة صورة في الترتيبين · تسجيل الملف ↔ سجل لسه ما اتعملش له commit (45704) · وبعدها فحص سجلات
+# الحالات (deadlock) · الرجوع (من غير موافقة · بموافقة · مرة تانية) ثم الأثر = قبل التطبيق بالظبط ثم ptest وإعادة التطبيق.
 # ممنوع يتشغّل على أي داتابيز غير الحاوية المؤقتة.
 set -uo pipefail
 
@@ -40,7 +42,7 @@ ADMIN_ID='00000000-0000-4000-8000-0000000000a2'
 OFF_ID='00000000-0000-4000-8000-0000000000a3'
 USER_ID='00000000-0000-4000-8000-0000000000a4'
 EMPTY_MD5=d41d8cd98f00b204e9800998ecf8427e
-EXPECTED="S01 S02 S03 M01 B01 X01 M02 V00 E01 E02 P01 A01 A02 P02 V01 M03 F01 K01 K02 K03 K04 K05 K06 K07 K08 RB1 RB2 V02 RB3 P03 RA1 V03"
+EXPECTED="S01 S02 S03 M01 B01 X01 M02 V00 E01 E02 E03 E04 P01 A01 A02 P02 V01 N01 N02 M03 F01 K01 K02 K03 K04 K05 K06 K07 K08 K09 K10 K11 RB1 RB2 V02 M04 RB3 P03 RA1 V03"
 US="$(printf '\037')"
 
 record() {
@@ -70,6 +72,32 @@ run_sql() { printf '%s\n' "$1" | psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=
 has() { grep -q -- "$2" "$1"; }
 body_md5() { awk -v s="-- >>> $2" -v e="-- <<< $2" '$0 == s {f = 1} f {print} $0 == e {f = 0}' "$1" | md5sum | cut -d' ' -f1; }
 with_appr() { sed "0,/^begin;\$/s//begin;\nset local zell.approved_by = '$2';/" "$1"; }
+body_of() { awk -v s="-- >>> $2" -v e="-- <<< $2" '$0 == s {f = 1} f {print} $0 == e {f = 0}' "$1"; }
+# إثبات التداخل: جلسة application_name = $1 في pg_sleep (sleep) أو مستنية قفل (lock)، لحد 5 ثواني.
+wait_app() {
+  local i c cond
+  if [ "$2" = sleep ]; then cond="wait_event = 'PgSleep'"; else cond="wait_event_type = 'Lock'"; fi
+  for i in $(seq 1 50); do
+    c=$(q "select pg_catalog.count(*) from pg_catalog.pg_stat_activity where application_name = '$1' and $cond")
+    [ "$c" = "1" ] && return 0
+    sleep 0.1
+  done
+  return 1
+}
+# حالة تزامن: $1 الاسم · $2 نص الجلسة الماسكة (بتنام جوه المعاملة) · $3 نص الجلسة المستنية. OV=yes لو اتشاف التداخل.
+overlap() {
+  local hp wp
+  OV=no
+  PGAPPNAME="$1h" run_sql "$2" "$TMP/$1h.out" & hp=$!
+  if wait_app "$1h" sleep; then
+    PGAPPNAME="$1w" run_sql "$3" "$TMP/$1w.out" & wp=$!
+    wait_app "$1w" lock && OV=yes
+    wait "$wp"
+  else
+    echo "holder never reached pg_sleep" > "$TMP/$1w.out"
+  fi
+  wait "$hp"
+}
 # الحالة: دالة الحذف | الـ trigger | عدد policies الدور | DELETE على product_images.
 state() {
   q "select (pg_catalog.to_regprocedure('public.zell_product_image_delete(integer, bigint)') is not null)::text
@@ -151,8 +179,9 @@ record "X01 CI identities: active owner ...a1 (fixture), admin ...a2, inactive a
 impact_v b
 ok=no
 if imp_valid b && [ "$(imp_f b 1)" = "false|false" ] && [ "$(imp_f b 13)" = "0" ] && [ "$(imp_f b 14)" = "t" ] && [ "$(imp_f b 15)" = "-" ] \
-   && imp_f b 11 | grep -q 'delete=false select_kind=false update_is_primary=false update_product_id=true'; then ok=yes; fi
-record "M02 impact before 0026: not applied, idle_tx 0, sessions visible, definer has the 0022 grants only, 15 columns" "$ok" "$(imp_detail b)"
+   && imp_f b 11 | grep -q '^product_images:S=bucket,id,object_path,product_id;U=product_id;I=;D=false;G=false | ' \
+   && ! imp_f b 12 | grep -q 'image_promote'; then ok=yes; fi
+record "M02 impact before 0026: not applied, idle_tx 0, sessions visible, full definer grants = 0022 baseline, no new policy, 15 columns" "$ok" "$(imp_detail b)"
 ST0=$(state)
 res=$(summary_of "$VERIFY" v0)
 ok=no; case "$res" in "rc=0 FAIL|"*) ok=yes ;; esac
@@ -163,6 +192,12 @@ record "E01 apply without the approval line -> ZELL_0026_APPROVAL_MISSING, nothi
 with_appr "$APPLY" 'ci-0026-e2' | su_in "$TMP/e2.out"
 ok=no; has "$TMP/e2.out" 'ZELL_0026_WRONG_CALLER' && [ "$(state)" = "$ST0" ] && ok=yes
 record "E02 apply as another role (superuser) -> ZELL_0026_WRONG_CALLER, nothing changed" "$ok" "$(tailof "$TMP/e2.out")"
+{ echo "begin;"; echo "grant update (sort_order) on table public.product_images to zell_catalog_definer;"; echo "set local zell.approved_by = 'ci-0026-e3';"; body_of "$APPLY" "0026 BODY"; echo "rollback;"; } | pg_in "$TMP/e3.out"
+ok=no; has "$TMP/e3.out" 'ZELL_0026_BASELINE_DRIFT' && has "$TMP/e3.out" 'grants:' && [ "$(state)" = "$ST0" ] && ok=yes
+record "E03 unexpected extra grant (UPDATE sort_order) before apply, same transaction -> ZELL_0026_BASELINE_DRIFT (grants), nothing changed" "$ok" "$(tailof "$TMP/e3.out")"
+{ echo "begin;"; echo "alter policy zell_catalog_definer_lock on public.product_images with check (true);"; echo "set local zell.approved_by = 'ci-0026-e4';"; body_of "$APPLY" "0026 BODY"; echo "rollback;"; } | pg_in "$TMP/e4.out"
+ok=no; has "$TMP/e4.out" 'ZELL_0026_BASELINE_DRIFT' && has "$TMP/e4.out" 'policies:' && [ "$(state)" = "$ST0" ] && ok=yes
+record "E04 widened policy (lock with check true) before apply, same transaction -> ZELL_0026_BASELINE_DRIFT (policies), nothing changed" "$ok" "$(tailof "$TMP/e4.out")"
 res=$(summary_of "$PTEST" p1)
 ok=no; [ "$res" = "rc=0 PASS|pass=6 fail=0" ] && [ "$(state)" = "$ST0" ] && ok=yes
 record "P01 ptest before 0026 -> PASS 6/0, nothing changed" "$ok" "$res $(tailof "$TMP/p1.out")"
@@ -182,73 +217,99 @@ record "P02 ptest after 0026 -> ZELL_0026_PTEST_PRE_APPLY_ONLY" "$ok" "$(tailof 
 res=$(summary_of "$VERIFY" v1)
 ok=no; [ "$res" = "rc=0 PASS|pass=9 fail=0" ] && ok=yes
 record "V01 verify after 0026 -> PASS 9/0" "$ok" "$res $(grep '|fail|' "$TMP/v1.out" | tr '\n' ' ' | cut -c1-600)"
+q "grant update (sort_order) on table public.product_images to zell_catalog_definer" > "$TMP/n1.log"
+r1=$(summary_of "$VERIFY" n1a); f1=$(grep '|fail|' "$TMP/n1a.out" | cut -d'|' -f2 | tr '\n' ' ')
+q "revoke update (sort_order) on table public.product_images from zell_catalog_definer" >> "$TMP/n1.log"
+r2=$(summary_of "$VERIFY" n1b)
+ok=no; case "$r1" in "rc=0 FAIL|"*) [ "$f1" = "V06 " ] && [ "$r2" = "rc=0 PASS|pass=9 fail=0" ] && ok=yes ;; esac
+record "N01 extra grant after apply (UPDATE sort_order) -> verify FAIL on V06 only; revoked -> PASS 9/0" "$ok" "with=$r1 fails=[$f1] after=$r2 $(tailof "$TMP/n1.log")"
+q "alter policy zell_catalog_definer_image_promote on public.product_images with check ((is_primary and fit = 'cover' and kind = 'gallery') or true)" > "$TMP/n2.log"
+r1=$(summary_of "$VERIFY" n2a); f1=$(grep '|fail|' "$TMP/n2a.out" | cut -d'|' -f2 | tr '\n' ' ')
+q "alter policy zell_catalog_definer_image_promote on public.product_images with check (is_primary and fit = 'cover' and kind = 'gallery')" >> "$TMP/n2.log"
+r2=$(summary_of "$VERIFY" n2b)
+ok=no; case "$r1" in "rc=0 FAIL|"*) [ "$f1" = "V05 " ] && [ "$r2" = "rc=0 PASS|pass=9 fail=0" ] && ok=yes ;; esac
+record "N02 widened promote policy after apply (OR true) -> verify FAIL on V05 only; restored -> PASS 9/0" "$ok" "with=$r1 fails=[$f1] after=$r2 $(tailof "$TMP/n2.log")"
 impact_v a
 ok=no
 if imp_valid a && [ "$(imp_f a 1)" = "true|true" ] && [ "$(imp_f a 13)" = "0" ] \
-   && imp_f a 11 | grep -q 'delete=true select_kind=true update_is_primary=true update_product_id=true'; then
+   && imp_f a 11 | grep -q '^product_images:S=bucket,id,is_primary,kind,object_path,product_id,sort_order;U=fit,is_primary,updated_at;I=;D=true;G=false | ' \
+   && imp_f a 12 | grep -q 'image_promote' && [ "$(imp_f a 11 | cut -d'|' -f2-)" = "$(imp_f b 11 | cut -d'|' -f2-)" ]; then
   ok=yes
   for c in 2 3 4 5 6 7 8 9 10; do [ "$(imp_f a $c)" = "$(imp_f b $c)" ] || ok=no; done
 fi
-record "M03 impact after 0026: applied, data columns 2..10 identical to before (no data change), definer grants added" "$ok" "$(imp_detail a)"
+record "M03 impact after 0026: applied, data columns 2..10 identical to before, product_images grants exact (UPDATE product_id gone), products/storage_orphans grants unchanged" "$ok" "$(imp_detail a)"
 
 # ---- 6) السيناريوهات ----
 res=$(summary_of "$FLOWS" f1)
-ok=no; [ "$res" = "rc=0 PASS|pass=18 fail=0" ] && ok=yes
-record "F01 flows (0026_flows.sql) -> PASS 18/0" "$ok" "$res $(grep '|fail|' "$TMP/f1.out" | tr '\n' ' ' | cut -c1-900) $(tailof "$TMP/f1.out")"
+ok=no; [ "$res" = "rc=0 PASS|pass=19 fail=0" ] && ok=yes
+record "F01 flows (0026_flows.sql) -> PASS 19/0" "$ok" "$res $(grep '|fail|' "$TMP/f1.out" | tr '\n' ' ' | cut -c1-900) $(tailof "$TMP/f1.out")"
 
-# ---- 7) التزامن بجلستين حقيقيتين ----
-# K01 الحذف الأول ↔ التفعيل: التفعيل بيستنى، والـ trigger بيرفض 45705.
+# ---- 7) التزامن بجلستين حقيقيتين، مع إثبات التداخل (overlap: OV=yes) ----
+# K01 الحذف الأول ↔ التفعيل: التفعيل بيستنى قفل المنتج، والـ trigger بيرفض 45705.
 P=$(mkp k1); G=$(img "$P" 1 0 true)
-run_sql "$(own_txt "$(delsql "$P" "$G")" 2)" "$TMP/k1h.out" & hp=$!; sleep 0.7
-run_sql "$(pgs_txt "update public.products set is_active = true where id = $P" 0)" "$TMP/k1w.out"; wait "$hp"
+overlap k1 "$(own_txt "$(delsql "$P" "$G")" 2.5)" "$(pgs_txt "update public.products set is_active = true where id = $P" 0)"
 fin=$(q "select x.is_active::text || ',' || (select pg_catalog.count(*) from public.product_images i where i.product_id = $P) from public.products x where x.id = $P")
-ok=no; has "$TMP/k1h.out" '"deleted_image_id"' && has "$TMP/k1w.out" '45705' && [ "$fin" = "false,0" ] && ok=yes
-record "K01 delete last image (hidden) first, activation waits -> 45705; product hidden, no images" "$ok" "$(kd k1 "$fin")"
-# K02 التفعيل الأول ↔ الحذف: الحذف بيستنى for share، وبعد الـ commit بيرفض 45702.
+ok=no; [ "$OV" = yes ] && has "$TMP/k1h.out" '"deleted_image_id"' && has "$TMP/k1w.out" '45705' && [ "$fin" = "false,0" ] && ok=yes
+record "K01 delete last image (hidden) holds the product, activation waits (overlap seen) -> 45705; product hidden, no images" "$ok" "ov=$OV $(kd k1 "$fin")"
+# K02 التفعيل الأول ↔ الحذف: الحذف بيستنى for update، وبعد الـ commit بيرفض 45702.
 P=$(mkp k2); G=$(img "$P" 2 0 true)
-run_sql "$(pgs_txt "update public.products set is_active = true where id = $P" 1.5)" "$TMP/k2h.out" & hp=$!; sleep 0.5
-run_sql "$(own_txt "$(delsql "$P" "$G")" 0)" "$TMP/k2w.out"; wait "$hp"
+overlap k2 "$(pgs_txt "update public.products set is_active = true where id = $P" 2.5)" "$(own_txt "$(delsql "$P" "$G")" 0)"
 fin=$(q "select x.is_active::text || ',' || (select pg_catalog.count(*) from public.product_images i where i.product_id = $P and i.is_primary) from public.products x where x.id = $P")
-ok=no; has "$TMP/k2w.out" '45702' && [ "$fin" = "true,1" ] && ok=yes
-record "K02 activation first, delete of the last image waits -> 45702; product visible with its primary" "$ok" "$(kd k2 "$fin")"
-# K03 حذفين لآخر صورتين في منتج ظاهر: التاني بيعدّ من جديد بعد القفل -> 45702.
+ok=no; [ "$OV" = yes ] && has "$TMP/k2w.out" '45702' && [ "$fin" = "true,1" ] && ok=yes
+record "K02 activation holds the product, delete of the last image waits (overlap seen) -> 45702; visible with its primary" "$ok" "ov=$OV $(kd k2 "$fin")"
+# K03 حذفين لآخر صورتين في منتج ظاهر: التاني بيستنى صف المنتج، وبعده بيعدّ من جديد -> 45702.
 P=$(mkp k3); A=$(img "$P" 3 0 true); B=$(img "$P" 4 1 false); q "update public.products set is_active = true where id = $P" > /dev/null
-run_sql "$(own_txt "$(delsql "$P" "$A")" 2)" "$TMP/k3h.out" & hp=$!; sleep 0.5
-run_sql "$(own_txt "$(delsql "$P" "$B")" 0)" "$TMP/k3w.out"; wait "$hp"
+overlap k3 "$(own_txt "$(delsql "$P" "$A")" 2.5)" "$(own_txt "$(delsql "$P" "$B")" 0)"
 fin=$(q "select x.is_active::text || ',' || (select pg_catalog.string_agg(i.id::text || ':' || i.is_primary::text, ',') from public.product_images i where i.product_id = $P) from public.products x where x.id = $P")
-ok=no; has "$TMP/k3h.out" '"promoted_image_id"' && has "$TMP/k3w.out" '45702' && [ "$fin" = "true,$B:true" ] && ok=yes
-record "K03 two parallel deletes of the last two images (visible): second recounts after the lock -> 45702; one primary left" "$ok" "$(kd k3 "$fin")"
-# K04 حذف ↔ zell_set_primary_product_image.
+ok=no; [ "$OV" = yes ] && has "$TMP/k3h.out" '"promoted_image_id"' && has "$TMP/k3w.out" '45702' && [ "$fin" = "true,$B:true" ] && ok=yes
+record "K03 two deletes of the last two images (visible), second waits (overlap seen) and recounts -> 45702; one primary left" "$ok" "ov=$OV $(kd k3 "$fin")"
+# K04 حذف ↔ zell_set_primary_product_image (ماسكة الصور).
 P=$(mkp k4); A=$(img "$P" 5 0 true); B=$(img "$P" 6 1 false); C=$(img "$P" 7 2 false)
-run_sql "$(svc_txt "select public.zell_set_primary_product_image($P, $B)" 1.5)" "$TMP/k4h.out" & hp=$!; sleep 0.5
-run_sql "$(own_txt "$(delsql "$P" "$C")" 0)" "$TMP/k4w.out"; wait "$hp"
+overlap k4 "$(svc_txt "select public.zell_set_primary_product_image($P, $B)" 2.5)" "$(own_txt "$(delsql "$P" "$C")" 0)"
 fin=$(q "select pg_catalog.string_agg(i.id::text || ':' || i.is_primary::text, ',' order by i.id) from public.product_images i where i.product_id = $P")
-ok=no; has "$TMP/k4w.out" '"deleted_image_id"' && [ "$fin" = "$A:false,$B:true" ] && ok=yes
-record "K04 delete while zell_set_primary_product_image holds the images -> waits, deletes; exactly one primary" "$ok" "$(kd k4 "$fin")"
+ok=no; [ "$OV" = yes ] && has "$TMP/k4w.out" '"deleted_image_id"' && [ "$fin" = "$A:false,$B:true" ] && ok=yes
+record "K04 delete waits on images held by zell_set_primary_product_image (overlap seen), then deletes; exactly one primary" "$ok" "ov=$OV $(kd k4 "$fin")"
 # K05 حذف ↔ zell_reorder_product_images.
 P=$(mkp k5); A=$(img "$P" 8 0 true); B=$(img "$P" 9 1 false); C=$(img "$P" 10 2 false)
-run_sql "$(svc_txt "select public.zell_reorder_product_images($P, array[$C, $B, $A]::bigint[])" 1.5)" "$TMP/k5h.out" & hp=$!; sleep 0.5
-run_sql "$(own_txt "$(delsql "$P" "$B")" 0)" "$TMP/k5w.out"; wait "$hp"
+overlap k5 "$(svc_txt "select public.zell_reorder_product_images($P, array[$C, $B, $A]::bigint[])" 2.5)" "$(own_txt "$(delsql "$P" "$B")" 0)"
 fin=$(q "select pg_catalog.string_agg(i.id::text || ':' || i.is_primary::text || ':' || i.sort_order, ',' order by i.id) from public.product_images i where i.product_id = $P")
-ok=no; has "$TMP/k5w.out" '"deleted_image_id"' && [ "$fin" = "$A:true:2,$C:false:0" ] && ok=yes
-record "K05 delete while zell_reorder_product_images holds the images -> waits, deletes; order kept, one primary" "$ok" "$(kd k5 "$fin")"
+ok=no; [ "$OV" = yes ] && has "$TMP/k5w.out" '"deleted_image_id"' && [ "$fin" = "$A:true:2,$C:false:0" ] && ok=yes
+record "K05 delete waits on images held by zell_reorder_product_images (overlap seen), then deletes; order kept, one primary" "$ok" "ov=$OV $(kd k5 "$fin")"
 # K06 حذف صورة ↔ zell_product_delete لنفس المنتج: بعد commit حذف المنتج -> 45701.
 P=$(mkp k6); A=$(img "$P" 11 0 true); U=$(q "select updated_at::text from public.products where id = $P")
-run_sql "$(own_txt "select public.zell_product_delete($P, '$U'::timestamptz)::text" 1.5)" "$TMP/k6h.out" & hp=$!; sleep 0.5
-run_sql "$(own_txt "$(delsql "$P" "$A")" 0)" "$TMP/k6w.out"; wait "$hp"
+overlap k6 "$(own_txt "select public.zell_product_delete($P, '$U'::timestamptz)::text" 2.5)" "$(own_txt "$(delsql "$P" "$A")" 0)"
 fin=$(q "select pg_catalog.count(*) from public.products where id = $P")
-ok=no; has "$TMP/k6w.out" '45701' && [ "$fin" = "0" ] && ok=yes
-record "K06 image delete while zell_product_delete holds the product -> waits, then 45701; product gone" "$ok" "$(kd k6 "$fin")"
+ok=no; [ "$OV" = yes ] && has "$TMP/k6w.out" '45701' && [ "$fin" = "0" ] && ok=yes
+record "K06 image delete waits on zell_product_delete holding the product (overlap seen) -> 45701; product gone" "$ok" "ov=$OV $(kd k6 "$fin")"
 # K07 جملة التراجع المشروطة ↔ zell_set_primary_product_image (§٥-ج): بتستنى قفل الصف، وبعد الـ commit صفر.
 P=$(mkp k7); X=$(img "$P" 12 0 false)
-run_sql "$(svc_txt "select public.zell_set_primary_product_image($P, $X)" 1.5)" "$TMP/k7h.out" & hp=$!; sleep 0.5
-run_sql "$(svc_txt "with d as (delete from public.product_images where id = $X and is_primary = false returning 1) select 'deleted=' || pg_catalog.count(*) from d" 0)" "$TMP/k7w.out"; wait "$hp"
+overlap k7 "$(svc_txt "select public.zell_set_primary_product_image($P, $X)" 2.5)" "$(svc_txt "with d as (delete from public.product_images where id = $X and is_primary = false returning 1) select 'deleted=' || pg_catalog.count(*) from d" 0)"
 fin=$(q "select pg_catalog.string_agg(i.id::text || ':' || i.is_primary::text, ',') from public.product_images i where i.product_id = $P")
-ok=no; has "$TMP/k7w.out" 'deleted=0' && [ "$fin" = "$X:true" ] && ok=yes
-record "K07 conditional rollback delete waits on set_primary's row lock, re-checks -> 0 rows; image stays primary" "$ok" "$(kd k7 "$fin")"
+ok=no; [ "$OV" = yes ] && has "$TMP/k7w.out" 'deleted=0' && [ "$fin" = "$X:true" ] && ok=yes
+record "K07 conditional rollback delete waits on set_primary's row lock (overlap seen), re-checks -> 0 rows; image stays primary" "$ok" "ov=$OV $(kd k7 "$fin")"
+# K08 حذف الرئيسية ماسك المنتج ↔ إضافة صورة (FK key share) بتستنى؛ البديل من الصور اللي كانت موجودة.
+P=$(mkp k8); A=$(img "$P" 13 0 true); B=$(img "$P" 14 1 false); q "update public.products set is_active = true where id = $P" > /dev/null
+overlap k8 "$(own_txt "$(delsql "$P" "$A")" 2.5)" "$(svc_txt "insert into public.product_images (product_id, object_path, kind, sort_order, is_primary, fit) values ($P, 'products/$P/ci26-k-x8.jpg', 'gallery', 0, false, 'contain') returning 'inserted=' || id" 0)"
+X=$(q "select id from public.product_images where object_path = 'products/$P/ci26-k-x8.jpg'")
+fin=$(q "select x.is_active::text || ',' || (select pg_catalog.string_agg(i.id::text || ':' || i.is_primary::text, ',' order by i.id) from public.product_images i where i.product_id = $P) from public.products x where x.id = $P")
+ok=no; [ "$OV" = yes ] && has "$TMP/k8h.out" "\"promoted_image_id\": $B" && has "$TMP/k8w.out" 'inserted=' && [ -n "$X" ] && [ "$fin" = "true,$B:true,$X:false" ] && ok=yes
+record "K08 delete of the primary holds the product, image insert waits on the FK (overlap seen); promotion from the existing images; one primary" "$ok" "ov=$OV $(kd k8 "$fin")"
+# K09 إضافة صورة لسه ما اتعملها commit ↔ حذف الرئيسية بيستنى؛ بعد الـ commit الصورة الجديدة جزء من البدائل.
+P=$(mkp k9); A=$(img "$P" 15 0 true); B=$(img "$P" 16 1 false); q "update public.products set is_active = true where id = $P" > /dev/null
+overlap k9 "$(svc_txt "insert into public.product_images (product_id, object_path, kind, sort_order, is_primary, fit) values ($P, 'products/$P/ci26-k-x9.jpg', 'gallery', 0, false, 'contain')" 2.5)" "$(own_txt "$(delsql "$P" "$A")" 0)"
+X=$(q "select id from public.product_images where object_path = 'products/$P/ci26-k-x9.jpg'")
+fin=$(q "select x.is_active::text || ',' || (select pg_catalog.string_agg(i.id::text || ':' || i.is_primary::text, ',' order by i.id) from public.product_images i where i.product_id = $P) from public.products x where x.id = $P")
+ok=no; [ "$OV" = yes ] && has "$TMP/k9w.out" "\"promoted_image_id\": $X" && [ "$fin" = "true,$B:false,$X:true" ] && ok=yes
+record "K09 uncommitted image insert holds the FK lock, delete of the primary waits (overlap seen); new image counted, promoted by (sort_order, id); one primary" "$ok" "ov=$OV $(kd k9 "$fin")"
+# K10 سجل لنفس المسار لسه ما اتعملش له commit: تسجيل الملف بيستنى لحد lock_timeout -> 45704، ومفيش تغيير.
+P=$(mkp k10); A=$(img "$P" 17 0 true); B=$(img "$P" 18 1 false); PB=$(q "select object_path from public.product_images where id = $B")
+overlap k10 "$(svc_txt "insert into public.storage_orphans (bucket, object_path, reason) values ('product-images', '$PB', 'insert_failed')" 4)" "$(own_txt "$(delsql "$P" "$B")" 0)"
+fin=$(q "select (select pg_catalog.count(*) from public.product_images i where i.id = $B) || ',' || (select o.reason from public.storage_orphans o where o.object_path = '$PB')")
+ok=no; [ "$OV" = yes ] && has "$TMP/k10w.out" '45704' && has "$TMP/k10w.out" 'orphan_insert' && [ "$fin" = "1,insert_failed" ] && ok=yes
+record "K10 orphan record for the path not yet committed: delete waits (overlap seen) until lock_timeout -> 45704 (orphan_insert); image kept" "$ok" "ov=$OV $(kd k10 "$fin")"
 ok=yes
-for k in k1 k2 k3 k4 k5 k6 k7; do if grep -qE '40P01|deadlock' "$TMP/${k}h.out" "$TMP/${k}w.out"; then ok=no; fi; done
-record "K08 no deadlock in K01..K07" "$ok" "$(grep -lE '40P01|deadlock' "$TMP"/k*.out 2> /dev/null | tr '\n' ' ')"
+for k in k1 k2 k3 k4 k5 k6 k7 k8 k9 k10; do if grep -qE '40P01|deadlock' "$TMP/${k}h.out" "$TMP/${k}w.out"; then ok=no; fi; done
+record "K11 log scan of K01..K10: no deadlock" "$ok" "$(grep -lE '40P01|deadlock' "$TMP"/k*.out 2> /dev/null | tr '\n' ' ')"
 
 # ---- 8) الرجوع ثم إعادة التطبيق ----
 ORPH=$(q "select pg_catalog.count(*) || ':' || pg_catalog.md5(coalesce(pg_catalog.string_agg(pg_catalog.to_jsonb(t)::text, ',' order by t.id), '')) from public.storage_orphans t")
@@ -261,6 +322,9 @@ record "RB2 rollback with the approval line -> back to the pre-0026 state; stora
 res=$(summary_of "$VERIFY" v2)
 ok=no; case "$res" in "rc=0 FAIL|"*) ok=yes ;; esac
 record "V02 verify after rollback -> FAIL (not applied)" "$ok" "$res"
+impact_v r
+ok=no; imp_valid r && [ "$(imp_f r 1)" = "false|false" ] && [ "$(imp_f r 11)" = "$(imp_f b 11)" ] && [ "$(imp_f r 12)" = "$(imp_f b 12)" ] && ok=yes
+record "M04 impact after rollback: grants (col 11) and policies (col 12) identical to before 0026 (UPDATE product_id restored)" "$ok" "$(imp_detail r)"
 with_appr "$ROLLBACK" 'ci-0026-rollback-again' | pg_in "$TMP/rb3.out"
 ok=no; has "$TMP/rb3.out" 'ZELL_0026_RB_NOT_APPLIED' && [ "$(state)" = "$ST0" ] && ok=yes
 record "RB3 rollback again -> ZELL_0026_RB_NOT_APPLIED, nothing changed" "$ok" "$(tailof "$TMP/rb3.out")"
