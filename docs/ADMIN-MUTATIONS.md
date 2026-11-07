@@ -60,9 +60,11 @@ default، و `ON CONFLICT DO UPDATE` بيبني صف الإدخال الأول �
 
 ## برّه النطاق
 
-`deleteImageAction` · `resendNotificationAction` ·
+`resendNotificationAction` ·
 `saveOperationalSettingsAction` · `revalidateStorefrontAction` ·
 `uploadProductImagePlaceholder` · اللوجو · إدارة المستخدمين والأدوار.
+
+> **تحديث 2026-11-07:** `deleteImageAction` اتعملت في IMAGE-DELETE C1 (#226): المالك بس، بدالة الداتابيز `zell_product_image_delete` (0026). العقد `docs/contracts/IMAGE-DELETE.md`.
 
 ---
 
@@ -375,6 +377,6 @@ Supabase (اسم عمود، اسم قيد، جزء من استعلام) ممنو
 
 ### لسه برّه النطاق
 
-اللوجو · رفع وحذف الصور · `/api/orders` · إعادة إرسال الإشعارات ·
+اللوجو · رفع واستبدال الصور (حذف صورة المنتج اتعمل في IMAGE-DELETE C1، #226) · `/api/orders` · إعادة إرسال الإشعارات ·
 تحديث كاش المتجر · إعدادات التشغيل · إدارة المستخدمين والأدوار ·
 **ربط الواجهة**.

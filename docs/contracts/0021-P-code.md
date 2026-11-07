@@ -247,3 +247,7 @@
 13. **الـ manifest والتكافؤ في CI:** الجدول `apps/admin/lib/access/manifest.ts` (79 صف: الرمز · الصلاحية · `mutates` · الحارس والعلم النهارده · الرسالة). `manifest.cases.ts` (suite `manifest`) بيشغّل كل رمز في legacy × (anonymous · forbidden · unavailable · owner · admin) × (العلم مفتوح · مقفول) ويقارن بنتيجة النهارده، ويتأكد إن مفيش نداء `zell_erp_*` في legacy. و`scripts/check-access-manifest.mjs` (خطوة CI) بيتأكد إن الجدول = الكود (الغلاف · الصلاحية · `mutates` · `forbiddenMessage` · `mapFailure`) ومفيش رمز ناقص أو زيادة.
 14. **العناوين الثابتة للـ 3 صفحات:** `collections/[id]` ← 'القسم' · `orders/[orderNumber]` ← 'تفاصيل الطلب' · `products/[id]` ← 'المنتج'.
 15. **`lib/auth/guards.ts` (`requireAdminPage` / `requireAdminAction`) و`ownerGate`** مابقاش حد برّه `lib/auth` و`lib/access` بيستوردهم، بس **ماتمسحوش**: حذف كود «غير مستخدم» قرار لوحده.
+
+### 2026-11-07 · IMAGE-DELETE C1 (توثيق بس)
+
+16. **`deleteImageAction` اتعملت (#226)، فالأكشنز اللي لسه مش متعملة بقت 3** (البند 10): `uploadProductImagePlaceholder` · `resendNotificationAction` · `saveOperationalSettingsAction`. `deleteImageAction(productId, imageId)` بقت بصلاحية فئة المالك `zell.orders.payments_admin` (زي `deleteProductAction`) ورسالة `IMAGE_DELETE_OWNER_ONLY_MESSAGE` «حذف الصور متاح للمالك فقط.»، والقرار النهائي في الداتابيز (0026، 45402). اتشالت من `UNIMPLEMENTED_SYMBOLS`، و`todayGuard` بقى `owner`، ونوع `forbiddenMessage` في الجدول زاد اسم. العدد زي ما هو: 81 رمز، منهم 59 action. العقد: `docs/contracts/IMAGE-DELETE.md` §٧.

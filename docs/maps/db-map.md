@@ -23,7 +23,7 @@
 | `erp_definer` | `0021p_erp_access` | مالك دوال المحرك `erp_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS) |
 | `zell_erp_definer` | `0021p_zell_erp_access` | مالك دوال المحوّل والواجهة `erp_actor_status_v1`. مالوش أي صلاحية على `admin_users` |
 | `zell_order_definer` | `0021a_a1_order_cycle` | مالك دوال دورة الطلب `zell_order_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS). على `orders`: SELECT + UPDATE لأعمدة الدورة بس. ومالك `zell_checkout_delivery_periods` (0021-D)، وبعد P1/P2: `zell_payment_*` (ماعدا الـ triggers) و`zell_checkout_confirmation_fee` (§٧-ب)، وبعد 0021-D2: `zell_delivery_settings_get` / `_save` و`zell_checkout_delivery_settings` (§٧-ج)، وبعد 0021-TR: `zell_checkout_track_order` و SELECT على ٨ أعمدة من `order_items` بـ policy قراية (§٩)، وبعد EXPRESS-SHIPPING: `zell_shipping_options_get` / `_save` / `_checkout` و SELECT + UPDATE على `zell_shipping_options` و SELECT + INSERT على سجله (§١٠)، وبعد TRACK-ORDER v2: 9 دوال `zell_shipment_*` و`zell_customer_update_*` (ماعدا الـ triggers) و SELECT + INSERT + UPDATE على `zell_order_shipments` و`zell_order_customer_updates` و SELECT + INSERT على سجلاتهم (§١١)، ومفيش صلاحية جديدة على `orders` ولا `order_events` ولا `order_payments` |
-| `zell_catalog_definer` | `0022_product_delete` | مالك دوال حذف المنتج (NOLOGIN · NOINHERIT · NOBYPASSRLS، عضوية `postgres` بـ SET بس) — §١٢. صلاحيات أعمدة + 17 policy باسم `zell_catalog_definer_*` بس، ومفيش أي صلاحية على `orders` ولا قراية أسماء أو أسعار المنتجات (متطبّق ومتحقق منه على Production 2026-10-26) |
+| `zell_catalog_definer` | `0022_product_delete` | مالك دوال حذف المنتج (NOLOGIN · NOINHERIT · NOBYPASSRLS، عضوية `postgres` بـ SET بس) — §١٢. صلاحيات أعمدة + 17 policy باسم `zell_catalog_definer_*` بس، ومفيش أي صلاحية على `orders` ولا قراية أسماء أو أسعار المنتجات (متطبّق ومتحقق منه على Production 2026-10-26). **0026:** مالك `zell_product_image_delete` وحارس التفعيل، ومنح زيادة على `product_images` + 3 policies (§١٦) |
 | `zell_purge_definer` | `0024_order_delete` | مالك دوال حذف الطلبات `zell_purge_*` (NOLOGIN · NOINHERIT · NOBYPASSRLS، عضوية `postgres` بـ SET بس) — §١٤. على جداول الطلبات التسعة: SELECT · UPDATE على عمود واحد للقفل بس (policy `with check (false)`) · DELETE على 7. **متطبّق ومتحقق منه على Production 2026-11-04** (§١٤) |
 
 ---
@@ -34,7 +34,7 @@
 
 | الجدول | اتعرّف في | بيعمل إيه | اتغيّر في |
 | --- | --- | --- | --- |
-| `products` | `schema.sql` | المنتجات: سعر المتر والعرض والطول، والقطعة | 0013 `lock_width` · 0014 `compare_at_piastres` · 0016 `sale_unit` `is_listed` `max_quantity` · 0020 trigger بيحمي `sale_unit` · **(برّه الملفات)** أعمدة `brand` · `images` · `before_image` · `after_image` · `short_benefit` · `benefits` (15–20) + `products_benefits_shape` · `products_short_benefit_length`: `baseline/b1_products_columns.sql` |
+| `products` | `schema.sql` | المنتجات: سعر المتر والعرض والطول، والقطعة | 0013 `lock_width` · 0014 `compare_at_piastres` · 0016 `sale_unit` `is_listed` `max_quantity` · 0020 trigger بيحمي `sale_unit` · **(برّه الملفات)** أعمدة `brand` · `images` · `before_image` · `after_image` · `short_benefit` · `benefits` (15–20) + `products_benefits_shape` · `products_short_benefit_length`: `baseline/b1_products_columns.sql` · 0026 trigger `zell_catalog_products_activation_guard` (منتج ظاهر لازم ليه رئيسية من المعرض، §١٦) |
 | `orders` | `schema.sql` | راس الطلب: الزبون والعنوان والإجماليات والحالة | 0005b/0006a idempotency والجلسة والإيصال · 0018 المنطقة والتركيب · 0019 الكوبون والخصم + trigger `orders_cancelled_final` · 0021-A A1: `preparing` و`refused` في قيد الحالة (القديم في تعليق القيد) + `next_follow_up_at` و`delivery_confirmed_date/period/note` + triggers `orders_status_guard` و`orders_created_event` · 0021-D: `preferred_delivery_date/period/note` (لقطة موعد العميل المفضّل) · 0021-A P1: `paid_piastres` (الدفعات − الردود، بتكتبه دوال الدفعات بس) و`confirmation_fee_piastres` (لقطة) + trigger `orders_money_guard` · EXPRESS-SHIPPING W1: `shipping_method` و`shipping_days_min/max` (لقطة الطريقة والمدة، nullable) + قيد `orders_shipping_snapshot_shape` (§١٠) · **(برّه الملفات)** `internal_notes` (الترتيب الحي 16) + `orders_internal_notes_length`: `baseline/b0_orders_internal_notes.sql` |
 | `order_payments` | `0021a_p1` | الدفعات والردود (append-only، `command_id` فريد، لقطة اسم الطريقة، FK restrict على الطلب) | RLS لـ `zell_order_definer` بس |
 | `zell_payment_methods` | `0021a_p1` | طرق الدفع (كاش · فودافون كاش · إنستاباي · تحويل بنكي، قابلة للإدارة) | الحذف بس لو مااتستخدمتش |
@@ -43,9 +43,9 @@
 | `zell_payment_commands` | `0021a_p1` | أوامر الدفع (مراجعة #122): أمر لكل `record` / `refund` / `deliver_order` ناجح، ومعاه لقطة النتيجة الأصلية اللي الإعادة بترجّعها (append-only، `command_id` primary key، FK restrict على الطلب) | RLS لـ `zell_order_definer` بس |
 | `order_items` | `schema.sql` | سطور الطلب | 0016 `sale_unit` `quantity` · 0021-TR: SELECT لـ `zell_order_definer` على ٨ أعمدة + policy `zell_order_definer_select` (قراية بس، §٩) |
 | `settings` | `schema.sql` | إعدادات ومحتوى بمفتاح (hero · sections · faqs · shipping_rates …) | 0007 شال أسرار تليجرام · 0008 مفتاح `announcement` · 0019 مفتاح `coupons_enabled` |
-| `product_images` | `0003` | صور معرض المنتج (`bucket` + `object_path`)، والترتيب والرئيسية | · **(برّه الملفات)** `fit` (16) + `product_images_fit_check`: `baseline/b1_products_columns.sql` |
+| `product_images` | `0003` | صور معرض المنتج (`bucket` + `object_path`)، والترتيب والرئيسية | · **(برّه الملفات)** `fit` (16) + `product_images_fit_check`: `baseline/b1_products_columns.sql` · 0026 حذف صورة بـ `zell_product_image_delete` (الملف بيتسجّل، §١٦). ⚠ `id` bigint: اللوحة بتقراه `id::text` |
 | `site_images` | `0006` | اللوجو وصور الموقع | 0009 نوع `hero` + صورة نشطة واحدة لكل نوع فردي |
-| `storage_orphans` | `0006` | ملفات Storage محتاجة تنظيف | 0012 سبب `removed` · 0022 سبب `product_deleted` (متطبّق 2026-10-26) |
+| `storage_orphans` | `0006` | ملفات Storage محتاجة تنظيف | 0012 سبب `removed` · 0022 سبب `product_deleted` (متطبّق 2026-10-26) · 0026 حذف صورة بيسجّل `removed` (من غير تغيير في القيود؛ التنظيف الفعلي IMAGE-CLEANUP لسه) |
 | `collections` | `0010` | الأقسام | 0012 `show_on_home` `show_in_nav` والغلاف · 0017 `catalog_layout` |
 | `product_collections` | `0010` | ربط المنتجات بالأقسام وترتيبها | |
 | `product_widths` | `0015` | عروض الرول الإضافية لكل منتج بسعر المتر بتاعها | |
@@ -425,3 +425,27 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | `migrations/0025_installer_shipping_impact.sql` | استعلام الأثر (قراية بس، 15 عمود) قبل كل خطوة Production وبعدها: بصمة الدالة · الصلاحيات كاملة ومنها grant option (وقف لو مش بالظبط) · الحراس · الأعداد · idle_tx · رؤية الجلسات |
 | `migrations/0025_installer_shipping_verify.sql` · `_rollback.sql` | التحقق (6 فحوص) · الرجوع (محتاج سطر موافقة `…-installer-shipping-rollback`) |
 | `ci/0025_sql_ci.sh` · `ci/0025_flows.sql` | CI: بناء من القايمة لحد قبل سطر 0025 · حراس الـ preflight · ptest · التطبيق · الـ 10 verify قبل وبعد · مقارنة القديم بالجديد (6300 حالة × 7 نداءات) · 15 سيناريو بأرقام محسوبة · اختبارات سالبة · الرجوع وإعادة التطبيق |
+
+## ١٦) حذف صورة من منتج (0026 — IMAGE-DELETE) — متطبّق على Production 2026-11-07
+
+> **اتطبّق على Production 2026-11-07** خطوة خطوة بأوامر المالك من ملفات main `3d79e4c` (#223): التطبيق 15:20:33Z بسطر `owner-approval-2026-11-07-0026-image-delete`، والتحقق 15:22:38Z (verify 0026 PASS 9/0). الأوقات والبصمات وحدود الدليل في العقد `docs/contracts/IMAGE-DELETE.md` §٩ (تسليم شات التنفيذ، مش قراية مستقلة من المراجع). 0026 في بناء CI من #225، واللوحة من #226.
+
+| الدالة / الـ trigger | المالك · EXECUTE | بتعمل إيه |
+| --- | --- | --- |
+| `zell_product_image_delete(integer, bigint)` | `zell_catalog_definer` · `authenticated` بس (volatile · definer · `search_path` فاضي · `lock_timeout` 3s) | المالك بس (`zell_order_actor(true)`)، معاملة واحدة: قفل المنتج `for update` ← صور المنتج `for update` ← سجل الملف `nowait` ← القرار بعد الأقفال. بيسجّل `(bucket, object_path)` في `storage_orphans` بسبب `removed` (لو مفيش سجل مفتوح لنفس المسار) قبل مسح الصف، ولو الصورة رئيسية بيرقّي أول صورة معرض باقية (`sort_order` ثم `id`) بـ `fit = 'cover'`، وفحص أخير fail-closed. مابيلمسش `products` ولا Storage. الرد `{deleted_image_id, promoted_image_id, orphan_recorded}` (المعرّفات أرقام jsonb) |
+| `zell_catalog_trg_products_activation_guard()` + trigger `zell_catalog_products_activation_guard` على `products` | `zell_catalog_definer` · مفيش (definer · `search_path` فاضي) | `before insert or update of is_active`: الانتقال لظاهر (أو إنشاء منتج ظاهر) من غير صورة رئيسية من المعرض = 45705 `ZELL_PRODUCT_NEEDS_PRIMARY_IMAGE`. الإخفاء مالوش شروط |
+
+- **الأكواد:** 45701 الصورة مش موجودة أو مش من المنتج ده · 45702 آخر صورة معرض في منتج ظاهر · 45703 سجل الملف متعلّم `cleaned_at` · 45704 قفل مشغول أو فشل الفحص الأخير · 45705 حارس التفعيل. ومعاهم 45400–45402 من `zell_order_actor`.
+- **الصلاحيات على `zell_catalog_definer`:** زيادة على `product_images` بس: `DELETE` + `SELECT (kind, is_primary, sort_order)` + `UPDATE (is_primary, fit, updated_at)`، وسحب `UPDATE (product_id)`. وpolicies: `zell_catalog_definer_image_delete` (delete) · `zell_catalog_definer_image_promote` (update، الشرط: رئيسية cover من المعرض) · `zell_catalog_definer_insert_removed` على `storage_orphans` (سبب `removed` و`cleaned_at` فاضي بس). باقي منح 0022 زي ما هي.
+- **مفيش جدول ولا عمود ولا قيد جديد.** والرفع (`lib/mutations/imageUpload.ts`) بقى مابيمسحش ملف غير بعد حذف مشروط بـ `is_primary = false` لصف واحد بالظبط (العقد §٥-ج و§٥-د).
+- **عقد الاستدعاء:** `zell_product_image_delete` في `later` (0026) وممنوعة على `anon` و`service_role` (`ci/call_contract_policy.json`). 0022 و0023 بيتخطّوها بـ `--later skip`، و0024 بـ `--later skip:0026_image_delete.sql`.
+- **BASELINE:** قيمة `col:product_images.fit` في `ci/baseline_compare.sql` فيها منحة `UPDATE (fit)`، ومتأكدة بقراية `0026_image_delete_baseline_read.sql` (#225).
+
+| الملف | بيعمل إيه |
+| --- | --- |
+| `migrations/0026_image_delete.sql` | preflight (المنح والـ policies وخصايص الدور بالنص) · المنح والـ policies · الدالتين والـ trigger · سحب EXECUTE · postflight. محتاج سطر `zell.approved_by` بعد `begin;` |
+| `migrations/0026_image_delete_ptest.sql` | smoke قبل التطبيق (6 حالات): الجسم منسوخ بالحرف (CI بيقارن md5) |
+| `migrations/0026_image_delete_impact.sql` | استعلام الأثر (قراية بس، 16 عمود) قبل وبعد |
+| `migrations/0026_image_delete_verify.sql` · `_rollback.sql` | التحقق (V01–V09) · الرجوع (بيشيل الـ trigger والدالتين والـ policies والمنح الزيادة، وبيرجّع `UPDATE (product_id)`، ومابيلمسش `storage_orphans`) |
+| `migrations/0026_image_delete_baseline_read.sql` | قراية كتالوج read only لقيمة BASELINE واحدة (#225) |
+| `ci/0026_sql_ci.sh` · `ci/0026_flows.sql` | CI: بناء من القايمة لحد قبل سطر 0026 · الحراس · ptest · التطبيق · verify · الأثر · 19 سيناريو · التزامن بجلستين مع إثبات التداخل (K01–K10، وK11 فحص سجلات deadlock) · الرجوع وإعادة التطبيق (46 حالة) |
