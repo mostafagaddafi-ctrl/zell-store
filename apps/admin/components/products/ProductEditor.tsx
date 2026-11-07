@@ -68,6 +68,7 @@ export function ProductEditor({
   addonIds = [],
   addonsTitle = '',
   initialSaleUnit = 'meter',
+  isOwner = false,
 }: {
   product: AdminProductDetail | null
   collectionId?: string
@@ -79,6 +80,8 @@ export function ProductEditor({
   addonsTitle?: string
   /** 0016 — «إضافة / منتج بالقطعة» من صفحة منتج جديد. */
   initialSaleUnit?: SaleUnit
+  /** IMAGE-DELETE C1 — حذف الصور للمالك بس (الصفحة بتبعته من هوية الجلسة). للعرض بس، والداتابيز بتعيد الفحص. */
+  isOwner?: boolean
 }) {
   const router = useRouter()
   const { state: saveState, failure, warning, run, retry, markDirty, reset } = useSaveAction()
@@ -497,7 +500,9 @@ export function ProductEditor({
         </div>
       ) : null}
 
-      {tab === 'images' && product ? <ImageManager productId={product.id} images={product.images} /> : null}
+      {tab === 'images' && product ? (
+        <ImageManager productId={product.id} images={product.images} isOwner={isOwner} productActive={product.isActive} />
+      ) : null}
       {tab === 'images' && !product ? (
         <p className="rounded-lg border border-border bg-surface p-4 text-xs text-muted">
           احفظ المنتج الأول، وبعدين ارفع صوره وحدّد الرئيسية.

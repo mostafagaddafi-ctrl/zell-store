@@ -78,8 +78,9 @@ const PRODUCT_COLUMNS = [
   'updated_at',
 ].join(',')
 
+// IMAGE-DELETE B1: id::text = المعرّف (bigint) بيوصل نص دقيق، مش رقم JSON ممكن يتقرّب
 const IMAGE_COLUMNS = [
-  'id',
+  'id::text',
   'product_id',
   'bucket',
   'object_path',

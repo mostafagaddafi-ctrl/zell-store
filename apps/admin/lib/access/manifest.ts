@@ -22,7 +22,12 @@ export type ManifestEntry = {
   mutates: boolean
   todayGuard: 'admin' | 'owner'
   todayFlag: boolean
-  forbiddenMessage: 'OWNER_ONLY_MESSAGE' | 'PRODUCT_DELETE_OWNER_ONLY_MESSAGE' | 'ORDER_PURGE_OWNER_ONLY_MESSAGE' | null
+  forbiddenMessage:
+    | 'OWNER_ONLY_MESSAGE'
+    | 'PRODUCT_DELETE_OWNER_ONLY_MESSAGE'
+    | 'ORDER_PURGE_OWNER_ONLY_MESSAGE'
+    | 'IMAGE_DELETE_OWNER_ONLY_MESSAGE'
+    | null
   mapFailure: 'rejectedFailure' | null
 }
 
@@ -55,7 +60,7 @@ export const ACCESS_MANIFEST: readonly ManifestEntry[] = [
   { kind: 'action', file: 'lib/actions.ts', symbol: 'setPrimaryImageAction', capability: 'zell.products.images_edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
   { kind: 'action', file: 'lib/actions.ts', symbol: 'setImageFitAction', capability: 'zell.products.images_edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
   { kind: 'action', file: 'lib/actions.ts', symbol: 'reorderImagesAction', capability: 'zell.products.images_edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
-  { kind: 'action', file: 'lib/actions.ts', symbol: 'deleteImageAction', capability: 'zell.unimplemented', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
+  { kind: 'action', file: 'lib/actions.ts', symbol: 'deleteImageAction', capability: 'zell.orders.payments_admin', mutates: true, todayGuard: 'owner', todayFlag: true, forbiddenMessage: 'IMAGE_DELETE_OWNER_ONLY_MESSAGE', mapFailure: null },
   { kind: 'action', file: 'lib/actions.ts', symbol: 'updateOrderStatusAction', capability: 'zell.orders.status_edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
   { kind: 'action', file: 'lib/actions.ts', symbol: 'addOrderNoteAction', capability: 'zell.orders.note_edit', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },
   { kind: 'action', file: 'lib/actions.ts', symbol: 'resendNotificationAction', capability: 'zell.unimplemented', mutates: true, todayGuard: 'admin', todayFlag: true, forbiddenMessage: null, mapFailure: null },

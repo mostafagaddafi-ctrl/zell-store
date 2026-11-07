@@ -13,19 +13,19 @@ import { fileURLToPath } from 'node:url'
 const script = path.join(path.dirname(fileURLToPath(import.meta.url)), 'call_contract.mjs')
 const POLICY = { excluded_paths: [], exceptions: [], forbidden: [] }
 
-function run(source) {
+function run(source, args = [], policyObj = POLICY) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'zell-call-contract-selftest-'))
   try {
     const file = path.join(root, 'apps', 'a', 'lib', 'x.ts')
     fs.mkdirSync(path.dirname(file), { recursive: true })
     fs.writeFileSync(file, source)
     const policy = path.join(root, 'policy.json')
-    fs.writeFileSync(policy, JSON.stringify(POLICY))
+    fs.writeFileSync(policy, JSON.stringify(policyObj))
     const sql = path.join(root, 'out.sql')
     let code = 0
     let out = ''
     try {
-      out = execFileSync(process.execPath, [script, '--root', root, '--policy', policy, '--sql', sql], { encoding: 'utf8' })
+      out = execFileSync(process.execPath, [script, '--root', root, '--policy', policy, '--sql', sql, ...args], { encoding: 'utf8' })
     } catch (e) {
       code = typeof e.status === 'number' ? e.status : 1
       out = String(e.stdout || '')
@@ -37,6 +37,9 @@ function run(source) {
     fs.rmSync(root, { recursive: true, force: true })
   }
 }
+
+const LATER_SOURCE = "export async function a() { return supabase.rpc('zell_a', {}) }\nexport async function b() { return supabase.rpc('zell_b', {}) }\n"
+const LATER_POLICY = { ...POLICY, later: [{ migration: 'm1.sql', names: ['zell_a'] }, { migration: 'm2.sql', names: ['zell_b'] }] }
 
 const CASES = [
   {
@@ -83,12 +86,48 @@ const CASES = [
     names: '',
     out: /"maps":\[\]/,
   },
+  // later (IMAGE-DELETE C1): --later skip = كل later · --later skip:<migration> = الـ migration دي بس · migration مش معروفة = فشل
+  {
+    name: 'later default (check): every later name is checked',
+    source: LATER_SOURCE,
+    policy: LATER_POLICY,
+    code: 0,
+    names: 'zell_a,zell_b',
+    out: /"checks":2/,
+  },
+  {
+    name: 'later skip: every later name is skipped',
+    source: LATER_SOURCE,
+    policy: LATER_POLICY,
+    args: ['--later', 'skip'],
+    code: 0,
+    names: '',
+    out: /^LATER apps\/a\/lib\/x\.ts:2 zell_b \(m2\.sql\)$/m,
+  },
+  {
+    name: 'later skip:m2.sql: only that migration is skipped, the other is checked',
+    source: LATER_SOURCE,
+    policy: LATER_POLICY,
+    args: ['--later', 'skip:m2.sql'],
+    code: 0,
+    names: 'zell_a',
+    out: /^LATER apps\/a\/lib\/x\.ts:2 zell_b \(m2\.sql\)$/m,
+  },
+  {
+    name: 'later skip:<unknown migration> = LATER_UNKNOWN (fails), nothing skipped',
+    source: LATER_SOURCE,
+    policy: LATER_POLICY,
+    args: ['--later', 'skip:m9.sql'],
+    code: 1,
+    names: 'zell_a,zell_b',
+    out: /^LATER_UNKNOWN m9\.sql$/m,
+  },
 ]
 
 let pass = 0
 let fail = 0
 for (const c of CASES) {
-  const r = run(c.source)
+  const r = run(c.source, c.args || [], c.policy || POLICY)
   const problems = []
   if (r.code !== c.code) problems.push('exit ' + r.code + ' (expected ' + c.code + ')')
   if (r.names.join(',') !== c.names) problems.push('names [' + r.names.join(',') + '] (expected [' + c.names + '])')

@@ -69,6 +69,8 @@ import { saveProductAddons } from './mutations/productAddons'
 import { saveAddonsTitle } from './mutations/addonsTitle'
 import { saveContent } from './mutations/content'
 import { setImageFit, setPrimaryImage } from './mutations/images'
+import { deleteProductImage } from './mutations/imageDelete'
+import { IMAGE_DELETE_OWNER_ONLY_MESSAGE, type ImageDeleteResult } from './images/deleteImage'
 import { saveInternalNote, updateOrderStatus } from './mutations/orders'
 import { saveProduct, setProductVisibility } from './mutations/products'
 import { reorderProductImages, reorderProducts } from './mutations/reorder'
@@ -173,12 +175,17 @@ export const reorderImagesAction = actionWithAccess(
   },
 )
 
-/** برّه نطاق المرحلة — محتاجة تنظيف Storage مع الصف في معاملة واحدة. */
+/**
+ * IMAGE-DELETE (C1) — حذف صورة من منتج (العقد docs/contracts/IMAGE-DELETE.md §٧). المالك بس: صلاحية فئة المالك الموجودة
+ * zell.orders.payments_admin (زي deleteProductAction) ورسالة رفض خاصة بالصور. zell_product_image_delete (0026) بجلسة المستخدم،
+ * والقرار النهائي في الداتابيز (45402). الملف بيتسجّل للتنظيف بعدين، مابيتمسحش.
+ * بعد النجاح لازم الواجهة تعيد قراءة المنتج كامل (زي setPrimaryImageAction): حذف الرئيسية بيرقّي صورة تانية.
+ */
 export const deleteImageAction = actionWithAccess(
-  'zell.unimplemented',
-  { mutates: true },
-  async (_ctx: AccessContext, _imageId: string): Promise<MutationResult<null>> => {
-    return { ok: false, code: 'INTERNAL', message: 'حذف الصور لسه ما اتعملش.' }
+  'zell.orders.payments_admin',
+  { mutates: true, forbiddenMessage: IMAGE_DELETE_OWNER_ONLY_MESSAGE },
+  async (_ctx: AccessContext, productId: number, imageId: string): Promise<MutationResult<ImageDeleteResult>> => {
+    return refreshAfter(await deleteProductImage(productId, imageId))
   },
 )
 

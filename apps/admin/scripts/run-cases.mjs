@@ -13,6 +13,8 @@
  * @zell/core: زي apps/storefront/scripts/run-cases.mjs، packages/core/src بيتحوّل لـ node_modules/@zell/core المؤقت.
  * link في الـ suite: حزم بالاسم من node_modules بتاع اللوحة بتتربط (symlink للمسار الحقيقي) في node_modules المؤقت،
  *    عشان الحالات تشغّل المكتبة الحقيقية (auth-cookies: @supabase/ssr وnext). من غير dependency جديدة.
+ * stub في الـ suite: حزمة بالاسم بتتعمل في node_modules المؤقت كملف فاضي (images-flow: server-only)، عشان الحالات تشغّل كود
+ *    السيرفر نفسه بشبكة مزيّفة. server-only الحقيقي بيرمي برّه React Server Components، وده حارس بناء مش منطق.
  *
  * سطر النتيجة:  ZELL_ADMIN_CASES_RESULT pass=<n> fail=<n>
  * والخروج بكود 1 لو فيه أي فشل، أو لو مفيش ولا حالة اتشغّلت.
@@ -45,6 +47,18 @@ const SUITES = [
   { name: 'policy-save', dir: 'lib/content', entry: 'policySave.cases.ts', run: 'runPolicySaveCases' },
   { name: 'product-delete', dir: 'lib/products', entry: 'deleteProduct.cases.ts', run: 'runProductDeleteCases' },
   { name: 'order-purge', dir: 'lib/orders', entry: 'purge.cases.ts', run: 'runOrderPurgeCases' },
+  // IMAGE-DELETE C1 — حذف الصورة وسلّم التراجع في الرفع (ضياع رد التعيين أو الإدخال).
+  { name: 'images', dir: 'lib/images', entry: 'images.cases.ts', run: 'runImageCases' },
+  // IMAGE-DELETE C1 (B2) — المسارات الفعلية (الرفع · الحفظ والإظهار · قراية المنتج) بـ fetch مزيّف بيحاكي PostgREST وStorage.
+  {
+    name: 'images-flow',
+    dir: 'lib/mutations',
+    entry: 'imageFlows.cases.ts',
+    run: 'runImageFlowCases',
+    also: ['lib', 'lib/orders', 'lib/content', 'lib/coupons', 'lib/data', 'lib/images', 'lib/validation', 'lib/uploads'],
+    link: ['image-size'],
+    stub: ['server-only'],
+  },
   // أكواد الخصم: الحالات كانت بتتعمل typecheck بس ومابتتشغّلش (مراجعة أمنية 2026-11).
   { name: 'coupons', dir: 'lib/coupons', entry: 'form.cases.ts', run: 'runAdminCouponCases', also: ['lib', 'lib/orders'] },
   // COOKIES-HEADERS §٣ — كوكيز الجلسة المكتوبة فعليًا بالمكتبة الحقيقية وfetch مزيّف. آخر suite لأنها بتغيّر متغيرات البيئة وfetch (وبترجّعهم).
@@ -79,6 +93,15 @@ function transpileDir(srcDir, outDir) {
 const outRoot = mkdtempSync(join(tmpdir(), 'zell-admin-cases-'))
 const linked = new Set()
 
+function stubPackage(name) {
+  if (linked.has(name)) return
+  const dir = join(outRoot, 'node_modules', name)
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ name, main: 'index.js' }) + '\n')
+  writeFileSync(join(dir, 'index.js'), '// stub (scripts/run-cases.mjs)\n')
+  linked.add(name)
+}
+
 function linkPackage(name) {
   if (linked.has(name)) return
   const target = realpathSync(join(appRoot, 'node_modules', name))
@@ -100,6 +123,7 @@ try {
 
   for (const suite of SUITES) {
     for (const name of suite.link || []) linkPackage(name)
+    for (const name of suite.stub || []) stubPackage(name)
     for (const extra of suite.also || []) transpileDir(join(appRoot, extra), join(outRoot, extra))
     const outDir = join(outRoot, suite.dir)
     transpileDir(join(appRoot, suite.dir), outDir)
