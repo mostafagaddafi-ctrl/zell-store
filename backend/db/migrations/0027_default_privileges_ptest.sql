@@ -5,10 +5,14 @@
 -- • الأثر على Production: كله جوه المعاملة وبيترجع. مفيش كتابة بيانات. كائنات تجربة zell_dp_probe_* (جدول وsequence ودالة)
 --   بتتعمل قبل الجسم وبعده في public وبتترجع مع المعاملة، وبصمة صلاحيات الكائنات الموجودة (public وstorage ودوال postgres)
 --   بتتحسب قبل الجسم وبعده (العقد §٦-٣).
--- • الأقفال: كتابة قصيرة في pg_default_acl (lock_timeout 5s)، وإنشاء كائنات تجربة في public.
+-- • الأقفال والحدود: lock_timeout 5s · statement_timeout 30s · idle_in_transaction_session_timeout 15s من أول سطر بعد begin (قبل الحارس
+--   وأول create). كتابة قصيرة في pg_default_acl، وإنشاء كائنات تجربة في public.
 -- • المتوقع: PASS بـ 7 نجاح و 0 فشل.
 
 begin;
+-- الحدود قبل أي حارس أو DDL:
+set local lock_timeout = '5s';
+set local statement_timeout = '30s';
 set local idle_in_transaction_session_timeout = '15s';
 set local zell.approved_by = 'ptest-0027';
 set local search_path = pg_catalog, pg_temp;
@@ -50,7 +54,7 @@ begin
        ('supabase_auth_admin | auth | r', '{postgres=arwdDxtm/supabase_auth_admin,dashboard_user=arwdDxtm/supabase_auth_admin}')
      ) as e(k, v));
   if v_now is distinct from v_exp then
-    raise exception 'ZELL_0027_PTEST_PRE_APPLY_ONLY' using detail = coalesce(v_now, '(null)');
+    raise exception 'ZELL_0027_PTEST_PRE_APPLY_ONLY' using detail = pg_catalog.left(coalesce(v_now, '(null)'), 2000);
   end if;
   perform pg_catalog.set_config('zell.pt0027_fp', pg_catalog.md5(pg_catalog.concat_ws('|',
       (select coalesce(pg_catalog.string_agg(n.nspname || '.' || c.relname || ':' || c.relkind::text || ':' || pg_catalog.pg_get_userbyid(c.relowner) || ':' || coalesce(c.relacl::text, ''),
@@ -94,6 +98,7 @@ $zpre$;
 -- >>> 0027 BODY
 set local lock_timeout = '5s';
 set local statement_timeout = '30s';
+set local idle_in_transaction_session_timeout = '15s';
 
 -- (0) preflight: المتصل · الموافقة · صفوف pg_default_acl كلها = لقطة العقد §١ بالحرف (24 صف، ومفيش صف عام).
 --     أي اختلاف = وقف قبل أي تغيير (ZELL_0027_BASELINE_DRIFT، والقيمة الفعلية في detail).
@@ -141,7 +146,7 @@ begin
        ('supabase_auth_admin | auth | r', '{postgres=arwdDxtm/supabase_auth_admin,dashboard_user=arwdDxtm/supabase_auth_admin}')
      ) as e(k, v));
   if v_now is distinct from v_exp then
-    raise exception 'ZELL_0027_BASELINE_DRIFT' using detail = coalesce(v_now, '(null)');
+    raise exception 'ZELL_0027_BASELINE_DRIFT' using detail = pg_catalog.left(coalesce(v_now, '(null)'), 2000);
   end if;
 end
 $dppre$;
@@ -191,7 +196,7 @@ begin
        ('postgres | (all schemas) | f', '{postgres=X/postgres}')
      ) as e(k, v));
   if v_now is distinct from v_exp then
-    raise exception 'ZELL_0027_POST_SHAPE' using detail = coalesce(v_now, '(null)');
+    raise exception 'ZELL_0027_POST_SHAPE' using detail = pg_catalog.left(coalesce(v_now, '(null)'), 2000);
   end if;
 end
 $dppost$;
