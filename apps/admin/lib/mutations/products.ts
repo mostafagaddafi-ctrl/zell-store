@@ -51,9 +51,12 @@ async function imageCount(productId: number): Promise<number> {
 /**
  * المنتج النشط لازم يكون مكتمل.
  *
- * ⚠️ القاعدة دي **مطبّقة في التطبيق بس** — مفيش قيد في الداتابيز
- * بيمنع is_active = true على منتج ناقص. يعني أي مسار كتابة جديد
+ * ⚠️ شروط النصوص **مطبّقة في التطبيق بس** — مفيش قيد في الداتابيز
+ * بيمنع is_active = true على منتج من غير وصف. يعني أي مسار كتابة جديد
  * لازم يمر من هنا، وإلا القاعدة بتتسرّب.
+ * الصورة الرئيسية من المعرض عليها كمان حارس في الداتابيز من 0026 (trigger
+ * zell_catalog_products_activation_guard · 45705 · ZELL_PRODUCT_NEEDS_PRIMARY_IMAGE)،
+ * والرفض ده بيتحوّل هنا لنفس رسالة التحقق (IMAGE-DELETE §٣).
  *
  * "صورة رئيسية واحدة بالظبط": الـ unique index الجزئي
  * product_images_one_primary_idx بيضمن **مايزيدش** عن واحدة،
@@ -63,6 +66,13 @@ const ACTIVATION_PREFIX = 'ماينفعش تفعّل المنتج قبل ما ت
 
 function activationFailure(missing: string[]): ValidationFailure {
   return { ok: false, code: 'VALIDATION', message: ACTIVATION_PREFIX + missing.join(' · ') + '.' }
+}
+
+const PRIMARY_IMAGE_MISSING = 'صورة رئيسية من المعرض'
+
+/** 0026: حارس التفعيل في الداتابيز رفض (سباق مع حذف صورة بعد فحص الجاهزية) = نفس رسالة التحقق. */
+function primaryImageGuardFailure(error: unknown): ValidationFailure | null {
+  return sentinelOf(error) === 'ZELL_PRODUCT_NEEDS_PRIMARY_IMAGE' ? activationFailure([PRIMARY_IMAGE_MISSING]) : null
 }
 
 function missingTexts(descriptionAr: string | null, shortBenefit: string | null): string[] {
@@ -96,7 +106,7 @@ async function storedReadiness(
   if (!row) return { ok: false, code: 'NOT_FOUND', message: 'المنتج مش موجود. يمكن يكون اتمسح.' }
 
   const missing = missingTexts(row.description_ar, row.short_benefit)
-  if (!(await hasPrimaryGalleryImage(productId))) missing.push('صورة رئيسية من المعرض')
+  if (!(await hasPrimaryGalleryImage(productId))) missing.push(PRIMARY_IMAGE_MISSING)
   if (missing.length > 0) return activationFailure(missing)
   return { ok: true }
 }
@@ -112,7 +122,7 @@ async function incomingReadiness(
   shortBenefit: string | null,
 ): Promise<{ ok: true } | ValidationFailure> {
   const missing = missingTexts(descriptionAr, shortBenefit)
-  if (!(await hasPrimaryGalleryImage(productId))) missing.push('صورة رئيسية من المعرض')
+  if (!(await hasPrimaryGalleryImage(productId))) missing.push(PRIMARY_IMAGE_MISSING)
   if (missing.length > 0) return activationFailure(missing)
   return { ok: true }
 }
@@ -173,6 +183,8 @@ export async function saveProduct(input: ProductInput): Promise<MutationResult<A
     if (!row) return toInternalFailure(null)
     return { ok: true, data: toAdminProduct(row, await imageCount(id.value)) }
   } catch (error) {
+    const guarded = primaryImageGuardFailure(error)
+    if (guarded !== null) return guarded
     // 0020: وحدة البيع بتتقفل بعد وجود مخزون أو مستندات مخزون للمنتج (لحد المرحلة B في INVENTORY-REMOVAL)
     // (trigger zinv_products_sale_unit · 45217) — رسالة واضحة بدل INTERNAL.
     if (sentinelOf(error) === 'ZELL_INV_SALE_UNIT_LOCKED') {
@@ -223,6 +235,8 @@ export async function setProductVisibility(
     if (!row) return toInternalFailure(null)
     return { ok: true, data: toAdminProduct(row, await imageCount(id.value)) }
   } catch (error) {
+    const guarded = primaryImageGuardFailure(error)
+    if (guarded !== null) return guarded
     return toInternalFailure(error)
   }
 }
