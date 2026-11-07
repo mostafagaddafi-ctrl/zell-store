@@ -195,8 +195,8 @@ with_appr "$APPLY" 'ci-0026-e2' | su_in "$TMP/e2.out"
 ok=no; has "$TMP/e2.out" 'ZELL_0026_WRONG_CALLER' && [ "$(state)" = "$ST0" ] && ok=yes
 record "E02 apply as another role (superuser) -> ZELL_0026_WRONG_CALLER, nothing changed" "$ok" "$(tailof "$TMP/e2.out")"
 { echo "begin;"; echo "grant update (sort_order) on table public.product_images to zell_catalog_definer;"; echo "set local zell.approved_by = 'ci-0026-e3';"; body_of "$APPLY" "0026 BODY"; echo "rollback;"; } | pg_in "$TMP/e3.out"
-ok=no; has "$TMP/e3.out" 'ZELL_0026_BASELINE_DRIFT' && has "$TMP/e3.out" 'grants:' && [ "$(state)" = "$ST0" ] && ok=yes
-record "E03 unexpected extra grant (UPDATE sort_order) before apply, same transaction -> ZELL_0026_BASELINE_DRIFT (grants), nothing changed" "$ok" "$(tailof "$TMP/e3.out")"
+ok=no; has "$TMP/e3.out" 'ZELL_0026_BASELINE_DRIFT' && has "$TMP/e3.out" 'acl:' && has "$TMP/e3.out" 'sort_order:zell_catalog_definer/UPDATE' && [ "$(state)" = "$ST0" ] && ok=yes
+record "E03 unexpected extra grant (UPDATE sort_order) before apply, same transaction -> ZELL_0026_BASELINE_DRIFT (acl shows it), nothing changed" "$ok" "$(tailof "$TMP/e3.out")"
 { echo "begin;"; echo "alter policy zell_catalog_definer_lock on public.product_images with check (true);"; echo "set local zell.approved_by = 'ci-0026-e4';"; body_of "$APPLY" "0026 BODY"; echo "rollback;"; } | pg_in "$TMP/e4.out"
 ok=no; has "$TMP/e4.out" 'ZELL_0026_BASELINE_DRIFT' && has "$TMP/e4.out" 'policies:' && [ "$(state)" = "$ST0" ] && ok=yes
 record "E04 widened policy (lock with check true) before apply, same transaction -> ZELL_0026_BASELINE_DRIFT (policies), nothing changed" "$ok" "$(tailof "$TMP/e4.out")"
