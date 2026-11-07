@@ -14,6 +14,7 @@ begin;
 -- >>> 0027 BODY
 set local lock_timeout = '5s';
 set local statement_timeout = '30s';
+set local idle_in_transaction_session_timeout = '15s';
 
 -- (0) preflight: المتصل · الموافقة · صفوف pg_default_acl كلها = لقطة العقد §١ بالحرف (24 صف، ومفيش صف عام).
 --     أي اختلاف = وقف قبل أي تغيير (ZELL_0027_BASELINE_DRIFT، والقيمة الفعلية في detail).
@@ -61,7 +62,7 @@ begin
        ('supabase_auth_admin | auth | r', '{postgres=arwdDxtm/supabase_auth_admin,dashboard_user=arwdDxtm/supabase_auth_admin}')
      ) as e(k, v));
   if v_now is distinct from v_exp then
-    raise exception 'ZELL_0027_BASELINE_DRIFT' using detail = coalesce(v_now, '(null)');
+    raise exception 'ZELL_0027_BASELINE_DRIFT' using detail = pg_catalog.left(coalesce(v_now, '(null)'), 2000);
   end if;
 end
 $dppre$;
@@ -111,7 +112,7 @@ begin
        ('postgres | (all schemas) | f', '{postgres=X/postgres}')
      ) as e(k, v));
   if v_now is distinct from v_exp then
-    raise exception 'ZELL_0027_POST_SHAPE' using detail = coalesce(v_now, '(null)');
+    raise exception 'ZELL_0027_POST_SHAPE' using detail = pg_catalog.left(coalesce(v_now, '(null)'), 2000);
   end if;
 end
 $dppost$;
