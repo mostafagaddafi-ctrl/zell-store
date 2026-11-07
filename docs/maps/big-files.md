@@ -26,6 +26,7 @@
 | `backend/db/ci/0022_sql_ci.sh` | 59 KB | 741 | اختبارات SQL لـ 0022 PRODUCT-DELETE في CI على داتابيز مبنية من القايمة لحد قبل 0022 (حراس الـ preflight · تحقق 0020 قبل وبعد · ptest · تطبيق · verify ومحاولات التوسيع · الأثر · الرجوع · عقد الاستدعاء · السيناريوهات · التزامن) |
 | `backend/db/ci/0023_sql_ci.sh` | 28 KB | 349 | اختبارات SQL لـ 0023 INVENTORY-REMOVAL B في CI على داتابيز مبنية من القايمة لحد قبل 0023 (S0 · B01–B02 · X01 · P01 · E01 · G01–G05 · C01–C02 · Z01 · T01–T02 · A01–A05 · E02 · K01 · R01) |
 | `backend/db/ci/0024_sql_ci.sh` | 57 KB | 612 | اختبارات SQL لـ 0024 ORDER-DELETE B في CI على داتابيز مبنية من القايمة كلها (S0 · B01 · E01 · T01–T02 · G01–G02 · Z01 · A01–A05 · E02 · K01 · RB1–RB2 · R01 · X01 · F01–F17 · C01–C06) |
+| `backend/db/ci/0027_sql_ci.sh` | 25 KB | 284 | اختبارات SQL لـ 0027 DEFAULT-PRIVILEGES B في CI على داتابيز مبنية من القايمة كلها ومحاكاة لقطة pg_default_acl كاملة (S01–S04 · B01 · M01–M05 · V00–V03 · E01–E05 · N00–N01 · P01–P03 · A01–A02 · RB1–RB3 · RA1) |
 | `backend/db/migrations/0006b_order_functions.sql` | 38 KB | 765 | دور `zell_order_writer` وأول نسخة من `zell_create_order` و`zell_get_order_receipt` |
 | `backend/db/migrations/0006c_order_receipt_expiry.sql` | 23 KB | 504 | `zell_create_order` بترجّع `receipt_expires_at` |
 | `backend/db/migrations/0015_product_widths.sql` | 21 KB | 463 | عروض الرول (`product_widths`) + `zell_create_order` |
@@ -81,6 +82,7 @@
 | `backend/db/migrations/0023_inventory_removal.sql` | 38 KB | 443 | 0023 INVENTORY-REMOVAL B: preflight · دالتين حذف المنتج من غير فحص المخزون · trigger المنتجات · جداول المخزون والـ sequences · دوال zell_inv_* · الدور · postflight (مش متطبّق) |
 | `backend/db/migrations/0024_order_delete_ptest.sql` | 59 KB | 677 | 0024 ORDER-DELETE B اختبار قبل التطبيق (smoke، 8 حالات، الجسم منسوخ بالحرف، من غير حذف بيانات، والنتيجة صفوف) |
 | `backend/db/migrations/0024_order_delete.sql` | 50 KB | 557 | 0024 ORDER-DELETE B: preflight · الدور · سلسلة الهوية · الجداول الجديدة · حارس السجل · الاستثناء في 3 حراس · صلاحيات وpolicies جداول الطلبات · الدوال · postflight (مش متطبّق) |
+| `backend/db/migrations/0027_default_privileges_ptest.sql` | 26 KB | 298 | 0027 DEFAULT-PRIVILEGES B اختبار قبل التطبيق (smoke، 7 حالات، الجسم منسوخ بالحرف، وكائنات تجربة وبصمات، والنتيجة صفوف) |
 | `docs/contracts/0021-A.md` | 94 KB | 438 | عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر |
 | `docs/contracts/0021-P-code.md` | 29 KB | 253 | عقد كود 0021-P: أ ← ب1 ← ب2 · الأوضاع · الفاحص · التعديلات بعد الاعتماد |
 | `docs/contracts/0021-P.md` | 22 KB | 252 | عقد 0021-P (الداتابيز): المحرك والمحوّل والهوية من الجلسة |
@@ -97,8 +99,6 @@
 | `docs/plans/ADMIN-LANG-LIST.md` | 62 KB | 224 | حصر نصوص اللوحة العامية مع مقترح فصحى مبسّطة لكل نص (أ · ب · ج · د)، للمالك يختار منه |
 | `docs/plans/ORDER-FLOW-PLAN.md` | 119 KB | 1584 | خطة مسار الطلب |
 | `README.md` | 26 KB | 326 | حالة النظام الحي: الميزات · اللوحة · الهيكل · الأمان · التوثيق |
-| `backend/db/ci/0027_sql_ci.sh` | 25 KB | 284 | اختبارات SQL لـ 0027 DEFAULT-PRIVILEGES B في CI على داتابيز مبنية من القايمة كلها ومحاكاة لقطة pg_default_acl كاملة (S01–S04 · B01 · M01–M05 · V00–V03 · E01–E05 · N00–N01 · P01–P03 · A01–A02 · RB1–RB3 · RA1) |
-| `backend/db/migrations/0027_default_privileges_ptest.sql` | 26 KB | 298 | 0027 DEFAULT-PRIVILEGES B اختبار قبل التطبيق (smoke، 7 حالات، الجسم منسوخ بالحرف، وكائنات تجربة وبصمات، والنتيجة صفوف) |
 
 ---
 
