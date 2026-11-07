@@ -2,14 +2,17 @@
 -- التشغيل: سطر الموافقة بعد begin;:  set local zell.approved_by = 'owner-approval-YYYY-MM-DD-0027-default-privileges-rollback';
 --   (لازم ينتهي بـ -rollback، علشان موافقة التطبيق ماتتستعملش للرجوع).
 -- • preflight: الصفوف = النتيجة المتوقعة بعد 0027 بالحرف (25 صف)، وإلا وقف من غير أي تغيير.
--- • الرجوع للقطة §١ بالحرف: service_role بيتشال ويرجع في نفس المعاملة علشان ترتيب ACL يرجع زي ما كان
---   ({postgres,anon,authenticated,service_role})، والصف العام بيختفي (Postgres بيمسح الصف لما يرجع للافتراض المدمج).
+-- • الرجوع للقطة §١ بالحرف: منح service_role الصريحة في الصفوف 1–3 بتتشال وترجع **جوه نفس المعاملة دي بس، من غير commit وسيط**
+--   علشان ترتيب ACL يرجع زي ما كان ({postgres,anon,authenticated,service_role}) (الاستثناء الضيق في العقد: «الممنوع» و§٨). مفيش
+--   مساس بصلاحيات أي كائن موجود. أي فشل بين السحب والإعادة = المعاملة كلها بترجع (CI: RB4). والصف العام بيختفي
+--   (Postgres بيمسح الصف لما يرجع للافتراض المدمج).
 -- • postflight: الصفوف = §١ بالحرف (24 صف، ومفيش صف عام)، وإلا وقف والمعاملة بترجع.
 -- • مابيأثرش على أي كائن اتعمل بعد 0027: صلاحياته بتفضل زي ما اتعمل بيها.
 
 begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '30s';
+set local idle_in_transaction_session_timeout = '15s';
 
 do $rbpre$
 declare
@@ -56,7 +59,7 @@ begin
        ('postgres | (all schemas) | f', '{postgres=X/postgres}')
      ) as e(k, v));
   if v_now is distinct from v_exp then
-    raise exception 'ZELL_0027_RB_STATE' using detail = coalesce(v_now, '(null)');
+    raise exception 'ZELL_0027_RB_STATE' using detail = pg_catalog.left(coalesce(v_now, '(null)'), 2000);
   end if;
 end
 $rbpre$;
@@ -106,7 +109,7 @@ begin
        ('supabase_auth_admin | auth | r', '{postgres=arwdDxtm/supabase_auth_admin,dashboard_user=arwdDxtm/supabase_auth_admin}')
      ) as e(k, v));
   if v_now is distinct from v_exp then
-    raise exception 'ZELL_0027_RB_POST_SHAPE' using detail = coalesce(v_now, '(null)');
+    raise exception 'ZELL_0027_RB_POST_SHAPE' using detail = pg_catalog.left(coalesce(v_now, '(null)'), 2000);
   end if;
 end
 $rbpost$;
