@@ -35,7 +35,7 @@ PASS=0
 FAIL=0
 SEEN=" "
 EMPTY_MD5=d41d8cd98f00b204e9800998ecf8427e
-EXPECTED="S01 S02 S03 S04 B01 M01 V00 E01 E02 E03 E04 E05 N00 P01 M02 A01 A02 M03 V01 N01 M04 P02 RB1 RB2 RB3 M05 V02 P03 RA1 V03"
+EXPECTED="S01 S02 S03 S05 S04 B01 M01 V00 E01 E02 E03 E04 E05 N00 P01 M02 A01 A02 M03 V01 N01 M04 P02 RB4 RB1 RB2 RB3 M05 V02 P03 RA1 V03"
 US="$(printf '\037')"
 
 record() {
@@ -84,6 +84,22 @@ probe_sql() {
     "create function public.zell_dp_probe_g() returns integer language sql as 'select 1';" \
     "select pg_catalog.has_function_privilege('anon', 'zell_dp_probe_schema.f()', 'EXECUTE')::text || ',' || pg_catalog.has_function_privilege('authenticated', 'zell_dp_probe_schema.f()', 'EXECUTE')::text || ',' || pg_catalog.has_function_privilege('service_role', 'zell_dp_probe_schema.f()', 'EXECUTE')::text || ',' || (select p.proacl is null or exists (select 1 from pg_catalog.aclexplode(p.proacl) x where x.grantee = 0) from pg_catalog.pg_proc p where p.oid = 'zell_dp_probe_schema.f()'::regprocedure)::text || ',' || pg_catalog.has_table_privilege('anon', 'zell_dp_probe_schema.t', 'SELECT')::text || ',' || pg_catalog.has_function_privilege('anon', 'public.zell_dp_probe_g()', 'EXECUTE')::text || ',' || pg_catalog.has_function_privilege('service_role', 'public.zell_dp_probe_g()', 'EXECUTE')::text;" \
     "rollback;"
+}
+# الحدود (lock_timeout · statement_timeout · idle_in_transaction_session_timeout) لازم تتظبط بعد begin على طول، قبل أول جملة
+# مش set (حارس DO · create · alter · select · with). التعليقات والسطور الفاضية وset التانية (الموافقة · search_path · read only) بتتعدّي.
+limits_first() {
+  awk 'BEGIN {b = 0; l = 0; s = 0; i = 0; done = 0; bad = 0}
+       /^begin;$/ && !b {b = 1; next}
+       b && !done {
+         if ($0 ~ /^[[:space:]]*(--.*)?$/) next
+         if ($0 ~ /^set local lock_timeout = /) {l = 1; next}
+         if ($0 ~ /^set local statement_timeout = /) {s = 1; next}
+         if ($0 ~ /^set local idle_in_transaction_session_timeout = /) {i = 1; next}
+         if ($0 ~ /^set /) next
+         done = 1
+         if (!(l && s && i)) bad = 1
+       }
+       END {if (!b || !done || bad) exit 1; exit 0}' "$1"
 }
 mkcopy() { su_q postgres -c "drop database if exists $1" -c "create database $1 template $DB" > "$TMP/$1.log" 2>&1; }
 dropcopy() { su_q postgres -c "drop database if exists $1" >> "$TMP/$1.log" 2>&1; }
@@ -155,6 +171,12 @@ if [ "$(grep -cx 'begin;' "$APPLY")" = "1" ] && [ "$(grep -cx 'commit;' "$APPLY"
    && [ "$(grep -cx 'set transaction read only;' "$IMPACT")" = "1" ] && [ "$(grep -cx 'set transaction read only;' "$VERIFY")" = "1" ] \
    && ! grep -q '{{' "$APPLY" "$PTEST" "$VERIFY" "$ROLLBACK" "$IMPACT"; then ok=yes; fi
 record "S03 apply + rollback: one begin + one commit (last), no approval line inside; impact + verify read only; no double braces (Retool)" "$ok" ""
+
+bad_limits=""
+for f in "$APPLY" "$PTEST" "$VERIFY" "$ROLLBACK" "$IMPACT"; do limits_first "$f" || bad_limits="$bad_limits $(basename "$f")"; done
+printf '%s\n' "begin;" "create table x (id integer);" "set local lock_timeout = '5s';" "set local statement_timeout = '30s';" "set local idle_in_transaction_session_timeout = '15s';" "commit;" > "$TMP/limits_bad.sql"
+ok=no; [ -z "$bad_limits" ] && ! limits_first "$TMP/limits_bad.sql" && ok=yes
+record "S05 every 0027 file sets lock / statement / idle limits right after begin, before the first guard or DDL (and a file that sets them late is caught)" "$ok" "late or missing:$bad_limits"
 
 # ---- 2) بناء الداتابيز من القايمة الصريحة ----
 fresh=$(su_q postgres -c "select pg_catalog.count(*) from pg_catalog.pg_roles where rolname in ('postgres','anon','authenticated','service_role')")
@@ -256,6 +278,12 @@ ok=no; has "$TMP/pt2.out" 'ZELL_0027_PTEST_PRE_APPLY_ONLY' && same_rows "$DB" "$
 record "P02 ptest after 0027 -> ZELL_0027_PTEST_PRE_APPLY_ONLY" "$ok" "$(tailof "$TMP/pt2.out")"
 
 # ---- 5) الرجوع ----
+with_appr "$ROLLBACK" 'ci-0027-inject-rollback' | sed "/revoke all on functions from service_role;/a do \$inj\$ begin raise exception 'ZELL_CI_INJECTED'; end \$inj\$;" > "$TMP/rb4.sql"
+pipe_pg "$DB" "$TMP/rb4.out" < "$TMP/rb4.sql"
+ok=no
+if [ "$(grep -c 'ZELL_CI_INJECTED' "$TMP/rb4.sql")" = "1" ] && [ "$(grep -n 'ZELL_CI_INJECTED' "$TMP/rb4.sql" | cut -d: -f1)" -gt "$(grep -n 'grant  all on sequences to anon, authenticated, service_role;' "$TMP/rb4.sql" | cut -d: -f1)" ] \
+   && has "$TMP/rb4.out" 'ZELL_CI_INJECTED' && same_rows "$DB" "$TMP/after.txt"; then ok=yes; fi
+record "RB4 rollback failing between the service_role revoke and its re-grant (injected after the tables and sequences re-grant and the functions revoke) -> whole transaction rolled back, default ACL = expected after 0027 (service_role kept)" "$ok" "$(tailof "$TMP/rb4.out")"
 run_file "$ROLLBACK" "$TMP/rb1.out"
 ok=no; has "$TMP/rb1.out" 'ZELL_0027_RB_APPROVAL_MISSING' && same_rows "$DB" "$TMP/after.txt" && ok=yes
 record "RB1 rollback without the approval line -> ZELL_0027_RB_APPROVAL_MISSING, unchanged" "$ok" "$(tailof "$TMP/rb1.out")"
