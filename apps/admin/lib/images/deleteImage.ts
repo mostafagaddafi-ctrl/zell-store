@@ -66,8 +66,9 @@ export function parseImageDeleteResult(raw: unknown, imageId: string): ImageDele
   const promoted = promotedRaw === null ? null : idText(promotedRaw)
   if (promotedRaw !== null && promoted === null) return null
   if (promoted === imageId) return null
-  if (typeof raw['orphan_recorded'] !== 'boolean') return null
-  return { deletedImageId: imageId, promotedImageId: promoted, orphanRecorded: raw['orphan_recorded'] }
+  const recorded = raw['orphan_recorded']
+  if (typeof recorded !== 'boolean') return null
+  return { deletedImageId: imageId, promotedImageId: promoted, orphanRecorded: recorded }
 }
 
 const SENTINEL_CODES: Readonly<Record<string, string>> = {
