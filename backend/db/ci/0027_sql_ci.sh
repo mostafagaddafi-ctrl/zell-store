@@ -75,13 +75,14 @@ imp_ok() { [ "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" = "0" ] && [ "$(grep -c "^pr
 imp_sec() { grep "^$2$US" "$TMP/imp_$1.out"; }
 imp_detail() { printf 'rc=%s %s' "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" "$(grep -v '^default_acl' "$TMP/imp_$1.out" | tr "$US" '|' | tr '\n' ' ' | cut -c1-900)"; }
 # كائنات جديدة فعلًا (CI بس، جوه معاملة بترجع): schema تجربة جديدة + دالة وجدول فيها، ودالة في public.
+# PUBLIC على الدالة: proacl = NULL معناه الافتراض المدمج (ومنه EXECUTE لـ PUBLIC)، أو إدخال صريح grantee = 0.
 probe_sql() {
   printf '%s\n' "begin;" \
     "create schema zell_dp_probe_schema;" \
     "create function zell_dp_probe_schema.f() returns integer language sql as 'select 1';" \
     "create table zell_dp_probe_schema.t (id integer);" \
     "create function public.zell_dp_probe_g() returns integer language sql as 'select 1';" \
-    "select pg_catalog.has_function_privilege('anon', 'zell_dp_probe_schema.f()', 'EXECUTE')::text || ',' || pg_catalog.has_function_privilege('authenticated', 'zell_dp_probe_schema.f()', 'EXECUTE')::text || ',' || pg_catalog.has_function_privilege('service_role', 'zell_dp_probe_schema.f()', 'EXECUTE')::text || ',' || (exists (select 1 from pg_catalog.pg_proc p, pg_catalog.aclexplode(p.proacl) x where p.oid = 'zell_dp_probe_schema.f()'::regprocedure and x.grantee = 0))::text || ',' || pg_catalog.has_table_privilege('anon', 'zell_dp_probe_schema.t', 'SELECT')::text || ',' || pg_catalog.has_function_privilege('anon', 'public.zell_dp_probe_g()', 'EXECUTE')::text || ',' || pg_catalog.has_function_privilege('service_role', 'public.zell_dp_probe_g()', 'EXECUTE')::text;" \
+    "select pg_catalog.has_function_privilege('anon', 'zell_dp_probe_schema.f()', 'EXECUTE')::text || ',' || pg_catalog.has_function_privilege('authenticated', 'zell_dp_probe_schema.f()', 'EXECUTE')::text || ',' || pg_catalog.has_function_privilege('service_role', 'zell_dp_probe_schema.f()', 'EXECUTE')::text || ',' || (select p.proacl is null or exists (select 1 from pg_catalog.aclexplode(p.proacl) x where x.grantee = 0) from pg_catalog.pg_proc p where p.oid = 'zell_dp_probe_schema.f()'::regprocedure)::text || ',' || pg_catalog.has_table_privilege('anon', 'zell_dp_probe_schema.t', 'SELECT')::text || ',' || pg_catalog.has_function_privilege('anon', 'public.zell_dp_probe_g()', 'EXECUTE')::text || ',' || pg_catalog.has_function_privilege('service_role', 'public.zell_dp_probe_g()', 'EXECUTE')::text;" \
     "rollback;"
 }
 mkcopy() { su_q postgres -c "drop database if exists $1" -c "create database $1 template $DB" > "$TMP/$1.log" 2>&1; }
