@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# IMAGE-DELETE B (0026) — اختبار SQL في CI: Postgres 17 مؤقت، والداتابيز مبنية من الصفر بالقايمة الصريحة كلها
-# (backend/db/ci/build_from_scratch.list؛ postgres مش superuser زي Production)، وبعدين 0026 فوقها. مفيش أي اتصال بـ Supabase،
+# IMAGE-DELETE B (0026) — اختبار SQL في CI: Postgres 17 مؤقت، والداتابيز مبنية من الصفر بالقايمة الصريحة لحد قبل سطر 0026
+# (backend/db/ci/build_from_scratch.list؛ postgres مش superuser زي Production)، وبعدين 0026 فوقها بالملف كما هو. مفيش أي اتصال بـ Supabase،
 # ولا بيانات ولا مفاتيح من Production.
 # بيغطي (العقد docs/contracts/IMAGE-DELETE.md §٨): شكل المعاملة · md5 الجسم (ptest = apply) · سطر الموافقة برّه الملفات ·
 # استعلام الأثر قبل وبعد (البيانات زي ما هي) · حراس الـ preflight من غير أثر · ptest قبل التطبيق بس · التطبيق ورفض الإعادة ·
@@ -147,7 +147,8 @@ n=0
 last=""
 while IFS='|' read -r kind rel _reason; do
   case "$kind" in ''|'#'*|exclude) continue ;; apply|baseline|fixture|check) ;; *) stop "B01 build list" "unknown kind $kind" ;; esac
-  [ "$rel" = "migrations/0026_image_delete.sql" ] && stop "B01 build list" "0026 already in the list (stage C only)"
+  # 0026 نفسها في القايمة بعد التطبيق على Production (العقد §١٠): هنا البناء لحد قبلها، والملف بيتطبّق ويتختبر تحت.
+  [ "$rel" = "migrations/0026_image_delete.sql" ] && { SKIPPED_0026=yes; break; }
   f="$DBDIR/$rel"
   [ -f "$f" ] || stop "B01 build list" "missing $rel"
   n=$((n + 1))
@@ -163,8 +164,8 @@ while IFS='|' read -r kind rel _reason; do
   pg_f "$DB" "$runf" > "$TMP/build_$n.log" 2>&1 || stop "B01 build step $n $rel" "$(tailof "$TMP/build_$n.log")"
 done < "$LIST"
 shape=$(su_q "$DB" -c "select rolsuper::text || ',' || rolbypassrls::text from pg_catalog.pg_roles where rolname = 'postgres'")
-ok=no; [ "$n" -gt 10 ] && [ "$shape" = "false,true" ] && [ "$last" = "migrations/0025_installer_shipping.sql" ] && ok=yes
-record "B01 database built from the whole build_from_scratch.list ($n steps, last $last), postgres not superuser" "$ok" "steps=$n last=$last postgres=$shape"
+ok=no; [ "$n" -gt 10 ] && [ "$shape" = "false,true" ] && [ "$last" = "migrations/0025_installer_shipping.sql" ] && [ "${SKIPPED_0026:-no}" = "yes" ] && ok=yes
+record "B01 database built from build_from_scratch.list up to before 0026 ($n steps, last $last; 0026 line reached and not built: ${SKIPPED_0026:-no}), postgres not superuser" "$ok" "steps=$n last=$last skipped_0026=${SKIPPED_0026:-no} postgres=$shape"
 [ "$ok" = yes ] || finish
 
 # ---- 3) بيانات CI (committed): الهويات ----
