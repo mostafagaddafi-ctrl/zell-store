@@ -65,8 +65,8 @@ body_md5() { awk -v s="-- >>> $2" -v e="-- <<< $2" '$0 == s {f = 1} f {print} $0
 with_appr() { sed "0,/^begin;\$/s//begin;\nset local zell.approved_by = '$2';/" "$1"; }
 # صفوف pg_default_acl بنفس شكل العقد §١ (k = v)، مرتّبة بـ C
 acl_rows() {
-  pgq "$1" "select pg_catalog.pg_get_userbyid(d.defaclrole) || ' | ' || coalesce(n.nspname, '(all schemas)') || ' | ' || d.defaclobjtype::text || ' = ' || d.defaclacl::text
-              from pg_catalog.pg_default_acl d left join pg_catalog.pg_namespace n on n.oid = d.defaclnamespace order by 1 collate \"C\""
+  pgq "$1" "select s.x from (select pg_catalog.pg_get_userbyid(d.defaclrole) || ' | ' || coalesce(n.nspname, '(all schemas)') || ' | ' || d.defaclobjtype::text || ' = ' || d.defaclacl::text as x
+              from pg_catalog.pg_default_acl d left join pg_catalog.pg_namespace n on n.oid = d.defaclnamespace) as s order by s.x collate \"C\""
 }
 same_rows() { acl_rows "$1" > "$TMP/rows_now.txt"; cmp -s "$TMP/rows_now.txt" "$2"; }
 summary_of() { local rc; run_file "$1" "$TMP/$2.out"; rc=$?; echo "rc=$rc $(grep '^0|summary|' "$TMP/$2.out" | cut -d'|' -f3-)"; }
