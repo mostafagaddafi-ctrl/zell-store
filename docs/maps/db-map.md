@@ -448,4 +448,4 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | `migrations/0026_image_delete_impact.sql` | استعلام الأثر (قراية بس، 16 عمود) قبل وبعد |
 | `migrations/0026_image_delete_verify.sql` · `_rollback.sql` | التحقق (V01–V09) · الرجوع (بيشيل الـ trigger والدالتين والـ policies والمنح الزيادة، وبيرجّع `UPDATE (product_id)`، ومابيلمسش `storage_orphans`) |
 | `migrations/0026_image_delete_baseline_read.sql` | قراية كتالوج read only لقيمة BASELINE واحدة (#225) |
-| `ci/0026_sql_ci.sh` · `ci/0026_flows.sql` | CI: بناء من القايمة لحد قبل سطر 0026 · الحراس · ptest · التطبيق · verify · الأثر · 19 سيناريو · التزامن بجلستين مع إثبات التداخل (K01–K11) · الرجوع وإعادة التطبيق (46 حالة) |
+| `ci/0026_sql_ci.sh` · `ci/0026_flows.sql` | CI: بناء من القايمة لحد قبل سطر 0026 · الحراس · ptest · التطبيق · verify · الأثر · 19 سيناريو · التزامن بجلستين مع إثبات التداخل (K01–K10، وK11 فحص سجلات deadlock) · الرجوع وإعادة التطبيق (46 حالة) |
