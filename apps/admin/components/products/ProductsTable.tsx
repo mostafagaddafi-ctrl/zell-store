@@ -97,10 +97,13 @@ export function ProductsTable({
                   {formatPiastres(product.pricePerMeterPiastres)}{' '}
                   <span className="text-xs font-normal text-muted">{product.saleUnit === 'piece' ? 'للوحدة' : 'للمتر'}</span>
                 </p>
-                <p className="text-xs text-muted">
-                  {formatLength(product.minLengthCm)} – {formatLength(product.maxLengthCm)} · خطوة{' '}
-                  {formatLength(product.stepCm)}
-                </p>
+                {/* منتج القطعة مالوش طول — قيم الطول الافتراضية مابتتعرضش */}
+                {product.saleUnit === 'piece' ? null : (
+                  <p className="text-xs text-muted">
+                    {formatLength(product.minLengthCm)} – {formatLength(product.maxLengthCm)} · خطوة{' '}
+                    {formatLength(product.stepCm)}
+                  </p>
+                )}
               </div>
               {product.imageCount > 0 ? (
                 <Badge tone="ok">{product.imageCount} صور</Badge>
@@ -216,8 +219,14 @@ export function ProductsTable({
               </TD>
 
               <TD className="text-xs text-muted">
-                {formatLength(product.minLengthCm)} – {formatLength(product.maxLengthCm)}
-                <span className="block">خطوة {formatLength(product.stepCm)}</span>
+                {product.saleUnit === 'piece' ? (
+                  '—'
+                ) : (
+                  <>
+                    {formatLength(product.minLengthCm)} – {formatLength(product.maxLengthCm)}
+                    <span className="block">خطوة {formatLength(product.stepCm)}</span>
+                  </>
+                )}
               </TD>
 
               <TD>
