@@ -53,3 +53,4 @@ apply|migrations/0022_product_delete.sql|product delete (applied + verified on P
 apply|migrations/0023_inventory_removal.sql|inventory removal (applied + verified on Production 2026-11-03; #193 · #194 · #195 · INVENTORY-REMOVAL phase C). Run text: approval + the build data line (build_from_scratch.sh BUILD_INV_EXPECTED)
 apply|migrations/0024_order_delete.sql|order delete (applied + verified on Production 2026-11-04; #198 · #199 · ORDER-DELETE phase C)
 apply|migrations/0025_installer_shipping.sql|installer shipping (applied + verified on Production 2026-11-06; #211 · #212 · INSTALLER-SHIPPING step 7)
+apply|migrations/0026_image_delete.sql|image delete + activation guard (applied + verified on Production 2026-11-07: impact 15:15, ptest 15:19, apply 15:20, verify + impact 15:22 UTC; #222 · #223 · IMAGE-DELETE build-list step before C1)
