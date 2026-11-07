@@ -74,7 +74,7 @@
         "anon",
         "service_role"
       ],
-      "source": "docs/contracts/IMAGE-DELETE.md §4 + 0026_image_delete_verify.sql: EXECUTE = authenticated only (session client, owner checked in the database)"
+      "source": "docs/contracts/IMAGE-DELETE.md §4 + 0026_image_delete_verify.sql V03: EXECUTE = authenticated only (session client, owner checked in the database)"
     }
   ],
   "exceptions": [
