@@ -4,7 +4,8 @@
 # ولا بيانات ولا مفاتيح من Production.
 # بيغطي (العقد docs/contracts/IMAGE-DELETE.md §٨): شكل المعاملة · md5 الجسم (ptest = apply) · سطر الموافقة برّه الملفات ·
 # استعلام الأثر قبل وبعد (البيانات زي ما هي) · حراس الـ preflight من غير أثر · ptest قبل التطبيق بس · التطبيق ورفض الإعادة ·
-# verify (ومعاه منحة/policy زيادة = FAIL) · خط أساس الصلاحيات (منحة/policy زيادة قبل التطبيق = رفض) · السيناريوهات (0026_flows.sql) ·
+# verify (ومعاه منحة/policy/EXECUTE/CREATE زيادة = FAIL في الفحص المعني بس) · خط أساس الصلاحيات قبل أي تغيير (منحة من أي نوع/policy
+# اتوسّعت/CREATE على السكيما/صفة دور اتغيّرت = رفض) · السيناريوهات (0026_flows.sql) ·
 # التزامن بجلستين حقيقيتين مع إثبات التداخل من pg_stat_activity (الأولى ماسكة القفل في pg_sleep والتانية مستنية Lock قبل ما
 # الأولى تسيبه؛ غير كده الحالة تفشل): حذف ↔ تفعيل في الترتيبين · حذفين · set_primary · reorder · حذف المنتج · التراجع المشروط ↔
 # set_primary · حذف ↔ إضافة صورة في الترتيبين · تسجيل الملف ↔ سجل لسه ما اتعملش له commit (45704) · وبعدها فحص سجلات
@@ -42,7 +43,7 @@ ADMIN_ID='00000000-0000-4000-8000-0000000000a2'
 OFF_ID='00000000-0000-4000-8000-0000000000a3'
 USER_ID='00000000-0000-4000-8000-0000000000a4'
 EMPTY_MD5=d41d8cd98f00b204e9800998ecf8427e
-EXPECTED="S01 S02 S03 M01 B01 X01 M02 V00 E01 E02 E03 E04 P01 A01 A02 P02 V01 N01 N02 M03 F01 K01 K02 K03 K04 K05 K06 K07 K08 K09 K10 K11 RB1 RB2 V02 M04 RB3 P03 RA1 V03"
+EXPECTED="S01 S02 S03 M01 B01 X01 M02 V00 E01 E02 E03 E04 E05 E06 E07 P01 A01 A02 P02 V01 N01 N02 N03 N04 N05 M03 F01 K01 K02 K03 K04 K05 K06 K07 K08 K09 K10 K11 RB1 RB2 V02 M04 RB3 P03 RA1 V03"
 US="$(printf '\037')"
 
 record() {
@@ -109,7 +110,7 @@ state() {
 summary_of() { local rc; run_file "$1" "$TMP/$2.out"; rc=$?; echo "rc=$rc $(grep '^0|summary|' "$TMP/$2.out" | cut -d'|' -f3-)"; }
 impact() { psql -X -q -tA -F "$US" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$IMPACT" < /dev/null > "$TMP/imp_$1.out" 2>&1; echo "$?" > "$TMP/imp_$1.rc"; }
 impact_v() { su_q "$DB" -c "grant pg_read_all_stats to postgres" > "$TMP/impv_$1.log" 2>&1; impact "$1"; su_q "$DB" -c "revoke pg_read_all_stats from postgres" >> "$TMP/impv_$1.log" 2>&1; }
-imp_valid() { [ "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" = "0" ] && [ "$(grep -c . "$TMP/imp_$1.out")" = "1" ] && [ "$(awk -F "$US" 'NF {print NF}' "$TMP/imp_$1.out")" = "15" ]; }
+imp_valid() { [ "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" = "0" ] && [ "$(grep -c . "$TMP/imp_$1.out")" = "1" ] && [ "$(awk -F "$US" 'NF {print NF}' "$TMP/imp_$1.out")" = "16" ]; }
 imp_f() { grep -v '^$' "$TMP/imp_$1.out" | head -n 1 | cut -d "$US" -f "$2"; }
 imp_detail() { printf 'rc=%s %s' "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" "$(tr "$US" '|' < "$TMP/imp_$1.out" | tr '\n' ' ' | cut -c1-900)"; }
 # جلسات التزامن: نداء بجلسة المالك أو service_role أو postgres، وبعدين sleep جوه نفس المعاملة.
@@ -178,10 +179,11 @@ record "X01 CI identities: active owner ...a1 (fixture), admin ...a2, inactive a
 # ---- 4) قبل التطبيق ----
 impact_v b
 ok=no
-if imp_valid b && [ "$(imp_f b 1)" = "false|false" ] && [ "$(imp_f b 13)" = "0" ] && [ "$(imp_f b 14)" = "t" ] && [ "$(imp_f b 15)" = "-" ] \
-   && imp_f b 11 | grep -q '^product_images:S=bucket,id,object_path,product_id;U=product_id;I=;D=false;G=false | ' \
+if imp_valid b && [ "$(imp_f b 1)" = "false|false" ] && [ "$(imp_f b 13)" = "0" ] && [ "$(imp_f b 14)" = "t" ] && [ "$(imp_f b 15)" = "delete=- | trigger=-" ] \
+   && imp_f b 11 | grep -q '^product_images:REL=;COL=bucket:zell_catalog_definer/SELECT,id:zell_catalog_definer/SELECT,object_path:zell_catalog_definer/SELECT,product_id:zell_catalog_definer/SELECT,product_id:zell_catalog_definer/UPDATE | ' \
+   && [ "$(imp_f b 16)" = "super=false inherit=false createrole=false createdb=false login=false replication=false bypassrls=false memberof= members=postgres:inherit=false,set=true schema_usage=true schema_create=false" ] \
    && ! imp_f b 12 | grep -q 'image_promote'; then ok=yes; fi
-record "M02 impact before 0026: not applied, idle_tx 0, sessions visible, full definer grants = 0022 baseline, no new policy, 15 columns" "$ok" "$(imp_detail b)"
+record "M02 impact before 0026: not applied, idle_tx 0, sessions visible, full ACL = 0022 baseline, role/schema baseline, no new policy, 16 columns" "$ok" "$(imp_detail b)"
 ST0=$(state)
 res=$(summary_of "$VERIFY" v0)
 ok=no; case "$res" in "rc=0 FAIL|"*) ok=yes ;; esac
@@ -198,6 +200,16 @@ record "E03 unexpected extra grant (UPDATE sort_order) before apply, same transa
 { echo "begin;"; echo "alter policy zell_catalog_definer_lock on public.product_images with check (true);"; echo "set local zell.approved_by = 'ci-0026-e4';"; body_of "$APPLY" "0026 BODY"; echo "rollback;"; } | pg_in "$TMP/e4.out"
 ok=no; has "$TMP/e4.out" 'ZELL_0026_BASELINE_DRIFT' && has "$TMP/e4.out" 'policies:' && [ "$(state)" = "$ST0" ] && ok=yes
 record "E04 widened policy (lock with check true) before apply, same transaction -> ZELL_0026_BASELINE_DRIFT (policies), nothing changed" "$ok" "$(tailof "$TMP/e4.out")"
+{ echo "begin;"; echo "grant truncate on table public.product_images to zell_catalog_definer;"; echo "set local zell.approved_by = 'ci-0026-e5';"; body_of "$APPLY" "0026 BODY"; echo "rollback;"; } | pg_in "$TMP/e5.out"
+ok=no; has "$TMP/e5.out" 'ZELL_0026_BASELINE_DRIFT' && has "$TMP/e5.out" 'acl:' && has "$TMP/e5.out" 'TRUNCATE' && [ "$(state)" = "$ST0" ] && ok=yes
+record "E05 extra TRUNCATE (no grant option) before apply, same transaction -> ZELL_0026_BASELINE_DRIFT (acl shows TRUNCATE), nothing changed" "$ok" "$(tailof "$TMP/e5.out")"
+{ echo "begin;"; echo "grant create on schema public to zell_catalog_definer;"; echo "set local zell.approved_by = 'ci-0026-e6';"; body_of "$APPLY" "0026 BODY"; echo "rollback;"; } | pg_in "$TMP/e6.out"
+ok=no; has "$TMP/e6.out" 'ZELL_0026_BASELINE_DRIFT' && has "$TMP/e6.out" 'schema_create=true' && [ "$(state)" = "$ST0" ] && ok=yes
+record "E06 CREATE on schema public already granted before apply -> ZELL_0026_BASELINE_DRIFT (role: schema_create=true) before any change, nothing changed" "$ok" "$(tailof "$TMP/e6.out")"
+{ echo "begin;"; echo "alter role zell_catalog_definer bypassrls;"; echo "set local role postgres;"; echo "set local zell.approved_by = 'ci-0026-e7';"; body_of "$APPLY" "0026 BODY"; echo "rollback;"; } | su_in "$TMP/e7.out"
+ok=no; has "$TMP/e7.out" 'ZELL_0026_BASELINE_DRIFT' && has "$TMP/e7.out" 'bypassrls=true' && [ "$(state)" = "$ST0" ] \
+  && [ "$(q "select rolbypassrls::text from pg_catalog.pg_roles where rolname = 'zell_catalog_definer'")" = "false" ] && ok=yes
+record "E07 role attribute drift (BYPASSRLS) before apply -> ZELL_0026_BASELINE_DRIFT (role: bypassrls=true) before any change, nothing changed" "$ok" "$(tailof "$TMP/e7.out")"
 res=$(summary_of "$PTEST" p1)
 ok=no; [ "$res" = "rc=0 PASS|pass=6 fail=0" ] && [ "$(state)" = "$ST0" ] && ok=yes
 record "P01 ptest before 0026 -> PASS 6/0, nothing changed" "$ok" "$res $(tailof "$TMP/p1.out")"
@@ -229,15 +241,34 @@ q "alter policy zell_catalog_definer_image_promote on public.product_images with
 r2=$(summary_of "$VERIFY" n2b)
 ok=no; case "$r1" in "rc=0 FAIL|"*) [ "$f1" = "V05 " ] && [ "$r2" = "rc=0 PASS|pass=9 fail=0" ] && ok=yes ;; esac
 record "N02 widened promote policy after apply (OR true) -> verify FAIL on V05 only; restored -> PASS 9/0" "$ok" "with=$r1 fails=[$f1] after=$r2 $(tailof "$TMP/n2.log")"
+su_q "$DB" -c "grant execute on function public.zell_catalog_trg_products_activation_guard() to zell_order_definer" > "$TMP/n3.log" 2>&1
+r1=$(summary_of "$VERIFY" n3a); f1=$(grep '|fail|' "$TMP/n3a.out" | cut -d'|' -f2 | tr '\n' ' ')
+su_q "$DB" -c "revoke execute on function public.zell_catalog_trg_products_activation_guard() from zell_order_definer" >> "$TMP/n3.log" 2>&1
+r2=$(summary_of "$VERIFY" n3b)
+ok=no; case "$r1" in "rc=0 FAIL|"*) [ "$f1" = "V03 " ] && [ "$r2" = "rc=0 PASS|pass=9 fail=0" ] && ok=yes ;; esac
+record "N03 EXECUTE on the trigger function to another role (zell_order_definer, no grant option) -> verify FAIL on V03 only; revoked -> PASS 9/0" "$ok" "with=$r1 fails=[$f1] after=$r2 $(tailof "$TMP/n3.log")"
+q "grant truncate on table public.product_images to zell_catalog_definer" > "$TMP/n4.log"
+r1=$(summary_of "$VERIFY" n4a); f1=$(grep '|fail|' "$TMP/n4a.out" | cut -d'|' -f2 | tr '\n' ' ')
+q "revoke truncate on table public.product_images from zell_catalog_definer" >> "$TMP/n4.log"
+r2=$(summary_of "$VERIFY" n4b)
+ok=no; case "$r1" in "rc=0 FAIL|"*) [ "$f1" = "V06 " ] && [ "$r2" = "rc=0 PASS|pass=9 fail=0" ] && ok=yes ;; esac
+record "N04 extra TRUNCATE after apply (no grant option) -> verify FAIL on V06 only; revoked -> PASS 9/0" "$ok" "with=$r1 fails=[$f1] after=$r2 $(tailof "$TMP/n4.log")"
+q "grant create on schema public to zell_catalog_definer" > "$TMP/n5.log"
+r1=$(summary_of "$VERIFY" n5a); f1=$(grep '|fail|' "$TMP/n5a.out" | cut -d'|' -f2 | tr '\n' ' ')
+q "revoke create on schema public from zell_catalog_definer" >> "$TMP/n5.log"
+r2=$(summary_of "$VERIFY" n5b)
+ok=no; case "$r1" in "rc=0 FAIL|"*) [ "$f1" = "V07 " ] && [ "$r2" = "rc=0 PASS|pass=9 fail=0" ] && ok=yes ;; esac
+record "N05 CREATE on schema public after apply -> verify FAIL on V07 only; revoked -> PASS 9/0" "$ok" "with=$r1 fails=[$f1] after=$r2 $(tailof "$TMP/n5.log")"
 impact_v a
 ok=no
 if imp_valid a && [ "$(imp_f a 1)" = "true|true" ] && [ "$(imp_f a 13)" = "0" ] \
-   && imp_f a 11 | grep -q '^product_images:S=bucket,id,is_primary,kind,object_path,product_id,sort_order;U=fit,is_primary,updated_at;I=;D=true;G=false | ' \
-   && imp_f a 12 | grep -q 'image_promote' && [ "$(imp_f a 11 | cut -d'|' -f2-)" = "$(imp_f b 11 | cut -d'|' -f2-)" ]; then
+   && imp_f a 11 | grep -q '^product_images:REL=zell_catalog_definer/DELETE;COL=bucket:zell_catalog_definer/SELECT,fit:zell_catalog_definer/UPDATE,id:zell_catalog_definer/SELECT,is_primary:zell_catalog_definer/SELECT,is_primary:zell_catalog_definer/UPDATE,kind:zell_catalog_definer/SELECT,object_path:zell_catalog_definer/SELECT,product_id:zell_catalog_definer/SELECT,sort_order:zell_catalog_definer/SELECT,updated_at:zell_catalog_definer/UPDATE | ' \
+   && imp_f a 12 | grep -q 'image_promote' && [ "$(imp_f a 11 | cut -d'|' -f2-)" = "$(imp_f b 11 | cut -d'|' -f2-)" ] \
+   && [ "$(imp_f a 15)" = "delete=authenticated/EXECUTE | trigger=" ] && [ "$(imp_f a 16)" = "$(imp_f b 16)" ]; then
   ok=yes
   for c in 2 3 4 5 6 7 8 9 10; do [ "$(imp_f a $c)" = "$(imp_f b $c)" ] || ok=no; done
 fi
-record "M03 impact after 0026: applied, data columns 2..10 identical to before, product_images grants exact (UPDATE product_id gone), products/storage_orphans grants unchanged" "$ok" "$(imp_detail a)"
+record "M03 impact after 0026: applied, data columns 2..10 identical to before, product_images ACL exact (UPDATE product_id gone), products/storage_orphans ACL unchanged, function ACLs exact, role/schema unchanged" "$ok" "$(imp_detail a)"
 
 # ---- 6) السيناريوهات ----
 res=$(summary_of "$FLOWS" f1)
@@ -323,8 +354,9 @@ res=$(summary_of "$VERIFY" v2)
 ok=no; case "$res" in "rc=0 FAIL|"*) ok=yes ;; esac
 record "V02 verify after rollback -> FAIL (not applied)" "$ok" "$res"
 impact_v r
-ok=no; imp_valid r && [ "$(imp_f r 1)" = "false|false" ] && [ "$(imp_f r 11)" = "$(imp_f b 11)" ] && [ "$(imp_f r 12)" = "$(imp_f b 12)" ] && ok=yes
-record "M04 impact after rollback: grants (col 11) and policies (col 12) identical to before 0026 (UPDATE product_id restored)" "$ok" "$(imp_detail r)"
+ok=no; imp_valid r && [ "$(imp_f r 1)" = "false|false" ] && [ "$(imp_f r 11)" = "$(imp_f b 11)" ] && [ "$(imp_f r 12)" = "$(imp_f b 12)" ] \
+  && [ "$(imp_f r 15)" = "delete=- | trigger=-" ] && [ "$(imp_f r 16)" = "$(imp_f b 16)" ] && ok=yes
+record "M04 impact after rollback: ACL (col 11), policies (col 12) and role/schema (col 16) identical to before 0026 (UPDATE product_id restored), functions gone" "$ok" "$(imp_detail r)"
 with_appr "$ROLLBACK" 'ci-0026-rollback-again' | pg_in "$TMP/rb3.out"
 ok=no; has "$TMP/rb3.out" 'ZELL_0026_RB_NOT_APPLIED' && [ "$(state)" = "$ST0" ] && ok=yes
 record "RB3 rollback again -> ZELL_0026_RB_NOT_APPLIED, nothing changed" "$ok" "$(tailof "$TMP/rb3.out")"
