@@ -45,7 +45,7 @@
 | `lib/coupons` | نموذج الكوبون وحالاته |
 | `lib/client` | كود المتصفح: ضغط ورفع الصور، والـ hooks (`useSaveAction`) |
 | `lib/uploads` | فحص حجم ونوع الصورة |
-| `scripts/run-cases.mjs` | بيشغّل كل `*.cases.ts` (في CI: `ZELL_ADMIN_CASES_RESULT`). خيارات الـ suite: `also` (مجلدات زيادة) · `link` (حزم حقيقية) · `stub` (حزمة فاضية، زي `server-only` في `images-flow` علشان كود السيرفر يشتغل بشبكة مزيّفة) |
+| `scripts/run-cases.mjs` | بيشغّل الحالات المسجّلة في `SUITES` بس، مش أي `*.cases.ts` تلقائيًا (في CI: `ZELL_ADMIN_CASES_RESULT`). خيارات الـ suite: `also` (مجلدات زيادة) · `link` (حزم حقيقية) · `stub` (حزمة فاضية، زي `server-only` في `images-flow` علشان كود السيرفر يشتغل بشبكة مزيّفة) |
 | `scripts/check-access.mjs` (+ `check-access.selftest.mjs`) | فاحص الحراس بالـ AST (0021-P): كل page/layout/route/action لازم يتصدّر من غلاف بصلاحية معروفة. `enforce` في CI من ب2 (أي finding = فشل) |
 | `scripts/check-capabilities.mjs` | قايمة الصلاحيات في `lib/access/capabilities.ts` = catalog الداتابيز (المفتاح والفئة) |
 | `scripts/check-access-manifest.mjs` | جدول الربط `lib/access/manifest.ts` = الكود: نفس الغلاف والصلاحية و`mutates` والرسالة لكل رمز من الـ 79، ومفيش رمز ناقص أو زيادة (0021-P ب2) |
