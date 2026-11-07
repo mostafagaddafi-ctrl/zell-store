@@ -52,10 +52,10 @@ const SUITES = [
   // IMAGE-DELETE C1 (B2) — المسارات الفعلية (الرفع · الحفظ والإظهار · قراية المنتج) بـ fetch مزيّف بيحاكي PostgREST وStorage.
   {
     name: 'images-flow',
-    dir: 'lib/images',
-    entry: 'flows.cases.ts',
+    dir: 'lib/mutations',
+    entry: 'imageFlows.cases.ts',
     run: 'runImageFlowCases',
-    also: ['lib', 'lib/orders', 'lib/content', 'lib/coupons', 'lib/data', 'lib/mutations', 'lib/validation', 'lib/uploads'],
+    also: ['lib', 'lib/orders', 'lib/content', 'lib/coupons', 'lib/data', 'lib/images', 'lib/validation', 'lib/uploads'],
     link: ['image-size'],
     stub: ['server-only'],
   },
