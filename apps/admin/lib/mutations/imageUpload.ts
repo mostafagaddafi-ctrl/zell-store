@@ -3,6 +3,7 @@ import 'server-only'
 import type { AdminImage } from '../adminData'
 import { imageBucket, projectUrl, restDelete, restGet, restInsert, restRpc, storageDelete, storageUpload } from '../data/client'
 import { toAdminImage, type ProductImageRow } from '../data/rows'
+import { exactImageId } from '../images/imageId'
 import { afterInsertUnconfirmed, afterPrimaryUnconfirmed, type RollbackDeps } from '../images/uploadRollback'
 import type { MutationResult } from '../mutations'
 import { detectImage } from '../uploads/imageType'
@@ -183,7 +184,15 @@ export async function uploadProductImage(args: {
       return fail(500, 'INTERNAL', rollback.message)
     }
 
-    const imageId = String(inserted.id)
+    /**
+     * IMAGE-DELETE B1: المعرّف بيرجع رقم JSON. لو برّه المدى الآمن بيكون مقرّب، فممكن يشاور على صورة تانية في نفس المنتج.
+     * معرّف مش دقيق = نتيجة إدخال غير مؤكدة: مفيش نداء رئيسية ولا حذف صف ولا ملف بيه، تسجيل الملف بس (§٥-د).
+     */
+    const imageId = exactImageId(inserted.id)
+    if (imageId === null) {
+      const rollback = await afterInsertUnconfirmed(objectPath, rollbackDeps)
+      return fail(500, 'INTERNAL', rollback.message)
+    }
 
     // ٨) الرئيسية — جوه معاملة واحدة بأقفال FOR UPDATE
     if (needsPrimary) {
@@ -217,7 +226,7 @@ export async function uploadProductImage(args: {
     // ٩) القراءة تاني — النجاح لازم يعكس الحالة المخزّنة فعلًا
     const stored = await restGet<ProductImageRow>(
       'product_images',
-      'select=id,product_id,bucket,object_path,kind,alt_text,fit,sort_order,is_primary,width_px,height_px,updated_at&id=eq.' +
+      'select=id::text,product_id,bucket,object_path,kind,alt_text,fit,sort_order,is_primary,width_px,height_px,updated_at&id=eq.' +
         encodeURIComponent(imageId) +
         '&limit=1',
     )
