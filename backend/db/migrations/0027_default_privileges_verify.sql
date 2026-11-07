@@ -3,7 +3,9 @@
 
 begin;
 set transaction read only;
+set local lock_timeout = '5s';
 set local statement_timeout = '15s';
+set local idle_in_transaction_session_timeout = '15s';
 set local search_path = pg_catalog, pg_temp;
 with cur as (
   select pg_catalog.pg_get_userbyid(d.defaclrole) || ' | ' || coalesce(n.nspname, '(all schemas)') || ' | ' || d.defaclobjtype::text as k,
