@@ -3,6 +3,7 @@ import 'server-only'
 import type { AdminImage } from '../adminData'
 import { imageBucket, projectUrl, restDelete, restGet, restInsert, restRpc, storageDelete, storageUpload } from '../data/client'
 import { toAdminImage, type ProductImageRow } from '../data/rows'
+import { afterInsertUnconfirmed, afterPrimaryUnconfirmed, type RollbackDeps } from '../images/uploadRollback'
 import type { MutationResult } from '../mutations'
 import { detectImage } from '../uploads/imageType'
 import { readImageDimensions } from '../uploads/imageSize'
@@ -14,9 +15,10 @@ import { toInternalFailure } from './errors'
  * ⚠️ الرفع على Storage والإدخال في الداتابيز ونداء الرئيسية **تلاتة
  * أنظمة مختلفة، مش معاملة واحدة**. عشان كده في سلّم تراجع صريح:
  *
- *   فشل الإدخال          -> امسح الملف
- *   فشل نداء الرئيسية     -> امسح الصف، وبعدين امسح الملف
- *   فشل أي تنظيف          -> storage_orphans لو أمكن، وبرجّع INTERNAL
+ *   فشل الإدخال أو ضياع رده -> الملف مايتمسحش أبدًا؛ تسجيل insert_failed بس (IMAGE-DELETE §٥-د)
+ *   فشل نداء الرئيسية       -> DELETE مشروط بـ is_primary = false؛ صف واحد بالظبط = امسح الملف (§٥-ج)
+ *   فشل أي تنظيف            -> storage_orphans لو أمكن، وبرجّع INTERNAL
+ *   السلّم نفسه منطق خالص في lib/images/uploadRollback.ts (والحالات في images.cases.ts).
  *
  * النجاح **مابيترجعش** غير بعد ما الصف يتقرا تاني ويكون فيه حالة
  * الرئيسية والـ fit المخزّنة فعلًا.
@@ -51,23 +53,17 @@ async function sha256Hex(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
 type ProductNameRow = { id: number; name_ar: string }
 type CountRow = { id: string }
 
-/** مسح الملف، ولو فشل سجّله orphan. */
-async function discardObject(objectPath: string): Promise<'clean' | 'orphaned' | 'stuck'> {
-  try {
-    await storageDelete(objectPath)
-    return 'clean'
-  } catch {
-    try {
-      await restInsert('storage_orphans', {
-        bucket: imageBucket(),
-        object_path: objectPath,
-        reason: 'insert_failed',
-      })
-      return 'orphaned'
-    } catch {
-      return 'stuck'
-    }
-  }
+/** اعتماديات سلّم التراجع: DELETE مشروط · مسح الملف · تسجيل insert_failed (نفس الصلاحية الموجودة لمسار الرفع على السيرفر). */
+const rollbackDeps: RollbackDeps = {
+  deleteRows: async (query) => (await restDelete<{ id: string }>('product_images', query)).length,
+  deleteObject: (objectPath) => storageDelete(objectPath),
+  recordOrphan: async (objectPath) => {
+    await restInsert('storage_orphans', {
+      bucket: imageBucket(),
+      object_path: objectPath,
+      reason: 'insert_failed',
+    })
+  },
 }
 
 export async function uploadProductImage(args: {
@@ -178,10 +174,13 @@ export async function uploadProductImage(args: {
       inserted = undefined
     }
 
+    /**
+     * ⚠️ فشل الإدخال هنا ممكن يكون رد ضايع لإدخال اتعمل له commit: الصف موجود، ودالة الحذف (0026) ممكن تكون رقّته
+     * رئيسية. فالملف **مايتمسحش أبدًا** — تسجيل insert_failed بس (IMAGE-CLEANUP بيفحص المرجع قبل أي مسح).
+     */
     if (!inserted) {
-      const cleanup = await discardObject(objectPath)
-      if (cleanup === 'clean') return fail(500, 'INTERNAL', 'فشل تسجيل الصورة، والملف اتشال. جرّب تاني.')
-      return fail(500, 'INTERNAL', 'فشل تسجيل الصورة. اعمل تحديث للصفحة وراجع صور المنتج.')
+      const rollback = await afterInsertUnconfirmed(objectPath, rollbackDeps)
+      return fail(500, 'INTERNAL', rollback.message)
     }
 
     const imageId = String(inserted.id)
@@ -205,40 +204,13 @@ export async function uploadProductImage(args: {
        */
       if (!promoted) {
         /**
-         * ⚠️ العدد هو المرجع، **مش** كود حالة الـ DELETE.
-         *
-         * DELETE ناجح ممكن يحذف صفر صفوف. لو اعتبرناه نجاح، الخطوة
-         * اللي بعده بتمسح ملف Storage لصف **لسه حيّ** — فنتحول من
-         * «معرض بلا رئيسية» لـ «صف بيشاور على ملف مش موجود»، وده أسوأ.
-         *
-         * -1 = النداء نفسه فشل. أكتر من 1 = مستحيل مع مفتاح أساسي،
-         * فلو حصل يبقى في خلل نتوقف عنده مش نكمل تنظيف.
+         * ⚠️ فشل وصول الرد مابيثبتش فشل التعيين: لو اتعمل له commit، الصورة دي بقت الرئيسية، والمنتج ممكن يتفعّل عليها.
+         * عشان كده الحذف جملة واحدة مشروطة (id + is_primary = false): بتمسح صفر لو التعيين حصل، وبتستنى قفله لو لسه شغّال.
+         * الملف بيتمسح بس لو صف واحد بالظبط اتمسح بالشرط ده. أي عدد تاني = مفيش لمس للملف ولا تسجيل
+         * (الصف لسه بيشاور عليه، والحالة متسقة وبتظهر بعد إعادة القراية).
          */
-        let removed = -1
-        try {
-          const rows = await restDelete<{ id: string }>('product_images', 'id=eq.' + encodeURIComponent(imageId))
-          removed = rows.length
-        } catch {
-          removed = -1
-        }
-
-        /**
-         * ⚠️ في كل الحالات دي **ممنوع** نلمس الملف وممنوع نسجّله orphan:
-         * الصف لسه بيشاور عليه، وأي تنظيف جاي كان هيمسح ملف مستخدم
-         * ويسيب صف مكسور. الحالة الباقية (صف + ملف، بلا رئيسية) متسقة،
-         * الصورة بتظهر عادي، وبتتعافى مع أول رفعة جاية.
-         */
-        if (removed !== 1) {
-          return fail(
-            500,
-            'INTERNAL',
-            'الصورة اترفعت بس تعيينها رئيسية فشل، والتنظيف ما تمّش. اعمل تحديث للصفحة وراجع صور المنتج.',
-          )
-        }
-
-        // صف واحد بالظبط اتمسح — دلوقتي بس ينفع نمسح الملف
-        await discardObject(objectPath)
-        return fail(500, 'INTERNAL', 'فشل تعيين الصورة رئيسية، والرفع اتلغى. جرّب تاني.')
+        const rollback = await afterPrimaryUnconfirmed(imageId, objectPath, rollbackDeps)
+        return fail(500, 'INTERNAL', rollback.message)
       }
     }
 
