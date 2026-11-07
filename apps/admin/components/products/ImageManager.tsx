@@ -3,8 +3,9 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Star, Trash2 } from 'lucide-react'
-import { reorderImagesAction, setImageFitAction, setPrimaryImageAction } from '../../lib/actions'
+import { deleteImageAction, reorderImagesAction, setImageFitAction, setPrimaryImageAction } from '../../lib/actions'
 import type { AdminImage, ImageFit } from '../../lib/adminData'
+import { IMAGE_DELETE_TEXT, imageDeleteBlock, imageDeleteDialogMessage } from '../../lib/images/deleteImage'
 import { useSaveAction } from '../../lib/client/useSaveAction'
 import { cn } from '../../lib/cn'
 import { useMutationsEnabled } from '../../lib/readiness'
@@ -22,15 +23,28 @@ const FITS: Array<{ value: ImageFit; label: string; hint: string }> = [
 /**
  * الرفع بيمر على راوت سيرفر في اللوحة، والسيرفر هو اللي بيبني المسار
  * ويتحقق من النوع والحجم — المتصفح مايلمسش Storage بمفتاح قوي.
- * الرفع والحذف لسه ما اتعملوش.
+ *
+ * الحذف (IMAGE-DELETE C1): للمالك بس، بدالة الداتابيز 0026. الملف بيتسجّل للتنظيف بعدين ومابيتمسحش.
+ * isOwner من هوية الجلسة في الصفحة، وproductActive من حالة المنتج المخزّنة — للعرض بس، والداتابيز بتعيد الفحص.
  *
  * معرّفات الصور **نصوص** (bigint في Postgres) من أول القراءة لحد الكتابة.
  */
-export function ImageManager({ productId, images }: { productId: number; images: AdminImage[] }) {
+export function ImageManager({
+  productId,
+  images,
+  isOwner = false,
+  productActive = false,
+}: {
+  productId: number
+  images: AdminImage[]
+  isOwner?: boolean
+  productActive?: boolean
+}) {
   const router = useRouter()
   const mutationsOn = useMutationsEnabled()
   const { state, failure, warning, run, retry } = useSaveAction()
-  const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [confirmTarget, setConfirmTarget] = useState<AdminImage | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   /**
    * ⚠️ العرض هنا بترتيب **sortOrder تصاعدي** — مش الرئيسية الأول.
@@ -50,6 +64,22 @@ export function ImageManager({ productId, images }: { productId: number; images:
   orderedRef.current = ordered
 
   const busy = state === 'saving'
+
+  // الصور هنا صور المعرض بس (getProduct)، فآخر صورة = ordered.length === 1
+  const deleteBlock = imageDeleteBlock({ isOwner, productActive, galleryCount: ordered.length })
+
+  /**
+   * نداء واحد بس ومن غير إعادة تلقائية. الحوار بيفضل مفتوح ومقفول (busy) لحد الرد، وبعدين بيتقفل في الحالتين:
+   * النجاح = قراءة المنتج كامل من السيرفر (الحذف ممكن يرقّي صورة تانية رئيسية)، والفشل = بانر الفشل.
+   */
+  async function confirmDelete() {
+    const target = confirmTarget
+    if (target === null || deleting) return
+    setDeleting(true)
+    await run(() => deleteImageAction(productId, target.id), { onSuccess: () => router.refresh() })
+    setDeleting(false)
+    setConfirmTarget(null)
+  }
 
   function changeFit(image: AdminImage, fit: ImageFit) {
     if (image.fit === fit) return
@@ -96,6 +126,10 @@ export function ImageManager({ productId, images }: { productId: number; images:
   return (
     <div className="space-y-4">
       <FailureBanner failure={failure} onRetry={retry} onDiscardAndRefresh={() => router.refresh()} />
+
+      {warning ? <p className="text-xs font-semibold text-gold">{warning}</p> : null}
+
+      {deleteBlock !== null ? <p className="text-xs text-muted">{deleteBlock}</p> : null}
 
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted">
@@ -191,20 +225,15 @@ export function ImageManager({ productId, images }: { productId: number; images:
                     <Star className="h-3.5 w-3.5" />
                     رئيسية
                   </Button>
-                  {/*
-                    ⚠️ معطّل بـ disabled ثابت **مش** بالعلم.
-                    الحذف ما اتعملش أصلًا، فمفيش علاقة بالإذن: لو
-                    اتعلّق على العلم كان هيبقى شغّال بعد فتحه وبيفتح
-                    حوار تأكيده مالوش تنفيذ.
-                  */}
+                  {/* IMAGE-DELETE C1: مقفول للأدمن، ولآخر صورة في منتج ظاهر، ولما التعديلات موقوفة. السبب مكتوب فوق الصور. */}
                   <Button
                     variant="danger"
                     size="sm"
-                    aria-label="حذف الصورة"
+                    aria-label={IMAGE_DELETE_TEXT.button}
                     className="w-8 px-0"
-                    disabled
-                    title="حذف الصور لسه ما اتعملش"
-                    onClick={() => setConfirmId(image.id)}
+                    disabled={!mutationsOn || busy || deleteBlock !== null}
+                    title={deleteBlock ?? IMAGE_DELETE_TEXT.button}
+                    onClick={() => setConfirmTarget(image)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -216,12 +245,17 @@ export function ImageManager({ productId, images }: { productId: number; images:
       </ul>
 
       <ConfirmDialog
-        open={confirmId !== null}
-        title="حذف الصورة؟"
-        message="عند تفعيل الحذف، ستُزال الصورة من المنتج ومن التخزين، ولا يمكن التراجع عن هذا الإجراء."
-        confirmLabel="احذف"
-        disabledReason="الحذف غير متاح بعد، ولن تُحذف أي صورة."
-        onCancel={() => setConfirmId(null)}
+        open={confirmTarget !== null}
+        title={IMAGE_DELETE_TEXT.title}
+        message={imageDeleteDialogMessage({ isPrimary: confirmTarget?.isPrimary ?? false, galleryCount: ordered.length })}
+        confirmLabel={IMAGE_DELETE_TEXT.confirm}
+        busy={deleting}
+        onCancel={() => {
+          if (!deleting) setConfirmTarget(null)
+        }}
+        onConfirm={() => {
+          void confirmDelete()
+        }}
       />
     </div>
   )
