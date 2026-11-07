@@ -30,11 +30,15 @@ $zguard$;
 set local lock_timeout = '5s';
 set local statement_timeout = '30s';
 
--- (0) preflight: المتصل · الموافقة · المتطلبات (دور 0022 ومنحه) · مش متطبّق قبل كده · الأكواد 45701..45705 مش مستخدمة · قيد الأسباب.
+-- (0) preflight: المتصل · الموافقة · المتطلبات · مش متطبّق قبل كده · الأكواد 45701..45705 مش مستخدمة · قيد الأسباب ·
+--     خط أساس 0022 بالنص: منح zell_catalog_definer على الجداول التلاتة (كل عمود + grant options) وكل policies الجداول دي
+--     اللي بتنطبق عليه. أي اختلاف = وقف قبل أي تغيير (ZELL_0026_BASELINE_DRIFT، والقيمة الفعلية في detail).
 do $idpre$
 declare
   v_by text := pg_catalog.btrim(coalesce(pg_catalog.current_setting('zell.approved_by', true), ''));
   v_con text;
+  v_g text;
+  v_p text;
 begin
   if current_user <> 'postgres' then
     raise exception 'ZELL_0026_WRONG_CALLER';
@@ -51,14 +55,6 @@ begin
      or not exists (select 1 from pg_catalog.pg_attribute a
                      where a.attrelid = 'public.product_images'::regclass and a.attname = 'fit' and not a.attisdropped)
      or not pg_catalog.has_function_privilege('zell_catalog_definer', 'public.zell_order_actor(boolean)', 'EXECUTE')
-     or not pg_catalog.has_column_privilege('zell_catalog_definer', 'public.products', 'is_active', 'SELECT')
-     or not pg_catalog.has_column_privilege('zell_catalog_definer', 'public.products', 'updated_at', 'UPDATE')
-     or not pg_catalog.has_column_privilege('zell_catalog_definer', 'public.storage_orphans', 'cleaned_at', 'UPDATE')
-     or not pg_catalog.has_column_privilege('zell_catalog_definer', 'public.storage_orphans', 'reason', 'INSERT')
-     or not exists (select 1 from pg_catalog.pg_policies p
-                     where p.schemaname = 'public' and p.tablename = 'products' and p.policyname = 'zell_catalog_definer_lock')
-     or not exists (select 1 from pg_catalog.pg_policies p
-                     where p.schemaname = 'public' and p.tablename = 'storage_orphans' and p.policyname = 'zell_catalog_definer_lock')
      or not exists (select 1 from pg_catalog.pg_constraint c
                      where c.conrelid = 'public.product_images'::regclass and c.conname = 'product_images_object_unique' and c.contype = 'u')
      or not exists (select 1 from pg_catalog.pg_constraint c
@@ -73,10 +69,7 @@ begin
      or exists (select 1 from pg_catalog.pg_policies p
                  where p.schemaname = 'public'
                    and p.policyname in ('zell_catalog_definer_image_delete', 'zell_catalog_definer_image_promote',
-                                        'zell_catalog_definer_insert_removed'))
-     or pg_catalog.has_table_privilege('zell_catalog_definer', 'public.product_images', 'DELETE')
-     or pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', 'kind', 'SELECT')
-     or pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', 'is_primary', 'UPDATE') then
+                                        'zell_catalog_definer_insert_removed')) then
     raise exception 'ZELL_0026_ALREADY_APPLIED';
   end if;
   if exists (select 1 from pg_catalog.pg_proc p where p.prosrc ~ '4570[1-5]') then
@@ -88,14 +81,39 @@ begin
   if v_con is distinct from 'CHECK ((reason = ANY (ARRAY[''insert_failed''::text, ''delete_failed''::text, ''replaced''::text, ''removed''::text, ''product_deleted''::text])))' then
     raise exception 'ZELL_0026_ORPHAN_REASON_SHAPE' using detail = coalesce(v_con, '(missing)');
   end if;
+  v_g := (select pg_catalog.string_agg(t.n || ':S=' || coalesce((select pg_catalog.string_agg(a.attname::text, ',' order by a.attname::text collate "C") from pg_catalog.pg_attribute a where a.attrelid = t.o and a.attnum > 0 and not a.attisdropped and pg_catalog.has_column_privilege('zell_catalog_definer', t.o, a.attnum, 'SELECT')), '')
+       || ';U=' || coalesce((select pg_catalog.string_agg(a.attname::text, ',' order by a.attname::text collate "C") from pg_catalog.pg_attribute a where a.attrelid = t.o and a.attnum > 0 and not a.attisdropped and pg_catalog.has_column_privilege('zell_catalog_definer', t.o, a.attnum, 'UPDATE')), '')
+       || ';I=' || coalesce((select pg_catalog.string_agg(a.attname::text, ',' order by a.attname::text collate "C") from pg_catalog.pg_attribute a where a.attrelid = t.o and a.attnum > 0 and not a.attisdropped and pg_catalog.has_column_privilege('zell_catalog_definer', t.o, a.attnum, 'INSERT')), '')
+       || ';D=' || pg_catalog.has_table_privilege('zell_catalog_definer', t.o, 'DELETE')::text
+       || ';G=' || (exists (select 1 from pg_catalog.pg_class c, pg_catalog.aclexplode(c.relacl) x
+                             where c.oid = t.o and x.grantee = 'zell_catalog_definer'::regrole and x.is_grantable)
+                    or exists (select 1 from pg_catalog.pg_attribute a, pg_catalog.aclexplode(a.attacl) x
+                                where a.attrelid = t.o and x.grantee = 'zell_catalog_definer'::regrole and x.is_grantable))::text,
+       ' | ' order by t.n collate "C")
+     from (values ('product_images'::text, 'public.product_images'::regclass::oid),
+                  ('products'::text, 'public.products'::regclass::oid),
+                  ('storage_orphans'::text, 'public.storage_orphans'::regclass::oid)) t(n, o));
+  if v_g is distinct from 'product_images:S=bucket,id,object_path,product_id;U=product_id;I=;D=false;G=false | products:S=id,is_active,updated_at;U=updated_at;I=;D=true;G=false | storage_orphans:S=bucket,cleaned_at,id,object_path;U=cleaned_at;I=bucket,object_path,reason;D=false;G=false' then
+    raise exception 'ZELL_0026_BASELINE_DRIFT' using detail = 'grants: ' || coalesce(v_g, '(null)');
+  end if;
+  v_p := (select pg_catalog.string_agg(p.tablename::text || '.' || p.policyname::text || ':' || p.cmd || ':' || p.permissive || ':'
+         || pg_catalog.array_to_string(p.roles, ',') || ':' || coalesce(p.qual, '-') || ':' || coalesce(p.with_check, '-'),
+       ' | ' order by p.tablename::text collate "C", p.policyname::text collate "C")
+     from pg_catalog.pg_policies p
+    where p.schemaname = 'public' and p.tablename in ('product_images', 'products', 'storage_orphans')
+      and p.roles && array['zell_catalog_definer', 'public']::name[]);
+  if v_p is distinct from 'product_images.zell_catalog_definer_lock:UPDATE:PERMISSIVE:zell_catalog_definer:true:false | product_images.zell_catalog_definer_select:SELECT:PERMISSIVE:zell_catalog_definer:true:- | products.zell_catalog_definer_delete:DELETE:PERMISSIVE:zell_catalog_definer:true:- | products.zell_catalog_definer_lock:UPDATE:PERMISSIVE:zell_catalog_definer:true:false | products.zell_catalog_definer_select:SELECT:PERMISSIVE:zell_catalog_definer:true:- | storage_orphans.zell_catalog_definer_insert:INSERT:PERMISSIVE:zell_catalog_definer:-:((reason = ''product_deleted''::text) AND (cleaned_at IS NULL)) | storage_orphans.zell_catalog_definer_lock:UPDATE:PERMISSIVE:zell_catalog_definer:true:false | storage_orphans.zell_catalog_definer_select:SELECT:PERMISSIVE:zell_catalog_definer:true:-' then
+    raise exception 'ZELL_0026_BASELINE_DRIFT' using detail = 'policies: ' || coalesce(v_p, '(null)');
+  end if;
 end
 $idpre$;
 
--- (1) أقل صلاحيات زيادة (العقد §٤): على product_images بس، وpolicies جديدة باسم zell_catalog_definer_*.
---     قفل صف المنتج (for share) وسجل الملف (for update) بيستخدموا منح وpolicies 0022 الموجودة (update بـ with check (false)).
---     الترقية: policy update شرطها النتيجة رئيسية cover من المعرض بس. التسجيل: سبب removed بس.
+-- (1) أقل صلاحيات (العقد §٤): على product_images بس، وpolicies جديدة باسم zell_catalog_definer_*.
+--     سحب UPDATE (product_id): منحة 0022 للقفل بس؛ مع policy الترقية (الـ policies المسموحة بتتجمع بـ OR) كانت هتسمح
+--     بتغيير product_id لصورة رئيسية. القفل على الصور بيفضل بمنحة UPDATE الجديدة. الرجوع بيرجّعها بالظبط.
 grant select (kind, is_primary, sort_order), update (is_primary, fit, updated_at), delete
   on table public.product_images to zell_catalog_definer;
+revoke update (product_id) on table public.product_images from zell_catalog_definer;
 create policy zell_catalog_definer_image_delete on public.product_images
   for delete to zell_catalog_definer using (true);
 create policy zell_catalog_definer_image_promote on public.product_images
@@ -107,7 +125,8 @@ create policy zell_catalog_definer_insert_removed on public.storage_orphans
 grant create on schema public to zell_catalog_definer;
 set local role zell_catalog_definer;
 
--- حذف صورة واحدة (العقد §٢–§٥): المالك بس · المنتج for share ← صوره for update ← سجل الملف nowait ← القرار بعد الأقفال.
+-- حذف صورة واحدة (العقد §٢–§٥): المالك بس · المنتج for update ← صوره for update ← سجل الملف nowait ← القرار بعد الأقفال ·
+-- التسجيل ← المسح ← الترقية ← فحص أخير fail-closed.
 create function public.zell_product_image_delete(p_product_id integer, p_image_id bigint)
 returns jsonb language plpgsql volatile security definer set search_path = '' set lock_timeout = '3s' as $fn$
 declare
@@ -119,19 +138,21 @@ declare
   v_kind text;
   v_primary boolean;
   v_remaining integer;
+  v_primaries_before integer;
+  v_primaries_after integer;
   v_cleaned boolean;
   v_has_orphan boolean := false;
   v_recorded boolean := false;
-  v_deleted integer := 0;
+  v_n integer := 0;
   v_promoted bigint;
 begin
   if p_product_id is null or p_image_id is null then
     raise exception 'ZELL_IMAGE_NOT_FOUND' using errcode = '45701';
   end if;
 
-  -- (1) صف المنتج for share: بيمنع التفعيل (وأي تعديل على الصف) لحد الـ commit.
+  -- (1) صف المنتج for update: بيمنع التفعيل، وإضافة صورة جديدة (FOR KEY SHARE من فحص الـ FK) لحد الـ commit.
   begin
-    select p.id into v_pid from public.products p where p.id = p_product_id for share;
+    select p.id into v_pid from public.products p where p.id = p_product_id for update;
   exception when lock_not_available then
     raise exception 'ZELL_IMAGE_BUSY' using errcode = '45704', detail = 'product';
   end;
@@ -168,6 +189,9 @@ begin
 
   -- (5) القرار بعد الأقفال: is_active وعدد صور المعرض الباقية بلقطة جديدة.
   select p.is_active into v_active from public.products p where p.id = p_product_id;
+  select pg_catalog.count(*) into v_primaries_before
+    from public.product_images i
+   where i.product_id = p_product_id and i.kind = 'gallery' and i.is_primary;
   if v_kind = 'gallery' then
     select pg_catalog.count(*) into v_remaining
       from public.product_images i
@@ -181,19 +205,20 @@ begin
   end if;
 
   -- (6) تسجيل الملف قبل مسح الصف (مفيش مسح من Storage). سجل موجود cleaned_at is null = مفيش تغيير.
+  --     سجل لنفس المسار بيتدخل في معاملة تانية: unique_violation أو انتهاء المهلة = 45704.
   if not v_has_orphan then
     begin
       insert into public.storage_orphans (bucket, object_path, reason) values (v_bucket, v_path, 'removed');
       v_recorded := true;
-    exception when unique_violation then
+    exception when unique_violation or lock_not_available then
       raise exception 'ZELL_IMAGE_BUSY' using errcode = '45704', detail = 'orphan_insert';
     end;
   end if;
 
   -- (7) مسح الصف.
   delete from public.product_images i where i.id = p_image_id and i.product_id = p_product_id;
-  get diagnostics v_deleted = row_count;
-  if v_deleted <> 1 then
+  get diagnostics v_n = row_count;
+  if v_n <> 1 then
     raise exception 'ZELL_IMAGE_NOT_FOUND' using errcode = '45701';
   end if;
 
@@ -207,8 +232,20 @@ begin
     if v_promoted is not null then
       update public.product_images i
          set is_primary = true, fit = 'cover', updated_at = pg_catalog.now()
-       where i.id = v_promoted;
+       where i.id = v_promoted and i.product_id = p_product_id and i.kind = 'gallery';
+      get diagnostics v_n = row_count;
+      if v_n <> 1 then
+        raise exception 'ZELL_IMAGE_BUSY' using errcode = '45704', detail = 'promotion';
+      end if;
     end if;
+  end if;
+
+  -- (9) فحص أخير (fail-closed): منتج ظاهر كان ليه رئيسية من المعرض لازم يخلص بـ رئيسية واحدة بالظبط.
+  select pg_catalog.count(*) into v_primaries_after
+    from public.product_images i
+   where i.product_id = p_product_id and i.kind = 'gallery' and i.is_primary;
+  if v_active and v_primaries_before >= 1 and v_primaries_after <> 1 then
+    raise exception 'ZELL_IMAGE_BUSY' using errcode = '45704', detail = 'no_primary_after';
   end if;
 
   return pg_catalog.jsonb_build_object(
@@ -252,8 +289,8 @@ grant execute on function public.zell_product_image_delete(integer, bigint) to a
 reset role;
 revoke create on schema public from zell_catalog_definer;
 
--- (4) postflight: المالك · security definer · الإعدادات · الصلاحيات بالظبط (من غير grant option) · الـ trigger · الـ policies · المنح.
---     أي شرط فاشل بيتكتب اسمه في detail (القايمة كاملة).
+-- (4) postflight: المالك · security definer · الإعدادات · الصلاحيات بالظبط (من غير grant option) · الـ trigger ·
+--     المنح والـ policies بالنص الكامل. أي شرط فاشل بيتكتب اسمه في detail (القايمة كاملة).
 do $idpost$
 declare
   v_del oid := pg_catalog.to_regprocedure('public.zell_product_image_delete(integer, bigint)');
@@ -261,6 +298,8 @@ declare
   v_att smallint := (select a.attnum from pg_catalog.pg_attribute a
                       where a.attrelid = 'public.products'::regclass and a.attname = 'is_active');
   v_bad text[] := '{}';
+  v_g text;
+  v_p text;
 begin
   if v_del is null or v_trg is null then
     raise exception 'ZELL_0026_POST_SHAPE' using detail = 'functions_missing';
@@ -294,26 +333,29 @@ begin
                     and t.tgattr::text = v_att::text) then
     v_bad := v_bad || 'trigger_shape'::text;
   end if;
-  if (select pg_catalog.count(*) from pg_catalog.pg_policies p
-       where p.schemaname = 'public' and p.roles = array['zell_catalog_definer']::name[]
-         and ((p.tablename = 'product_images' and p.policyname = 'zell_catalog_definer_image_delete'
-               and p.cmd = 'DELETE' and p.qual = 'true' and p.with_check is null)
-           or (p.tablename = 'product_images' and p.policyname = 'zell_catalog_definer_image_promote'
-               and p.cmd = 'UPDATE' and p.qual = 'true' and p.with_check like '%is_primary%'
-               and p.with_check like '%cover%' and p.with_check like '%gallery%')
-           or (p.tablename = 'storage_orphans' and p.policyname = 'zell_catalog_definer_insert_removed'
-               and p.cmd = 'INSERT' and p.qual is null and p.with_check like '%removed%'
-               and p.with_check like '%cleaned_at IS NULL%'))) <> 3 then
-    v_bad := v_bad || 'policies'::text;
+  v_g := (select pg_catalog.string_agg(t.n || ':S=' || coalesce((select pg_catalog.string_agg(a.attname::text, ',' order by a.attname::text collate "C") from pg_catalog.pg_attribute a where a.attrelid = t.o and a.attnum > 0 and not a.attisdropped and pg_catalog.has_column_privilege('zell_catalog_definer', t.o, a.attnum, 'SELECT')), '')
+       || ';U=' || coalesce((select pg_catalog.string_agg(a.attname::text, ',' order by a.attname::text collate "C") from pg_catalog.pg_attribute a where a.attrelid = t.o and a.attnum > 0 and not a.attisdropped and pg_catalog.has_column_privilege('zell_catalog_definer', t.o, a.attnum, 'UPDATE')), '')
+       || ';I=' || coalesce((select pg_catalog.string_agg(a.attname::text, ',' order by a.attname::text collate "C") from pg_catalog.pg_attribute a where a.attrelid = t.o and a.attnum > 0 and not a.attisdropped and pg_catalog.has_column_privilege('zell_catalog_definer', t.o, a.attnum, 'INSERT')), '')
+       || ';D=' || pg_catalog.has_table_privilege('zell_catalog_definer', t.o, 'DELETE')::text
+       || ';G=' || (exists (select 1 from pg_catalog.pg_class c, pg_catalog.aclexplode(c.relacl) x
+                             where c.oid = t.o and x.grantee = 'zell_catalog_definer'::regrole and x.is_grantable)
+                    or exists (select 1 from pg_catalog.pg_attribute a, pg_catalog.aclexplode(a.attacl) x
+                                where a.attrelid = t.o and x.grantee = 'zell_catalog_definer'::regrole and x.is_grantable))::text,
+       ' | ' order by t.n collate "C")
+     from (values ('product_images'::text, 'public.product_images'::regclass::oid),
+                  ('products'::text, 'public.products'::regclass::oid),
+                  ('storage_orphans'::text, 'public.storage_orphans'::regclass::oid)) t(n, o));
+  if v_g is distinct from 'product_images:S=bucket,id,is_primary,kind,object_path,product_id,sort_order;U=fit,is_primary,updated_at;I=;D=true;G=false | products:S=id,is_active,updated_at;U=updated_at;I=;D=true;G=false | storage_orphans:S=bucket,cleaned_at,id,object_path;U=cleaned_at;I=bucket,object_path,reason;D=false;G=false' then
+    v_bad := v_bad || ('grants: ' || coalesce(v_g, '(null)'));
   end if;
-  if not pg_catalog.has_table_privilege('zell_catalog_definer', 'public.product_images', 'DELETE')
-     or exists (select 1 from (values ('kind'), ('is_primary'), ('sort_order')) c(n)
-                 where not pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', c.n, 'SELECT'))
-     or exists (select 1 from (values ('is_primary'), ('fit'), ('updated_at')) c(n)
-                 where not pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', c.n, 'UPDATE'))
-     or pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', 'kind', 'UPDATE')
-     or pg_catalog.has_table_privilege('zell_catalog_definer', 'public.product_images', 'INSERT') then
-    v_bad := v_bad || 'definer_grants'::text;
+  v_p := (select pg_catalog.string_agg(p.tablename::text || '.' || p.policyname::text || ':' || p.cmd || ':' || p.permissive || ':'
+         || pg_catalog.array_to_string(p.roles, ',') || ':' || coalesce(p.qual, '-') || ':' || coalesce(p.with_check, '-'),
+       ' | ' order by p.tablename::text collate "C", p.policyname::text collate "C")
+     from pg_catalog.pg_policies p
+    where p.schemaname = 'public' and p.tablename in ('product_images', 'products', 'storage_orphans')
+      and p.roles && array['zell_catalog_definer', 'public']::name[]);
+  if v_p is distinct from 'product_images.zell_catalog_definer_image_delete:DELETE:PERMISSIVE:zell_catalog_definer:true:- | product_images.zell_catalog_definer_image_promote:UPDATE:PERMISSIVE:zell_catalog_definer:true:(is_primary AND (fit = ''cover''::text) AND (kind = ''gallery''::text)) | product_images.zell_catalog_definer_lock:UPDATE:PERMISSIVE:zell_catalog_definer:true:false | product_images.zell_catalog_definer_select:SELECT:PERMISSIVE:zell_catalog_definer:true:- | products.zell_catalog_definer_delete:DELETE:PERMISSIVE:zell_catalog_definer:true:- | products.zell_catalog_definer_lock:UPDATE:PERMISSIVE:zell_catalog_definer:true:false | products.zell_catalog_definer_select:SELECT:PERMISSIVE:zell_catalog_definer:true:- | storage_orphans.zell_catalog_definer_insert:INSERT:PERMISSIVE:zell_catalog_definer:-:((reason = ''product_deleted''::text) AND (cleaned_at IS NULL)) | storage_orphans.zell_catalog_definer_insert_removed:INSERT:PERMISSIVE:zell_catalog_definer:-:((reason = ''removed''::text) AND (cleaned_at IS NULL)) | storage_orphans.zell_catalog_definer_lock:UPDATE:PERMISSIVE:zell_catalog_definer:true:false | storage_orphans.zell_catalog_definer_select:SELECT:PERMISSIVE:zell_catalog_definer:true:-' then
+    v_bad := v_bad || ('policies: ' || coalesce(v_p, '(null)'));
   end if;
   if pg_catalog.has_schema_privilege('zell_catalog_definer', 'public', 'CREATE') then
     v_bad := v_bad || 'schema_create'::text;
@@ -324,7 +366,7 @@ begin
     v_bad := v_bad || 'orphan_reason_check'::text;
   end if;
   if pg_catalog.cardinality(v_bad) > 0 then
-    raise exception 'ZELL_0026_POST_SHAPE' using detail = pg_catalog.array_to_string(v_bad, ',');
+    raise exception 'ZELL_0026_POST_SHAPE' using detail = pg_catalog.array_to_string(v_bad, ' ; ');
   end if;
 end
 $idpost$;
