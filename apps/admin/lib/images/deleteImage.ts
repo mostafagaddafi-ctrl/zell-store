@@ -10,7 +10,8 @@
  * نصوص اللوحة الجديدة بالفصحى المبسّطة الرسمية.
  */
 
-import type { MutationErrorCode } from '../mutations'
+import type { MutationErrorCode, MutationResult } from '../mutations'
+import { exactImageId } from './imageId'
 
 export type ImageDeleteResult = {
   deletedImageId: string
@@ -44,26 +45,22 @@ function isObj(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** معرّف bigint: نص أرقام موجب، أو رقم صحيح آمن موجب (jsonb بيرجّعه رقم). أي حاجة تانية = null. */
-function idText(value: unknown): string | null {
-  if (typeof value === 'number') return Number.isSafeInteger(value) && value > 0 ? String(value) : null
-  if (typeof value === 'string') return /^[1-9][0-9]{0,18}$/.test(value) ? value : null
-  return null
-}
-
 /** مدخلات الحذف قبل أي نداء: id منتج موجب صحيح، ومعرّف صورة نص أرقام موجب (bigint بيتبعت نص). */
 export function imageDeleteInputIssue(productId: unknown, imageId: unknown): string | null {
   if (typeof productId !== 'number' || !Number.isInteger(productId) || productId <= 0) return IMAGE_DELETE_MESSAGES.invalid
-  if (typeof imageId !== 'string' || idText(imageId) === null) return IMAGE_DELETE_MESSAGES.invalid
+  if (typeof imageId !== 'string' || exactImageId(imageId) === null) return IMAGE_DELETE_MESSAGES.invalid
   return null
 }
 
-/** رد zell_product_image_delete. لازم نفس الصورة، والترقية null أو معرّف صالح، والتسجيل boolean. وإلا null. */
+/**
+ * رد zell_product_image_delete. لازم نفس الصورة، والترقية null أو معرّف صالح، والتسجيل boolean. وإلا null.
+ * الدالة بترجّع المعرّفات أرقام jsonb: لو أكبر من المدى الآمن بتوصل مقرّبة فبترجع null («تعذّر تأكيد الحذف»)، مش نجاح لصورة تانية.
+ */
 export function parseImageDeleteResult(raw: unknown, imageId: string): ImageDeleteResult | null {
   if (!isObj(raw)) return null
-  if (idText(raw['deleted_image_id']) !== imageId) return null
+  if (exactImageId(raw['deleted_image_id']) !== imageId) return null
   const promotedRaw = raw['promoted_image_id']
-  const promoted = promotedRaw === null ? null : idText(promotedRaw)
+  const promoted = promotedRaw === null ? null : exactImageId(promotedRaw)
   if (promotedRaw !== null && promoted === null) return null
   if (promoted === imageId) return null
   const recorded = raw['orphan_recorded']
@@ -116,6 +113,42 @@ export function imageDeleteFailure(error: unknown, httpStatus: number): ImageDel
     default:
       if (httpStatus === 401) return { code: 'UNAUTHENTICATED', message: IMAGE_DELETE_MESSAGES.unauthenticated }
       return { code: 'INTERNAL', message: IMAGE_DELETE_MESSAGES.internal }
+  }
+}
+
+/** معاملات zell_product_image_delete بالظبط: المنتج رقم، والصورة نص دقيق (bigint مايتبعتش Number). */
+export type ImageDeleteArgs = { p_product_id: number; p_image_id: string }
+
+/** نداء الدالة بجلسة المستخدم (lib/mutations/imageDelete.ts). أي فشل في الشبكة أو المهلة = استثناء. */
+export type ImageDeleteRpc = (args: ImageDeleteArgs, signal: AbortSignal) => Promise<{ data: unknown; error: unknown; status: number }>
+
+export const IMAGE_DELETE_TIMEOUT_MS = 10000
+
+/**
+ * الحذف من أوله لآخره من غير الشبكة نفسها: فحص المدخلات ← نداء واحد بالظبط (من غير إعادة) بمهلة ← تحويل الخطأ أو قراية الرد.
+ * المهلة أو ضياع الرد = INTERNAL «تعذّر تأكيد حذف الصورة…» (النتيجة مش معروفة؛ المحاولة التانية بتقول «غير موجودة» لو الحذف حصل).
+ */
+export async function callImageDelete(
+  rpc: ImageDeleteRpc,
+  productId: unknown,
+  imageId: unknown,
+  timeoutMs: number = IMAGE_DELETE_TIMEOUT_MS,
+): Promise<MutationResult<ImageDeleteResult>> {
+  const issue = imageDeleteInputIssue(productId, imageId)
+  if (issue !== null || typeof productId !== 'number' || typeof imageId !== 'string') {
+    return { ok: false, code: 'VALIDATION', message: issue ?? IMAGE_DELETE_MESSAGES.invalid }
+  }
+  try {
+    const result = await rpc({ p_product_id: productId, p_image_id: imageId }, AbortSignal.timeout(timeoutMs))
+    if (result.error !== null && result.error !== undefined) {
+      const failure = imageDeleteFailure(result.error, result.status)
+      return { ok: false, code: failure.code, message: failure.message }
+    }
+    const parsed = parseImageDeleteResult(result.data, imageId)
+    if (parsed === null) return { ok: false, code: 'INTERNAL', message: IMAGE_DELETE_MESSAGES.internal }
+    return { ok: true, data: parsed }
+  } catch {
+    return { ok: false, code: 'INTERNAL', message: IMAGE_DELETE_MESSAGES.internal }
   }
 }
 
