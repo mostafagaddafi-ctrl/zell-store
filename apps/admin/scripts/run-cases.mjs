@@ -45,6 +45,8 @@ const SUITES = [
   { name: 'policy-save', dir: 'lib/content', entry: 'policySave.cases.ts', run: 'runPolicySaveCases' },
   { name: 'product-delete', dir: 'lib/products', entry: 'deleteProduct.cases.ts', run: 'runProductDeleteCases' },
   { name: 'order-purge', dir: 'lib/orders', entry: 'purge.cases.ts', run: 'runOrderPurgeCases' },
+  // IMAGE-DELETE C1 — حذف الصورة وسلّم التراجع في الرفع (ضياع رد التعيين أو الإدخال).
+  { name: 'images', dir: 'lib/images', entry: 'images.cases.ts', run: 'runImageCases' },
   // أكواد الخصم: الحالات كانت بتتعمل typecheck بس ومابتتشغّلش (مراجعة أمنية 2026-11).
   { name: 'coupons', dir: 'lib/coupons', entry: 'form.cases.ts', run: 'runAdminCouponCases', also: ['lib', 'lib/orders'] },
   // COOKIES-HEADERS §٣ — كوكيز الجلسة المكتوبة فعليًا بالمكتبة الحقيقية وfetch مزيّف. آخر suite لأنها بتغيّر متغيرات البيئة وfetch (وبترجّعهم).
