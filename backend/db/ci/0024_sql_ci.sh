@@ -280,7 +280,9 @@ record "E02 the same 9 verifies after 0024 = PASS, and every check_id=ok vector 
 impact_v verifies
 ok=no; imp_gate apply && imp_gate verifies && [ "$(imp_f apply 2-8)" = "$IMPACT_AFTER" ] && [ "$(imp_f apply 9-31)" = "$(imp_f before 9-31)" ] && [ "$(imp_f verifies 2-31)" = "$(imp_f apply 2-31)" ] && ok=yes
 record "M04 impact after apply: columns 2-8 = plan step 4, 9-31 = before; after verify 0024 + the 9 verifies (plan step 5 order): columns 2-31 = after apply" "$ok" "apply=$(imp_detail apply) verifies=$(imp_detail verifies)"
-if node "$CIDIR/call_contract.mjs" --root "$ROOT" --policy "$CIDIR/call_contract_policy.json" --sql "$TMP/cc.sql" > "$TMP/cc_static.log" 2>&1; then
+# --later skip:0026_image_delete.sql: الداتابيز هنا مبنية لحد قبل 0024 + 0024، فدالة 0026 (بعدها في القايمة) مش موجودة (call_contract_policy.json later).
+# أسماء 0024 نفسها بتتفحص زي الأول.
+if node "$CIDIR/call_contract.mjs" --root "$ROOT" --policy "$CIDIR/call_contract_policy.json" --sql "$TMP/cc.sql" --later skip:0026_image_delete.sql > "$TMP/cc_static.log" 2>&1; then
   psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U "$SUPER" -d "$DB" -f "$TMP/cc.sql" < /dev/null > "$TMP/cc_db.log" 2>&1; rc=$?
   fails=$(grep -c '^CALL FAIL ' "$TMP/cc_db.log" || true)
   passes=$(grep -c '^CALL PASS ' "$TMP/cc_db.log" || true)
