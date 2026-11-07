@@ -239,53 +239,78 @@ reset role;
 revoke create on schema public from zell_catalog_definer;
 
 -- (4) postflight: المالك · security definer · الإعدادات · الصلاحيات بالظبط (من غير grant option) · الـ trigger · الـ policies · المنح.
+--     أي شرط فاشل بيتكتب اسمه في detail (القايمة كاملة).
 do $idpost$
 declare
   v_del oid := pg_catalog.to_regprocedure('public.zell_product_image_delete(integer, bigint)');
   v_trg oid := pg_catalog.to_regprocedure('public.zell_catalog_trg_products_activation_guard()');
   v_att smallint := (select a.attnum from pg_catalog.pg_attribute a
                       where a.attrelid = 'public.products'::regclass and a.attname = 'is_active');
+  v_bad text[] := '{}';
 begin
-  if v_del is null or v_trg is null
-     or exists (select 1 from pg_catalog.pg_proc p where p.oid in (v_del, v_trg)
-                   and (pg_catalog.pg_get_userbyid(p.proowner) <> 'zell_catalog_definer' or not p.prosecdef))
-     or (select p.proconfig from pg_catalog.pg_proc p where p.oid = v_del) is distinct from array['search_path=""', 'lock_timeout=3s']
-     or (select p.proconfig from pg_catalog.pg_proc p where p.oid = v_trg) is distinct from array['search_path=""']
-     or not pg_catalog.has_function_privilege('authenticated', v_del, 'EXECUTE')
+  if v_del is null or v_trg is null then
+    raise exception 'ZELL_0026_POST_SHAPE' using detail = 'functions_missing';
+  end if;
+  if exists (select 1 from pg_catalog.pg_proc p where p.oid in (v_del, v_trg)
+                and (pg_catalog.pg_get_userbyid(p.proowner) <> 'zell_catalog_definer' or not p.prosecdef)) then
+    v_bad := v_bad || 'owner_secdef'::text;
+  end if;
+  if (select p.proconfig from pg_catalog.pg_proc p where p.oid = v_del) is distinct from array['search_path=""', 'lock_timeout=3s'] then
+    v_bad := v_bad || 'delete_config'::text;
+  end if;
+  if (select p.proconfig from pg_catalog.pg_proc p where p.oid = v_trg) is distinct from array['search_path=""'] then
+    v_bad := v_bad || 'trigger_fn_config'::text;
+  end if;
+  if not pg_catalog.has_function_privilege('authenticated', v_del, 'EXECUTE')
      or exists (select 1 from (values ('anon'), ('service_role')) r(n) where pg_catalog.has_function_privilege(r.n, v_del, 'EXECUTE'))
-     or exists (select 1 from (values ('anon'), ('authenticated'), ('service_role')) r(n) where pg_catalog.has_function_privilege(r.n, v_trg, 'EXECUTE'))
-     or exists (select 1 from pg_catalog.pg_proc p, pg_catalog.aclexplode(p.proacl) a
-                 where p.oid in (v_del, v_trg) and (a.grantee = 0 or a.is_grantable))
+     or exists (select 1 from (values ('anon'), ('authenticated'), ('service_role')) r(n) where pg_catalog.has_function_privilege(r.n, v_trg, 'EXECUTE')) then
+    v_bad := v_bad || 'execute_roles'::text;
+  end if;
+  if exists (select 1 from pg_catalog.pg_proc p, pg_catalog.aclexplode(p.proacl) a
+              where p.oid in (v_del, v_trg) and (a.grantee = 0 or a.is_grantable))
      or (select pg_catalog.count(*) from pg_catalog.pg_proc p, pg_catalog.aclexplode(p.proacl) a
           where p.oid = v_del and a.grantee <> p.proowner) <> 1
      or (select pg_catalog.count(*) from pg_catalog.pg_proc p, pg_catalog.aclexplode(p.proacl) a
-          where p.oid = v_trg and a.grantee <> p.proowner) <> 0
-     or not exists (select 1 from pg_catalog.pg_trigger t
-                     where t.tgrelid = 'public.products'::regclass and t.tgname = 'zell_catalog_products_activation_guard'
-                       and t.tgenabled = 'O' and t.tgfoid = v_trg and t.tgtype = 23
-                       and t.tgattr::smallint[] = array[v_att])
-     or (select pg_catalog.count(*) from pg_catalog.pg_policies p
-          where p.schemaname = 'public' and p.roles = array['zell_catalog_definer']::name[]
-            and ((p.tablename = 'product_images' and p.policyname = 'zell_catalog_definer_image_delete'
-                  and p.cmd = 'DELETE' and p.qual = 'true' and p.with_check is null)
-              or (p.tablename = 'product_images' and p.policyname = 'zell_catalog_definer_image_promote'
-                  and p.cmd = 'UPDATE' and p.qual = 'true' and p.with_check like '%is_primary%'
-                  and p.with_check like '%cover%' and p.with_check like '%gallery%')
-              or (p.tablename = 'storage_orphans' and p.policyname = 'zell_catalog_definer_insert_removed'
-                  and p.cmd = 'INSERT' and p.qual is null and p.with_check like '%removed%'
-                  and p.with_check like '%cleaned_at IS NULL%'))) <> 3
-     or not pg_catalog.has_table_privilege('zell_catalog_definer', 'public.product_images', 'DELETE')
+          where p.oid = v_trg and a.grantee <> p.proowner) <> 0 then
+    v_bad := v_bad || 'acl_exact'::text;
+  end if;
+  if not exists (select 1 from pg_catalog.pg_trigger t
+                  where t.tgrelid = 'public.products'::regclass and t.tgname = 'zell_catalog_products_activation_guard'
+                    and t.tgenabled = 'O' and t.tgfoid = v_trg and t.tgtype = 23
+                    and t.tgattr::text = v_att::text) then
+    v_bad := v_bad || 'trigger_shape'::text;
+  end if;
+  if (select pg_catalog.count(*) from pg_catalog.pg_policies p
+       where p.schemaname = 'public' and p.roles = array['zell_catalog_definer']::name[]
+         and ((p.tablename = 'product_images' and p.policyname = 'zell_catalog_definer_image_delete'
+               and p.cmd = 'DELETE' and p.qual = 'true' and p.with_check is null)
+           or (p.tablename = 'product_images' and p.policyname = 'zell_catalog_definer_image_promote'
+               and p.cmd = 'UPDATE' and p.qual = 'true' and p.with_check like '%is_primary%'
+               and p.with_check like '%cover%' and p.with_check like '%gallery%')
+           or (p.tablename = 'storage_orphans' and p.policyname = 'zell_catalog_definer_insert_removed'
+               and p.cmd = 'INSERT' and p.qual is null and p.with_check like '%removed%'
+               and p.with_check like '%cleaned_at IS NULL%'))) <> 3 then
+    v_bad := v_bad || 'policies'::text;
+  end if;
+  if not pg_catalog.has_table_privilege('zell_catalog_definer', 'public.product_images', 'DELETE')
      or exists (select 1 from (values ('kind'), ('is_primary'), ('sort_order')) c(n)
                  where not pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', c.n, 'SELECT'))
      or exists (select 1 from (values ('is_primary'), ('fit'), ('updated_at')) c(n)
                  where not pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', c.n, 'UPDATE'))
      or pg_catalog.has_column_privilege('zell_catalog_definer', 'public.product_images', 'kind', 'UPDATE')
-     or pg_catalog.has_table_privilege('zell_catalog_definer', 'public.product_images', 'INSERT')
-     or pg_catalog.has_schema_privilege('zell_catalog_definer', 'public', 'CREATE')
-     or (select pg_catalog.pg_get_constraintdef(c.oid) from pg_catalog.pg_constraint c
-          where c.conrelid = 'public.storage_orphans'::regclass and c.conname = 'storage_orphans_reason_check')
-        is distinct from 'CHECK ((reason = ANY (ARRAY[''insert_failed''::text, ''delete_failed''::text, ''replaced''::text, ''removed''::text, ''product_deleted''::text])))' then
-    raise exception 'ZELL_0026_POST_SHAPE';
+     or pg_catalog.has_table_privilege('zell_catalog_definer', 'public.product_images', 'INSERT') then
+    v_bad := v_bad || 'definer_grants'::text;
+  end if;
+  if pg_catalog.has_schema_privilege('zell_catalog_definer', 'public', 'CREATE') then
+    v_bad := v_bad || 'schema_create'::text;
+  end if;
+  if (select pg_catalog.pg_get_constraintdef(c.oid) from pg_catalog.pg_constraint c
+       where c.conrelid = 'public.storage_orphans'::regclass and c.conname = 'storage_orphans_reason_check')
+     is distinct from 'CHECK ((reason = ANY (ARRAY[''insert_failed''::text, ''delete_failed''::text, ''replaced''::text, ''removed''::text, ''product_deleted''::text])))' then
+    v_bad := v_bad || 'orphan_reason_check'::text;
+  end if;
+  if pg_catalog.cardinality(v_bad) > 0 then
+    raise exception 'ZELL_0026_POST_SHAPE' using detail = pg_catalog.array_to_string(v_bad, ',');
   end if;
 end
 $idpost$;
