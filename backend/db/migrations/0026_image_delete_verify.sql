@@ -40,7 +40,7 @@ with f as (
   select 4, 'V04', coalesce((select exists (select 1 from pg_catalog.pg_trigger t
                                where t.tgrelid = 'public.products'::regclass and t.tgname = 'zell_catalog_products_activation_guard'
                                  and t.tgenabled = 'O' and t.tgfoid = f.trg and t.tgtype = 23
-                                 and t.tgattr::smallint[] = array[f.att]) from f), false),
+                                 and t.tgattr::text = f.att::text) from f), false),
          'trigger zell_catalog_products_activation_guard: before insert or update of is_active, for each row, enabled'
   union all
   select 5, 'V05', (select pg_catalog.count(*) from pg_catalog.pg_policies p
