@@ -2,7 +2,7 @@
 
 كل ملف في الريبو حجمه 20 KB أو أكتر (SQL · shell · Markdown)، وأقسامه بأرقام سطورها، ومعاهم ملفات 0021-A P1/P2 و0021-D2 الأصغر علشان المرحلة تبقى كاملة. الهدف إن أي شات يقرا الجزء اللي محتاجه بس، من غير ما يفتح ملف فيه آلاف السطور.
 
-- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR. ملفات 0021-D2 W1 (`0021d2_*`) اتضافت في PR W1 فوق main `6f3df51` (صفوفها وأقسامها من الـ head بتاعه)، وباقي الجدول زي ما هو. و`docs/plans/ADMIN-LANG-LIST.md` اتضاف في PR الحصر فوق main `c760822`. وملفات 0021-TR W1 (`0021tr_*`) اتضافت في PR W1 (#145) فوق main `3658906` (صفوفها وأقسامها من الـ head بتاعه)، وقسم `docs/maps/db-map.md` اتولّد من جديد من نفس الـ head (كان قديم: من غير §٧-ج و§٩). وعقدي `EXPRESS-SHIPPING.md` و`TRACK-ORDER-v2.md` اتضافوا في PR العقود (#147) فوق main `c825ce3` (صفوفهم وأقسامهم من الـ head بتاعه). وملفات EXPRESS-SHIPPING W1 (`0021ex_*`) اتضافت في PR W1 فوق main `30971d2` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021a_p1_payments_verify.sql` و`docs/maps/db-map.md` و`docs/contracts/EXPRESS-SHIPPING.md` اتحدّثت من نفس الـ head. وفي PR W2 فوق main `baa66a5`: صفوف وأقسام `backend/db/ci/0021ex_sql_ci.sh` (S46) و`docs/contracts/EXPRESS-SHIPPING.md` (§٧-٣) اتحدّثت من الـ head بتاعه. وملفات TRACK-ORDER v2 W1 (`0021tr2_*`) اتضافت في PR W1 فوق main `7c68bb5` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021tr_track_order_verify.sql` و`0021tr_track_order_rollback.sql` و`0021ex_express_shipping_rollback.sql` و`docs/contracts/TRACK-ORDER-v2.md` و`docs/maps/db-map.md` اتحدّثت من نفس الـ head. وفي PR W2-B (#153) فوق main `e6629a4`: صفوف وأقسام `backend/db/ci/0021tr2_sql_ci.sh` (S47) و`docs/contracts/TRACK-ORDER-v2.md` (§١٥ و§١٧) اتحدّثت من الـ head بتاعه. وفي PR إضافة §١٢ لعقد EXPRESS-SHIPPING (#154) فوق main `d356ea8`: صف وقسم `docs/contracts/EXPRESS-SHIPPING.md` اتحدّثوا من الـ head بتاعه. وعقد `LENGTH-INPUT.md` اتضاف في PR العقد (#156) فوق main `e85e059` (صفه وقسمه من الـ head بتاعه). وعقد `STORE-MENU.md` اتضاف في PR التنفيذ (#159) فوق main `f35d40b` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وعقد `POLICY-PAGES.md` اتضاف في PR العقد (#167) فوق main `959bad3` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وفي PR التنفيذ (#168) فوق main `c411566`: صف وقسم `docs/contracts/POLICY-PAGES.md` اتحدّثوا من الـ head بتاعه (§١٢). ملفات 0023 (INVENTORY-REMOVAL B) وصف `db-map` اتضافوا/اتحدّثوا في PR المرحلة B فوق main `8f3bf48`. وفي إصلاحات مراجعة #195 (نفس الـ PR): صفوف وأقسام ملفات 0023 و`db-map` اتحدّثت من الـ head الجديد، و`docs/contracts/INVENTORY-REMOVAL.md` اتضاف لما عدّى 20 KB. وفي PR المرحلة C فوق main `553a2d1`: صفوف `0020s_sql_ci.sh` (تاريخي) و`0023_sql_ci.sh` والعقد و`db-map` اتحدّثت وأقسامهم اتولّدت من الـ head بتاعه، و`README.md` اتحدّث، و`docs/maps/code-map.md` و`backend/db/ci/0022_sql_ci.sh` اتضافوا (اتعدّلوا وهم فوق 20 KB). وعقد `ORDER-DELETE.md` اتضاف في PR العقد فوق main `5d562fd` (صفه وقسمه من الـ head بتاعه). وملفات 0024 (ORDER-DELETE B: الـ migration والـ ptest وCI) اتضافت، وصفوف وأقسام العقد و`db-map` اتحدّثت، في PR المرحلة B فوق main `e928ba7` (الـ verify والـ rollback أقل من 20 KB). وفي PR المرحلة C لـ IMAGE-DELETE فوق main `04d7f2d`: صفوف وأقسام `docs/maps/db-map.md` و`docs/maps/code-map.md` و`docs/contracts/0021-P-code.md` اتولّدت من الـ head بتاعه، و`docs/contracts/IMAGE-DELETE.md` اتضاف (كان عدّى 20 KB من #222)، وصف وقسم `README.md` اتحدّثوا. ⚠ **ملفات تانية فوق 20 KB لسه مش في الجدول أو صفوفها قديمة** (منها ملفات 0022 و0025 و0026 و`0024_sql_ci.sh` و`baseline_compare.sql` وعقود تانية): تحديثها PR لوحده.
+- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR. ملفات 0021-D2 W1 (`0021d2_*`) اتضافت في PR W1 فوق main `6f3df51` (صفوفها وأقسامها من الـ head بتاعه)، وباقي الجدول زي ما هو. و`docs/plans/ADMIN-LANG-LIST.md` اتضاف في PR الحصر فوق main `c760822`. وملفات 0021-TR W1 (`0021tr_*`) اتضافت في PR W1 (#145) فوق main `3658906` (صفوفها وأقسامها من الـ head بتاعه)، وقسم `docs/maps/db-map.md` اتولّد من جديد من نفس الـ head (كان قديم: من غير §٧-ج و§٩). وعقدي `EXPRESS-SHIPPING.md` و`TRACK-ORDER-v2.md` اتضافوا في PR العقود (#147) فوق main `c825ce3` (صفوفهم وأقسامهم من الـ head بتاعه). وملفات EXPRESS-SHIPPING W1 (`0021ex_*`) اتضافت في PR W1 فوق main `30971d2` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021a_p1_payments_verify.sql` و`docs/maps/db-map.md` و`docs/contracts/EXPRESS-SHIPPING.md` اتحدّثت من نفس الـ head. وفي PR W2 فوق main `baa66a5`: صفوف وأقسام `backend/db/ci/0021ex_sql_ci.sh` (S46) و`docs/contracts/EXPRESS-SHIPPING.md` (§٧-٣) اتحدّثت من الـ head بتاعه. وملفات TRACK-ORDER v2 W1 (`0021tr2_*`) اتضافت في PR W1 فوق main `7c68bb5` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021tr_track_order_verify.sql` و`0021tr_track_order_rollback.sql` و`0021ex_express_shipping_rollback.sql` و`docs/contracts/TRACK-ORDER-v2.md` و`docs/maps/db-map.md` اتحدّثت من نفس الـ head. وفي PR W2-B (#153) فوق main `e6629a4`: صفوف وأقسام `backend/db/ci/0021tr2_sql_ci.sh` (S47) و`docs/contracts/TRACK-ORDER-v2.md` (§١٥ و§١٧) اتحدّثت من الـ head بتاعه. وفي PR إضافة §١٢ لعقد EXPRESS-SHIPPING (#154) فوق main `d356ea8`: صف وقسم `docs/contracts/EXPRESS-SHIPPING.md` اتحدّثوا من الـ head بتاعه. وعقد `LENGTH-INPUT.md` اتضاف في PR العقد (#156) فوق main `e85e059` (صفه وقسمه من الـ head بتاعه). وعقد `STORE-MENU.md` اتضاف في PR التنفيذ (#159) فوق main `f35d40b` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وعقد `POLICY-PAGES.md` اتضاف في PR العقد (#167) فوق main `959bad3` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وفي PR التنفيذ (#168) فوق main `c411566`: صف وقسم `docs/contracts/POLICY-PAGES.md` اتحدّثوا من الـ head بتاعه (§١٢). ملفات 0023 (INVENTORY-REMOVAL B) وصف `db-map` اتضافوا/اتحدّثوا في PR المرحلة B فوق main `8f3bf48`. وفي إصلاحات مراجعة #195 (نفس الـ PR): صفوف وأقسام ملفات 0023 و`db-map` اتحدّثت من الـ head الجديد، و`docs/contracts/INVENTORY-REMOVAL.md` اتضاف لما عدّى 20 KB. وفي PR المرحلة C فوق main `553a2d1`: صفوف `0020s_sql_ci.sh` (تاريخي) و`0023_sql_ci.sh` والعقد و`db-map` اتحدّثت وأقسامهم اتولّدت من الـ head بتاعه، و`README.md` اتحدّث، و`docs/maps/code-map.md` و`backend/db/ci/0022_sql_ci.sh` اتضافوا (اتعدّلوا وهم فوق 20 KB). وعقد `ORDER-DELETE.md` اتضاف في PR العقد فوق main `5d562fd` (صفه وقسمه من الـ head بتاعه). وملفات 0024 (ORDER-DELETE B: الـ migration والـ ptest وCI) اتضافت، وصفوف وأقسام العقد و`db-map` اتحدّثت، في PR المرحلة B فوق main `e928ba7` (الـ verify والـ rollback أقل من 20 KB). وفي PR المرحلة C لـ IMAGE-DELETE فوق main `04d7f2d`: صفوف وأقسام `docs/maps/db-map.md` و`docs/maps/code-map.md` و`docs/contracts/0021-P-code.md` اتولّدت من الـ head بتاعه، و`docs/contracts/IMAGE-DELETE.md` اتضاف (كان عدّى 20 KB من #222)، وصف وقسم `README.md` اتحدّثوا. وفي PR المرحلة B لـ DEFAULT-PRIVILEGES فوق main `a6029a2`: `backend/db/ci/0027_sql_ci.sh` و`backend/db/migrations/0027_default_privileges_ptest.sql` اتضافوا (صفوفهم وأقسامهم من الـ head بتاعه)؛ باقي ملفات 0027 أقل من 20 KB. ⚠ **ملفات تانية فوق 20 KB لسه مش في الجدول أو صفوفها قديمة** (منها ملفات 0022 و0025 و0026 و`0024_sql_ci.sh` و`baseline_compare.sql` وعقود تانية): تحديثها PR لوحده.
 - **القراية بالسطور:** على GitHub ضيف `#L100-L200` للرابط، أو اقرا الـ blob وقطّع السطور من القسم لحد القسم اللي بعده.
 - **الـ ptest:** جسم الـ migration منسوخ جواه بالحرف بين «بداية/نهاية الجسم المنسوخ»، فمش محتاج تقراه هناك. اقراه من ملف الـ migration.
 - الجداول متولّدة من عناوين الملفات نفسها: `-- (N)` · الفواصل · `DO $…$` · `create function/table/role` · `BEGIN/COMMIT/ROLLBACK` · `#` في Markdown · `name() {` و`X=$(cat <<'SQL'` في shell.
@@ -97,6 +97,8 @@
 | `docs/plans/ADMIN-LANG-LIST.md` | 62 KB | 224 | حصر نصوص اللوحة العامية مع مقترح فصحى مبسّطة لكل نص (أ · ب · ج · د)، للمالك يختار منه |
 | `docs/plans/ORDER-FLOW-PLAN.md` | 119 KB | 1584 | خطة مسار الطلب |
 | `README.md` | 26 KB | 326 | حالة النظام الحي: الميزات · اللوحة · الهيكل · الأمان · التوثيق |
+| `backend/db/ci/0027_sql_ci.sh` | 25 KB | 284 | اختبارات SQL لـ 0027 DEFAULT-PRIVILEGES B في CI على داتابيز مبنية من القايمة كلها ومحاكاة لقطة pg_default_acl كاملة (S01–S04 · B01 · M01–M05 · V00–V03 · E01–E05 · N00–N01 · P01–P03 · A01–A02 · RB1–RB3 · RA1) |
+| `backend/db/migrations/0027_default_privileges_ptest.sql` | 26 KB | 298 | 0027 DEFAULT-PRIVILEGES B اختبار قبل التطبيق (smoke، 7 حالات، الجسم منسوخ بالحرف، وكائنات تجربة وبصمات، والنتيجة صفوف) |
 
 ---
 
@@ -448,6 +450,42 @@ TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل و
 | 211 | # ── S3: الرد (بدور service_role زي المتجر) ── |
 | 286 | # ── S4: الرجوع ── |
 | 300 | # ── S5: حراس الـ preflight ── |
+
+## `backend/db/ci/0027_sql_ci.sh`
+
+اختبارات SQL لـ 0027 DEFAULT-PRIVILEGES B في CI على داتابيز مبنية من القايمة كلها ومحاكاة لقطة pg_default_acl كاملة (S01–S04 · B01 · M01–M05 · V00–V03 · E01–E05 · N00–N01 · P01–P03 · A01–A02 · RB1–RB3 · RA1) · 284 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 41 | record() { |
+| 45 | finish() { |
+| 55 | stop() { record "$1" no "$2"; echo "STOPPED: $1"; finish; } |
+| 56 | tailof() { tail -n 6 "$1" 2> /dev/null \| tr '\n' ' ' \| cut -c1-700; } |
+| 57 | su_q() { local db=$1; shift; psql -X -q -tA -v ON_ERROR_STOP=1 -U "$SUPER" -d "$db" "$@" < /dev/null; } |
+| 58 | su_f() { psql -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U "$SUPER" -d "$1" -f "$2" < /dev/null; } |
+| 59 | pg_f() { psql -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$1" -f "$2" < /dev/null; } |
+| 60 | pgq() { local db=$1; shift; psql -X -q -tA -v ON_ERROR_STOP=1 -U postgres -d "$db" -c "$1" < /dev/null 2>&1; } |
+| 61 | run_file() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$1" < /dev/null > "$2" 2>&1; } |
+| 62 | pipe_pg() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$1" -f - > "$2" 2>&1; } |
+| 63 | has() { grep -q -- "$2" "$1"; } |
+| 64 | body_md5() { awk -v s="-- >>> $2" -v e="-- <<< $2" '$0 == s {f = 1} f {print} $0 == e {f = 0}' "$1" \| md5sum \| cut -d' ' -f1; } |
+| 65 | with_appr() { sed "0,/^begin;\$/s//begin;\nset local zell.approved_by = '$2';/" "$1"; } |
+| 67 | acl_rows() { |
+| 71 | same_rows() { acl_rows "$1" > "$TMP/rows_now.txt"; cmp -s "$TMP/rows_now.txt" "$2"; } |
+| 72 | summary_of() { local rc; run_file "$1" "$TMP/$2.out"; rc=$?; echo "rc=$rc $(grep '^0\|summary\|' "$TMP/$2.out" \| cut -d'\|' -f3-)"; } |
+| 73 | impact() { psql -X -q -tA -F "$US" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$IMPACT" < /dev/null > "$TMP/imp_$1.out" 2>&1; echo "$?" > "$TMP/imp_$1.rc"; } |
+| 74 | imp_ok() { [ "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" = "0" ] && [ "$(grep -c "^probe$US" "$TMP/imp_$1.out")" = "1" ] && grep -q "^probe$US.*${US}0\$" "$TMP/imp_$1.out" && grep -q "^session${US}current_ |
+| 75 | imp_sec() { grep "^$2$US" "$TMP/imp_$1.out"; } |
+| 76 | imp_detail() { printf 'rc=%s %s' "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" "$(grep -v '^default_acl' "$TMP/imp_$1.out" \| tr "$US" '\|' \| tr '\n' ' ' \| cut -c1-900)"; } |
+| 79 | probe_sql() { |
+| 88 | mkcopy() { su_q postgres -c "drop database if exists $1" -c "create database $1 template $DB" > "$TMP/$1.log" 2>&1; } |
+| 89 | dropcopy() { su_q postgres -c "drop database if exists $1" >> "$TMP/$1.log" 2>&1; } |
+| 145 | # ---- 1) فحوص ثابتة ---- |
+| 159 | # ---- 2) بناء الداتابيز من القايمة الصريحة ---- |
+| 194 | # ---- 3) قبل التطبيق ---- |
+| 206 | neg() { # $1 id  $2 copy  $3 who(postgres\|super)  $4 drift sql  $5 label |
+| 227 | # ---- 4) ptest ثم التطبيق ---- |
+| 258 | # ---- 5) الرجوع ---- |
 
 ## `backend/db/migrations/0006b_order_functions.sql`
 
@@ -1982,6 +2020,33 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 499 | do $q24$ |
 | 556 | -- <<< 0024 BODY |
 | 557 | commit; |
+
+## `backend/db/migrations/0027_default_privileges_ptest.sql`
+
+0027 DEFAULT-PRIVILEGES B اختبار قبل التطبيق (smoke، 7 حالات، الجسم منسوخ بالحرف، وكائنات تجربة وبصمات، والنتيجة صفوف) · 298 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 11 | begin; |
+| 16 | do $zguard$ |
+| 73 | create table public.zell_dp_probe_t0 (id integer); |
+| 74 | create sequence public.zell_dp_probe_s0; |
+| 75 | create function public.zell_dp_probe_f0() returns integer language sql as 'select 1'; |
+| 77 | create temporary table zt_results (n serial, id text, outcome text, detail text) on commit drop; |
+| 79 | do $zpre$ |
+| 94 | -- >>> 0027 BODY |
+| 98 | -- (0) preflight: المتصل · الموافقة · صفوف pg_default_acl كلها = لقطة العقد §١ بالحرف (24 صف، ومفيش صف عام). |
+| 100 | do $dppre$ |
+| 149 | -- (1) التغيير (العقد §٢). مابيلمسش أي كائن موجود. |
+| 155 | -- (2) postflight: الصفوف = النتيجة المتوقعة (25 صف) بالحرف، وإلا ZELL_0027_POST_SHAPE والمعاملة كلها بترجع. |
+| 156 | do $dppost$ |
+| 198 | -- <<< 0027 BODY |
+| 201 | create table public.zell_dp_probe_t1 (id integer); |
+| 202 | create sequence public.zell_dp_probe_s1; |
+| 203 | create function public.zell_dp_probe_f1() returns integer language sql as 'select 1'; |
+| 205 | do $zchk$ |
+| 290 | select s.n, s.id, s.outcome, s.detail |
+| 298 | rollback; |
 
 ## `docs/contracts/0021-A.md`
 
