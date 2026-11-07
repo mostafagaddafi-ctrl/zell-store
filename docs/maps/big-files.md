@@ -2,7 +2,7 @@
 
 كل ملف في الريبو حجمه 20 KB أو أكتر (SQL · shell · Markdown)، وأقسامه بأرقام سطورها، ومعاهم ملفات 0021-A P1/P2 و0021-D2 الأصغر علشان المرحلة تبقى كاملة. الهدف إن أي شات يقرا الجزء اللي محتاجه بس، من غير ما يفتح ملف فيه آلاف السطور.
 
-- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR. ملفات 0021-D2 W1 (`0021d2_*`) اتضافت في PR W1 فوق main `6f3df51` (صفوفها وأقسامها من الـ head بتاعه)، وباقي الجدول زي ما هو. و`docs/plans/ADMIN-LANG-LIST.md` اتضاف في PR الحصر فوق main `c760822`. وملفات 0021-TR W1 (`0021tr_*`) اتضافت في PR W1 (#145) فوق main `3658906` (صفوفها وأقسامها من الـ head بتاعه)، وقسم `docs/maps/db-map.md` اتولّد من جديد من نفس الـ head (كان قديم: من غير §٧-ج و§٩). وعقدي `EXPRESS-SHIPPING.md` و`TRACK-ORDER-v2.md` اتضافوا في PR العقود (#147) فوق main `c825ce3` (صفوفهم وأقسامهم من الـ head بتاعه). وملفات EXPRESS-SHIPPING W1 (`0021ex_*`) اتضافت في PR W1 فوق main `30971d2` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021a_p1_payments_verify.sql` و`docs/maps/db-map.md` و`docs/contracts/EXPRESS-SHIPPING.md` اتحدّثت من نفس الـ head. وفي PR W2 فوق main `baa66a5`: صفوف وأقسام `backend/db/ci/0021ex_sql_ci.sh` (S46) و`docs/contracts/EXPRESS-SHIPPING.md` (§٧-٣) اتحدّثت من الـ head بتاعه. وملفات TRACK-ORDER v2 W1 (`0021tr2_*`) اتضافت في PR W1 فوق main `7c68bb5` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021tr_track_order_verify.sql` و`0021tr_track_order_rollback.sql` و`0021ex_express_shipping_rollback.sql` و`docs/contracts/TRACK-ORDER-v2.md` و`docs/maps/db-map.md` اتحدّثت من نفس الـ head. وفي PR W2-B (#153) فوق main `e6629a4`: صفوف وأقسام `backend/db/ci/0021tr2_sql_ci.sh` (S47) و`docs/contracts/TRACK-ORDER-v2.md` (§١٥ و§١٧) اتحدّثت من الـ head بتاعه. وفي PR إضافة §١٢ لعقد EXPRESS-SHIPPING (#154) فوق main `d356ea8`: صف وقسم `docs/contracts/EXPRESS-SHIPPING.md` اتحدّثوا من الـ head بتاعه. وعقد `LENGTH-INPUT.md` اتضاف في PR العقد (#156) فوق main `e85e059` (صفه وقسمه من الـ head بتاعه). وعقد `STORE-MENU.md` اتضاف في PR التنفيذ (#159) فوق main `f35d40b` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وعقد `POLICY-PAGES.md` اتضاف في PR العقد (#167) فوق main `959bad3` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وفي PR التنفيذ (#168) فوق main `c411566`: صف وقسم `docs/contracts/POLICY-PAGES.md` اتحدّثوا من الـ head بتاعه (§١٢). ملفات 0023 (INVENTORY-REMOVAL B) وصف `db-map` اتضافوا/اتحدّثوا في PR المرحلة B فوق main `8f3bf48`. وفي إصلاحات مراجعة #195 (نفس الـ PR): صفوف وأقسام ملفات 0023 و`db-map` اتحدّثت من الـ head الجديد، و`docs/contracts/INVENTORY-REMOVAL.md` اتضاف لما عدّى 20 KB. وفي PR المرحلة C فوق main `553a2d1`: صفوف `0020s_sql_ci.sh` (تاريخي) و`0023_sql_ci.sh` والعقد و`db-map` اتحدّثت وأقسامهم اتولّدت من الـ head بتاعه، و`README.md` اتحدّث، و`docs/maps/code-map.md` و`backend/db/ci/0022_sql_ci.sh` اتضافوا (اتعدّلوا وهم فوق 20 KB). وعقد `ORDER-DELETE.md` اتضاف في PR العقد فوق main `5d562fd` (صفه وقسمه من الـ head بتاعه). وملفات 0024 (ORDER-DELETE B: الـ migration والـ ptest وCI) اتضافت، وصفوف وأقسام العقد و`db-map` اتحدّثت، في PR المرحلة B فوق main `e928ba7` (الـ verify والـ rollback أقل من 20 KB). وفي PR المرحلة C لـ IMAGE-DELETE فوق main `04d7f2d`: صفوف وأقسام `docs/maps/db-map.md` و`docs/maps/code-map.md` و`docs/contracts/0021-P-code.md` اتولّدت من الـ head بتاعه، و`docs/contracts/IMAGE-DELETE.md` اتضاف (كان عدّى 20 KB من #222). ⚠ **ملفات تانية فوق 20 KB لسه مش في الجدول أو صفوفها قديمة** (منها ملفات 0022 و0025 و0026 و`0024_sql_ci.sh` و`baseline_compare.sql` وعقود تانية): تحديثها PR لوحده.
+- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR. ملفات 0021-D2 W1 (`0021d2_*`) اتضافت في PR W1 فوق main `6f3df51` (صفوفها وأقسامها من الـ head بتاعه)، وباقي الجدول زي ما هو. و`docs/plans/ADMIN-LANG-LIST.md` اتضاف في PR الحصر فوق main `c760822`. وملفات 0021-TR W1 (`0021tr_*`) اتضافت في PR W1 (#145) فوق main `3658906` (صفوفها وأقسامها من الـ head بتاعه)، وقسم `docs/maps/db-map.md` اتولّد من جديد من نفس الـ head (كان قديم: من غير §٧-ج و§٩). وعقدي `EXPRESS-SHIPPING.md` و`TRACK-ORDER-v2.md` اتضافوا في PR العقود (#147) فوق main `c825ce3` (صفوفهم وأقسامهم من الـ head بتاعه). وملفات EXPRESS-SHIPPING W1 (`0021ex_*`) اتضافت في PR W1 فوق main `30971d2` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021a_p1_payments_verify.sql` و`docs/maps/db-map.md` و`docs/contracts/EXPRESS-SHIPPING.md` اتحدّثت من نفس الـ head. وفي PR W2 فوق main `baa66a5`: صفوف وأقسام `backend/db/ci/0021ex_sql_ci.sh` (S46) و`docs/contracts/EXPRESS-SHIPPING.md` (§٧-٣) اتحدّثت من الـ head بتاعه. وملفات TRACK-ORDER v2 W1 (`0021tr2_*`) اتضافت في PR W1 فوق main `7c68bb5` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021tr_track_order_verify.sql` و`0021tr_track_order_rollback.sql` و`0021ex_express_shipping_rollback.sql` و`docs/contracts/TRACK-ORDER-v2.md` و`docs/maps/db-map.md` اتحدّثت من نفس الـ head. وفي PR W2-B (#153) فوق main `e6629a4`: صفوف وأقسام `backend/db/ci/0021tr2_sql_ci.sh` (S47) و`docs/contracts/TRACK-ORDER-v2.md` (§١٥ و§١٧) اتحدّثت من الـ head بتاعه. وفي PR إضافة §١٢ لعقد EXPRESS-SHIPPING (#154) فوق main `d356ea8`: صف وقسم `docs/contracts/EXPRESS-SHIPPING.md` اتحدّثوا من الـ head بتاعه. وعقد `LENGTH-INPUT.md` اتضاف في PR العقد (#156) فوق main `e85e059` (صفه وقسمه من الـ head بتاعه). وعقد `STORE-MENU.md` اتضاف في PR التنفيذ (#159) فوق main `f35d40b` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وعقد `POLICY-PAGES.md` اتضاف في PR العقد (#167) فوق main `959bad3` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وفي PR التنفيذ (#168) فوق main `c411566`: صف وقسم `docs/contracts/POLICY-PAGES.md` اتحدّثوا من الـ head بتاعه (§١٢). ملفات 0023 (INVENTORY-REMOVAL B) وصف `db-map` اتضافوا/اتحدّثوا في PR المرحلة B فوق main `8f3bf48`. وفي إصلاحات مراجعة #195 (نفس الـ PR): صفوف وأقسام ملفات 0023 و`db-map` اتحدّثت من الـ head الجديد، و`docs/contracts/INVENTORY-REMOVAL.md` اتضاف لما عدّى 20 KB. وفي PR المرحلة C فوق main `553a2d1`: صفوف `0020s_sql_ci.sh` (تاريخي) و`0023_sql_ci.sh` والعقد و`db-map` اتحدّثت وأقسامهم اتولّدت من الـ head بتاعه، و`README.md` اتحدّث، و`docs/maps/code-map.md` و`backend/db/ci/0022_sql_ci.sh` اتضافوا (اتعدّلوا وهم فوق 20 KB). وعقد `ORDER-DELETE.md` اتضاف في PR العقد فوق main `5d562fd` (صفه وقسمه من الـ head بتاعه). وملفات 0024 (ORDER-DELETE B: الـ migration والـ ptest وCI) اتضافت، وصفوف وأقسام العقد و`db-map` اتحدّثت، في PR المرحلة B فوق main `e928ba7` (الـ verify والـ rollback أقل من 20 KB). وفي PR المرحلة C لـ IMAGE-DELETE فوق main `04d7f2d`: صفوف وأقسام `docs/maps/db-map.md` و`docs/maps/code-map.md` و`docs/contracts/0021-P-code.md` اتولّدت من الـ head بتاعه، و`docs/contracts/IMAGE-DELETE.md` اتضاف (كان عدّى 20 KB من #222)، وصف وقسم `README.md` اتحدّثوا. ⚠ **ملفات تانية فوق 20 KB لسه مش في الجدول أو صفوفها قديمة** (منها ملفات 0022 و0025 و0026 و`0024_sql_ci.sh` و`baseline_compare.sql` وعقود تانية): تحديثها PR لوحده.
 - **القراية بالسطور:** على GitHub ضيف `#L100-L200` للرابط، أو اقرا الـ blob وقطّع السطور من القسم لحد القسم اللي بعده.
 - **الـ ptest:** جسم الـ migration منسوخ جواه بالحرف بين «بداية/نهاية الجسم المنسوخ»، فمش محتاج تقراه هناك. اقراه من ملف الـ migration.
 - الجداول متولّدة من عناوين الملفات نفسها: `-- (N)` · الفواصل · `DO $…$` · `create function/table/role` · `BEGIN/COMMIT/ROLLBACK` · `#` في Markdown · `name() {` و`X=$(cat <<'SQL'` في shell.
@@ -96,7 +96,7 @@
 | `docs/maps/db-map.md` | 70 KB | 451 | خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف |
 | `docs/plans/ADMIN-LANG-LIST.md` | 62 KB | 224 | حصر نصوص اللوحة العامية مع مقترح فصحى مبسّطة لكل نص (أ · ب · ج · د)، للمالك يختار منه |
 | `docs/plans/ORDER-FLOW-PLAN.md` | 119 KB | 1584 | خطة مسار الطلب |
-| `README.md` | 25 KB | 322 | حالة النظام الحي: الميزات · اللوحة · الهيكل · الأمان · التوثيق |
+| `README.md` | 25 KB | 324 | حالة النظام الحي: الميزات · اللوحة · الهيكل · الأمان · التوثيق |
 
 ---
 
@@ -2458,24 +2458,24 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 
 ## `README.md`
 
-حالة النظام الحي: الميزات · اللوحة · الهيكل · الأمان · التوثيق · 322 سطر
+حالة النظام الحي: الميزات · اللوحة · الهيكل · الأمان · التوثيق · 324 سطر
 
 | السطر | القسم |
 | ---: | --- |
 | 1 | # ZELL — متجر أفلام الزجاج بالمتر |
 | 15 | ## الحالة الحالية |
-| 45 | ## الميزات: إيه اللي شغّال وإيه اللي لأ |
-| 68 | ## اللوحة: كل حاجة بتتعدّل منين |
-| 104 | ## الهيكل |
-| 128 | ### 📦 `backend/` و `frontend/` |
-| 142 | ## التشغيل محليًا |
-| 162 | ## النشر |
-| 175 | ## منطق التسعير |
-| 195 | ## قاعدة البيانات |
-| 237 | ## قواعد الأمان — ملزمة |
-| 257 | ## التوثيق |
-| 259 | ### الوضع الحالي — ابدأ من هنا |
-| 267 | ### مراجع تفصيلية |
-| 281 | ### خطة مستقبلية — **مش منفّذة** |
-| 291 | ### أرشيف تاريخي |
-| 301 | ## اللي لسه ناقص |
+| 46 | ## الميزات: إيه اللي شغّال وإيه اللي لأ |
+| 70 | ## اللوحة: كل حاجة بتتعدّل منين |
+| 106 | ## الهيكل |
+| 130 | ### 📦 `backend/` و `frontend/` |
+| 144 | ## التشغيل محليًا |
+| 164 | ## النشر |
+| 177 | ## منطق التسعير |
+| 197 | ## قاعدة البيانات |
+| 239 | ## قواعد الأمان — ملزمة |
+| 259 | ## التوثيق |
+| 261 | ### الوضع الحالي — ابدأ من هنا |
+| 269 | ### مراجع تفصيلية |
+| 283 | ### خطة مستقبلية — **مش منفّذة** |
+| 293 | ### أرشيف تاريخي |
+| 303 | ## اللي لسه ناقص |
