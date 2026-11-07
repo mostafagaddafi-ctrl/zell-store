@@ -18,6 +18,7 @@ import { readProductSizeEntry } from '../content/sizeEntry'
 import { readProductSizeTexts } from '../content/sizeTexts'
 import { orderCouponSnapshot } from '../coupons/form'
 import { orderShippingType } from '../orders/listFilters'
+import { exactImageId } from '../images/imageId'
 import { ORDER_STATUSES, SECTION_KEYS, type ImageFit, type OrderStatus, type SectionKey } from '../enums'
 
 // ── صفوف الداتابيز ───────────────────────────────────────────
@@ -46,7 +47,8 @@ export type ProductRow = {
 
 /** id و bigint بتوصل كنص — ممنوع تحويلها لرقم. */
 export type ProductImageRow = {
-  id: string
+  /** bigint: نص دقيق لو القراية طلبت id::text، وإلا رقم JSON (ممكن يتقرّب). بيتحوّل بـ exactImageId بس. */
+  id: string | number
   product_id: number
   bucket: string
   object_path: string
@@ -217,8 +219,11 @@ export function toAdminProduct(row: ProductRow, imageCount: number): AdminProduc
 }
 
 export function toAdminImage(row: ProductImageRow, supabaseUrl: string, fallbackAlt: string): AdminImage {
+  // IMAGE-DELETE B1: معرّف مقرّب ماينفعش يتعرض، لأن أي عملية عليه (حذف · رئيسية · ترتيب) كانت هتروح لصورة تانية
+  const id = exactImageId(row.id)
+  if (id === null) throw new Error('معرّف صورة غير دقيق في قراية product_images')
   return {
-    id: String(row.id),
+    id,
     url: publicImageUrl(supabaseUrl, { bucket: row.bucket, object_path: row.object_path }),
     alt: row.alt_text && row.alt_text.trim() !== '' ? row.alt_text : fallbackAlt,
     fit: asFit(row.fit),
