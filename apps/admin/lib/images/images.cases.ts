@@ -3,8 +3,11 @@
  * العقد: docs/contracts/IMAGE-DELETE.md §٣ و§٥-ج و§٥-د و§٧.
  */
 
+import { exactImageId } from './imageId'
 import {
   IMAGE_DELETE_MESSAGES,
+  callImageDelete,
+  type ImageDeleteArgs,
   IMAGE_DELETE_OWNER_ONLY_MESSAGE,
   IMAGE_DELETE_TEXT,
   imageDeleteBlock,
@@ -236,6 +239,90 @@ export async function runImageCases(): Promise<{ passed: number; failures: Image
       calls: ['deleteRows id=eq.42&is_primary=is.false', 'deleteObject ' + PATH, 'recordOrphan ' + PATH],
       orphans: [PATH],
     })
+  }
+
+  // ── B1: معرّفات bigint دقيقة (9007199254740992 و9007199254740993 متجاورين وبرّه المدى الآمن) ──────
+  const BIG_A = '9007199254740992'
+  const BIG_B = '9007199254740993'
+  const rounded: unknown = (JSON.parse('{"id":' + BIG_B + '}') as { id: unknown }).id
+  check('B01 exact ids: digit text kept as is; a rounded JSON number is rejected (never turned into a neighbour id)', [
+    exactImageId(BIG_B),
+    exactImageId(BIG_A),
+    exactImageId(rounded),
+    exactImageId(9007199254740991),
+    exactImageId('9223372036854775808'),
+    exactImageId('0042'),
+  ], [BIG_B, BIG_A, null, '9007199254740991', null, null])
+  check('B02 the rounded number really equals the neighbour (why String() after JSON.parse is unsafe)', String(rounded), BIG_A)
+
+  // ── نداء الحذف (callImageDelete = المسار الفعلي؛ imageDelete.ts بيوصّل جلسة المستخدم بس) ──────
+  type Call = { args: ImageDeleteArgs; aborted: boolean }
+  function rpcOf(reply: () => Promise<{ data: unknown; error: unknown; status: number }>) {
+    const calls: Call[] = []
+    const rpc = async (args: ImageDeleteArgs, signal: AbortSignal) => {
+      calls.push({ args, aborted: signal.aborted })
+      return reply()
+    }
+    return { rpc, calls }
+  }
+  {
+    const f1 = rpcOf(async () => ({ data: { deleted_image_id: BIG_B, promoted_image_id: null, orphan_recorded: true }, error: null, status: 200 }))
+    const res = await callImageDelete(f1.rpc, 7, BIG_B)
+    check('D01 one call with the exact parameters (product number, image id as exact text); reply with text id = success', { res, calls: f1.calls }, {
+      res: { ok: true, data: { deletedImageId: BIG_B, promotedImageId: null, orphanRecorded: true } },
+      calls: [{ args: { p_product_id: 7, p_image_id: BIG_B }, aborted: false }],
+    })
+  }
+  {
+    // supabase-js بيفك الرد بـ JSON.parse: jsonb رقم برّه المدى الآمن بيوصل مقرّب
+    const data: unknown = JSON.parse('{"deleted_image_id":' + BIG_B + ',"promoted_image_id":null,"orphan_recorded":true}')
+    const f2 = rpcOf(async () => ({ data, error: null, status: 200 }))
+    const res = await callImageDelete(f2.rpc, 7, BIG_B)
+    check('D02 reply with a rounded id = unconfirmed (INTERNAL), not success for another image; still one call', { res, n: f2.calls.length }, {
+      res: { ok: false, code: 'INTERNAL', message: IMAGE_DELETE_MESSAGES.internal },
+      n: 1,
+    })
+  }
+  {
+    const f3 = rpcOf(async () => {
+      throw new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+    })
+    const res = await callImageDelete(f3.rpc, 7, '42')
+    check('D03 lost reply (timeout) = unconfirmed INTERNAL, exactly one call, no retry', { res, n: f3.calls.length }, {
+      res: { ok: false, code: 'INTERNAL', message: 'تعذّر تأكيد حذف الصورة. حدّث الصفحة وراجع صور المنتج.' },
+      n: 1,
+    })
+  }
+  {
+    // نفس شكل خطأ PostgREST في supabase-js (PostgrestError)
+    const f4 = rpcOf(async () => ({ data: null, error: { code: '45704', details: null, hint: null, message: 'ZELL_IMAGE_BUSY' }, status: 400 }))
+    const f5 = rpcOf(async () => ({ data: null, error: { code: '45702', details: null, hint: null, message: 'ZELL_IMAGE_LAST_VISIBLE' }, status: 400 }))
+    const f6 = rpcOf(async () => ({ data: null, error: { code: '45402', details: null, hint: null, message: 'ZELL_ORD_OWNER_ONLY' }, status: 400 }))
+    check('D04 PostgREST-shaped refusals -> busy / hide first / owner only, one call each', [
+      await callImageDelete(f4.rpc, 7, '42'),
+      await callImageDelete(f5.rpc, 7, '42'),
+      await callImageDelete(f6.rpc, 7, '42'),
+      f4.calls.length + f5.calls.length + f6.calls.length,
+    ], [
+      { ok: false, code: 'VALIDATION', message: IMAGE_DELETE_MESSAGES.busy },
+      { ok: false, code: 'VALIDATION', message: IMAGE_DELETE_MESSAGES.lastVisible },
+      { ok: false, code: 'FORBIDDEN', message: IMAGE_DELETE_MESSAGES.forbidden },
+      3,
+    ])
+  }
+  {
+    const f7 = rpcOf(async () => ({ data: null, error: null, status: 200 }))
+    check('D05 invalid input (rounded number id, empty, zero product) = VALIDATION and no call at all', [
+      await callImageDelete(f7.rpc, 7, rounded),
+      await callImageDelete(f7.rpc, 7, ''),
+      await callImageDelete(f7.rpc, 0, '42'),
+      f7.calls.length,
+    ], [
+      { ok: false, code: 'VALIDATION', message: IMAGE_DELETE_MESSAGES.invalid },
+      { ok: false, code: 'VALIDATION', message: IMAGE_DELETE_MESSAGES.invalid },
+      { ok: false, code: 'VALIDATION', message: IMAGE_DELETE_MESSAGES.invalid },
+      0,
+    ])
   }
 
   return { passed, failures }
