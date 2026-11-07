@@ -89,6 +89,7 @@ export default pageWithAccess('zell.products.view', async function ProductPage(c
         addonOptions={addonOptions}
         addonIds={addonIds}
         addonsTitle={addonsTitle}
+        isOwner={isOwner}
       />
 
       {isOwner ? (
