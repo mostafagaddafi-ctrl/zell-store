@@ -62,6 +62,12 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -
 if pg_lsclusters -h 2>/dev/null | awk '$1 == "17"' | grep -q .; then
   fail "a packaged PostgreSQL 17 cluster exists; refusing to use or touch it"
 fi
+# The PostgreSQL 17 client first on PATH, for this script and every later step of the job (GITHUB_PATH). The runner image
+# may ship a newer client: on 2026-11-07 the Ubuntu 26.04 runner had psql 18.6 and the psql wrapper picked it, so every SQL
+# job stopped at the client_version check below. That check is unchanged: it still requires client 17.
+[ -x "$BIN/psql" ] || fail "PostgreSQL 17 client (psql) missing after install"
+export PATH="$BIN:$PATH"
+echo "$BIN" >> "${GITHUB_PATH:?GITHUB_PATH is not set}"
 
 # ---- 4) a NEW dedicated test cluster ----
 locale -a | grep -qix 'en_US.utf8' || sudo locale-gen en_US.UTF-8 > /dev/null
