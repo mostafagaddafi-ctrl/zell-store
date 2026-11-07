@@ -40,9 +40,8 @@ const OUTCOMES: Readonly<Record<StateName, LegacyOutcome>> = {
 const DISABLED_SENTINEL = 'guard-mutations-result'
 const DISABLED_FAILURE: AccessFailure = { ok: false, code: 'DISABLED', message: DISABLED_SENTINEL }
 
-/** الفرق المعتمد ٢ (العقد §٧ و§١٠): الأكشنز اللي لسه مش متعملة (النهارده بترجع INTERNAL «لسه ما اتعملش»). */
+/** الفرق المعتمد ٢ (العقد §٧ و§١٠): الأكشنز اللي لسه مش متعملة (النهارده بترجع INTERNAL «لسه ما اتعملش»). deleteImageAction اتشال في IMAGE-DELETE C1. */
 export const UNIMPLEMENTED_SYMBOLS: readonly string[] = [
-  'deleteImageAction',
   'resendNotificationAction',
   'saveOperationalSettingsAction',
   'uploadProductImagePlaceholder',
