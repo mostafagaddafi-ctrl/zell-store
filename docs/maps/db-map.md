@@ -260,7 +260,7 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | الملف | بيعمل إيه |
 | --- | --- |
 | `0002_security_rls_grants.sql` | تشغيل RLS، وسحب صلاحيات `anon` و`authenticated`، وbucket الصور |
-| `0004_harden_default_privileges.sql` | إلغاء الصلاحيات الافتراضية لأي كائن جديد (ومنها PUBLIC) |
+| `0004_harden_default_privileges.sql` | إلغاء الصلاحيات الافتراضية لأي كائن جديد (ومنها PUBLIC). **تحديث 2026-11-08:** مش مطابق للقطة Production ومش في قايمة البناء (BASELINE-OUTSIDE §٩-2)؛ الحالة الفعلية بعد 0027 في §١٧ |
 | `0005b_order_idempotency.sql` · `0006a_order_columns.sql` | أعمدة الطلب: idempotency والجلسة والإيصال |
 | `0007_cleanup_notify_secrets.sql` | مسح أسرار تليجرام من `settings` (بقت متغيرات بيئة) |
 | `0008a_align_announcement_version.sql` | مزامنة طابع `announcement` مع باقي مفاتيح المحتوى |
@@ -449,3 +449,23 @@ verify P1 بيعدّ **24 دالة `zell_payment_*` بالظبط**، فأي دا
 | `migrations/0026_image_delete_verify.sql` · `_rollback.sql` | التحقق (V01–V09) · الرجوع (بيشيل الـ trigger والدالتين والـ policies والمنح الزيادة، وبيرجّع `UPDATE (product_id)`، ومابيلمسش `storage_orphans`) |
 | `migrations/0026_image_delete_baseline_read.sql` | قراية كتالوج read only لقيمة BASELINE واحدة (#225) |
 | `ci/0026_sql_ci.sh` · `ci/0026_flows.sql` | CI: بناء من القايمة لحد قبل سطر 0026 · الحراس · ptest · التطبيق · verify · الأثر · 19 سيناريو · التزامن بجلستين مع إثبات التداخل (K01–K10، وK11 فحص سجلات deadlock) · الرجوع وإعادة التطبيق (46 حالة) |
+
+## ١٧) الصلاحيات الافتراضية للكائنات الجديدة (0027 — DEFAULT-PRIVILEGES) — متطبّق على Production 2026-11-07
+
+> **اتطبّق على Production 2026-11-07** خطوة خطوة بأوامر المالك من ملفات main `7cfd40c` (#229): التطبيق 23:09:18Z بقيمة علامة الموافقة `owner-approval-2026-11-07-0027-default-privileges`، والتحقق 23:10:10Z (verify 0027 PASS 5/0). الأوقات والبصمات وحدود الدليل في العقد `docs/contracts/DEFAULT-PRIVILEGES.md` §٧ (تسليم شات التنفيذ، مش قراية مستقلة من المراجع).
+
+- **مفيش جدول ولا دالة ولا دور جديد.** التغيير في `pg_default_acl` بس (الصلاحيات اللي بياخدها أي كائن **جديد**)، والكائنات الموجودة صلاحياتها ماتغيّرتش.
+- **الدور `postgres` في `public`:** الجداول والـ sequences والدوال الجديدة مابتاخدش `anon` ولا `authenticated`، و`service_role` باقي: `{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}` (r) · `{postgres=rwU/postgres,service_role=rwU/postgres}` (S) · `{postgres=X/postgres,service_role=X/postgres}` (f).
+- **صف عام جديد:** `postgres | (all schemas) | f` = `{postgres=X/postgres}`: أي دالة جديدة يعملها `postgres` في أي schema مابتاخدش EXECUTE لـ `PUBLIC` (العقد §٥). في `storage` بتفضل تاخد المنح الصريحة من صف `postgres | storage | f`.
+- **مابيتغيّرش:** باقي صفوف `pg_default_acl` (4–24 في العقد §١، ومنها أدوار المنصة) · الأدوار التانية اللي بتعمل كائنات (`zell_*_definer`) افتراضها المدمج زي ما هو.
+- **الشغل الجاي:** أي migration بتعمل كائن محتاجه `anon` أو `authenticated` لازم تدّي الصلاحية صراحةً (العقد §٤).
+- **BASELINE:** `default_acl` في `ci/baseline_compare.sql` = الـ 25 صف بالحرف بعد البناء الكامل (#230).
+- `0004_harden_default_privileges.sql` (§٨) مش في قايمة البناء ومش مطابق للقطة Production (BASELINE-OUTSIDE §٩-2)؛ الحالة الفعلية هي اللي هنا.
+
+| الملف | بيعمل إيه |
+| --- | --- |
+| `migrations/0027_default_privileges.sql` | preflight (الـ 24 صف = العقد §١ بالحرف، ومفيش صف عام) · 4 سطور `ALTER DEFAULT PRIVILEGES` · postflight (25 صف بالحرف). محتاج سطر `zell.approved_by` بعد `begin;` |
+| `migrations/0027_default_privileges_ptest.sql` | smoke قبل التطبيق (7 حالات): الجسم منسوخ بالحرف (CI بيقارن md5)، وكائنات تجربة `zell_dp_probe_*` في معاملة بترجع |
+| `migrations/0027_default_privileges_impact.sql` | استعلام الأثر (قراية بس): صفوف `pg_default_acl` · 7 بصمات للكائنات الموجودة · عدد كائنات التجربة · `current_user` |
+| `migrations/0027_default_privileges_verify.sql` · `_rollback.sql` | التحقق (قراية بس) · الرجوع بموافقة لوحدها (بيرجّع العقد §١ بالحرف والصف العام بيختفي؛ استثناء `service_role` الضيق جوه المعاملة، العقد §٨) |
+| `ci/0027_sql_ci.sh` · `ci/platform_default_privileges.sql` | CI: محاكاة الـ 24 صف بالحرف · بناء من القايمة لحد قبل سطر 0027 · الحراس · ptest · التطبيق · verify · الأثر · كائنات جديدة فعلًا (public وschema تجربة) · الرجوع وإعادة التطبيق (32 حالة) |
