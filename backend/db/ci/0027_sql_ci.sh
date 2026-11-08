@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# DEFAULT-PRIVILEGES B (0027) — اختبار SQL في CI: Postgres 17 مؤقت، والداتابيز مبنية من الصفر بالقايمة الصريحة كلها
-# (backend/db/ci/build_from_scratch.list؛ ولو سطر 0027 اتضاف لها بعد Production، البناء بيقف قبله)، ومحاكاة الصلاحيات الافتراضية
+# DEFAULT-PRIVILEGES B (0027) — اختبار SQL في CI: Postgres 17 مؤقت، والداتابيز مبنية من الصفر بالقايمة الصريحة لحد قبل سطر 0027
+# (backend/db/ci/build_from_scratch.list؛ سطر 0027 اتضاف لها بعد Production (العقد §٨)، والبناء بيقف قبله)، ومحاكاة الصلاحيات الافتراضية
 # بلقطة Production كاملة (platform_default_privileges.sql، 24 صف بالحرف)، وبعدين 0027 فوقها بالملف كما هو. مفيش أي اتصال بـ Supabase.
 # بيغطي (العقد docs/contracts/DEFAULT-PRIVILEGES.md §٦): شكل المعاملة · md5 الجسم (ptest = apply) · سطر الموافقة برّه الملفات ·
 # اللقطة بعد المحاكاة = §١ بالحرف (S04) · الحراس من غير أثر (من غير موافقة · متصل غلط · صف جوه النطاق مختلف · صف برّه النطاق مختلف ·
@@ -209,8 +209,8 @@ while IFS='|' read -r kind rel _reason; do
 done < "$LIST"
 shape=$(su_q "$DB" -c "select rolsuper::text || ',' || rolbypassrls::text from pg_catalog.pg_roles where rolname = 'postgres'")
 same_rows "$DB" "$TMP/before.txt"; rc=$?
-ok=no; [ "$n" -gt 10 ] && [ "$shape" = "false,true" ] && [ "$last" = "migrations/0026_image_delete.sql" ] && [ "$rc" -eq 0 ] && ok=yes
-record "B01 database built from build_from_scratch.list ($n steps, last $last; 0027 line in the list: ${SKIPPED_0027:-no}), postgres not superuser, default ACL still = §١" "$ok" "steps=$n last=$last postgres=$shape rows_rc=$rc"
+ok=no; [ "$n" -gt 10 ] && [ "$shape" = "false,true" ] && [ "$last" = "migrations/0026_image_delete.sql" ] && [ "${SKIPPED_0027:-no}" = "yes" ] && [ "$rc" -eq 0 ] && ok=yes
+record "B01 database built from build_from_scratch.list up to before 0027 ($n steps, last $last; 0027 line reached and not built: ${SKIPPED_0027:-no}), postgres not superuser, default ACL still = §١" "$ok" "steps=$n last=$last skipped_0027=${SKIPPED_0027:-no} postgres=$shape rows_rc=$rc"
 [ "$ok" = yes ] || finish
 
 # ---- 3) قبل التطبيق ----

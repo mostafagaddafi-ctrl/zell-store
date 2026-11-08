@@ -26,7 +26,7 @@
 | `backend/db/ci/0022_sql_ci.sh` | 59 KB | 741 | اختبارات SQL لـ 0022 PRODUCT-DELETE في CI على داتابيز مبنية من القايمة لحد قبل 0022 (حراس الـ preflight · تحقق 0020 قبل وبعد · ptest · تطبيق · verify ومحاولات التوسيع · الأثر · الرجوع · عقد الاستدعاء · السيناريوهات · التزامن) |
 | `backend/db/ci/0023_sql_ci.sh` | 28 KB | 349 | اختبارات SQL لـ 0023 INVENTORY-REMOVAL B في CI على داتابيز مبنية من القايمة لحد قبل 0023 (S0 · B01–B02 · X01 · P01 · E01 · G01–G05 · C01–C02 · Z01 · T01–T02 · A01–A05 · E02 · K01 · R01) |
 | `backend/db/ci/0024_sql_ci.sh` | 57 KB | 612 | اختبارات SQL لـ 0024 ORDER-DELETE B في CI على داتابيز مبنية من القايمة كلها (S0 · B01 · E01 · T01–T02 · G01–G02 · Z01 · A01–A05 · E02 · K01 · RB1–RB2 · R01 · X01 · F01–F17 · C01–C06) |
-| `backend/db/ci/0027_sql_ci.sh` | 27 KB | 312 | اختبارات SQL لـ 0027 DEFAULT-PRIVILEGES B في CI على داتابيز مبنية من القايمة كلها ومحاكاة لقطة pg_default_acl كاملة (S01–S04 · B01 · M01–M05 · V00–V03 · E01–E05 · N00–N01 · P01–P03 · A01–A02 · RB1–RB3 · RA1) |
+| `backend/db/ci/0027_sql_ci.sh` | 27 KB | 312 | اختبارات SQL لـ 0027 DEFAULT-PRIVILEGES B في CI على داتابيز مبنية من القايمة لحد قبل سطر 0027 ومحاكاة لقطة pg_default_acl كاملة (S01–S04 · B01 · M01–M05 · V00–V03 · E01–E05 · N00–N01 · P01–P03 · A01–A02 · RB1–RB3 · RA1) |
 | `backend/db/migrations/0006b_order_functions.sql` | 38 KB | 765 | دور `zell_order_writer` وأول نسخة من `zell_create_order` و`zell_get_order_receipt` |
 | `backend/db/migrations/0006c_order_receipt_expiry.sql` | 23 KB | 504 | `zell_create_order` بترجّع `receipt_expires_at` |
 | `backend/db/migrations/0015_product_widths.sql` | 21 KB | 463 | عروض الرول (`product_widths`) + `zell_create_order` |
@@ -86,7 +86,7 @@
 | `docs/contracts/0021-A.md` | 94 KB | 438 | عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر |
 | `docs/contracts/0021-P-code.md` | 29 KB | 253 | عقد كود 0021-P: أ ← ب1 ← ب2 · الأوضاع · الفاحص · التعديلات بعد الاعتماد |
 | `docs/contracts/0021-P.md` | 22 KB | 252 | عقد 0021-P (الداتابيز): المحرك والمحوّل والهوية من الجلسة |
-| `docs/contracts/DEFAULT-PRIVILEGES.md` | 25 KB | 162 | عقد الصلاحيات الافتراضية للكائنات الجديدة: المشكلة · لقطة Production (24 صف) · التغيير والنتيجة المتوقعة · اللي مابيتغيّرش · الأثر العام لـ PUBLIC وموافقة المالك · ضمانات التحقق والأثر قبل/بعد كل خطوة · Production · الرجوع (واستثناء service_role الضيق) · المتابعة بعد التطبيق |
+| `docs/contracts/DEFAULT-PRIVILEGES.md` | 26 KB | 163 | عقد الصلاحيات الافتراضية للكائنات الجديدة: المشكلة · لقطة Production (24 صف) · التغيير والنتيجة المتوقعة · اللي مابيتغيّرش · الأثر العام لـ PUBLIC وموافقة المالك · ضمانات التحقق والأثر قبل/بعد كل خطوة · Production · الرجوع (واستثناء service_role الضيق) · المتابعة بعد التطبيق |
 | `docs/contracts/EXPRESS-SHIPPING.md` | 44 KB | 227 | عقد الشحن السريع ومدة الشحن: الإعداد `zell_shipping_options` · `zell_create_order` (15) واللقطة · Checkout والـ canonical · فحوص التحقق المتأثرة · قراءات R1–R6 ونتايجها · تفاصيل W1 و W2 |
 | `docs/contracts/IMAGE-DELETE.md` | 41 KB | 184 | عقد حذف صورة من منتج: المشكلة · قرارات المالك · الحذف والرفض · الدالة والـ trigger والصلاحيات · الأقفال والتزامن (ومعاهم التراجع في الرفع) · حدود الملف المسجّل · اللوحة · CI · Production ونتايجه · المراحل |
 | `docs/contracts/INVENTORY-REMOVAL.md` | 27 KB | 136 | عقد إزالة المخزون (0020 و0020-S) وأرشفته: القرار · اللي بيفضل · الربط · الأرشيف · المرحلة A (اللوحة) · المرحلة B (0023: التفاصيل والقفل والنداءات · CI) · التطبيق على Production · المرحلة C · الترتيب والموافقات · المخاطر · قرارات المالك · السجل |
@@ -454,7 +454,7 @@ TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل و
 
 ## `backend/db/ci/0027_sql_ci.sh`
 
-اختبارات SQL لـ 0027 DEFAULT-PRIVILEGES B في CI على داتابيز مبنية من القايمة كلها ومحاكاة لقطة pg_default_acl كاملة (S01–S04 · B01 · M01–M05 · V00–V03 · E01–E05 · N00–N01 · P01–P03 · A01–A02 · RB1–RB3 · RA1) · 312 سطر
+اختبارات SQL لـ 0027 DEFAULT-PRIVILEGES B في CI على داتابيز مبنية من القايمة لحد قبل سطر 0027 ومحاكاة لقطة pg_default_acl كاملة (S01–S04 · B01 · M01–M05 · V00–V03 · E01–E05 · N00–N01 · P01–P03 · A01–A02 · RB1–RB3 · RA1) · 312 سطر
 
 | السطر | القسم |
 | ---: | --- |
