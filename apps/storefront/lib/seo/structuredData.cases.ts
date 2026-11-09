@@ -1,7 +1,7 @@
 /**
  * SEO-BASICS — حالات البيانات المنظّمة والمسارات القانونية والأيقونات (pnpm --filter @zell/storefront cases، suite seo).
  * S01 القرش ← جنيه · S02 المسارات · S03 منتج بالمتر · S04 منتج بأكتر من عرض = أقل سعر · S05 القطعة · S06 الحقول الاختيارية ·
- * S07 نص الـ script آمن ويرجع نفس البيانات · S08 بيانات المتجر · S09 أيقونات 48 و96 و/favicon.ico.
+ * S07 نص الـ script آمن ويرجع نفس البيانات · S08 بيانات المتجر · S09 أيقونات 48 و96 الأول ومن غير 32 (FAVICON-ORDER) و/favicon.ico.
  */
 
 import { readFileSync } from 'node:fs'
@@ -106,7 +106,7 @@ export function runSeoCases(): { passed: number; failures: SeoCaseFailure[] } {
   check('S08 no logo/sameAs when empty', ['logo' in (bare[0] ?? {}), 'sameAs' in (bare[0] ?? {})], [false, false])
 
   const icon = readFileSync(join(process.cwd(), 'app', 'icon.tsx'), 'utf8')
-  check('S09 icon sizes include 48 and 96 (multiples of 48)', icon.includes('const SIZES = [32, 48, 96, 192, 512]'), true)
+  check('S09 icon sizes: 48 then 96 first, no 32 (FAVICON-ORDER), 192 and 512 kept for the manifest', [icon.includes('const SIZES = [48, 96, 192, 512]'), /SIZES = \[[^\]]*\b32\b/.test(icon), icon.includes('?? 48')], [true, false, true])
   const config = readFileSync(join(process.cwd(), 'next.config.mjs'), 'utf8')
   check('S09 /favicon.ico serves the 48px icon', config.includes("{ source: '/favicon.ico', destination: '/icon/48' }"), true)
 
