@@ -20,6 +20,7 @@ import { useCart } from '../../lib/cart'
 import { BUY_NOW_PENDING_TEXT } from '../../lib/buy/buyNow'
 import { BuyNowSlowNotice } from './BuyNowSlowNotice'
 import { useBuyNow } from './useBuyNow'
+import { useRevealOnAdd } from './useRevealOnAdd'
 import { buttonClasses, Button } from '../ui/Button'
 import { Num } from './Num'
 import { GiftNote } from './GiftNote'
@@ -85,6 +86,8 @@ export function ProductBuy({
   }, [revealTools])
   const [lengthCm, setLengthCm] = useState(product.min_length_cm)
   const [justAdded, setJustAdded] = useState(false)
+  // ADD-REVEAL: الصفحة بتنزل لرسالة «اتضاف للسلة» بعد «ضيف للسلة» (useRevealOnAdd)
+  const addedBox = useRevealOnAdd<HTMLDivElement>()
   const [blocked, setBlocked] = useState(false)
   // LENGTH-INPUT — قرار الطلب من لقطة المقاس الحالية وقت الضغط (SizePanel بيحدّث الدالة بعد كل commit، قبل أي ضغطة):
   // السنتيمتر الفاضي أو الغلط أو تحت الحد = إظهار الخطأ من غير إضافة (ومن أول render)، والطول المضاف من نفس اللقطة.
@@ -122,6 +125,7 @@ export function ProductBuy({
     setAddedLengthCm(decision.lengthCm)
     setAddedToolsCount(addSelectedAddons())
     setJustAdded(true)
+    addedBox.reveal()
   }
 
   /**
@@ -281,7 +285,7 @@ export function ProductBuy({
       <BuyNowSlowNotice phase={buyNow.phase} onRetry={buyNow.retry} />
 
       {justAdded ? (
-        <div className="space-y-3 rounded-lg border border-accent/40 bg-card p-4">
+        <div ref={addedBox.ref} tabIndex={-1} className="scroll-mb-28 scroll-mt-24 space-y-3 rounded-lg border border-accent/40 bg-card p-4 outline-none">
           <p className="flex items-center gap-2 text-sm font-semibold text-fg">
             <Check className="h-4 w-4 text-accent" />
             اتضاف للسلة — <Num>{formatLength(addedLengthCm)}</Num>
