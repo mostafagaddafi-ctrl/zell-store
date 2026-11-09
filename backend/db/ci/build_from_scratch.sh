@@ -235,7 +235,8 @@ fp zell_guard_empty g5_after; g5b=$FPV
 ok=no; [ "$rc" -ne 0 ] && grep -q 'ZELL_BASELINE_B4_WRONG_ROLE' "$LOG/guard_b4_role.log" && [ "$g5a" = "$g5b" ] && ok=yes
 record "G5 b4 as the wrong role ($SUPER) is refused before any change" "$ok" "rc=$rc fp=$g5a/$g5b $(tailof "$LOG/guard_b4_role.log")"
 su_q postgres -c "create database zell_guard_b4keys" -c "alter database zell_guard_b4keys set zell.ci_scratch = 'on'" > "$LOG/guard_b4keys_db.log" 2>&1 || stop "G0 create guard database zell_guard_b4keys" "$(tailof "$LOG/guard_b4keys_db.log")"
-psql -X -q -v ON_ERROR_STOP=1 -U postgres -d zell_guard_b4keys -c "create table public.settings (key text primary key, value jsonb not null, updated_at timestamptz not null default now())" -c "insert into public.settings (key, value) values ('shipping_rates', '{}'::jsonb), ('shipping_default_piastres', '0'::jsonb)" < /dev/null >> "$LOG/guard_b4keys_db.log" 2>&1 || stop "G0 prepare guard database zell_guard_b4keys" "$(tailof "$LOG/guard_b4keys_db.log")"
+# the guard database belongs to $SUPER (public: no CREATE for postgres): the table is made by $SUPER and handed to postgres, like settings in the build.
+su_q zell_guard_b4keys -c "create table public.settings (key text primary key, value jsonb not null, updated_at timestamptz not null default now())" -c "insert into public.settings (key, value) values ('shipping_rates', '{}'::jsonb), ('shipping_default_piastres', '0'::jsonb)" -c "alter table public.settings owner to postgres" >> "$LOG/guard_b4keys_db.log" 2>&1 || stop "G0 prepare guard database zell_guard_b4keys" "$(tailof "$LOG/guard_b4keys_db.log")"
 fp zell_guard_b4keys g6_before; g6a=$FPV
 pg_f zell_guard_b4keys "$B4F" > "$LOG/guard_b4_keys.log" 2>&1; rc=$?
 fp zell_guard_b4keys g6_after; g6b=$FPV
