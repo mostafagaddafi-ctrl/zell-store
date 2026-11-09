@@ -12,7 +12,12 @@ const BASE =
 const VARIANTS: Record<ButtonVariant, string> = {
   // الزرار المعطّل بياخد سطح خافت بدل شفافية بسيطة — في الوضع الداكن
   // الشفافية لوحدها كانت لسه شكلها قابل للضغط
-  primary: 'bg-brand text-brand-fg hover:opacity-90 active:opacity-80 disabled:bg-border disabled:text-muted',
+  // PRESS-FEEDBACK (طلب المالك 2026-11-09): الضغطة كانت باهتة (opacity 80%) ومش باينة. دلوقتي وقت الضغط اللون بيغمق
+  // بوضوح (brightness 75%) والزرار بيصغر 3% (من غير تصغير مع reduced motion)، والحركة 100ms. الأساسي بس:
+  // باقي الأنواع (ومنها whatsapp) زي ما هي، وtransition هنا بيكسب transition-opacity في BASE (twMerge).
+  primary:
+    'bg-brand text-brand-fg transition duration-100 hover:opacity-90 active:opacity-100 active:brightness-75 ' +
+    'motion-safe:active:scale-[0.97] disabled:bg-border disabled:text-muted',
   secondary: 'border border-border bg-card text-fg hover:bg-bg disabled:opacity-50',
   ghost: 'text-brand hover:opacity-70 disabled:opacity-50',
   whatsapp: 'bg-whatsapp text-whatsapp-fg hover:opacity-90 disabled:opacity-50',
