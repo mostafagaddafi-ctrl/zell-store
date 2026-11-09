@@ -3,9 +3,9 @@
 -- as service_role (the role the admin app uses), inside ONE transaction that is ROLLED BACK.
 -- Proves only that no table / helper / privilege is missing. NOT a business-logic test.
 -- Inputs are the current values read just before (identity, shipping, product order).
--- Bootstrap gap (§١١): settings key shipping_disabled_governorates is created by no file (Production has it). ONLY inside this
--- rolled-back transaction, a synthetic '[]' row is inserted when (and only when) the key is absent; the echo line reports it.
--- The build itself, the baseline files and every fixture stay without it.
+-- Bootstrap gap (§١١): settings key shipping_disabled_governorates is created by no migration file (Production has it). Since
+-- GOVERNORATES-BOOTSTRAP the build draws it in baseline/b4 (synthetic '[]'), and S01 accepts synthetic_ship_row=f only. The
+-- conditional insert below is kept as is: it inserts only when the key is absent, inside this rolled-back transaction.
 -- =====================================================================
 begin;
 do $g$ begin
