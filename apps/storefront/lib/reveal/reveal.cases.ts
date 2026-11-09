@@ -1,7 +1,8 @@
 /**
  * ADD-REVEAL — حالات التحريك لرسالة «اتضاف للسلة» (pnpm --filter @zell/storefront cases، suite reveal).
  * G = الحساب (الحدود الفعلية بين الهيدر وشريط السلة وsafe-area · ظاهر عند الحواف الفعلية وجوه منطقة الهامش = صفر ·
- *     بكسل واحد محجوب · تحت · فوق · أطول من المساحة). الهامش في وجهة التحريك بس.
+ *     بكسل واحد محجوب · تحت · فوق · أطول من الحدود الفعلية · يساع الحدود الفعلية بس مش المساحة بالهامش، من تحت ومن فوق
+ *     وبالمساواة · مسح لكل المقاسات والأماكن). الهامش في وجهة التحريك بس، ومابيمنعش الظهور الكامل.
  * R = التشغيل ببيئة مزيّفة (scroll وfocus وترتيبهم · reduced motion · التكرار).
  * W = الربط في الملفات: الـ hook بيقيس الشريط والهيدر فعليًا ومابيستعملش scrollIntoView، وreveal في «ضيف للسلة» بس
  *     (بعد الإضافة الناجحة، ومش في «اطلب دلوقتي»)، والصندوق قابل للتركيز. ده فحص نص الملفات، مش متصفح.
@@ -59,7 +60,27 @@ export function runRevealCases(): { passed: number; failures: RevealCaseFailure[
   check('G09 one pixel behind the bar (bottom 686): scroll to 8px above the bar', revealDelta({ top: 500, bottom: 686 }, b), 9)
   check('G10 one pixel under the header (top 63): scroll up to 8px under the header', revealDelta({ top: 63, bottom: 200 }, b), -9)
   check('G11 box above (under the header): scroll up', revealDelta({ top: 40, bottom: 200 }, b), -32)
-  check('G12 box taller than the area and hidden: its top goes 8px under the header', revealDelta({ top: 100, bottom: 800 }, b), 28)
+  check('G12 box taller than the actual bounds and hidden: its top goes 8px under the header', revealDelta({ top: 100, bottom: 800 }, b), 28)
+  // حدود ضيقة 64–285 (221px): صناديق تساع الحدود الفعلية ومش بتساع المساحة بالهامش (205px)
+  const t = revealBounds(800, 64, 285)
+  const after = (box: { top: number; bottom: number }) => { const d = revealDelta(box, t); return [d, box.top - d, box.bottom - d] }
+  check('G14 fits the actual bounds, not the padded area, from below (100–320): fully inside after the move', after({ top: 100, bottom: 320 }), [36, 64, 284])
+  check('G15 same from above (40–260): fully inside after the move', after({ top: 40, bottom: 260 }), [-25, 65, 285])
+  check('G16 height equal to the actual bounds, from below (100–321): exactly the bounds', after({ top: 100, bottom: 321 }), [36, 64, 285])
+  check('G17 height equal to the actual bounds, from above (30–251): exactly the bounds', after({ top: 30, bottom: 251 }), [-34, 64, 285])
+  check('G18 one pixel taller than the actual bounds (100–322): top 8px under the header', after({ top: 100, bottom: 322 }), [28, 72, 294])
+  // أي صندوق يساع الحدود الفعلية، في أي مكان: بعد التحريك جواها كله، والظاهر مابيتحركش
+  let broken = 0
+  let movedVisible = 0
+  for (let height = 1; height <= 221; height += 4) {
+    for (let top = -400; top <= 900; top += 7) {
+      const box = { top, bottom: top + height }
+      const d = revealDelta(box, t)
+      if (box.top - d < 64 || box.bottom - d > 285) broken += 1
+      if (box.top >= 64 && box.bottom <= 285 && d !== 0) movedVisible += 1
+    }
+  }
+  check('G19 sweep: every box that fits the actual bounds ends inside them, and a visible one never moves', [broken, movedVisible], [0, 0])
   // نفس الصندوق، والفرق في safe-area بس: شريط من غير safe-area (81) = ظاهر، ومع 34 (115) = محجوب ولازم ينزل
   check('G13 the measured bar (safe-area) decides', [revealDelta({ top: 560, bottom: 700 }, revealBounds(800, 64, 800 - 81)), revealDelta({ top: 560, bottom: 700 }, revealBounds(800, 64, 800 - 115))], [0, 23])
 
