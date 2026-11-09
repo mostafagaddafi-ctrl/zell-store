@@ -96,7 +96,8 @@ export function runRevealCases(): { passed: number; failures: RevealCaseFailure[
       (src.match(/addedBox\.reveal\(\)/g) ?? []).length,
       iSet >= 0 && iRev > iSet,
       guard ? iRet >= 0 && iRet < iRev : true,
-      buy.length > 0 && !buy.includes('reveal'),
+      // «اطلب دلوقتي» فيه decision.kind === 'reveal' (رسالة المقاس، مالهاش علاقة) — المطلوب إن addedBox مايتناداش فيه
+      buy.length > 0 && !buy.includes('addedBox'),
       /<div ref=\{addedBox\.ref\} tabIndex=\{-1\} className="[^"]*outline-none">/.test(src),
       src.includes('scroll-mb-'),
     ], [1, true, true, true, true, false])
