@@ -44,7 +44,7 @@ seen_count() { printf '%s' "$SEEN" | tr ' ' '\n' | grep -cx "$1" || true; }
 finish() {
   if [ "$FAIL" -eq 0 ]; then
     missing=""
-    for id in P01 P02 P03 C01 C02 F01 F02 F03 F04 S01 K01 K02; do [ "$(seen_count "$id")" = "1" ] || missing="$missing $id"; done
+    for id in P01 P02 P03 C01 C02 F01 F02 F03 F04 G5 G6 S01 K01 K02; do [ "$(seen_count "$id")" = "1" ] || missing="$missing $id"; done
     nb=$(printf '%s' "$SEEN" | tr ' ' '\n' | grep -cE '^B[0-9]+$' || true)
     [ "$nb" = "${EXPECTED_STEPS:-x}" ] || missing="$missing B($nb/${EXPECTED_STEPS:-?})"
     for g in G2 G3 G4; do [ "$(seen_count "$g")" = "${EXPECTED_BASELINE:-x}" ] || missing="$missing $g($(seen_count "$g")/${EXPECTED_BASELINE:-?})"; done
@@ -227,12 +227,28 @@ for b in $(awk -F'|' '$1=="baseline"{print $2}' "$LIST"); do
   record "G4 $name without its earlier stages is refused before any change" "$ok" "rc=$rc fp=$e0/$e1 $(tailof "$LOG/guard_empty_$name.log")"
 done
 
+# 3c) GOVERNORATES-BOOTSTRAP §٣ (review of #232): b4 as the wrong role, and with one shipping key missing, is refused before any change.
+B4F="$DBDIR/baseline/b4_shipping_disabled_governorates.sql"
+fp zell_guard_empty g5_before; g5a=$FPV
+su_f zell_guard_empty "$B4F" > "$LOG/guard_b4_role.log" 2>&1; rc=$?
+fp zell_guard_empty g5_after; g5b=$FPV
+ok=no; [ "$rc" -ne 0 ] && grep -q 'ZELL_BASELINE_B4_WRONG_ROLE' "$LOG/guard_b4_role.log" && [ "$g5a" = "$g5b" ] && ok=yes
+record "G5 b4 as the wrong role ($SUPER) is refused before any change" "$ok" "rc=$rc fp=$g5a/$g5b $(tailof "$LOG/guard_b4_role.log")"
+su_q postgres -c "create database zell_guard_b4keys" -c "alter database zell_guard_b4keys set zell.ci_scratch = 'on'" > "$LOG/guard_b4keys_db.log" 2>&1 || stop "G0 create guard database zell_guard_b4keys" "$(tailof "$LOG/guard_b4keys_db.log")"
+psql -X -q -v ON_ERROR_STOP=1 -U postgres -d zell_guard_b4keys -c "create table public.settings (key text primary key, value jsonb not null, updated_at timestamptz not null default now())" -c "insert into public.settings (key, value) values ('shipping_rates', '{}'::jsonb), ('shipping_default_piastres', '0'::jsonb)" < /dev/null >> "$LOG/guard_b4keys_db.log" 2>&1 || stop "G0 prepare guard database zell_guard_b4keys" "$(tailof "$LOG/guard_b4keys_db.log")"
+fp zell_guard_b4keys g6_before; g6a=$FPV
+pg_f zell_guard_b4keys "$B4F" > "$LOG/guard_b4_keys.log" 2>&1; rc=$?
+fp zell_guard_b4keys g6_after; g6b=$FPV
+b4rows=$(psql -X -q -tA -U postgres -d zell_guard_b4keys -c "select pg_catalog.count(*) from public.settings where key = 'shipping_disabled_governorates'" < /dev/null)
+ok=no; [ "$rc" -ne 0 ] && grep -q 'ZELL_BASELINE_B4_REQUIRED_MISSING' "$LOG/guard_b4_keys.log" && [ "$g6a" = "$g6b" ] && [ "$b4rows" = "0" ] && ok=yes
+record "G6 b4 with one of the three shipping keys missing (free_shipping_threshold_piastres) is refused before any change" "$ok" "rc=$rc fp=$g6a/$g6b rows=$b4rows $(tailof "$LOG/guard_b4_keys.log")"
+
 # ---- 4) smoke calls of the six functions, rolled back (§5) ----
 pg_f "$DB" "$CI/baseline_smoke.sql" > "$LOG/smoke.log" 2>&1; rc=$?
 line=$(grep -E '^ZELL_SMOKE ' "$LOG/smoke.log" | tail -n 1)
 echo "$line"
 ok=no
-if [ "$rc" -eq 0 ] && printf '%s\n' "$line" | grep -Eq 'valid_benefits=t reorder_products=([0-9]+)/\1 reorder_images=2/2 set_primary=t save_identity=t save_shipping=t ship_keys=4 synthetic_ship_row=[tf] synthetic_row_rolled_back=t'; then ok=yes; fi
+if [ "$rc" -eq 0 ] && printf '%s\n' "$line" | grep -Eq 'valid_benefits=t reorder_products=([0-9]+)/\1 reorder_images=2/2 set_primary=t save_identity=t save_shipping=t ship_keys=4 synthetic_ship_row=f synthetic_row_rolled_back=t'; then ok=yes; fi
 record "S01 smoke calls of the six functions as service_role (rolled back)" "$ok" "rc=$rc $line $(tailof "$LOG/smoke.log")"
 
 # ---- 5) call-contract guard (§5) ----
