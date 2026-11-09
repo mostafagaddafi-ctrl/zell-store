@@ -39,6 +39,7 @@ const SUITES = [
   { name: 'policies', dir: 'lib/policies', entry: 'policies.cases.ts', run: 'runPolicyCases' },
   { name: 'seo', dir: 'lib/seo', entry: 'structuredData.cases.ts', run: 'runSeoCases' },
   { name: 'buy-now', dir: 'lib/buy', entry: 'buyNow.cases.ts', run: 'runBuyNowCases' },
+  { name: 'reveal', dir: 'lib/reveal', entry: 'reveal.cases.ts', run: 'runRevealCases' },
   // أكواد الخصم: الحالات كانت بتتعمل typecheck بس ومابتتشغّلش (مراجعة أمنية 2026-11).
   { name: 'coupon', dir: 'lib/orders', entry: 'coupon.cases.ts', run: 'runStorefrontCouponCases' },
   { name: 'coupon-checkout', dir: 'lib/orders', entry: 'couponCheckout.cases.ts', run: 'runCheckoutCouponCases', also: ['lib', 'lib/size'] },
