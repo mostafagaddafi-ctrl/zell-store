@@ -1,6 +1,6 @@
 # عقد مفتاح المحافظات الموقوفة في البناء من الصفر (GOVERNORATES-BOOTSTRAP)
 
-> **الحالة: مسودة للمراجعة.** CI وتوثيق بس: مفيش SQL ولا أي قراية أو كتابة على Production في أي مرحلة.
+> **الحالة: معتمد (#232، اندمج على `453a2a2`)؛ التنفيذ في PR الكود #233** (النتايج في §٧). CI وتوثيق بس: مفيش SQL ولا أي قراية أو كتابة على Production في أي مرحلة.
 > الترتيب: العقد ← مراجعة ← دمج بأمر المالك ← PR الكود (CI بس) ← مراجعة ← دمج بأمر المالك ← الذاكرة.
 
 | | |
@@ -49,7 +49,13 @@
 - باقي الصيانة (big-files · README · 0023 C02 · `pg_depend`): بأمرها وفي دورها.
 
 ## ٧) النتايج
-- (بتتكتب في PR الكود بعد CI.)
+- **PR الكود #233** على main `453a2a2`. CI على الرأس `367727648b28538ed2f35808b630f652f83a3383` (run `42543955991`): **success، 23 نجحت و8 اتخطّت**؛ السويتات اللي اشتغلت: BASELINE-OUTSIDE · 0023 · 0024 · 0025 · 0026 · 0027 · PRODUCT-DELETE · البناء.
+- **BASELINE-OUTSIDE:** `LIST steps=48 baseline=5` · `B03 baseline baseline/b4_shipping_disabled_governorates.sql` · `COMPARE PASS settings_key:shipping_disabled_governorates` · `C01 … (43 of 43 checks)` · G2 وG3 وG4 لـ b4 · **G5** الدور الغلط (`supabase_admin`) · **G6** مفتاح ناقص (`free_shipping_threshold_piastres`) · `ZELL_SMOKE … save_shipping=t ship_keys=4 synthetic_ship_row=f synthetic_row_rolled_back=t` · `ZELL_BASELINE_BUILD_RESULT pass=77 fail=0`.
+- **أول تشغيل** (الرأس `16ff3cd`، run `42543702023`) فشل في تجهيز داتابيز G6 بس: الداتابيز ملك `supabase_admin`، و`postgres` مالوش CREATE على `public` (`permission denied for schema public`). الإصلاح: الجدول بيتعمل بـ `$SUPER` ويتسلّم لـ `postgres`، زي `settings` في البناء. مفيش تغيير في b4 ولا في المتوقع.
+- **مفيش أي تشغيل على Production**، ومفيش قراية لقيمة المفتاح.
+- (الرأس النهائي بيزوّد العقد ده بس؛ CI بتاعه في وصف الـ PR.)
 
 ## ٨) سجل التعديلات
 - 2026-11-09: المسودة الأولى (شات التنفيذ)، بعد أمر المالك «الاتنين»، على main `1149bbe`.
+- 2026-11-09: مقبول من المراجع على `4b46234` من غير Blocking (Non-blocking: اختبار الدور الغلط ومفتاح ناقص في PR الكود = G5 وG6)، واندمج بأمر المالك («يلا ماشي») على `453a2a2`.
+- 2026-11-09: PR الكود #233: الحالة و§٧ النتايج.
