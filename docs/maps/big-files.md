@@ -2,7 +2,7 @@
 
 كل ملف في الريبو حجمه 20 KB أو أكتر (SQL · shell · Markdown)، وأقسامه بأرقام سطورها، ومعاهم ملفات 0021-A P1/P2 و0021-D2 الأصغر علشان المرحلة تبقى كاملة. الهدف إن أي شات يقرا الجزء اللي محتاجه بس، من غير ما يفتح ملف فيه آلاف السطور.
 
-- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR. ملفات 0021-D2 W1 (`0021d2_*`) اتضافت في PR W1 فوق main `6f3df51` (صفوفها وأقسامها من الـ head بتاعه)، وباقي الجدول زي ما هو. و`docs/plans/ADMIN-LANG-LIST.md` اتضاف في PR الحصر فوق main `c760822`. وملفات 0021-TR W1 (`0021tr_*`) اتضافت في PR W1 (#145) فوق main `3658906` (صفوفها وأقسامها من الـ head بتاعه)، وقسم `docs/maps/db-map.md` اتولّد من جديد من نفس الـ head (كان قديم: من غير §٧-ج و§٩). وعقدي `EXPRESS-SHIPPING.md` و`TRACK-ORDER-v2.md` اتضافوا في PR العقود (#147) فوق main `c825ce3` (صفوفهم وأقسامهم من الـ head بتاعه). وملفات EXPRESS-SHIPPING W1 (`0021ex_*`) اتضافت في PR W1 فوق main `30971d2` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021a_p1_payments_verify.sql` و`docs/maps/db-map.md` و`docs/contracts/EXPRESS-SHIPPING.md` اتحدّثت من نفس الـ head. وفي PR W2 فوق main `baa66a5`: صفوف وأقسام `backend/db/ci/0021ex_sql_ci.sh` (S46) و`docs/contracts/EXPRESS-SHIPPING.md` (§٧-٣) اتحدّثت من الـ head بتاعه. وملفات TRACK-ORDER v2 W1 (`0021tr2_*`) اتضافت في PR W1 فوق main `7c68bb5` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021tr_track_order_verify.sql` و`0021tr_track_order_rollback.sql` و`0021ex_express_shipping_rollback.sql` و`docs/contracts/TRACK-ORDER-v2.md` و`docs/maps/db-map.md` اتحدّثت من نفس الـ head. وفي PR W2-B (#153) فوق main `e6629a4`: صفوف وأقسام `backend/db/ci/0021tr2_sql_ci.sh` (S47) و`docs/contracts/TRACK-ORDER-v2.md` (§١٥ و§١٧) اتحدّثت من الـ head بتاعه. وفي PR إضافة §١٢ لعقد EXPRESS-SHIPPING (#154) فوق main `d356ea8`: صف وقسم `docs/contracts/EXPRESS-SHIPPING.md` اتحدّثوا من الـ head بتاعه. وعقد `LENGTH-INPUT.md` اتضاف في PR العقد (#156) فوق main `e85e059` (صفه وقسمه من الـ head بتاعه). وعقد `STORE-MENU.md` اتضاف في PR التنفيذ (#159) فوق main `f35d40b` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وعقد `POLICY-PAGES.md` اتضاف في PR العقد (#167) فوق main `959bad3` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وفي PR التنفيذ (#168) فوق main `c411566`: صف وقسم `docs/contracts/POLICY-PAGES.md` اتحدّثوا من الـ head بتاعه (§١٢). ملفات 0023 (INVENTORY-REMOVAL B) وصف `db-map` اتضافوا/اتحدّثوا في PR المرحلة B فوق main `8f3bf48`. وفي إصلاحات مراجعة #195 (نفس الـ PR): صفوف وأقسام ملفات 0023 و`db-map` اتحدّثت من الـ head الجديد، و`docs/contracts/INVENTORY-REMOVAL.md` اتضاف لما عدّى 20 KB. وفي PR المرحلة C فوق main `553a2d1`: صفوف `0020s_sql_ci.sh` (تاريخي) و`0023_sql_ci.sh` والعقد و`db-map` اتحدّثت وأقسامهم اتولّدت من الـ head بتاعه، و`README.md` اتحدّث، و`docs/maps/code-map.md` و`backend/db/ci/0022_sql_ci.sh` اتضافوا (اتعدّلوا وهم فوق 20 KB). وعقد `ORDER-DELETE.md` اتضاف في PR العقد فوق main `5d562fd` (صفه وقسمه من الـ head بتاعه). وملفات 0024 (ORDER-DELETE B: الـ migration والـ ptest وCI) اتضافت، وصفوف وأقسام العقد و`db-map` اتحدّثت، في PR المرحلة B فوق main `e928ba7` (الـ verify والـ rollback أقل من 20 KB). وفي PR المرحلة C لـ IMAGE-DELETE فوق main `04d7f2d`: صفوف وأقسام `docs/maps/db-map.md` و`docs/maps/code-map.md` و`docs/contracts/0021-P-code.md` اتولّدت من الـ head بتاعه، و`docs/contracts/IMAGE-DELETE.md` اتضاف (كان عدّى 20 KB من #222)، وصف وقسم `README.md` اتحدّثوا. وفي PR المرحلة B لـ DEFAULT-PRIVILEGES فوق main `a6029a2`: `backend/db/ci/0027_sql_ci.sh` و`backend/db/migrations/0027_default_privileges_ptest.sql` اتضافوا (صفوفهم وأقسامهم من الـ head بتاعه)؛ باقي ملفات 0027 أقل من 20 KB، و`docs/contracts/DEFAULT-PRIVILEGES.md` اتضاف لما عدّى 20 KB في نفس الـ PR. ⚠ **ملفات تانية فوق 20 KB لسه مش في الجدول أو صفوفها قديمة** (منها ملفات 0022 و0025 و0026 و`0024_sql_ci.sh` و`baseline_compare.sql` وعقود تانية): تحديثها PR لوحده.
+- **الأرقام دي من head الـ PR اللي حدّث الملف ده** (تنضيف التجارب قبل الإطلاق — السكربتات وCI، فوق main `0d6465b`). الجدول كله اتحسب من جديد (الحجم والسطور)، وأي قسم قديم اتأكد سطر بسطر: لو أي سطر اتحرّك، القسم اتولّد من جديد. أي PR بيغيّر ملف من دول يحدّث جدوله هنا في نفس الـ PR. ملفات 0021-D2 W1 (`0021d2_*`) اتضافت في PR W1 فوق main `6f3df51` (صفوفها وأقسامها من الـ head بتاعه)، وباقي الجدول زي ما هو. و`docs/plans/ADMIN-LANG-LIST.md` اتضاف في PR الحصر فوق main `c760822`. وملفات 0021-TR W1 (`0021tr_*`) اتضافت في PR W1 (#145) فوق main `3658906` (صفوفها وأقسامها من الـ head بتاعه)، وقسم `docs/maps/db-map.md` اتولّد من جديد من نفس الـ head (كان قديم: من غير §٧-ج و§٩). وعقدي `EXPRESS-SHIPPING.md` و`TRACK-ORDER-v2.md` اتضافوا في PR العقود (#147) فوق main `c825ce3` (صفوفهم وأقسامهم من الـ head بتاعه). وملفات EXPRESS-SHIPPING W1 (`0021ex_*`) اتضافت في PR W1 فوق main `30971d2` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021a_p1_payments_verify.sql` و`docs/maps/db-map.md` و`docs/contracts/EXPRESS-SHIPPING.md` اتحدّثت من نفس الـ head. وفي PR W2 فوق main `baa66a5`: صفوف وأقسام `backend/db/ci/0021ex_sql_ci.sh` (S46) و`docs/contracts/EXPRESS-SHIPPING.md` (§٧-٣) اتحدّثت من الـ head بتاعه. وملفات TRACK-ORDER v2 W1 (`0021tr2_*`) اتضافت في PR W1 فوق main `7c68bb5` (صفوفها وأقسامها من الـ head بتاعه)، وصفوف وأقسام `0021tr_track_order_verify.sql` و`0021tr_track_order_rollback.sql` و`0021ex_express_shipping_rollback.sql` و`docs/contracts/TRACK-ORDER-v2.md` و`docs/maps/db-map.md` اتحدّثت من نفس الـ head. وفي PR W2-B (#153) فوق main `e6629a4`: صفوف وأقسام `backend/db/ci/0021tr2_sql_ci.sh` (S47) و`docs/contracts/TRACK-ORDER-v2.md` (§١٥ و§١٧) اتحدّثت من الـ head بتاعه. وفي PR إضافة §١٢ لعقد EXPRESS-SHIPPING (#154) فوق main `d356ea8`: صف وقسم `docs/contracts/EXPRESS-SHIPPING.md` اتحدّثوا من الـ head بتاعه. وعقد `LENGTH-INPUT.md` اتضاف في PR العقد (#156) فوق main `e85e059` (صفه وقسمه من الـ head بتاعه). وعقد `STORE-MENU.md` اتضاف في PR التنفيذ (#159) فوق main `f35d40b` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وعقد `POLICY-PAGES.md` اتضاف في PR العقد (#167) فوق main `959bad3` لما عدّى 20 KB (صفه وقسمه من الـ head بتاعه). وفي PR التنفيذ (#168) فوق main `c411566`: صف وقسم `docs/contracts/POLICY-PAGES.md` اتحدّثوا من الـ head بتاعه (§١٢). ملفات 0023 (INVENTORY-REMOVAL B) وصف `db-map` اتضافوا/اتحدّثوا في PR المرحلة B فوق main `8f3bf48`. وفي إصلاحات مراجعة #195 (نفس الـ PR): صفوف وأقسام ملفات 0023 و`db-map` اتحدّثت من الـ head الجديد، و`docs/contracts/INVENTORY-REMOVAL.md` اتضاف لما عدّى 20 KB. وفي PR المرحلة C فوق main `553a2d1`: صفوف `0020s_sql_ci.sh` (تاريخي) و`0023_sql_ci.sh` والعقد و`db-map` اتحدّثت وأقسامهم اتولّدت من الـ head بتاعه، و`README.md` اتحدّث، و`docs/maps/code-map.md` و`backend/db/ci/0022_sql_ci.sh` اتضافوا (اتعدّلوا وهم فوق 20 KB). وعقد `ORDER-DELETE.md` اتضاف في PR العقد فوق main `5d562fd` (صفه وقسمه من الـ head بتاعه). وملفات 0024 (ORDER-DELETE B: الـ migration والـ ptest وCI) اتضافت، وصفوف وأقسام العقد و`db-map` اتحدّثت، في PR المرحلة B فوق main `e928ba7` (الـ verify والـ rollback أقل من 20 KB). وفي PR المرحلة C لـ IMAGE-DELETE فوق main `04d7f2d`: صفوف وأقسام `docs/maps/db-map.md` و`docs/maps/code-map.md` و`docs/contracts/0021-P-code.md` اتولّدت من الـ head بتاعه، و`docs/contracts/IMAGE-DELETE.md` اتضاف (كان عدّى 20 KB من #222)، وصف وقسم `README.md` اتحدّثوا. وفي PR المرحلة B لـ DEFAULT-PRIVILEGES فوق main `a6029a2`: `backend/db/ci/0027_sql_ci.sh` و`backend/db/migrations/0027_default_privileges_ptest.sql` اتضافوا (صفوفهم وأقسامهم من الـ head بتاعه)؛ باقي ملفات 0027 أقل من 20 KB، و`docs/contracts/DEFAULT-PRIVILEGES.md` اتضاف لما عدّى 20 KB في نفس الـ PR. ⚠ **ملفات تانية فوق 20 KB لسه مش في الجدول أو صفوفها قديمة** (منها ملفات 0022 و0025 و0026 و`0024_sql_ci.sh` و`baseline_compare.sql` وعقود تانية): تحديثها PR لوحده. **وفي PR الصيانة (2026-11-09، فوق main `85c8fa2`):** اتضاف 20 ملف حجمها 20 KB أو أكتر ماكانتش في الجدول (صفوفها وأقسامها اتولّدت من الملفات بالقواعد اللي تحت)، واتحدّثت 10 صفوف أرقام سطورها كانت قديمة: أقسام ملفات SQL وshell اتنقلت بنص السطر نفسه من نسخة الملف اللي الأرقام القديمة اتحسبت منها (والأقسام الجديدة في السطور المضافة اتضافت بنفس القواعد)، وأقسام ملفات Markdown اتولّدت من جديد من عناوين `#` لحد `###`. صفوف حجمها بس مختلف بالتقريب (مفيش سطر اتحرّك) فضلت زي ما هي.
 - **القراية بالسطور:** على GitHub ضيف `#L100-L200` للرابط، أو اقرا الـ blob وقطّع السطور من القسم لحد القسم اللي بعده.
 - **الـ ptest:** جسم الـ migration منسوخ جواه بالحرف بين «بداية/نهاية الجسم المنسوخ»، فمش محتاج تقراه هناك. اقراه من ملف الـ migration.
 - الجداول متولّدة من عناوين الملفات نفسها: `-- (N)` · الفواصل · `DO $…$` · `create function/table/role` · `BEGIN/COMMIT/ROLLBACK` · `#` في Markdown · `name() {` و`X=$(cat <<'SQL'` في shell.
@@ -16,17 +16,22 @@
 | `backend/db/ci/0021d2_sql_ci.sh` | 14 KB | 212 | اختبارات SQL لـ 0021-D2 W1 في CI فوق شكل Production (S0–S5: الشكل · ptest · تطبيق · verify · السيناريوهات · rollback · حراس الـ preflight) — أقل من 20 KB |
 | `backend/db/ci/0021d_sql_ci.sh` | 28 KB | 391 | اختبارات SQL لـ 0021-D في CI (ptest · تطبيق · مقارنة قديم/جديد 480 حالة · الإيصال · rollback · الانحراف) |
 | `backend/db/ci/0021ex_flows.sql` | 31 KB | 439 | EXPRESS-SHIPPING W1 سيناريوهات الإعداد والطلب بعد التطبيق في CI (F01–F42، 38 حالة، معاملة بترجع) |
-| `backend/db/ci/0021ex_sql_ci.sh` | 41 KB | 506 | اختبارات SQL لـ EXPRESS-SHIPPING W1 في CI فوق شكل Production (S0–S6: الشكل والأكواد والفرق عن P1 · ptest · تطبيق · الأثر · verify بالحالتين · مقارنة 520 حالة × 4 نداءات · السيناريوهات · قيد اللقطة · rollback ببصمات R1 · حراس الـ preflight · S46 شحن العرض من packages/core = الداتابيز) |
+| `backend/db/ci/0021ex_sql_ci.sh` | 41 KB | 509 | اختبارات SQL لـ EXPRESS-SHIPPING W1 في CI فوق شكل Production (S0–S6: الشكل والأكواد والفرق عن P1 · ptest · تطبيق · الأثر · verify بالحالتين · مقارنة 520 حالة × 4 نداءات · السيناريوهات · قيد اللقطة · rollback ببصمات R1 · حراس الـ preflight · S46 شحن العرض من packages/core = الداتابيز) |
 | `backend/db/ci/0021p_sql_ci.sh` | 30 KB | 445 | اختبارات SQL لـ 0021-P في CI (S0–S8 و C1–C4) |
 | `backend/db/ci/0021p1_flows.sql` | 37 KB | 538 | 0021-A P1 سيناريوهات الدفع بعد التطبيق في CI (F01–F42، معاملة بترجع) |
 | `backend/db/ci/0021p1_sql_ci.sh` | 56 KB | 748 | اختبارات SQL لـ 0021-A P1 و P2 وتنضيف التجارب في CI، بتتشغّل مرتين (مالك zell_create_order = zell_order_writer ثم postgres): ptest · تطبيق · verify · مقارنة 520 حالة · الرسوم DB = core · السيناريوهات · rollback · الانحراف · التنضيف C00–C12 · ptest من غير أدمن ولا طلبات |
 | `backend/db/ci/0021tr2_flows.sql` | 45 KB | 633 | TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل ورد التتبّع بعد التطبيق في CI (F00–F49، 36 حالة، معاملة بترجع) |
 | `backend/db/ci/0021tr2_sql_ci.sh` | 44 KB | 553 | اختبارات SQL لـ TRACK-ORDER v2 W1 في CI فوق شكل Production (S0–S7: الشكل والأكواد والأجسام · ptest · تطبيق · الأثر · verify بالحالتين · السيناريوهات · بيانات حقيقية ورفض الرجوع · التزامن بجلستين (الشحنة والتعديل والإضافة) · rollback ببصمات T1 · حراس الـ preflight · توافق حارس v1) |
 | `backend/db/ci/0021tr_sql_ci.sh` | 22 KB | 313 | اختبارات SQL لـ 0021-TR W1 في CI فوق شكل Production (S0–S5: الشكل · ptest · تطبيق · verify · الرد بالسبع حالات والموعد والسطور ومن غير بيانات عميل · null للشكل الغلط · الصلاحيات · rollback · حراس الـ preflight) |
-| `backend/db/ci/0022_sql_ci.sh` | 59 KB | 741 | اختبارات SQL لـ 0022 PRODUCT-DELETE في CI على داتابيز مبنية من القايمة لحد قبل 0022 (حراس الـ preflight · تحقق 0020 قبل وبعد · ptest · تطبيق · verify ومحاولات التوسيع · الأثر · الرجوع · عقد الاستدعاء · السيناريوهات · التزامن) |
-| `backend/db/ci/0023_sql_ci.sh` | 28 KB | 349 | اختبارات SQL لـ 0023 INVENTORY-REMOVAL B في CI على داتابيز مبنية من القايمة لحد قبل 0023 (S0 · B01–B02 · X01 · P01 · E01 · G01–G05 · C01–C02 · Z01 · T01–T02 · A01–A05 · E02 · K01 · R01) |
-| `backend/db/ci/0024_sql_ci.sh` | 57 KB | 612 | اختبارات SQL لـ 0024 ORDER-DELETE B في CI على داتابيز مبنية من القايمة كلها (S0 · B01 · E01 · T01–T02 · G01–G02 · Z01 · A01–A05 · E02 · K01 · RB1–RB2 · R01 · X01 · F01–F17 · C01–C06) |
+| `backend/db/ci/0022_flows.sql` | 32 KB | 492 | 0022 PRODUCT-DELETE: سيناريوهات الحذف بعد التطبيق (CI بس، معاملة بترجع) |
+| `backend/db/ci/0022_sql_ci.sh` | 59 KB | 742 | اختبارات SQL لـ 0022 PRODUCT-DELETE في CI على داتابيز مبنية من القايمة لحد قبل 0022 (حراس الـ preflight · تحقق 0020 قبل وبعد · ptest · تطبيق · verify ومحاولات التوسيع · الأثر · الرجوع · عقد الاستدعاء · السيناريوهات · التزامن) |
+| `backend/db/ci/0023_sql_ci.sh` | 29 KB | 350 | اختبارات SQL لـ 0023 INVENTORY-REMOVAL B في CI على داتابيز مبنية من القايمة لحد قبل 0023 (S0 · B01–B02 · X01 · P01 · E01 · G01–G05 · C01–C02 · Z01 · T01–T02 · A01–A05 · E02 · K01 · R01) |
+| `backend/db/ci/0024_sql_ci.sh` | 66 KB | 705 | اختبارات SQL لـ 0024 ORDER-DELETE B في CI على داتابيز مبنية من القايمة كلها (S0 · B01 · E01 · T01–T02 · G01–G02 · Z01 · A01–A05 · E02 · K01 · RB1–RB2 · R01 · X01 · F01–F17 · C01–C06) |
+| `backend/db/ci/0025_flows.sql` | 35 KB | 430 | 0025 INSTALLER-SHIPPING: مقارنة القديم بالجديد وسيناريوهات بعد التطبيق (CI بس، معاملة بترجع) |
+| `backend/db/ci/0025_sql_ci.sh` | 34 KB | 374 | اختبارات SQL لـ 0025 INSTALLER-SHIPPING في CI على داتابيز مبنية من القايمة لحد قبل سطر 0025 |
+| `backend/db/ci/0026_sql_ci.sh` | 35 KB | 374 | اختبارات SQL لـ 0026 IMAGE-DELETE في CI على داتابيز مبنية من القايمة لحد قبل سطر 0026، ومعاها التزامن بجلستين |
 | `backend/db/ci/0027_sql_ci.sh` | 27 KB | 312 | اختبارات SQL لـ 0027 DEFAULT-PRIVILEGES B في CI على داتابيز مبنية من القايمة لحد قبل سطر 0027 ومحاكاة لقطة pg_default_acl كاملة (S01–S04 · B01 · M01–M05 · V00–V03 · E01–E05 · N00–N01 · P01–P03 · A01–A02 · RB1–RB3 · RA1) |
+| `backend/db/ci/baseline_compare.sql` | 63 KB | 208 | BASELINE-OUTSIDE §٤-٥: مقارنة الداتابيز المبنية بلقطات Production (الدوال · admin_users · الأعمدة · orders/order_items · الصلاحيات الافتراضية · وجود مفتاح المحافظات)؛ CI بس، قراية بس |
 | `backend/db/migrations/0006b_order_functions.sql` | 38 KB | 765 | دور `zell_order_writer` وأول نسخة من `zell_create_order` و`zell_get_order_receipt` |
 | `backend/db/migrations/0006c_order_receipt_expiry.sql` | 23 KB | 504 | `zell_create_order` بترجّع `receipt_expires_at` |
 | `backend/db/migrations/0015_product_widths.sql` | 21 KB | 463 | عروض الرول (`product_widths`) + `zell_create_order` |
@@ -39,7 +44,8 @@
 | `backend/db/migrations/0019_coupons_rollback.sql` | 31 KB | 684 | الرجوع من 0019 |
 | `backend/db/migrations/0019_coupons.sql` | 47 KB | 988 | أكواد الخصم: `coupons` وأعمدة الطلب و`zell_create_order` و`zell_preview_coupon` والإلغاء النهائي |
 | `backend/db/migrations/0020_inventory_purchasing_ptest.sql` | 306 KB | 5439 | اختبار 0020 (الجسم منسوخ بين علامات >>> و <<<) |
-| `backend/db/migrations/0020_inventory_purchasing_verify.sql` | 29 KB | 397 | التحقق بعد تطبيق 0020 |
+| `backend/db/migrations/0020_inventory_purchasing_verify_rows.sql` | 33 KB | 459 | تحقق 0020 (المخزون) بصيغة صفوف لـ Retool — تاريخي: المخزون اتشال في 0023 |
+| `backend/db/migrations/0020_inventory_purchasing_verify.sql` | 32 KB | 434 | التحقق بعد تطبيق 0020 |
 | `backend/db/migrations/0020_inventory_purchasing.sql` | 219 KB | 4065 | المخزون والمشتريات: الدور والجداول والـ 23 RPC والـ triggers |
 | `backend/db/migrations/0020s_inv_session_ptest.sql` | 61 KB | 1150 | 0020-S PR-1 اختبار قبل التطبيق (الجسم منسوخ بالحرف، والنتيجة صفوف) |
 | `backend/db/migrations/0020s_inv_session.sql` | 30 KB | 579 | 0020-S PR-1: 23 دالة `zell_inv_session_*` بهوية الجلسة |
@@ -77,27 +83,41 @@
 | `backend/db/migrations/0021tr_track_order_rollback.sql` | 2 KB | 45 | 0021-TR W1 الرجوع (الدالة والـ policy وصلاحيات الأعمدة على `order_items`؛ بيرفض طول ما TRACK-ORDER v2 متطبّق) — أقل من 20 KB |
 | `backend/db/migrations/0021tr_track_order_verify.sql` | 18 KB | 230 | 0021-TR W1 التحقق بعد التطبيق (7 فحوص، النداءات بدور `service_role`، بحالتين قبل/بعد TRACK-ORDER v2، والنتيجة صفوف) — أقل من 20 KB |
 | `backend/db/migrations/0021tr_track_order.sql` | 11 KB | 168 | 0021-TR W1 «تتبّع طلبك»: قراية `order_items` لـ `zell_order_definer` (٨ أعمدة + policy) · `zell_checkout_track_order` لـ `service_role` — أقل من 20 KB |
+| `backend/db/migrations/0022_product_delete_ptest.sql` | 33 KB | 524 | 0022 اختبار قبل التطبيق (smoke، الجسم منسوخ بالحرف، والنتيجة صفوف) |
+| `backend/db/migrations/0022_product_delete.sql` | 24 KB | 394 | 0022 PRODUCT-DELETE: حذف المنتج للمالك — الدور zell_catalog_definer والدوال والصلاحيات (متطبّق 2026-10-26) |
 | `backend/db/migrations/0023_inventory_removal_ptest.sql` | 49 KB | 538 | 0023 INVENTORY-REMOVAL B اختبار قبل التطبيق (smoke، 5 حالات، الجسم منسوخ بالحرف، والنتيجة صفوف) |
 | `backend/db/migrations/0023_inventory_removal_verify.sql` | 5 KB | 44 | 0023 INVENTORY-REMOVAL B التحقق بعد التطبيق (4 فحوص، read only) — أقل من 20 KB |
 | `backend/db/migrations/0023_inventory_removal.sql` | 38 KB | 443 | 0023 INVENTORY-REMOVAL B: preflight · دالتين حذف المنتج من غير فحص المخزون · trigger المنتجات · جداول المخزون والـ sequences · دوال zell_inv_* · الدور · postflight (مش متطبّق) |
 | `backend/db/migrations/0024_order_delete_ptest.sql` | 59 KB | 677 | 0024 ORDER-DELETE B اختبار قبل التطبيق (smoke، 8 حالات، الجسم منسوخ بالحرف، من غير حذف بيانات، والنتيجة صفوف) |
 | `backend/db/migrations/0024_order_delete.sql` | 50 KB | 557 | 0024 ORDER-DELETE B: preflight · الدور · سلسلة الهوية · الجداول الجديدة · حارس السجل · الاستثناء في 3 حراس · صلاحيات وpolicies جداول الطلبات · الدوال · postflight (مش متطبّق) |
+| `backend/db/migrations/0025_installer_shipping_ptest.sql` | 49 KB | 956 | 0025 اختبار قبل التطبيق (smoke، الجسم منسوخ بالحرف، والنتيجة صفوف) |
+| `backend/db/migrations/0025_installer_shipping_rollback.sql` | 43 KB | 861 | الرجوع عن 0025: جسم zell_create_order بتاع 0021ex بالحرف (بموافقة لوحدها بس) |
+| `backend/db/migrations/0025_installer_shipping.sql` | 46 KB | 886 | 0025 INSTALLER-SHIPPING: zell_create_order بالانتقال بدل الشحن مع الفني، نفس التوقيع (15 معامل) (متطبّق 2026-11-06) |
+| `backend/db/migrations/0026_image_delete_ptest.sql` | 34 KB | 480 | 0026 اختبار قبل التطبيق (smoke، الجسم منسوخ بالحرف، والنتيجة صفوف) |
+| `backend/db/migrations/0026_image_delete.sql` | 29 KB | 403 | 0026 IMAGE-DELETE: حذف صورة من منتج + حارس تفعيل المنتج (متطبّق 2026-11-07) |
 | `backend/db/migrations/0027_default_privileges_ptest.sql` | 26 KB | 303 | 0027 DEFAULT-PRIVILEGES B اختبار قبل التطبيق (smoke، 7 حالات، الجسم منسوخ بالحرف، وكائنات تجربة وبصمات، والنتيجة صفوف) |
-| `docs/contracts/0021-A.md` | 94 KB | 438 | عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر |
+| `docs/contracts/0021-A.md` | 94 KB | 439 | عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر |
+| `docs/contracts/0021-D2.md` | 23 KB | 135 | عقد 0021-D2: تحكم المالك في موعد التسليم في Checkout |
 | `docs/contracts/0021-P-code.md` | 29 KB | 253 | عقد كود 0021-P: أ ← ب1 ← ب2 · الأوضاع · الفاحص · التعديلات بعد الاعتماد |
 | `docs/contracts/0021-P.md` | 22 KB | 252 | عقد 0021-P (الداتابيز): المحرك والمحوّل والهوية من الجلسة |
+| `docs/contracts/BASELINE-OUTSIDE.md` | 30 KB | 116 | عقد BASELINE-OUTSIDE: رسم الحاجات اللي اتعملت برّه ملفات الداتابيز، والبناء من الصفر في CI |
+| `docs/contracts/COOKIES-HEADERS.md` | 22 KB | 154 | عقد COOKIES-HEADERS: كوكيز جلسة اللوحة وheaders الأمان للتطبيقين |
 | `docs/contracts/DEFAULT-PRIVILEGES.md` | 30 KB | 189 | عقد الصلاحيات الافتراضية للكائنات الجديدة: المشكلة · لقطة Production (24 صف) · التغيير والنتيجة المتوقعة · اللي مابيتغيّرش · الأثر العام لـ PUBLIC وموافقة المالك · ضمانات التحقق والأثر قبل/بعد كل خطوة · Production · الرجوع (واستثناء service_role الضيق) · المتابعة بعد التطبيق |
 | `docs/contracts/EXPRESS-SHIPPING.md` | 44 KB | 227 | عقد الشحن السريع ومدة الشحن: الإعداد `zell_shipping_options` · `zell_create_order` (15) واللقطة · Checkout والـ canonical · فحوص التحقق المتأثرة · قراءات R1–R6 ونتايجها · تفاصيل W1 و W2 |
 | `docs/contracts/IMAGE-DELETE.md` | 41 KB | 184 | عقد حذف صورة من منتج: المشكلة · قرارات المالك · الحذف والرفض · الدالة والـ trigger والصلاحيات · الأقفال والتزامن (ومعاهم التراجع في الرفع) · حدود الملف المسجّل · اللوحة · CI · Production ونتايجه · المراحل |
+| `docs/contracts/INSTALLER-SHIPPING.md` | 26 KB | 143 | عقد INSTALLER-SHIPPING: الانتقال بدل الشحن لما العميل يطلب فني |
 | `docs/contracts/INVENTORY-REMOVAL.md` | 27 KB | 136 | عقد إزالة المخزون (0020 و0020-S) وأرشفته: القرار · اللي بيفضل · الربط · الأرشيف · المرحلة A (اللوحة) · المرحلة B (0023: التفاصيل والقفل والنداءات · CI) · التطبيق على Production · المرحلة C · الترتيب والموافقات · المخاطر · قرارات المالك · السجل |
-| `docs/contracts/LENGTH-INPUT.md` | 27 KB | 142 | عقد طريقة إدخال المقاس وتنبيه الحد الأدنى في صفحة المنتج: الوضع النهارده · الإعداد في «المحتوى» (`settings.hero.productSizeEntry`) واستثناء النوع والافتراضي في core · الطريقة الأولى وصلاحية المسودة · طريقة السنتيمتر (المقارنة بالطول المحسوب · حالات الإدخال · التوقيت والشكل · الرسايل · إعادة التحقق) · الحالات · الرجوع |
-| `docs/contracts/ORDER-DELETE.md` | 49 KB | 208 | عقد حذف الطلبات من اللوحة للمالك بالباسورد: المطلوب · مواصفات المالك · الوضع (الحماية لكل جدول وعملية · التوابع من الـ FKs) · الأثر والكوبونات · تصميم الداتابيز (الأسماء · الاستثناء في 3 حراس · الصلاحيات · الدوال · الجداول) · اللوحة (اللقطة والبصمة · الباسورد والتذكرة والحد) · الاختبارات · الرجوع · الترتيب · المخاطر · القرارات |
+| `docs/contracts/LENGTH-INPUT.md` | 29 KB | 153 | عقد طريقة إدخال المقاس وتنبيه الحد الأدنى في صفحة المنتج: الوضع النهارده · الإعداد في «المحتوى» (`settings.hero.productSizeEntry`) واستثناء النوع والافتراضي في core · الطريقة الأولى وصلاحية المسودة · طريقة السنتيمتر (المقارنة بالطول المحسوب · حالات الإدخال · التوقيت والشكل · الرسايل · إعادة التحقق) · الحالات · الرجوع |
+| `docs/contracts/ORDER-DELETE.md` | 52 KB | 217 | عقد حذف الطلبات من اللوحة للمالك بالباسورد: المطلوب · مواصفات المالك · الوضع (الحماية لكل جدول وعملية · التوابع من الـ FKs) · الأثر والكوبونات · تصميم الداتابيز (الأسماء · الاستثناء في 3 حراس · الصلاحيات · الدوال · الجداول) · اللوحة (اللقطة والبصمة · الباسورد والتذكرة والحد) · الاختبارات · الرجوع · الترتيب · المخاطر · القرارات |
 | `docs/contracts/POLICY-PAGES.md` | 30 KB | 164 | عقد صفحات السياسات في المتجر: طلب المالك · الوضع (الفوتر · سابقة `installation_tools_page` · دورة الطلب · البيانات الشخصية) · المسارات وقفل كل صفحة لوحدها · البيانات `settings.policy_pages` (مفيش SQL) · اللوحة والتزامن والصلاحيات · النصوص (مسودة) · قرارات المالك ق١–ق١٠ · الاختبارات · الرجوع · تفاصيل التنفيذ (§١٢) |
-| `docs/contracts/STORE-MENU.md` | 22 KB | 157 | عقد قائمة المتجر للعميل و«تتبّع طلبك» في هيدر الكمبيوتر: قرار المالك · أجزاء القائمة وشروط ظهورها · هيدر الكمبيوتر (من `lg`) · تمييز الصفحة الحالية · شرط روابط المساعدة · روابط `/#how` و`/#faq` · الملفات والحالات · تفاصيل التنفيذ وقرارات المالك بعد المعاينة (§١٥) · استثناء التجربة بعد النشر (§١٦) |
+| `docs/contracts/PRODUCT-DELETE.md` | 33 KB | 193 | عقد PRODUCT-DELETE: حذف المنتج للمالك |
+| `docs/contracts/RATE-LIMIT.md` | 39 KB | 270 | عقد RATE-LIMIT: حد الطلبات من Vercel Firewall (المتجر + اللوحة) |
+| `docs/contracts/STORE-MENU.md` | 26 KB | 174 | عقد قائمة المتجر للعميل و«تتبّع طلبك» في هيدر الكمبيوتر: قرار المالك · أجزاء القائمة وشروط ظهورها · هيدر الكمبيوتر (من `lg`) · تمييز الصفحة الحالية · شرط روابط المساعدة · روابط `/#how` و`/#faq` · الملفات والحالات · تفاصيل التنفيذ وقرارات المالك بعد المعاينة (§١٥) · استثناء التجربة بعد النشر (§١٦) |
 | `docs/contracts/TRACK-ORDER-v2.md` | 49 KB | 248 | عقد التتبّع الكامل: حقول v1 + v2 · المبالغ (المدفوع · المردود · الصافي · المتبقي) · خط المراحل · الشحنة · رسايل العميل · الموعد · قراءات T1–T5 ونتايجها · W1 (الأسماء والأكواد النهائية) · W2 (التقسيم: W2-A المتجر · W2-B اللوحة) |
 | `docs/maps/code-map.md` | 23 KB | 106 | خريطة الكود: التطبيقات والحزم والمجلدات وكل ملف مهم بيعمل إيه |
 | `docs/maps/db-map.md` | 74 KB | 471 | خريطة الداتابيز: كل دور وجدول ودالة ومتعرّف في أنهي ملف |
-| `docs/plans/ADMIN-LANG-LIST.md` | 62 KB | 224 | حصر نصوص اللوحة العامية مع مقترح فصحى مبسّطة لكل نص (أ · ب · ج · د)، للمالك يختار منه |
+| `docs/plans/ADMIN-LANG-LIST.md` | 62 KB | 223 | حصر نصوص اللوحة العامية مع مقترح فصحى مبسّطة لكل نص (أ · ب · ج · د)، للمالك يختار منه |
+| `docs/plans/E2E-ORDER-TEST.md` | 21 KB | 134 | خطة اختبار طلب كامل على Production قبل الإطلاق |
 | `docs/plans/ORDER-FLOW-PLAN.md` | 119 KB | 1584 | خطة مسار الطلب |
 | `README.md` | 27 KB | 326 | حالة النظام الحي: الميزات · اللوحة · الهيكل · الأمان · التوثيق |
 
@@ -243,7 +263,7 @@ EXPRESS-SHIPPING W1 سيناريوهات الإعداد والطلب بعد ال
 
 ## `backend/db/ci/0021ex_sql_ci.sh`
 
-اختبارات SQL لـ EXPRESS-SHIPPING W1 في CI فوق شكل Production (S0–S6: الشكل والأكواد والفرق عن P1 · ptest · تطبيق · الأثر · verify بالحالتين · مقارنة 520 حالة × 4 نداءات · السيناريوهات · قيد اللقطة · rollback ببصمات R1 · حراس الـ preflight · S46 شحن العرض من packages/core = الداتابيز) · 506 سطر
+اختبارات SQL لـ EXPRESS-SHIPPING W1 في CI فوق شكل Production (S0–S6: الشكل والأكواد والفرق عن P1 · ptest · تطبيق · الأثر · verify بالحالتين · مقارنة 520 حالة × 4 نداءات · السيناريوهات · قيد اللقطة · rollback ببصمات R1 · حراس الـ preflight · S46 شحن العرض من packages/core = الداتابيز) · 509 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -252,13 +272,13 @@ EXPRESS-SHIPPING W1 سيناريوهات الإعداد والطلب بعد ال
 | 137 | load_old_copy() { |
 | 145 | PARITY_SQL=$(cat <<'SQL' |
 | 272 | # ── S0: الشكل والملفات ── |
-| 298 | # ── S1: قبل التطبيق (شكل Production) و ptest ── |
-| 322 | # ── S2: التطبيق ── |
-| 349 | # ── S3: فحوص التحقق بالحالتين: مفيش بصمة مجهولة ولا overload ولا خليط ── |
-| 368 | # ── S4: السلوك ── |
-| 427 | # ── S46: شحن العرض في المتجر (packages/core) = الداتابيز (EXPRESS-SHIPPING W2) ── |
-| 436 | # ── S5: الرجوع ── |
-| 477 | # ── S6: حراس الـ preflight ── |
+| 301 | # ── S1: قبل التطبيق (شكل Production) و ptest ── |
+| 325 | # ── S2: التطبيق ── |
+| 352 | # ── S3: فحوص التحقق بالحالتين: مفيش بصمة مجهولة ولا overload ولا خليط ── |
+| 371 | # ── S4: السلوك ── |
+| 430 | # ── S46: شحن العرض في المتجر (packages/core) = الداتابيز (EXPRESS-SHIPPING W2) ── |
+| 439 | # ── S5: الرجوع ── |
+| 480 | # ── S6: حراس الـ preflight ── |
 ## `backend/db/ci/0021p_sql_ci.sh`
 
 اختبارات SQL لـ 0021-P في CI (S0–S8 و C1–C4) · 445 سطر
@@ -452,6 +472,154 @@ TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل و
 | 286 | # ── S4: الرجوع ── |
 | 300 | # ── S5: حراس الـ preflight ── |
 
+## `backend/db/ci/0022_flows.sql`
+
+0022 PRODUCT-DELETE: سيناريوهات الحذف بعد التطبيق (CI بس، معاملة بترجع) · 492 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 14 | begin; |
+| 18 | create temporary table zt_results (n serial, id text, name text, outcome text, detail text) on commit drop; |
+| 19 | create temporary table zp (tag text primary key, id integer not null) on commit drop; |
+| 21 | create function pg_temp.zt(p_name text, p_ok boolean, p_detail text) |
+| 28 | create function pg_temp.call_raw(p_role text, p_claims text, p_sql text) |
+| 51 | create function pg_temp.call_as(p_role text, p_sub text, p_sql text) |
+| 57 | create function pg_temp.js(p text) returns jsonb language sql as $f$ |
+| 61 | create function pg_temp.pid(p_tag text) returns integer language sql as $f$ |
+| 66 | create function pg_temp.mk(p_tag text, p_active boolean, p_images integer) |
+| 84 | create function pg_temp.ver(p integer) returns text language sql as $f$ |
+| 88 | create function pg_temp.del_sql(p integer, v text) returns text language sql as $f$ |
+| 92 | create function pg_temp.pre_sql(p integer) returns text language sql as $f$ |
+| 96 | create function pg_temp.home() returns jsonb language sql as $f$ |
+| 102 | create function pg_temp.fp(p_ids integer[], p_om bigint) returns text language sql as $f$ |
+| 121 | create function pg_temp.fp0() returns text language sql as $f$ select pg_temp.fp('{}'::integer[], null) $f$; |
+| 122 | create function pg_temp.om() returns bigint language sql as $f$ select coalesce(max(o.id), 0) from public.storage_orphans o $f$; |
+| 125 | do $zS$ |
+| 163 | do $zA$ |
+| 200 | do $zB$ |
+| 249 | do $zC$ |
+| 315 | do $zD$ |
+| 343 | do $zE$ |
+| 397 | do $zF$ |
+| 438 | do $zG$ |
+| 492 | rollback; |
+
+## `backend/db/ci/0025_flows.sql`
+
+0025 INSTALLER-SHIPPING: مقارنة القديم بالجديد وسيناريوهات بعد التطبيق (CI بس، معاملة بترجع) · 430 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 18 | begin; |
+| 22 | create temporary table zt_results (n serial, id text, name text, outcome text, detail text) on commit drop; |
+| 24 | create function pg_temp.zt(p_name text, p_ok boolean, p_detail text) |
+| 30 | create temporary table ci_fx (k text primary key, v text) on commit drop; |
+| 33 | do $fx$ |
+| 71 | create function pg_temp.ci_call(p_fn text, p_items text, p_gov text, p_area text, p_inst boolean, p_coupon text, p_phone text, p_method text) |
+| 84 | create function pg_temp.ci_try(p_sql text) returns jsonb language plpgsql as $f$ |
+| 113 | create function pg_temp.ci_install_diff(o jsonb, n jsonb) returns text language plpgsql as $f$ |
+| 140 | create temporary table ci_bad (n integer, detail text) on commit drop; |
+| 141 | create temporary table ci_cnt (k text primary key, v bigint) on commit drop; |
+| 144 | do $m$ |
+| 268 | do $xr$ |
+| 294 | do $fs$ |
+| 430 | rollback; |
+
+## `backend/db/ci/0025_sql_ci.sh`
+
+اختبارات SQL لـ 0025 INSTALLER-SHIPPING في CI على داتابيز مبنية من القايمة لحد قبل سطر 0025 · 374 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 48 | record() { |
+| 52 | finish() { |
+| 62 | stop() { record "$1" no "$2"; echo "STOPPED: $1"; finish; } |
+| 63 | tailof() { tail -n 6 "$1" 2> /dev/null \| tr '\n' ' ' \| cut -c1-600; } |
+| 64 | su_q() { local db=$1; shift; psql -X -q -tA -v ON_ERROR_STOP=1 -U "$SUPER" -d "$db" "$@" < /dev/null; } |
+| 65 | su_f() { psql -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U "$SUPER" -d "$1" -f "$2" < /dev/null; } |
+| 66 | pg_f() { psql -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$1" -f "$2" < /dev/null; } |
+| 67 | q() { psql -X -q -tA -v ON_ERROR_STOP=1 -U postgres -d "$DB" -c "$1" < /dev/null 2>&1; } |
+| 68 | sq() { psql -X -q -tA -v ON_ERROR_STOP=1 -U "$SUPER" -d "$DB" -c "$1" < /dev/null 2>&1; } |
+| 69 | pg_in() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f - > "$1" 2>&1; } |
+| 70 | su_in() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U "$SUPER" -d "$DB" -f - > "$1" 2>&1; } |
+| 71 | run_file() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$1" < /dev/null > "$2" 2>&1; } |
+| 72 | has() { grep -q -- "$2" "$1"; } |
+| 73 | body_md5() { awk -v s="-- >>> $2" -v e="-- <<< $2" '$0 == s {f = 1} f {print} $0 == e {f = 0}' "$1" \| md5sum \| cut -d' ' -f1; } |
+| 74 | body_of() { awk -v s="-- >>> $2" -v e="-- <<< $2" '$0 == s {f = 1} f {print} $0 == e {f = 0}' "$1"; } |
+| 76 | with_appr() { sed "0,/^begin;\$/s//begin;\nset local zell.approved_by = '$2';/" "$1"; } |
+| 77 | run_appr() { with_appr "$1" "$2" \| psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f - > "$3" 2>&1; } |
+| 79 | ex_def() { awk '/^CREATE FUNCTION public\.zell_create_order\(/ {f = 1} f {print} f && /^\$function\$;$/ {exit}' "$EXAPPLY"; } |
+| 80 | fn_src() { awk 'f && /^\$function\$;$/ {exit} f {print} /^CREATE (OR REPLACE )?FUNCTION public\.zell_create_order\(/ {h = 1} h && /^AS \$function\$$/ {f = 1; h = 0}' "$1"; } |
+| 82 | co_state() { |
+| 85 | FPQ=$(cat <<'SQL' |
+| 119 | fp() { q "$FPQ"; } |
+| 120 | verifies() { |
+| 134 | verifies_detail() { tr '\n' ' ' < "$TMP/ver_$1.txt" \| cut -c1-1200; } |
+| 136 | v25() { |
+| 144 | ptest_line() { local rc; run_file "$PTEST" "$TMP/pt.$1.out"; rc=$?; echo "rc=$rc $(grep '^0\|summary\|' "$TMP/pt.$1.out" \| cut -d'\|' -f7-9)"; } |
+| 148 | impact() { psql -X -q -tA -F "$US" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$IMPACT" < /dev/null > "$TMP/imp_$1.out" 2>&1; echo "$?" > "$TMP/imp_$1.rc"; } |
+| 149 | impact_v() { su_q "$DB" -c "grant pg_read_all_stats to postgres" > "$TMP/impv_$1.log" 2>&1; impact "$1"; su_q "$DB" -c "revoke pg_read_all_stats from postgres" >> "$TMP/impv_$1.log" 2>&1; } |
+| 150 | imp_valid() { [ "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" = "0" ] && [ "$(grep -c . "$TMP/imp_$1.out")" = "1" ] && [ "$(awk -F "$US" 'NF {print NF}' "$TMP/imp_$1.out")" = "15" ]; } |
+| 151 | imp_f() { grep -v '^$' "$TMP/imp_$1.out" \| head -n 1 \| cut -d "$US" -f "$2"; } |
+| 152 | imp_detail() { printf 'rc=%s %s' "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" "$(tr "$US" '\|' < "$TMP/imp_$1.out" \| tr '\n' ' ' \| cut -c1-900)"; } |
+| 154 | imp_gate() { imp_valid "$1" && [ "$(imp_f "$1" 5)" = "t" ] && [ "$(imp_f "$1" 13)" = "0" ] && [ "$(imp_f "$1" 14)" = "t" ] && [ "$(imp_f "$1" 15)" = "t" ] && [ "$(imp_f "$1" 3)" = 'postgres\|true\|{"search_path=\"\""}' ]; } |
+| 156 | # ---- 1) فحوص ثابتة ---- |
+| 183 | # ---- 2) بناء الداتابيز من القايمة الصريحة كلها (لحد 0024) ---- |
+| 233 | # ---- 3) حراس الـ preflight: كله بيترفض ومن غير أثر ---- |
+| 253 | # ---- 4) ptest قبل التطبيق ---- |
+| 263 | # ---- 5) التطبيق ---- |
+| 291 | # ---- 6) مقارنة القديم بالجديد والسيناريوهات ---- |
+| 298 | # ---- 6ب) حساب المتجر (packages/core) = الداتابيز بعد 0025 (المرحلة C) ---- |
+| 310 | # ---- 7) اختبارات سالبة: verify 0025 لازم يمسك الخلل ---- |
+| 350 | # ---- 8) الرجوع ---- |
+
+## `backend/db/ci/0026_sql_ci.sh`
+
+اختبارات SQL لـ 0026 IMAGE-DELETE في CI على داتابيز مبنية من القايمة لحد قبل سطر 0026، ومعاها التزامن بجلستين · 374 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 49 | record() { |
+| 53 | finish() { |
+| 63 | stop() { record "$1" no "$2"; echo "STOPPED: $1"; finish; } |
+| 64 | tailof() { tail -n 6 "$1" 2> /dev/null \| tr '\n' ' ' \| cut -c1-600; } |
+| 65 | su_q() { local db=$1; shift; psql -X -q -tA -v ON_ERROR_STOP=1 -U "$SUPER" -d "$db" "$@" < /dev/null; } |
+| 66 | su_f() { psql -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U "$SUPER" -d "$1" -f "$2" < /dev/null; } |
+| 67 | pg_f() { psql -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$1" -f "$2" < /dev/null; } |
+| 68 | q() { psql -X -q -tA -v ON_ERROR_STOP=1 -U postgres -d "$DB" -c "$1" < /dev/null 2>&1; } |
+| 69 | pg_in() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f - > "$1" 2>&1; } |
+| 70 | su_in() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U "$SUPER" -d "$DB" -f - > "$1" 2>&1; } |
+| 71 | run_file() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$1" < /dev/null > "$2" 2>&1; } |
+| 72 | run_sql() { printf '%s\n' "$1" \| psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f - > "$2" 2>&1; } |
+| 73 | has() { grep -q -- "$2" "$1"; } |
+| 74 | body_md5() { awk -v s="-- >>> $2" -v e="-- <<< $2" '$0 == s {f = 1} f {print} $0 == e {f = 0}' "$1" \| md5sum \| cut -d' ' -f1; } |
+| 75 | with_appr() { sed "0,/^begin;\$/s//begin;\nset local zell.approved_by = '$2';/" "$1"; } |
+| 76 | body_of() { awk -v s="-- >>> $2" -v e="-- <<< $2" '$0 == s {f = 1} f {print} $0 == e {f = 0}' "$1"; } |
+| 78 | wait_app() { |
+| 89 | overlap() { |
+| 103 | state() { |
+| 110 | summary_of() { local rc; run_file "$1" "$TMP/$2.out"; rc=$?; echo "rc=$rc $(grep '^0\|summary\|' "$TMP/$2.out" \| cut -d'\|' -f3-)"; } |
+| 111 | impact() { psql -X -q -tA -F "$US" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$IMPACT" < /dev/null > "$TMP/imp_$1.out" 2>&1; echo "$?" > "$TMP/imp_$1.rc"; } |
+| 112 | impact_v() { su_q "$DB" -c "grant pg_read_all_stats to postgres" > "$TMP/impv_$1.log" 2>&1; impact "$1"; su_q "$DB" -c "revoke pg_read_all_stats from postgres" >> "$TMP/impv_$1.log" 2>&1; } |
+| 113 | imp_valid() { [ "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" = "0" ] && [ "$(grep -c . "$TMP/imp_$1.out")" = "1" ] && [ "$(awk -F "$US" 'NF {print NF}' "$TMP/imp_$1.out")" = "16" ]; } |
+| 114 | imp_f() { grep -v '^$' "$TMP/imp_$1.out" \| head -n 1 \| cut -d "$US" -f "$2"; } |
+| 115 | imp_detail() { printf 'rc=%s %s' "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" "$(tr "$US" '\|' < "$TMP/imp_$1.out" \| tr '\n' ' ' \| cut -c1-900)"; } |
+| 117 | own_txt() { printf '%s\n' "set statement_timeout = '20s';" "begin;" "select pg_catalog.set_config('request.jwt.claims', '{\"sub\":\"$OWNER_ID\",\"role\":\"authenticated\"}', true);" "set local role authenticated;" "$1;" "reset role;" "select pg_catalog.pg_sleep($2);" "commit;"; } |
+| 118 | svc_txt() { printf '%s\n' "set statement_timeout = '20s';" "begin;" "set local role service_role;" "$1;" "reset role;" "select pg_catalog.pg_sleep($2);" "commit;"; } |
+| 119 | pgs_txt() { printf '%s\n' "set statement_timeout = '20s';" "begin;" "$1;" "select pg_catalog.pg_sleep($2);" "commit;"; } |
+| 120 | mkp() { q "insert into public.products (name_ar, price_per_meter_piastres, is_active) values ('ci-0026-$1', 1000, false) returning id"; } |
+| 121 | img() { q "insert into public.product_images (product_id, object_path, kind, sort_order, is_primary, fit) values ($1, 'products/$1/ci26-k-$2.jpg', 'gallery', $3, $4, case when $4 then 'cover' else 'contain' end) returning id"; } |
+| 122 | delsql() { printf 'select public.zell_product_image_delete(%s, %s)::text' "$1" "$2"; } |
+| 123 | kd() { printf 'h=[%s] w=[%s] final=[%s]' "$(tailof "$TMP/$1h.out")" "$(tailof "$TMP/$1w.out")" "$2"; } |
+| 125 | # ---- 1) فحوص ثابتة ---- |
+| 140 | # ---- 2) بناء الداتابيز من القايمة الصريحة كلها ---- |
+| 171 | # ---- 3) بيانات CI (committed): الهويات ---- |
+| 180 | # ---- 4) قبل التطبيق ---- |
+| 218 | # ---- 5) التطبيق ---- |
+| 274 | # ---- 6) السيناريوهات ---- |
+| 279 | # ---- 7) التزامن بجلستين حقيقيتين، مع إثبات التداخل (overlap: OV=yes) ---- |
+| 346 | # ---- 8) الرجوع ثم إعادة التطبيق ---- |
+
 ## `backend/db/ci/0027_sql_ci.sh`
 
 اختبارات SQL لـ 0027 DEFAULT-PRIVILEGES B في CI على داتابيز مبنية من القايمة لحد قبل سطر 0027 ومحاكاة لقطة pg_default_acl كاملة (S01–S04 · B01 · M01–M05 · V00–V03 · E01–E05 · N00–N01 · P01–P03 · A01–A02 · RB1–RB3 · RA1) · 312 سطر
@@ -488,6 +656,16 @@ TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل و
 | 228 | neg() { # $1 id  $2 copy  $3 who(postgres\|super)  $4 drift sql  $5 label |
 | 249 | # ---- 4) ptest ثم التطبيق ---- |
 | 280 | # ---- 5) الرجوع ---- |
+
+## `backend/db/ci/baseline_compare.sql`
+
+BASELINE-OUTSIDE §٤-٥: مقارنة الداتابيز المبنية بلقطات Production (الدوال · admin_users · الأعمدة · orders/order_items · الصلاحيات الافتراضية · وجود مفتاح المحافظات)؛ CI بس، قراية بس · 208 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 31 | create temp table cmp_expected (k text primary key, v jsonb not null); |
+| 77 | create temp table cmp_actual (k text primary key, v jsonb); |
+| 203 | do $d$ begin |
 
 ## `backend/db/migrations/0006b_order_functions.sql`
 
@@ -755,17 +933,30 @@ TRACK-ORDER v2 W1 سيناريوهات الشحنة ورسايل العميل و
 | 5413 | DO $pt_end$ |
 | 5439 | ROLLBACK |
 
-## `backend/db/migrations/0020_inventory_purchasing_verify.sql`
+## `backend/db/migrations/0020_inventory_purchasing_verify_rows.sql`
 
-التحقق بعد تطبيق 0020 · 397 سطر
+تحقق 0020 (المخزون) بصيغة صفوف لـ Retool — تاريخي: المخزون اتشال في 0023 · 459 سطر
 
 | السطر | القسم |
 | ---: | --- |
-| 14 | begin; |
-| 18 | do $zverify_a$ |
-| 321 | do $zverify_b$ |
-| 360 | do $zverify_end$ |
-| 397 | rollback; |
+| 16 | begin; |
+| 21 | do $zrows$ |
+| 28 | do $zverify_a$ |
+| 360 | do $zverify_b$ |
+| 400 | do $zverify_end$ |
+| 459 | rollback; |
+
+## `backend/db/migrations/0020_inventory_purchasing_verify.sql`
+
+التحقق بعد تطبيق 0020 · 434 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 19 | begin; |
+| 23 | do $zverify_a$ |
+| 354 | do $zverify_b$ |
+| 393 | do $zverify_end$ |
+| 434 | rollback; |
 
 ## `backend/db/migrations/0020_inventory_purchasing.sql`
 
@@ -1709,7 +1900,7 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 
 ## `backend/db/ci/0022_sql_ci.sh`
 
-اختبارات SQL لـ 0022 PRODUCT-DELETE في CI على داتابيز مبنية من القايمة لحد قبل 0022 (حراس الـ preflight · تحقق 0020 قبل وبعد · ptest · تطبيق · verify ومحاولات التوسيع · الأثر · الرجوع · عقد الاستدعاء · السيناريوهات · التزامن) · 741 سطر
+اختبارات SQL لـ 0022 PRODUCT-DELETE في CI على داتابيز مبنية من القايمة لحد قبل 0022 (حراس الـ preflight · تحقق 0020 قبل وبعد · ptest · تطبيق · verify ومحاولات التوسيع · الأثر · الرجوع · عقد الاستدعاء · السيناريوهات · التزامن) · 742 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -1760,31 +1951,31 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 356 | neg20() { # $1 id+name, $2 change SQL, $3 restore SQL, $4 expected error |
 | 392 | # ---- 10) الرجوع قبل أي حذف، وإعادة التطبيق ---- |
 | 412 | # ---- 10b) عقد استدعاء التطبيقات على البناء الكامل + 0022 (المرحلة B، العقد §٧-أ) ---- |
-| 429 | # ---- 11) السيناريوهات (معاملة بترجع) ---- |
-| 436 | # ---- 12) التزامن بجلستين (committed) ---- |
-| 437 | ver() { q "select updated_at from public.products where id = $1"; } |
-| 438 | exists_p() { q "select count(*) from public.products where id = $1"; } |
-| 439 | om() { q "select coalesce(max(id), 0) from public.storage_orphans"; } |
-| 440 | home_ids() { q "select value -> 'ids' from public.settings where key = 'home_products'"; } |
-| 441 | set_home() { q "delete from public.settings where key = 'home_products'" > /dev/null; q "insert into public.settings (key, value) values ('home_products', '{\"ids\": [$1]}')" > /dev/null; } |
-| 442 | mkp() { |
-| 449 | mkvis() { q "insert into public.products (name_ar, price_per_meter_piastres, is_active) values ('ci-0022-v-$1', 1000, true) returning id"; } |
-| 452 | fp_rest() { |
-| 472 | del_txt() { |
-| 481 | role_line() { [ -n "${1:-}" ] && printf 'set local role %s;' "$1"; } |
-| 482 | hold_txt() { printf '%s\n' "set statement_timeout = '20s';" "begin;" "$(role_line "${3:-}")" "$1;" "select pg_catalog.pg_sleep($2);" "commit;"; } |
-| 483 | other_txt() { printf '%s\n' "set statement_timeout = '20s';" "begin;" "$(role_line "${2:-}")" "$1;" "commit;"; } |
-| 484 | track() { local d=$(( $2 - $1 )); [ "$d" -gt "$MAXD" ] && MAXD=$d; LASTD=$d; } |
-| 487 | other_first() { |
-| 498 | delete_first() { |
-| 506 | deleted() { has "$TMP/d.out" '"deleted": true'; } |
-| 507 | dd() { |
-| 632 | outcome() { if deleted; then echo success; elif has "$TMP/d.out" '45508'; then echo 45508; else echo other; fi; } |
-| 732 | # ---- 13) الرجوع بعد حذف حقيقي: مرفوض ---- |
+| 430 | # ---- 11) السيناريوهات (معاملة بترجع) ---- |
+| 437 | # ---- 12) التزامن بجلستين (committed) ---- |
+| 438 | ver() { q "select updated_at from public.products where id = $1"; } |
+| 439 | exists_p() { q "select count(*) from public.products where id = $1"; } |
+| 440 | om() { q "select coalesce(max(id), 0) from public.storage_orphans"; } |
+| 441 | home_ids() { q "select value -> 'ids' from public.settings where key = 'home_products'"; } |
+| 442 | set_home() { q "delete from public.settings where key = 'home_products'" > /dev/null; q "insert into public.settings (key, value) values ('home_products', '{\"ids\": [$1]}')" > /dev/null; } |
+| 443 | mkp() { |
+| 450 | mkvis() { q "insert into public.products (name_ar, price_per_meter_piastres, is_active) values ('ci-0022-v-$1', 1000, true) returning id"; } |
+| 453 | fp_rest() { |
+| 473 | del_txt() { |
+| 482 | role_line() { [ -n "${1:-}" ] && printf 'set local role %s;' "$1"; } |
+| 483 | hold_txt() { printf '%s\n' "set statement_timeout = '20s';" "begin;" "$(role_line "${3:-}")" "$1;" "select pg_catalog.pg_sleep($2);" "commit;"; } |
+| 484 | other_txt() { printf '%s\n' "set statement_timeout = '20s';" "begin;" "$(role_line "${2:-}")" "$1;" "commit;"; } |
+| 485 | track() { local d=$(( $2 - $1 )); [ "$d" -gt "$MAXD" ] && MAXD=$d; LASTD=$d; } |
+| 488 | other_first() { |
+| 499 | delete_first() { |
+| 507 | deleted() { has "$TMP/d.out" '"deleted": true'; } |
+| 508 | dd() { |
+| 633 | outcome() { if deleted; then echo success; elif has "$TMP/d.out" '45508'; then echo 45508; else echo other; fi; } |
+| 733 | # ---- 13) الرجوع بعد حذف حقيقي: مرفوض ---- |
 
 ## `backend/db/ci/0023_sql_ci.sh`
 
-اختبارات SQL لـ 0023 INVENTORY-REMOVAL B في CI على داتابيز مبنية من القايمة لحد قبل 0023 (S0 · B01–B02 · X01 · P01 · E01 · G01–G05 · C01–C02 · Z01 · T01–T02 · A01–A05 · E02 · K01 · R01) · 349 سطر
+اختبارات SQL لـ 0023 INVENTORY-REMOVAL B في CI على داتابيز مبنية من القايمة لحد قبل 0023 (S0 · B01–B02 · X01 · P01 · E01 · G01–G05 · C01–C02 · Z01 · T01–T02 · A01–A05 · E02 · K01 · R01) · 350 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -1826,61 +2017,163 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 297 | # ---- 7) ptest قبل التطبيق ---- |
 | 304 | # ---- 8) التطبيق ---- |
 | 325 | # ---- 8ب) بعد 0023: الـ 9 verify الموجودة (نفس المتجه) وعقد استدعاء التطبيقات (مراجعة #195 B3) ---- |
-| 344 | # ---- 9) الإعادة ---- |
+| 345 | # ---- 9) الإعادة ---- |
 
 ## `backend/db/ci/0024_sql_ci.sh`
 
-اختبارات SQL لـ 0024 ORDER-DELETE B في CI على داتابيز مبنية من القايمة كلها (S0 · B01 · E01 · T01–T02 · G01–G02 · Z01 · A01–A05 · E02 · K01 · RB1–RB2 · R01 · X01 · F01–F17 · C01–C06) · 612 سطر
+اختبارات SQL لـ 0024 ORDER-DELETE B في CI على داتابيز مبنية من القايمة كلها (S0 · B01 · E01 · T01–T02 · G01–G02 · Z01 · A01–A05 · E02 · K01 · RB1–RB2 · R01 · X01 · F01–F17 · C01–C06) · 705 سطر
 
 | السطر | القسم |
 | ---: | --- |
-| 43 | record() { |
-| 47 | finish() { |
-| 57 | stop() { record "$1" no "$2"; echo "STOPPED: $1"; finish; } |
-| 58 | tailof() { tail -n 6 "$1" 2> /dev/null \| tr '\n' ' ' \| cut -c1-600; } |
-| 59 | su_q() { local db=$1; shift; psql -X -q -tA -v ON_ERROR_STOP=1 -U "$SUPER" -d "$db" "$@" < /dev/null; } |
-| 60 | su_f() { psql -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U "$SUPER" -d "$1" -f "$2" < /dev/null; } |
-| 61 | su_sql() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U "$SUPER" -d "$DB" -f - 2>&1; } |
-| 62 | pg_f() { psql -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$1" -f "$2" < /dev/null; } |
-| 63 | q() { psql -X -q -tA -v ON_ERROR_STOP=1 -U postgres -d "$DB" -c "$1" < /dev/null 2>&1; } |
-| 64 | run_file() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$1" < /dev/null > "$2" 2>&1; } |
-| 65 | has() { grep -q -- "$2" "$1"; } |
-| 66 | body_md5() { awk -v s="-- >>> $2" -v e="-- <<< $2" '$0 == s {f = 1} f {print} $0 == e {f = 0}' "$1" \| md5sum \| cut -d' ' -f1; } |
-| 68 | summary_of() { grep '^0\|summary\|' "$1"; } |
-| 69 | fails_of() { grep -E '^[0-9]+\\|(test\|check)\\|[^\|]*\\|[^\|]*\\|(fail\|f)\\|' "$1" \| tr '\n' ' ' \| cut -c1-1800; } |
-| 70 | with_appr() { sed "0,/^begin;\$/s//begin;\nset local zell.approved_by = '$2';/" "$1"; } |
-| 71 | run_appr() { with_appr "$1" "$2" \| psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f - > "$3" 2>&1; } |
-| 72 | state() { |
-| 81 | fp_out() { |
-| 92 | claims() { printf '{"sub":"%s","role":"authenticated","session_id":"%s"}' "$1" "$2"; } |
-| 93 | as_user() { |
-| 97 | srv() { |
-| 101 | issue() { |
-| 107 | pv() { as_user "$OWNER_ID" "$SESS" "select (x.p ->> 'ids_hash') \|\| '\|' \|\| (x.p ->> 'snapshot_hash') \|\| '\|' \|\| (x.p ->> 'count') from (select public.zell_purge_preview($1) as p) x"; } |
-| 108 | purge() { as_user "$OWNER_ID" "${5:-$SESS}" "select public.zell_purge_orders($1, '$2', $3, '$4'::uuid)::text"; } |
-| 109 | bg_purge() { # $1 ids $2 snap $3 count $4 ticket $5 out $6 app — the purge, then 3 s holding its locks before commit |
-| 114 | verify_only_v07() { # verify FAIL with V07 the only failing check |
-| 117 | oid_of() { q "select o.id from public.orders o where o.order_number = '$1'"; } |
-| 118 | f1() { printf '%s' "$1" \| cut -d'\|' -f1; } |
-| 119 | f2() { printf '%s' "$1" \| cut -d'\|' -f2; } |
-| 120 | f3() { printf '%s' "$1" \| cut -d'\|' -f3; } |
-| 121 | reset_attempts() { su_q "$DB" -c "delete from public.zell_purge_attempts" > /dev/null 2>&1; } |
-| 122 | now_ms() { date +%s%3N; } |
-| 123 | wait_app() { |
-| 134 | verifies() { |
-| 145 | verifies_pass() { [ "$(grep -c . "$TMP/ver_$1.txt")" = "9" ] && ! grep -qvE ' rc=0 verdict=PASS checks=[1-9][0-9]*$' "$TMP/ver_$1.txt"; } |
-| 146 | verifies_detail() { |
-| 154 | # ---- 1) فحوص ثابتة ---- |
-| 166 | # ---- 2) بناء الداتابيز من القايمة الصريحة كلها ---- |
-| 194 | # ---- 3) قبل التطبيق: الـ 9 verify · ptest · الحراس · الرجوع الكامل ---- |
-| 216 | # ---- 4) التطبيق ---- |
-| 287 | # ---- 5) بيانات CI ---- |
-| 333 | # ---- 6) السيناريوهات ---- |
-| 520 | # ---- 7) جلستين ---- |
-| 536 | holder_fn() { # $1 sql $2 out $3 app — the admin calls a real TR2 function, holds its locks 4 s, then rolls back (no data change) |
-| 541 | msg_ver() { q "select u.id \|\| '\|' \|\| u.updated_at from public.zell_order_customer_updates u where u.order_id = $OB order by u.id limit 1"; } |
-| 542 | shp_ver() { q "select s.updated_at from public.zell_order_shipments s where s.order_id = $OB"; } |
-| 604 | # ---- 8) الرجوع بعد مسح فعلي · verify ---- |
+| 51 | record() { |
+| 55 | finish() { |
+| 65 | stop() { record "$1" no "$2"; echo "STOPPED: $1"; finish; } |
+| 66 | tailof() { tail -n 6 "$1" 2> /dev/null \| tr '\n' ' ' \| cut -c1-600; } |
+| 67 | su_q() { local db=$1; shift; psql -X -q -tA -v ON_ERROR_STOP=1 -U "$SUPER" -d "$db" "$@" < /dev/null; } |
+| 68 | su_f() { psql -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U "$SUPER" -d "$1" -f "$2" < /dev/null; } |
+| 69 | su_sql() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U "$SUPER" -d "$DB" -f - 2>&1; } |
+| 70 | pg_f() { psql -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$1" -f "$2" < /dev/null; } |
+| 71 | q() { psql -X -q -tA -v ON_ERROR_STOP=1 -U postgres -d "$DB" -c "$1" < /dev/null 2>&1; } |
+| 72 | run_file() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$1" < /dev/null > "$2" 2>&1; } |
+| 73 | has() { grep -q -- "$2" "$1"; } |
+| 74 | body_md5() { awk -v s="-- >>> $2" -v e="-- <<< $2" '$0 == s {f = 1} f {print} $0 == e {f = 0}' "$1" \| md5sum \| cut -d' ' -f1; } |
+| 76 | summary_of() { grep '^0\|summary\|' "$1"; } |
+| 77 | fails_of() { grep -E '^[0-9]+\\|(test\|check)\\|[^\|]*\\|[^\|]*\\|(fail\|f)\\|' "$1" \| tr '\n' ' ' \| cut -c1-1800; } |
+| 78 | with_appr() { sed "0,/^begin;\$/s//begin;\nset local zell.approved_by = '$2';/" "$1"; } |
+| 79 | run_appr() { with_appr "$1" "$2" \| psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f - > "$3" 2>&1; } |
+| 80 | state() { |
+| 89 | fp_out() { |
+| 100 | claims() { printf '{"sub":"%s","role":"authenticated","session_id":"%s"}' "$1" "$2"; } |
+| 101 | as_user() { |
+| 105 | srv() { |
+| 109 | issue() { |
+| 115 | pv() { as_user "$OWNER_ID" "$SESS" "select (x.p ->> 'ids_hash') \|\| '\|' \|\| (x.p ->> 'snapshot_hash') \|\| '\|' \|\| (x.p ->> 'count') from (select public.zell_purge_preview($1) as p) x"; } |
+| 116 | purge() { as_user "$OWNER_ID" "${5:-$SESS}" "select public.zell_purge_orders($1, '$2', $3, '$4'::uuid)::text"; } |
+| 117 | bg_purge() { # $1 ids $2 snap $3 count $4 ticket $5 out $6 app — the purge, then 3 s holding its locks before commit |
+| 122 | verify_only_v07() { # verify FAIL with V07 the only failing check |
+| 125 | oid_of() { q "select o.id from public.orders o where o.order_number = '$1'"; } |
+| 126 | f1() { printf '%s' "$1" \| cut -d'\|' -f1; } |
+| 127 | f2() { printf '%s' "$1" \| cut -d'\|' -f2; } |
+| 128 | f3() { printf '%s' "$1" \| cut -d'\|' -f3; } |
+| 129 | reset_attempts() { su_q "$DB" -c "delete from public.zell_purge_attempts" > /dev/null 2>&1; } |
+| 130 | now_ms() { date +%s%3N; } |
+| 131 | wait_app() { |
+| 142 | verifies() { |
+| 153 | verifies_pass() { [ "$(grep -c . "$TMP/ver_$1.txt")" = "9" ] && ! grep -qvE ' rc=0 verdict=PASS checks=[1-9][0-9]*$' "$TMP/ver_$1.txt"; } |
+| 154 | verifies_detail() { |
+| 163 | impact() { psql -X -q -tA -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U postgres -d "$DB" -f "$IMPACT" < /dev/null > "$TMP/imp_$1.out" 2>&1; echo "$?" > "$TMP/imp_$1.rc"; } |
+| 164 | imp_valid() { [ "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" = "0" ] && [ "$(grep -c . "$TMP/imp_$1.out")" = "1" ] && [ "$(awk -F'\|' 'NF {print NF}' "$TMP/imp_$1.out")" = "32" ]; } |
+| 165 | imp_f() { grep -v '^$' "$TMP/imp_$1.out" \| head -n 1 \| cut -d'\|' -f"$2"; } |
+| 166 | imp_detail() { printf 'rc=%s %s' "$(cat "$TMP/imp_$1.rc" 2> /dev/null)" "$(tr '\n' ' ' < "$TMP/imp_$1.out" \| cut -c1-900)"; } |
+| 167 | imp_gate() { imp_valid "$1" && [ "$(imp_f "$1" 28-31)" = "0\|0\|0\|t" ]; } |
+| 169 | impact_v() { su_q "$DB" -c "grant pg_read_all_stats to postgres" > "$TMP/impv_$1.log" 2>&1; impact "$1"; su_q "$DB" -c "revoke pg_read_all_stats from postgres" >> "$TMP/impv_$1.log" 2>&1; } |
+| 170 | wait_idle() { |
+| 179 | # ---- 1) فحوص ثابتة ---- |
+| 194 | # ---- 2) بناء الداتابيز من القايمة الصريحة لحد قبل 0024 ---- |
+| 223 | # ---- رؤية الجلسات: جلسة دور تاني idle in transaction؛ من غير pg_read_all_stats حالتها مخفية عن postgres ---- |
+| 240 | # ---- 3) قبل التطبيق: الـ 9 verify · ptest · الحراس · الرجوع الكامل ---- |
+| 265 | # ---- 4) التطبيق ---- |
+| 342 | # ---- 5) بيانات CI ---- |
+| 387 | # ---- 5ب) استعلام الأثر ببيانات غير فاضية (الجداول التسعة كلها فيها صفوف من X01) ---- |
+| 426 | # ---- 6) السيناريوهات ---- |
+| 613 | # ---- 7) جلستين ---- |
+| 629 | holder_fn() { # $1 sql $2 out $3 app — the admin calls a real TR2 function, holds its locks 4 s, then rolls back (no data change) |
+| 634 | msg_ver() { q "select u.id \|\| '\|' \|\| u.updated_at from public.zell_order_customer_updates u where u.order_id = $OB order by u.id limit 1"; } |
+| 635 | shp_ver() { q "select s.updated_at from public.zell_order_shipments s where s.order_id = $OB"; } |
+| 697 | # ---- 8) الرجوع بعد مسح فعلي · verify ---- |
+
+## `backend/db/migrations/0022_product_delete_ptest.sql`
+
+0022 اختبار قبل التطبيق (smoke، الجسم منسوخ بالحرف، والنتيجة صفوف) · 524 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 10 | begin; |
+| 14 | do $zguard$ |
+| 36 | create temporary table zt_results (n serial, id text, name text, outcome text, detail text) on commit drop; |
+| 38 | create function pg_temp.zt(p_name text, p_ok boolean, p_detail text) |
+| 44 | create function pg_temp.call_as(p_role text, p_sql text) |
+| 65 | -- >>> 0022 BODY |
+| 69 | -- (0) preflight: المتصل · الموافقة · المتطلبات · مش متطبّق قبل كده · الأكواد 45501..45508 مش مستخدمة · منحة helper المخزون مش موجودة. |
+| 70 | do $pdpre$ |
+| 120 | -- (1) الدور: NOLOGIN + NOBYPASSRLS + NOINHERIT. عضوية postgres: SET بس (زي zell_order_definer و zell_inventory_definer). |
+| 121 | create role zell_catalog_definer nologin nobypassrls noinherit nocreaterole nocreatedb noreplication; |
+| 125 | -- (2) أقل صلاحيات (العقد §٤-ج): منح أعمدة + policies باسم zell_catalog_definer_*. القفل (for update) محتاج منحة UPDATE |
+| 138 | create policy zell_catalog_definer_select on public.products for select to zell_catalog_definer using (true); |
+| 139 | create policy zell_catalog_definer_lock on public.products for update to zell_catalog_definer using (true) with check (false); |
+| 140 | create policy zell_catalog_definer_delete on public.products for delete to zell_catalog_definer using (true); |
+| 141 | create policy zell_catalog_definer_select on public.product_images for select to zell_catalog_definer using (true); |
+| 142 | create policy zell_catalog_definer_lock on public.product_images for update to zell_catalog_definer using (true) with check (false); |
+| 143 | create policy zell_catalog_definer_select on public.product_widths for select to zell_catalog_definer using (true); |
+| 144 | create policy zell_catalog_definer_lock on public.product_widths for update to zell_catalog_definer using (true) with check (false); |
+| 145 | create policy zell_catalog_definer_select on public.product_addons for select to zell_catalog_definer using (true); |
+| 146 | create policy zell_catalog_definer_lock on public.product_addons for update to zell_catalog_definer using (true) with check (false); |
+| 147 | create policy zell_catalog_definer_select on public.product_collections for select to zell_catalog_definer using (true); |
+| 148 | create policy zell_catalog_definer_lock on public.product_collections for update to zell_catalog_definer using (true) with check (false); |
+| 149 | create policy zell_catalog_definer_select on public.order_items for select to zell_catalog_definer using (true); |
+| 150 | create policy zell_catalog_definer_select on public.settings for select to zell_catalog_definer using (key = 'home_products'); |
+| 151 | create policy zell_catalog_definer_update on public.settings for update to zell_catalog_definer |
+| 153 | create policy zell_catalog_definer_select on public.storage_orphans for select to zell_catalog_definer using (true); |
+| 154 | create policy zell_catalog_definer_lock on public.storage_orphans for update to zell_catalog_definer using (true) with check (false); |
+| 155 | create policy zell_catalog_definer_insert on public.storage_orphans for insert to zell_catalog_definer |
+| 158 | -- (3) سبب product_deleted: نفس اسم القيد، والقيم القديمة زي ما هي (العقد §٢-أ). |
+| 163 | -- (4) سلسلة الهوية: الأولتين مالكهم zell_order_definer (invoker)، والتالتة definer مالكها postgres. |
+| 169 | -- (5) سلسلة المخزون (العقد §٤-ب): منحة واحدة على الـ helper (مالكه postgres) لدور المخزون، وغلاف definer مالكه دور المخزون. |
+| 173 | create function public.zell_inv_product_stock_ref_exists(p_product_id integer) |
+| 182 | -- (6) الدوال: CREATE كـ zell_catalog_definer (SET LOCAL ROLE). |
+| 187 | create function public.zell_product_delete(p_product_id integer, p_expected_updated_at timestamptz) |
+| 316 | create function public.zell_product_delete_preview(p_product_id integer) |
+| 358 | create function public.zell_catalog_trg_home_products_guard() |
+| 386 | create trigger zell_catalog_home_products_guard |
+| 401 | -- (7) postflight |
+| 402 | do $pdpost$ |
+| 439 | -- <<< 0022 BODY |
+| 441 | do $zT$ |
+| 524 | rollback; |
+
+## `backend/db/migrations/0022_product_delete.sql`
+
+0022 PRODUCT-DELETE: حذف المنتج للمالك — الدور zell_catalog_definer والدوال والصلاحيات (متطبّق 2026-10-26) · 394 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 18 | begin; |
+| 19 | -- >>> 0022 BODY |
+| 23 | -- (0) preflight: المتصل · الموافقة · المتطلبات · مش متطبّق قبل كده · الأكواد 45501..45508 مش مستخدمة · منحة helper المخزون مش موجودة. |
+| 24 | do $pdpre$ |
+| 74 | -- (1) الدور: NOLOGIN + NOBYPASSRLS + NOINHERIT. عضوية postgres: SET بس (زي zell_order_definer و zell_inventory_definer). |
+| 75 | create role zell_catalog_definer nologin nobypassrls noinherit nocreaterole nocreatedb noreplication; |
+| 79 | -- (2) أقل صلاحيات (العقد §٤-ج): منح أعمدة + policies باسم zell_catalog_definer_*. القفل (for update) محتاج منحة UPDATE |
+| 92 | create policy zell_catalog_definer_select on public.products for select to zell_catalog_definer using (true); |
+| 93 | create policy zell_catalog_definer_lock on public.products for update to zell_catalog_definer using (true) with check (false); |
+| 94 | create policy zell_catalog_definer_delete on public.products for delete to zell_catalog_definer using (true); |
+| 95 | create policy zell_catalog_definer_select on public.product_images for select to zell_catalog_definer using (true); |
+| 96 | create policy zell_catalog_definer_lock on public.product_images for update to zell_catalog_definer using (true) with check (false); |
+| 97 | create policy zell_catalog_definer_select on public.product_widths for select to zell_catalog_definer using (true); |
+| 98 | create policy zell_catalog_definer_lock on public.product_widths for update to zell_catalog_definer using (true) with check (false); |
+| 99 | create policy zell_catalog_definer_select on public.product_addons for select to zell_catalog_definer using (true); |
+| 100 | create policy zell_catalog_definer_lock on public.product_addons for update to zell_catalog_definer using (true) with check (false); |
+| 101 | create policy zell_catalog_definer_select on public.product_collections for select to zell_catalog_definer using (true); |
+| 102 | create policy zell_catalog_definer_lock on public.product_collections for update to zell_catalog_definer using (true) with check (false); |
+| 103 | create policy zell_catalog_definer_select on public.order_items for select to zell_catalog_definer using (true); |
+| 104 | create policy zell_catalog_definer_select on public.settings for select to zell_catalog_definer using (key = 'home_products'); |
+| 105 | create policy zell_catalog_definer_update on public.settings for update to zell_catalog_definer |
+| 107 | create policy zell_catalog_definer_select on public.storage_orphans for select to zell_catalog_definer using (true); |
+| 108 | create policy zell_catalog_definer_lock on public.storage_orphans for update to zell_catalog_definer using (true) with check (false); |
+| 109 | create policy zell_catalog_definer_insert on public.storage_orphans for insert to zell_catalog_definer |
+| 112 | -- (3) سبب product_deleted: نفس اسم القيد، والقيم القديمة زي ما هي (العقد §٢-أ). |
+| 117 | -- (4) سلسلة الهوية: الأولتين مالكهم zell_order_definer (invoker)، والتالتة definer مالكها postgres. |
+| 123 | -- (5) سلسلة المخزون (العقد §٤-ب): منحة واحدة على الـ helper (مالكه postgres) لدور المخزون، وغلاف definer مالكه دور المخزون. |
+| 127 | create function public.zell_inv_product_stock_ref_exists(p_product_id integer) |
+| 136 | -- (6) الدوال: CREATE كـ zell_catalog_definer (SET LOCAL ROLE). |
+| 141 | create function public.zell_product_delete(p_product_id integer, p_expected_updated_at timestamptz) |
+| 270 | create function public.zell_product_delete_preview(p_product_id integer) |
+| 312 | create function public.zell_catalog_trg_home_products_guard() |
+| 340 | create trigger zell_catalog_home_products_guard |
+| 355 | -- (7) postflight |
+| 356 | do $pdpost$ |
+| 393 | -- <<< 0022 BODY |
+| 394 | commit; |
 
 ## `backend/db/migrations/0023_inventory_removal_ptest.sql`
 
@@ -2023,6 +2316,111 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 556 | -- <<< 0024 BODY |
 | 557 | commit; |
 
+## `backend/db/migrations/0025_installer_shipping_ptest.sql`
+
+0025 اختبار قبل التطبيق (smoke، الجسم منسوخ بالحرف، والنتيجة صفوف) · 956 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 10 | begin; |
+| 14 | create temporary table zt_results (n serial, id text, name text, outcome text, detail text) on commit drop; |
+| 16 | create function pg_temp.zt(p_name text, p_ok boolean, p_detail text) |
+| 22 | -- >>> 0025 BODY |
+| 26 | -- (0) preflight: المتصل postgres · سطر الموافقة · المتطلبات · zell_create_order واحدة (15 معامل) وجسمها بالبصمة المتوقعة · |
+| 28 | do $isppre$ |
+| 71 | -- (1) zell_create_order: create or replace بنفس التوقيع (15) من غير drop، فالمالك والصلاحيات بيفضلوا زي ما هم. الجسم = جسم |
+| 73 | CREATE OR REPLACE FUNCTION public.zell_create_order(p_items jsonb, p_customer_name text, p_customer_phone text, p_governorate text, p_address text, p_notes text, p_idempotency_key text, p_request_hash text, p_checkout_session_hash text, p_receipt_token_hash text, p_area text DEFAULT NULL::text, p_installation boolean DEFAULT false, p_coupon_code text DEFAULT NULL::text, p_preferred_delivery jsonb DEFAULT NULL::jsonb, p_shipping_method text DEFAULT NULL::text) |
+| 854 | -- (2) postflight: دالة واحدة (15 معامل) · البصمة الجديدة · المالك postgres · security definer · search_path فاضي · |
+| 857 | do $isppost$ |
+| 883 | -- <<< 0025 BODY |
+| 885 | do $zT$ |
+| 956 | rollback; |
+
+## `backend/db/migrations/0025_installer_shipping_rollback.sql`
+
+الرجوع عن 0025: جسم zell_create_order بتاع 0021ex بالحرف (بموافقة لوحدها بس) · 861 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 10 | begin; |
+| 11 | -- >>> 0025R BODY |
+| 15 | -- (0) preflight: المتصل postgres · سطر الموافقة · المتطلبات · zell_create_order واحدة (15 معامل) وجسمها بالبصمة المتوقعة · |
+| 17 | do $isrpre$ |
+| 58 | -- (1) zell_create_order: جسم 0021ex بالحرف، create or replace بنفس التوقيع من غير drop. |
+| 59 | CREATE OR REPLACE FUNCTION public.zell_create_order(p_items jsonb, p_customer_name text, p_customer_phone text, p_governorate text, p_address text, p_notes text, p_idempotency_key text, p_request_hash text, p_checkout_session_hash text, p_receipt_token_hash text, p_area text DEFAULT NULL::text, p_installation boolean DEFAULT false, p_coupon_code text DEFAULT NULL::text, p_preferred_delivery jsonb DEFAULT NULL::jsonb, p_shipping_method text DEFAULT NULL::text) |
+| 831 | -- (2) postflight: دالة واحدة (15 معامل) · البصمة الجديدة · المالك postgres · security definer · search_path فاضي · |
+| 834 | do $isrpost$ |
+| 860 | -- <<< 0025R BODY |
+| 861 | commit; |
+
+## `backend/db/migrations/0025_installer_shipping.sql`
+
+0025 INSTALLER-SHIPPING: zell_create_order بالانتقال بدل الشحن مع الفني، نفس التوقيع (15 معامل) (متطبّق 2026-11-06) · 886 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 23 | begin; |
+| 24 | -- >>> 0025 BODY |
+| 28 | -- (0) preflight: المتصل postgres · سطر الموافقة · المتطلبات · zell_create_order واحدة (15 معامل) وجسمها بالبصمة المتوقعة · |
+| 30 | do $isppre$ |
+| 73 | -- (1) zell_create_order: create or replace بنفس التوقيع (15) من غير drop، فالمالك والصلاحيات بيفضلوا زي ما هم. الجسم = جسم |
+| 75 | CREATE OR REPLACE FUNCTION public.zell_create_order(p_items jsonb, p_customer_name text, p_customer_phone text, p_governorate text, p_address text, p_notes text, p_idempotency_key text, p_request_hash text, p_checkout_session_hash text, p_receipt_token_hash text, p_area text DEFAULT NULL::text, p_installation boolean DEFAULT false, p_coupon_code text DEFAULT NULL::text, p_preferred_delivery jsonb DEFAULT NULL::jsonb, p_shipping_method text DEFAULT NULL::text) |
+| 856 | -- (2) postflight: دالة واحدة (15 معامل) · البصمة الجديدة · المالك postgres · security definer · search_path فاضي · |
+| 859 | do $isppost$ |
+| 885 | -- <<< 0025 BODY |
+| 886 | commit; |
+
+## `backend/db/migrations/0026_image_delete_ptest.sql`
+
+0026 اختبار قبل التطبيق (smoke، الجسم منسوخ بالحرف، والنتيجة صفوف) · 480 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 11 | begin; |
+| 15 | do $zguard$ |
+| 29 | -- >>> 0026 BODY |
+| 33 | -- (0) preflight: المتصل · الموافقة · المتطلبات · مش متطبّق قبل كده · الأكواد 45701..45705 مش مستخدمة · قيد الأسباب · |
+| 37 | do $idpre$ |
+| 132 | -- (1) أقل صلاحيات (العقد §٤): على product_images بس، وpolicies جديدة باسم zell_catalog_definer_*. |
+| 138 | create policy zell_catalog_definer_image_delete on public.product_images |
+| 140 | create policy zell_catalog_definer_image_promote on public.product_images |
+| 142 | create policy zell_catalog_definer_insert_removed on public.storage_orphans |
+| 145 | -- (2) الدالتين، مالكهم zell_catalog_definer (CREATE على السكيما مؤقت حوالين الإنشاء بس، زي 0023). |
+| 151 | create function public.zell_product_image_delete(p_product_id integer, p_image_id bigint) |
+| 280 | create function public.zell_catalog_trg_products_activation_guard() |
+| 300 | -- (3) الـ trigger قبل سحب EXECUTE من PUBLIC: CREATE TRIGGER بيطلب EXECUTE على الدالة للي بينشئه (زي 0022). |
+| 301 | create trigger zell_catalog_products_activation_guard |
+| 313 | -- (4) postflight: المالك · security definer · الإعدادات · الصلاحيات بالظبط (من غير grant option) · الـ trigger · |
+| 315 | do $idpost$ |
+| 414 | -- <<< 0026 BODY |
+| 416 | create temporary table zt_results (n serial, id text, outcome text, detail text) on commit drop; |
+| 418 | do $zchk$ |
+| 480 | rollback; |
+
+## `backend/db/migrations/0026_image_delete.sql`
+
+0026 IMAGE-DELETE: حذف صورة من منتج + حارس تفعيل المنتج (متطبّق 2026-11-07) · 403 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 16 | begin; |
+| 17 | -- >>> 0026 BODY |
+| 21 | -- (0) preflight: المتصل · الموافقة · المتطلبات · مش متطبّق قبل كده · الأكواد 45701..45705 مش مستخدمة · قيد الأسباب · |
+| 25 | do $idpre$ |
+| 120 | -- (1) أقل صلاحيات (العقد §٤): على product_images بس، وpolicies جديدة باسم zell_catalog_definer_*. |
+| 126 | create policy zell_catalog_definer_image_delete on public.product_images |
+| 128 | create policy zell_catalog_definer_image_promote on public.product_images |
+| 130 | create policy zell_catalog_definer_insert_removed on public.storage_orphans |
+| 133 | -- (2) الدالتين، مالكهم zell_catalog_definer (CREATE على السكيما مؤقت حوالين الإنشاء بس، زي 0023). |
+| 139 | create function public.zell_product_image_delete(p_product_id integer, p_image_id bigint) |
+| 268 | create function public.zell_catalog_trg_products_activation_guard() |
+| 288 | -- (3) الـ trigger قبل سحب EXECUTE من PUBLIC: CREATE TRIGGER بيطلب EXECUTE على الدالة للي بينشئه (زي 0022). |
+| 289 | create trigger zell_catalog_products_activation_guard |
+| 301 | -- (4) postflight: المالك · security definer · الإعدادات · الصلاحيات بالظبط (من غير grant option) · الـ trigger · |
+| 303 | do $idpost$ |
+| 402 | -- <<< 0026 BODY |
+| 403 | commit; |
+
 ## `backend/db/migrations/0027_default_privileges_ptest.sql`
 
 0027 DEFAULT-PRIVILEGES B اختبار قبل التطبيق (smoke، 7 حالات، الجسم منسوخ بالحرف، وكائنات تجربة وبصمات، والنتيجة صفوف) · 303 سطر
@@ -2052,7 +2450,7 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 
 ## `docs/contracts/0021-A.md`
 
-عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر · 438 سطر
+عقد 0021-أ: دورة الطلب والتأكيد والسجل والدفعات ورسوم التأكيد · التقسيم والمخاطر · 439 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -2064,37 +2462,64 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 69 | ## ١) الوضع النهارده (اللي بنبني عليه) |
 | 79 | ## ٢) دورة الطلب |
 | 81 | ### ٢-١ الحالات والانتقالات |
-| 105 | ### ٢-٢ أمر التجهيز |
-| 110 | ### ٢-٣ التعديل قبل التأكيد |
-| 117 | ### ٢-٤ التأكيد بالتليفون |
-| 127 | ### ٢-٥ السجل (تاريخ الطلب) |
-| 136 | ### ٢-٦ منع المسح |
-| 141 | ### ٢-٧ الحالات الجديدة في النظام كله (قرار المالك ٢، 2026-10-09) |
-| 155 | ### ٢-٨ مواعيد التسليم (قرار المالك ٥، 2026-10-09) |
-| 171 | ## ٣) الدفعات |
-| 173 | ### ٣-١ جدول الدفعات |
-| 181 | ### ٣-٢ حالة الدفع (مشتقة، مش عمود حر) |
-| 187 | ### ٣-٣ رسوم تأكيد الطلب |
-| 207 | ### ٣-٤ الاستلام والتحصيل |
-| 213 | ### ٣-٥ طرق الدفع (قايمة قابلة للتخصيص) |
-| 220 | ## ٤) سعر التركيب للمقاس — عقد مالي مستقل |
-| 225 | ## ٥) الصلاحيات والهوية |
-| 233 | ## ٦) `zell_create_order` — المخاطر وبروتوكول الفلوس |
-| 237 | ### ٦-١ البروتوكول (`04-DB-SAFETY.md` + دروس 0021-P) — إلزامي |
-| 253 | ### ٦-٢ المخاطر |
-| 270 | ## ٧) تقسيم التنفيذ (PR واحد في المرة) |
-| 290 | ### ٧-١ الدومين (قرار المالك ٦، 2026-10-09) |
-| 295 | ## ٨) معايير القبول |
-| 304 | ## ٩) الرجوع |
-| 312 | ## ١٠) برّه النطاق |
-| 316 | ## ١١) أسئلة للمالك (مش محسومة — العقد مش هيفترض إجابة) |
-| 339 | ## ١٢) قرارات تقنية للمراجع |
-| 350 | ## ١٣) سجل التعديلات |
-| 364 | ## ١٤) تفاصيل تنفيذ A1 (`backend/db/migrations/0021a_a1_order_cycle.sql`) |
-| 381 | ## ١٥) تفاصيل تنفيذ A2 (اللوحة + `@zell/core`) |
-| 397 | ## ١٦) تفاصيل تنفيذ D (`backend/db/migrations/0021d_preferred_delivery.sql`) |
-| 409 | ## ١٧) تفاصيل تنفيذ P1 (`backend/db/migrations/0021a_p1_payments.sql`) |
-| 426 | ## ١٨) تفاصيل تنفيذ P2 (اللوحة · المتجر · `backend/db/migrations/0021a_p2_checkout_fee.sql`) |
+| 105 | ### ٢-٢ (اتشال) |
+| 109 | ### ٢-٣ التعديل قبل التأكيد |
+| 116 | ### ٢-٤ التأكيد بالتليفون |
+| 126 | ### ٢-٥ السجل (تاريخ الطلب) |
+| 135 | ### ٢-٦ منع المسح |
+| 140 | ### ٢-٧ الحالات الجديدة في النظام كله (قرار المالك ٢، 2026-10-09) |
+| 154 | ### ٢-٨ مواعيد التسليم (قرار المالك ٥، 2026-10-09) |
+| 170 | ## ٣) الدفعات |
+| 172 | ### ٣-١ جدول الدفعات |
+| 180 | ### ٣-٢ حالة الدفع (مشتقة، مش عمود حر) |
+| 186 | ### ٣-٣ رسوم تأكيد الطلب |
+| 206 | ### ٣-٤ الاستلام والتحصيل |
+| 212 | ### ٣-٥ طرق الدفع (قايمة قابلة للتخصيص) |
+| 219 | ## ٤) سعر التركيب للمقاس — عقد مالي مستقل |
+| 224 | ## ٥) الصلاحيات والهوية |
+| 232 | ## ٦) `zell_create_order` — المخاطر وبروتوكول الفلوس |
+| 236 | ### ٦-١ البروتوكول (`04-DB-SAFETY.md` + دروس 0021-P) — إلزامي |
+| 252 | ### ٦-٢ المخاطر |
+| 269 | ## ٧) تقسيم التنفيذ (PR واحد في المرة) |
+| 289 | ### ٧-١ الدومين (قرار المالك ٦، 2026-10-09) |
+| 294 | ## ٨) معايير القبول |
+| 303 | ## ٩) الرجوع |
+| 311 | ## ١٠) برّه النطاق |
+| 315 | ## ١١) أسئلة للمالك (مش محسومة — العقد مش هيفترض إجابة) |
+| 338 | ## ١٢) قرارات تقنية للمراجع |
+| 349 | ## ١٣) سجل التعديلات |
+| 365 | ## ١٤) تفاصيل تنفيذ A1 (`backend/db/migrations/0021a_a1_order_cycle.sql`) |
+| 382 | ## ١٥) تفاصيل تنفيذ A2 (اللوحة + `@zell/core`) |
+| 398 | ## ١٦) تفاصيل تنفيذ D (`backend/db/migrations/0021d_preferred_delivery.sql`) |
+| 410 | ## ١٧) تفاصيل تنفيذ P1 (`backend/db/migrations/0021a_p1_payments.sql`) |
+| 427 | ## ١٨) تفاصيل تنفيذ P2 (اللوحة · المتجر · `backend/db/migrations/0021a_p2_checkout_fee.sql`) |
+
+## `docs/contracts/0021-D2.md`
+
+عقد 0021-D2: تحكم المالك في موعد التسليم في Checkout · 135 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 1 | # عقد 0021-D2 — تحكم المالك في موعد التسليم في Checkout |
+| 6 | ## ٠) قرار المالك (2026-10-11) |
+| 13 | ## ١) الوضع النهارده |
+| 20 | ## ٢) الميزة |
+| 22 | ### ٢-١ الإعداد (صف واحد في الداتابيز) |
+| 29 | ### ٢-٢ الدوال (الأسماء برّه عدّادات `zell_order_*` و`zell_payment_*`) |
+| 39 | ### ٢-٣ المتجر |
+| 56 | ### ٢-٤ اللوحة |
+| 64 | ## ٣) الأكواد |
+| 69 | ## ٤) الرجوع |
+| 74 | ## ٥) الاختبارات |
+| 75 | ### ٥-١ CI (PostgreSQL مؤقت + اختبارات الكود) |
+| 84 | ### ٥-٢ ptest على Production (smoke، المعاملة بترجع) |
+| 86 | ### ٥-٣ بعد التطبيق |
+| 89 | ## ٦) التقسيم (PR واحد في المرة) |
+| 94 | ## ٧) برّه النطاق |
+| 97 | ## ٨) قرارات تقنية للمراجع |
+| 106 | ## ٩) سجل التعديلات |
+| 110 | ## ١٠) تفاصيل تنفيذ W1 (`backend/db/migrations/0021d2_delivery_settings.sql`) |
+| 124 | ## ١١) تفاصيل تنفيذ W2 (اللوحة · Checkout · `/api/orders`) |
 
 ## `docs/contracts/0021-P-code.md`
 
@@ -2145,6 +2570,53 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 226 | ### التطبيق على Production (head `da273c4`، بعد backup كامل عند المالك) |
 | 240 | ## ١٤) الأثر على PR الكود الجاي |
 | 250 | ## ١٥) سؤال مفتوح |
+
+## `docs/contracts/BASELINE-OUTSIDE.md`
+
+عقد BASELINE-OUTSIDE: رسم الحاجات اللي اتعملت برّه ملفات الداتابيز، والبناء من الصفر في CI · 116 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 1 | # عقد BASELINE-OUTSIDE — رسم الحاجات اللي اتعملت برّه ملفات الداتابيز |
+| 11 | ## ٠) ليه |
+| 16 | ## ١) النطاق (من `docs/maps/db-map.md` — «برّه الملفات») |
+| 21 | ## ٢) خطوة 0 على Production — قراية catalog بس (موافقة: `owner-approval-<يوم التشغيل>-baseline-step0-read`) |
+| 31 | ## ٣) الملفات الناتجة (PR الكود) |
+| 42 | ## ٤) البناء من الصفر في CI (من غير Production) |
+| 50 | ## ٥) الحارس الدائم لعقد الاستدعاء (ر٢) |
+| 56 | ## ٦) برّه النطاق |
+| 59 | ## ٧) الرجوع |
+| 62 | ## ٩) تعديل النطاق 1 — بعد خطوة 0 وتجربة البناء |
+| 75 | ## ١٠) تعديل النطاق 2 — نتايج قراية الأعمدة وملفات الـ baseline |
+| 100 | ## ١١) تعديل النطاق 3 — `orders.internal_notes` وقيده، وتصميم `orders` / `order_items` في المقارنة |
+| 112 | ## ٨) سجل المراجعة |
+
+## `docs/contracts/COOKIES-HEADERS.md`
+
+عقد COOKIES-HEADERS: كوكيز جلسة اللوحة وheaders الأمان للتطبيقين · 154 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 1 | # عقد COOKIES-HEADERS — كوكيز جلسة اللوحة + headers الأمان للتطبيقين |
+| 12 | ## ٠) المطلوب وليه |
+| 16 | ## ١) الوضع النهارده (main `e5957b6`) |
+| 17 | ### ١-١ الكوكيز (اللوحة بس — المتجر مفيهوش دخول عملاء) |
+| 28 | ### ١-٢ الـ headers |
+| 34 | ## ٢) الكوكيز — التصميم |
+| 42 | ## ٣) الكوكيز — الاختبارات المطلوبة (الكوكيز المكتوبة فعليًا، مش قيمة الإعداد) |
+| 54 | ## ٤) الـ headers — التصميم |
+| 68 | ### ٤-١ HSTS — قرار مطلوب من المالك |
+| 80 | ### ٤-٢ اختبارات الـ headers |
+| 84 | ## ٥) قراية الـ headers من الموقع (Production) — كل واحدة بموافقة المالك لوحدها |
+| 87 | ### ٥-١ المسارات (طلب `GET` واحد لكل مسار = طلبين في كل قراية) |
+| 96 | ### ٥-٢ العميل والضوابط |
+| 102 | ### ٥-٣ اللي بيتسجّل (وبس) |
+| 109 | ### ٥-٤ إمتى |
+| 113 | ### ٥-٥ نتيجة الـ baseline (قبل الكود) — منقولة، مش متحققة من شات التنفيذ |
+| 131 | ## ٦) بعد الدمج |
+| 137 | ## ٧) برّه النطاق |
+| 142 | ## ٨) الملفات المتوقعة في PR الكود |
+| 149 | ## ٩) الترتيب |
 
 ## `docs/contracts/DEFAULT-PRIVILEGES.md`
 
@@ -2227,6 +2699,29 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 172 | ## ١١) برّه النطاق |
 | 175 | ## ١٢) سجل التعديلات |
 
+## `docs/contracts/INSTALLER-SHIPPING.md`
+
+عقد INSTALLER-SHIPPING: الانتقال بدل الشحن لما العميل يطلب فني · 143 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 1 | # عقد INSTALLER-SHIPPING — الانتقال بدل الشحن لما العميل يطلب فني |
+| 13 | ## ٠) المطلوب وليه |
+| 17 | ## ١) مواصفات المالك (بالحرف من الشات 2026-11-05) |
+| 21 | ## ٢) الوضع النهارده (main `d8adad6`) |
+| 32 | ## ٣) التصميم المقترح |
+| 33 | ### ٣-١ القاعدة |
+| 38 | ### ٣-٢ الداتابيز (المرحلة B — `0025_installer_shipping.sql`، اسم مبدئي) |
+| 47 | ### ٣-٣ المتجر واللوحة (المرحلة C) |
+| 61 | ### ٣-٤ ترتيب النشر والفترة بين B وC |
+| 82 | ## ٤) الأثر |
+| 87 | ## ٥) قرارات المالك (اتحسمت في الشات 2026-11-05: «موافق علي التلاته») |
+| 93 | ## ٦) الاختبارات (CI، المرحلة B) |
+| 113 | ## ٧) الرجوع |
+| 117 | ## ٨) الترتيب والموافقات (كل خطوة بأمر صريح لوحدها) |
+| 129 | ## ٩) المخاطر |
+| 135 | ## ١٠) سجل التعديلات |
+
 ## `docs/contracts/INVENTORY-REMOVAL.md`
 
 عقد إزالة المخزون (0020 و0020-S) وأرشفته: القرار · اللي بيفضل · الربط · الأرشيف · المرحلة A (اللوحة) · المرحلة B (0023: التفاصيل والقفل والنداءات · CI) · التطبيق على Production · المرحلة C · الترتيب والموافقات · المخاطر · قرارات المالك · السجل · 136 سطر
@@ -2252,7 +2747,7 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 
 ## `docs/contracts/LENGTH-INPUT.md`
 
-عقد طريقة إدخال المقاس وتنبيه الحد الأدنى في صفحة المنتج: الوضع النهارده · الإعداد في «المحتوى» (`settings.hero.productSizeEntry`) واستثناء النوع والافتراضي في core · الطريقة الأولى وصلاحية المسودة · طريقة السنتيمتر (المقارنة بالطول المحسوب · حالات الإدخال · التوقيت والشكل · الرسايل · إعادة التحقق) · الحالات · الرجوع · 142 سطر
+عقد طريقة إدخال المقاس وتنبيه الحد الأدنى في صفحة المنتج: الوضع النهارده · الإعداد في «المحتوى» (`settings.hero.productSizeEntry`) واستثناء النوع والافتراضي في core · الطريقة الأولى وصلاحية المسودة · طريقة السنتيمتر (المقارنة بالطول المحسوب · حالات الإدخال · التوقيت والشكل · الرسايل · إعادة التحقق) · الحالات · الرجوع · 153 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -2276,10 +2771,11 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 126 | ## ١٠) التقسيم والموافقات (PR واحد في المرة) |
 | 131 | ## ١١) سجل التعديلات |
 | 137 | ## ١٢) تفاصيل التنفيذ (PR #157) |
+| 144 | ## SIZE-TEXTS — نصوص «حدد المقاس» من اللوحة (2026-10-25، بقرار المالك) |
 
 ## `docs/contracts/ORDER-DELETE.md`
 
-عقد حذف الطلبات من اللوحة للمالك بالباسورد: المطلوب · مواصفات المالك · الوضع (الحماية لكل جدول وعملية · التوابع من الـ FKs) · الأثر والكوبونات · تصميم الداتابيز (الأسماء · الاستثناء في 3 حراس · الصلاحيات · الدوال · الجداول) · اللوحة (اللقطة والبصمة · الباسورد والتذكرة والحد) · الاختبارات · الرجوع · الترتيب · المخاطر · القرارات · 208 سطر
+عقد حذف الطلبات من اللوحة للمالك بالباسورد: المطلوب · مواصفات المالك · الوضع (الحماية لكل جدول وعملية · التوابع من الـ FKs) · الأثر والكوبونات · تصميم الداتابيز (الأسماء · الاستثناء في 3 حراس · الصلاحيات · الدوال · الجداول) · اللوحة (اللقطة والبصمة · الباسورد والتذكرة والحد) · الاختبارات · الرجوع · الترتيب · المخاطر · القرارات · 217 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -2310,7 +2806,8 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 172 | ## ١٠) قرارات |
 | 180 | ## ١٢) قراية Production قبل المرحلة B (2026-11-03، بموافقة المالك لوحدها) |
 | 189 | ## ١٣) المرحلة B — الملفات (من غير تطبيق) |
-| 201 | ## ١١) سجل التعديلات |
+| 201 | ## ١٤) التنفيذ والحالة (2026-11-04) |
+| 210 | ## ١١) سجل التعديلات |
 
 ## `docs/contracts/POLICY-PAGES.md`
 
@@ -2338,9 +2835,63 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 153 | ## ١١) سجل التعديلات |
 | 159 | ## ١٢) تفاصيل التنفيذ (PR #168) |
 
+## `docs/contracts/PRODUCT-DELETE.md`
+
+عقد PRODUCT-DELETE: حذف المنتج للمالك · 193 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 1 | # عقد حذف المنتج (PRODUCT-DELETE) |
+| 12 | ## ١) طلب المالك وقراراته (2026-10-26) |
+| 19 | ## ٢) اللي بيحصل في الحذف (معاملة واحدة) |
+| 31 | ### أ) تسجيل الصور في `storage_orphans` (مقبول من المراجع في المراجعة 2، من غير تغيير) |
+| 39 | ## ٣) بيرفض لو (من غير أي تغيير) |
+| 56 | ## ٤) الدوال والدور والصلاحيات (migration لوحدها: `0022_product_delete.sql`) |
+| 57 | ### أ) الدوال |
+| 65 | ### ب) سلسلة فحص المخزون (تصحيح المراجعة 3) |
+| 74 | ### ج) الدور `zell_catalog_definer` (NOLOGIN · NOINHERIT · NOBYPASSRLS) — أقل صلاحيات لازمة |
+| 92 | ## ٥) بروتوكول الأقفال (تصحيح المراجعة 3) |
+| 93 | ### أ) القفل المشترك للقايمة: advisory بدل قفل صف الإعداد |
+| 101 | ### ب) ترتيب أقفال `zell_product_delete` (مايستناش غير على قفلين) |
+| 117 | ### ج) مسارات الكتابة المتداخلة (من غير تعديل فيها) |
+| 131 | ## ٦) اللوحة |
+| 139 | ## ٧) الملفات (PR الكود بعد اعتماد العقد) |
+| 144 | ### أ) المراحل (المراجعة 3.2) |
+| 157 | ## ٨) CI (لازم قبل أي تشغيل) |
+| 178 | ## ٩) على Production (كل خطوة بموافقة لوحدها) |
+| 182 | ## ١٠) ملاحظة مهمة عن منتجات التجارب |
+| 185 | ## ١١) برّه النطاق |
+| 188 | ## ١٢) سجل التعديلات |
+
+## `docs/contracts/RATE-LIMIT.md`
+
+عقد RATE-LIMIT: حد الطلبات من Vercel Firewall (المتجر + اللوحة) · 270 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 1 | # عقد RATE-LIMIT — حد لعدد الطلبات من Vercel Firewall (المتجر + اللوحة) |
+| 12 | ## ٠) المطلوب وليه |
+| 18 | ## ١) الوضع النهارده |
+| 19 | ### ١-١ من الكود (main `30d52ce`) |
+| 35 | ### ١-٢ من Vercel (منقول، قراية بس، 2026-11-06) |
+| 42 | ## ٢) التصميم — مابيعتمدش على مسار الصفحة |
+| 57 | ## ٣) التنفيذ — في Vercel، كل خطوة بأمر المالك لوحدها |
+| 122 | ## ٤) التحقق |
+| 144 | ## ٥) الرجوع |
+| 156 | ## ٦) برّه النطاق |
+| 162 | ## ٧) قرارات المالك (2026-11-06، في شات التنفيذ بعد قبول المراجع على `9b6d8ee`) |
+| 171 | ## ٨) الترتيب |
+| 179 | ## ٩) النتايج (2026-11-07) |
+| 182 | ### ٩-١ المتجر: النشر |
+| 193 | ### ٩-٢ §٤-١: active قدام مرجع §٣-٤ |
+| 207 | ### ٩-٣ §٤-٢ تجربة المالك |
+| 211 | ### ٩-٤ §٤-٣ اختبار الحد: **غير حاسم** |
+| 264 | ### ٩-٥ اللوحة: مفيش قاعدة (الخيار ب) |
+| 269 | ### ٩-٦ اللي لسه مفتوح |
+
 ## `docs/contracts/STORE-MENU.md`
 
-عقد قائمة المتجر للعميل و«تتبّع طلبك» في هيدر الكمبيوتر: قرار المالك · أجزاء القائمة وشروط ظهورها · هيدر الكمبيوتر (من `lg`) · تمييز الصفحة الحالية · شرط روابط المساعدة · روابط `/#how` و`/#faq` · الملفات والحالات · تفاصيل التنفيذ وقرارات المالك بعد المعاينة (§١٥) · استثناء التجربة بعد النشر (§١٦) · 157 سطر
+عقد قائمة المتجر للعميل و«تتبّع طلبك» في هيدر الكمبيوتر: قرار المالك · أجزاء القائمة وشروط ظهورها · هيدر الكمبيوتر (من `lg`) · تمييز الصفحة الحالية · شرط روابط المساعدة · روابط `/#how` و`/#faq` · الملفات والحالات · تفاصيل التنفيذ وقرارات المالك بعد المعاينة (§١٥) · استثناء التجربة بعد النشر (§١٦) · 174 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -2353,18 +2904,20 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 48 | ### ٢-٣ اللي مابيتغيّرش في القائمة (بالحرف) |
 | 51 | ## ٣) هيدر الكمبيوتر |
 | 58 | ## ٤) تمييز الصفحة الحالية |
-| 77 | ## ٥) شرط واحد لروابط المساعدة |
-| 83 | ## ٦) روابط `/#how` و`/#faq` |
-| 87 | ## ٧) النصوص (المتجر، بالحرف) |
-| 90 | ## ٨) الممنوع (كله = لا) |
-| 93 | ## ٩) الملفات المتوقعة (PR التنفيذ) |
-| 109 | ## ١٠) الحالات المطلوبة (suite `nav`) |
-| 121 | ## ١١) الرجوع والنشر |
-| 125 | ## ١٢) التقسيم والموافقات (PR واحد في المرة) |
-| 129 | ## ١٣) برّه النطاق |
-| 132 | ## ١٤) سجل التعديلات |
-| 138 | ## ١٥) تفاصيل التنفيذ (فرع `feat/store-menu`) |
-| 147 | ## ١٦) استثناء #159: المعاينة والتجربة بعد النشر (2026-10-16) |
+| 78 | ## ٥) شرط واحد لروابط المساعدة |
+| 84 | ## ٦) روابط `/#how` و`/#faq` |
+| 88 | ## ٧) النصوص (المتجر، بالحرف) |
+| 91 | ## ٨) الممنوع (كله = لا) |
+| 94 | ## ٩) الملفات المتوقعة (PR التنفيذ) |
+| 110 | ## ١٠) الحالات المطلوبة (suite `nav`) |
+| 124 | ## ١١) الرجوع والنشر |
+| 128 | ## ١٢) التقسيم والموافقات (PR واحد في المرة) |
+| 132 | ## ١٣) برّه النطاق |
+| 135 | ## ١٤) سجل التعديلات |
+| 143 | ## ١٥) تفاصيل التنفيذ (فرع `feat/store-menu`) |
+| 152 | ## ١٦) استثناء #159: المعاينة والتجربة بعد النشر (2026-10-16) |
+| 164 | ## ١٧) تعديل 2026-10-25: تمييز أوضح للصفحة الحالية |
+| 170 | ## ١٨) تعديل 2026-10-25: `/index` = الرئيسية في التمييز |
 
 ## `docs/contracts/TRACK-ORDER-v2.md`
 
@@ -2448,7 +3001,7 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 
 ## `docs/plans/ADMIN-LANG-LIST.md`
 
-حصر نصوص اللوحة العامية مع مقترح فصحى مبسّطة لكل نص (أ · ب · ج · د)، للمالك يختار منه · 224 سطر
+حصر نصوص اللوحة العامية مع مقترح فصحى مبسّطة لكل نص (أ · ب · ج · د)، للمالك يختار منه · 223 سطر
 
 | السطر | القسم |
 | ---: | --- |
@@ -2461,6 +3014,25 @@ TRACK-ORDER v2 W1 التتبّع الكامل: جدولين + سجلاتهم · 
 | 178 | ## د) رسايل خطأ وتحذير من `lib/` (بتظهر للمستخدم، وعامية) |
 | 215 | ## طريقة الحصر |
 | 221 | ## الخطوة الجاية |
+
+## `docs/plans/E2E-ORDER-TEST.md`
+
+خطة اختبار طلب كامل على Production قبل الإطلاق · 134 سطر
+
+| السطر | القسم |
+| ---: | --- |
+| 1 | # خطة اختبار طلب كامل على Production (قبل الإطلاق) |
+| 7 | ## ٠) الحالة اللي بنبدأ منها (2026-10-11) |
+| 14 | ## ١) القرار: (أ) طلبين (المالك، 2026-10-11) |
+| 22 | ## ٢) مين بيعمل إيه |
+| 28 | ## ٣) ثوابت طول الاختبار |
+| 40 | ## ٣-١) نقطة اللارجوع والـ backup |
+| 45 | ## ٤) قراية التحقق بعد كل خطوة (قراية بس) |
+| 82 | ## ٥) الخطوة 0 — قراية قبل البدء (قراية بس، بموافقة) |
+| 89 | ## ٦) T1 — المسار الكامل والرسوم مقفولة (يفضل «اتسلّم») |
+| 104 | ## ٧) T2 — رسوم التأكيد والإلغاء والرد (يفضل «ملغي») |
+| 120 | ## ٨) الختام (قراية بس، بموافقة) |
+| 127 | ## ٩) إمتى نقف (في أي خطوة) |
 
 ## `docs/plans/ORDER-FLOW-PLAN.md`
 
