@@ -285,7 +285,7 @@ export function ProductBuy({
       <BuyNowSlowNotice phase={buyNow.phase} onRetry={buyNow.retry} />
 
       {justAdded ? (
-        <div ref={addedBox.ref} tabIndex={-1} className="scroll-mb-28 scroll-mt-24 space-y-3 rounded-lg border border-accent/40 bg-card p-4 outline-none">
+        <div ref={addedBox.ref} tabIndex={-1} className="space-y-3 rounded-lg border border-accent/40 bg-card p-4 outline-none">
           <p className="flex items-center gap-2 text-sm font-semibold text-fg">
             <Check className="h-4 w-4 text-accent" />
             اتضاف للسلة — <Num>{formatLength(addedLengthCm)}</Num>
