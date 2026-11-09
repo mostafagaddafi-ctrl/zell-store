@@ -1,28 +1,30 @@
 /**
  * ADD-REVEAL — منطق خالص لتحريك الصفحة لرسالة «اتضاف للسلة» (من غير DOM؛ الواجهة في components/store/useRevealOnAdd.ts).
- * المساحة الظاهرة = بين أسفل الهيدر الثابت (sticky) وأعلى شريط السلة الثابت (CartBar)، أو حدود الشاشة لو مش موجودين،
- * ومعاها هامش صغير. شريط السلة بيتقاس فعليًا (ارتفاعه فيه safe-area-inset-bottom)، مش رقم ثابت.
- * الصندوق جوه المساحة كله = مفيش تحريك خالص. أكبر من المساحة = أوله يبان تحت الهيدر.
+ * الحدود الفعلية = بين أسفل الهيدر الثابت (sticky) وأعلى شريط السلة الثابت (CartBar)، أو حدود الشاشة لو مش موجودين.
+ * شريط السلة بيتقاس فعليًا (ارتفاعه فيه safe-area-inset-bottom)، مش رقم ثابت.
+ * قرار التحريك من الحدود الفعلية بس: الصندوق جواها كله = مفيش تحريك خالص (حتى لو لازق في الحافة).
+ * الهامش (REVEAL_GAP_PX) بيتحسب بس في وجهة التحريك لما الصندوق محجوب فعلًا. أكبر من المساحة = أوله يبان تحت الهيدر.
  */
 
 export type RevealBox = { top: number; bottom: number }
-export type RevealArea = { top: number; bottom: number }
+export type RevealBounds = { top: number; bottom: number }
 
-/** الهامش بين الصندوق وحدود المساحة (px). */
+/** الهامش بين الصندوق وحدود المساحة في وجهة التحريك بس (px). */
 export const REVEAL_GAP_PX = 8
 
-export function revealArea(viewportHeight: number, headerBottom: number | null, barTop: number | null, gap: number = REVEAL_GAP_PX): RevealArea {
-  const top = Math.max(0, headerBottom ?? 0) + gap
-  const bottom = Math.min(viewportHeight, barTop ?? viewportHeight) - gap
-  return { top, bottom }
+/** الحدود الفعلية للمساحة الظاهرة (من غير هامش). */
+export function revealBounds(viewportHeight: number, headerBottom: number | null, barTop: number | null): RevealBounds {
+  return { top: Math.max(0, headerBottom ?? 0), bottom: Math.min(viewportHeight, barTop ?? viewportHeight) }
 }
 
-/** 0 = الصندوق ظاهر كله، مفيش تحريك. غير كده = المسافة لـ window.scrollBy (موجب لتحت، سالب لفوق). */
-export function revealDelta(box: RevealBox, area: RevealArea): number {
-  if (box.top >= area.top && box.bottom <= area.bottom) return 0
-  if (box.bottom - box.top > area.bottom - area.top) return box.top - area.top
-  if (box.bottom > area.bottom) return box.bottom - area.bottom
-  return box.top - area.top
+/** 0 = الصندوق ظاهر كله جوه الحدود الفعلية. غير كده = المسافة لـ window.scrollBy (موجب لتحت، سالب لفوق) لحد الوجهة بالهامش. */
+export function revealDelta(box: RevealBox, bounds: RevealBounds, gap: number = REVEAL_GAP_PX): number {
+  if (box.top >= bounds.top && box.bottom <= bounds.bottom) return 0
+  const top = bounds.top + gap
+  const bottom = bounds.bottom - gap
+  if (box.bottom - box.top > bottom - top) return box.top - top
+  if (box.bottom > bounds.bottom) return box.bottom - bottom
+  return box.top - top
 }
 
 export type RevealEnv = {
@@ -34,9 +36,9 @@ export type RevealEnv = {
   focus: () => void
 }
 
-/** التحريك لو لازم بس (ناعم، أو فوري مع reduced motion)، وبعده التركيز دايمًا (الواجهة بتعمله بـ preventScroll). */
+/** التحريك لو الصندوق محجوب فعلًا بس (ناعم، أو فوري مع reduced motion)، وبعده التركيز دايمًا (الواجهة بتعمله بـ preventScroll). */
 export function runReveal(box: RevealBox, env: RevealEnv): number {
-  const delta = revealDelta(box, revealArea(env.viewportHeight, env.headerBottom, env.barTop))
+  const delta = revealDelta(box, revealBounds(env.viewportHeight, env.headerBottom, env.barTop))
   if (delta !== 0) env.scrollBy(delta, env.reducedMotion ? 'auto' : 'smooth')
   env.focus()
   return delta
