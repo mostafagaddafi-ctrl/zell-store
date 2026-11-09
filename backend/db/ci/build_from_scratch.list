@@ -6,6 +6,7 @@
 # Not listed by design: *_ptest, *_verify, *_rollback, *_dryrun, *.md, ops/*, ci/* (other than fixtures).
 apply|schema.sql|base tables (products, orders, order_items, settings)
 baseline|baseline/b0_orders_internal_notes.sql|orders.internal_notes + orders_internal_notes_length (live position 16: right after schema.sql, before 0006a adds the next orders columns)
+baseline|baseline/b4_shipping_disabled_governorates.sql|settings.shipping_disabled_governorates, synthetic [] (CI only; Production has the key, value not read): after b0 (schema.sql has settings + the other three shipping keys), before 0002 / 0006b (GOVERNORATES-BOOTSTRAP)
 apply|migrations/0002_security_rls_grants.sql|RLS + grants + storage bucket
 apply|migrations/0003_product_images.sql|product_images
 exclude|migrations/0004_harden_default_privileges.sql|not matching the 2026-10-24 snapshot; application date unresolved (§9-2)
