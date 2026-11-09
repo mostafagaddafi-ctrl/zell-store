@@ -8,6 +8,7 @@ import { useCart } from '../../lib/cart'
 import { BUY_NOW_PENDING_TEXT } from '../../lib/buy/buyNow'
 import { BuyNowSlowNotice } from './BuyNowSlowNotice'
 import { useBuyNow } from './useBuyNow'
+import { useRevealOnAdd } from './useRevealOnAdd'
 import { Button, buttonClasses } from '../ui/Button'
 import { Num } from './Num'
 
@@ -23,6 +24,8 @@ export function PieceBuy({ product }: { product: StoreProduct }) {
   const max = maxQuantityOf(product)
   const [quantity, setQuantity] = useState(1)
   const [justAdded, setJustAdded] = useState(false)
+  // ADD-REVEAL: الصفحة بتنزل لرسالة «اتضاف للسلة» بعد «ضيف للسلة» (useRevealOnAdd)
+  const addedBox = useRevealOnAdd<HTMLDivElement>()
   const total = product.price_per_meter_piastres * quantity
 
   const change = (next: number) => {
@@ -34,6 +37,7 @@ export function PieceBuy({ product }: { product: StoreProduct }) {
   const handleAdd = () => {
     cart.addPiece(product.id, quantity, max)
     setJustAdded(true)
+    addedBox.reveal()
   }
 
   // لو نفس الكمية اتضافت لسه (justAdded) مابيضيفهاش تاني — يروح بس (السلوك القديم).
@@ -122,7 +126,7 @@ export function PieceBuy({ product }: { product: StoreProduct }) {
       <BuyNowSlowNotice phase={buyNow.phase} onRetry={buyNow.retry} />
 
       {justAdded ? (
-        <div className="space-y-3 rounded-lg border border-accent/40 bg-card p-4">
+        <div ref={addedBox.ref} tabIndex={-1} className="space-y-3 rounded-lg border border-accent/40 bg-card p-4 outline-none">
           <p className="flex items-center gap-2 text-sm font-semibold text-fg">
             <Check className="h-4 w-4 text-accent" />
             اتضاف للسلة — الكمية <Num>{String(quantity)}</Num>
