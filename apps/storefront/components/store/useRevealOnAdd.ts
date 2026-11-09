@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { runReveal } from '../../lib/reveal/reveal'
 
 /**
- * ADD-REVEAL — بعد «ضيف للسلة» رسالة «اتضاف للسلة» بتظهر تحت الأزرار، والصفحة كانت مابتتحركش لها، فممكن تفضل
- * برّه الشاشة والعميل مايشوفهاش. reveal() بعد الإضافة: الصفحة بتنزل للرسالة بنعومة لو مش باينة كلها
- * (block: 'nearest' = مفيش حركة لو ظاهرة)، وفورًا مع reduced motion، والتركيز بيروح لها (tabIndex -1 في العنصر)
- * علشان قارئ الشاشة. العنصر عليه scroll-mb علشان مايستخباش ورا شريط السلة الثابت تحت (CartBar).
- * نفس أسلوب الأدوات في ProductBuy (revealTools). مابيلمسش السلة ولا الأسعار.
+ * ADD-REVEAL — بعد «ضيف للسلة» رسالة «اتضاف للسلة» بتظهر تحت الأزرار، والصفحة كانت مابتتحركش لها. reveal() بعد
+ * الإضافة: بنقيس الصندوق والهيدر الثابت وشريط السلة الثابت (data-cart-bar، وارتفاعه فيه safe-area) فعليًا، والصفحة
+ * بتتحرك بس لو الصندوق مش ظاهر كله في المساحة اللي بينهم (lib/reveal/reveal.ts)، ناعم أو فوري مع reduced motion.
+ * والتركيز بيروح للصندوق (tabIndex -1) بـ preventScroll علشان قارئ الشاشة. مابيلمسش السلة ولا الأسعار.
  */
 export function useRevealOnAdd<T extends HTMLElement>() {
   const ref = useRef<T>(null)
@@ -16,9 +16,21 @@ export function useRevealOnAdd<T extends HTMLElement>() {
     if (tick === 0) return
     const node = ref.current
     if (!node) return
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    node.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' })
-    node.focus({ preventScroll: true })
+    const box = node.getBoundingClientRect()
+    const header = document.querySelector('header')
+    const pinned = header !== null && ['sticky', 'fixed'].includes(window.getComputedStyle(header).position)
+    const bar = document.querySelector<HTMLElement>('[data-cart-bar]')
+    runReveal(
+      { top: box.top, bottom: box.bottom },
+      {
+        viewportHeight: window.innerHeight,
+        headerBottom: header !== null && pinned ? header.getBoundingClientRect().bottom : null,
+        barTop: bar !== null ? bar.getBoundingClientRect().top : null,
+        reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+        scrollBy: (top, behavior) => window.scrollBy({ top, behavior }),
+        focus: () => node.focus({ preventScroll: true }),
+      },
+    )
   }, [tick])
   return { ref, reveal: () => setTick((value) => value + 1) }
 }
