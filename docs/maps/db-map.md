@@ -42,7 +42,7 @@
 | `zell_payment_config_log` | `0021a_p1` | سجل تغييرات الإعدادات وطرق الدفع (append-only) | |
 | `zell_payment_commands` | `0021a_p1` | أوامر الدفع (مراجعة #122): أمر لكل `record` / `refund` / `deliver_order` ناجح، ومعاه لقطة النتيجة الأصلية اللي الإعادة بترجّعها (append-only، `command_id` primary key، FK restrict على الطلب) | RLS لـ `zell_order_definer` بس |
 | `order_items` | `schema.sql` | سطور الطلب | 0016 `sale_unit` `quantity` · 0021-TR: SELECT لـ `zell_order_definer` على ٨ أعمدة + policy `zell_order_definer_select` (قراية بس، §٩) |
-| `settings` | `schema.sql` | إعدادات ومحتوى بمفتاح (hero · sections · faqs · shipping_rates …) | 0007 شال أسرار تليجرام · 0008 مفتاح `announcement` · 0019 مفتاح `coupons_enabled` |
+| `settings` | `schema.sql` | إعدادات ومحتوى بمفتاح (hero · sections · faqs · shipping_rates …) | 0007 شال أسرار تليجرام · 0008 مفتاح `announcement` · 0019 مفتاح `coupons_enabled` · **(برّه الملفات)** مفتاح `shipping_disabled_governorates` (قايمة المحافظات الموقوفة، jsonb array؛ موجود على Production): في CI بس `baseline/b4_shipping_disabled_governorates.sql` بقيمة صناعية `[]` (GOVERNORATES-BOOTSTRAP) |
 | `product_images` | `0003` | صور معرض المنتج (`bucket` + `object_path`)، والترتيب والرئيسية | · **(برّه الملفات)** `fit` (16) + `product_images_fit_check`: `baseline/b1_products_columns.sql` · 0026 حذف صورة بـ `zell_product_image_delete` (الملف بيتسجّل، §١٦). ⚠ `id` bigint: اللوحة بتقراه `id::text` |
 | `site_images` | `0006` | اللوجو وصور الموقع | 0009 نوع `hero` + صورة نشطة واحدة لكل نوع فردي |
 | `storage_orphans` | `0006` | ملفات Storage محتاجة تنظيف | 0012 سبب `removed` · 0022 سبب `product_deleted` (متطبّق 2026-10-26) · 0026 حذف صورة بيسجّل `removed` (من غير تغيير في القيود؛ التنظيف الفعلي IMAGE-CLEANUP لسه) |
