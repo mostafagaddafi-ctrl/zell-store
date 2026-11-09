@@ -3,7 +3,8 @@
  * الحدود الفعلية = بين أسفل الهيدر الثابت (sticky) وأعلى شريط السلة الثابت (CartBar)، أو حدود الشاشة لو مش موجودين.
  * شريط السلة بيتقاس فعليًا (ارتفاعه فيه safe-area-inset-bottom)، مش رقم ثابت.
  * قرار التحريك من الحدود الفعلية بس: الصندوق جواها كله = مفيش تحريك خالص (حتى لو لازق في الحافة).
- * الهامش (REVEAL_GAP_PX) بيتحسب بس في وجهة التحريك لما الصندوق محجوب فعلًا. أكبر من المساحة = أوله يبان تحت الهيدر.
+ * الهامش (REVEAL_GAP_PX) بيتحسب بس في وجهة التحريك لما الصندوق محجوب فعلًا، ومابيمنعش ظهوره كله: الصندوق اللي يساع الحدود
+ * الفعلية بيفضل جواها كله بعد التحريك حتى لو الهامش قلّ عن 8. أطول من الحدود الفعلية بس = أوله يبان تحت الهيدر بالهامش.
  */
 
 export type RevealBox = { top: number; bottom: number }
@@ -17,14 +18,18 @@ export function revealBounds(viewportHeight: number, headerBottom: number | null
   return { top: Math.max(0, headerBottom ?? 0), bottom: Math.min(viewportHeight, barTop ?? viewportHeight) }
 }
 
-/** 0 = الصندوق ظاهر كله جوه الحدود الفعلية. غير كده = المسافة لـ window.scrollBy (موجب لتحت، سالب لفوق) لحد الوجهة بالهامش. */
+/**
+ * 0 = الصندوق ظاهر كله جوه الحدود الفعلية. غير كده = المسافة لـ window.scrollBy (موجب لتحت، سالب لفوق).
+ * يساع الحدود الفعلية = الوجهة بالهامش، بس مقيّدة علشان الحافتين يفضلوا جوه الحدود (الهامش ممكن يقل).
+ * أطول من الحدود الفعلية = أوله تحت الهيدر بالهامش.
+ */
 export function revealDelta(box: RevealBox, bounds: RevealBounds, gap: number = REVEAL_GAP_PX): number {
   if (box.top >= bounds.top && box.bottom <= bounds.bottom) return 0
-  const top = bounds.top + gap
-  const bottom = bounds.bottom - gap
-  if (box.bottom - box.top > bottom - top) return box.top - top
-  if (box.bottom > bounds.bottom) return box.bottom - bottom
-  return box.top - top
+  if (box.bottom - box.top > bounds.bottom - bounds.top) return box.top - (bounds.top + gap)
+  // تحت: آخره قبل الشريط بالهامش، من غير ما أوله يطلع فوق الهيدر
+  if (box.bottom > bounds.bottom) return Math.min(box.bottom - (bounds.bottom - gap), box.top - bounds.top)
+  // فوق: أوله بعد الهيدر بالهامش، من غير ما آخره ينزل ورا الشريط
+  return Math.max(box.top - (bounds.top + gap), box.bottom - bounds.bottom)
 }
 
 export type RevealEnv = {
