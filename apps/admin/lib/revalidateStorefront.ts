@@ -1,6 +1,6 @@
 import 'server-only'
 
-export const REVALIDATION_WARNING = 'تم الحفظ، لكن تحديث المتجر الفوري فشل وقد يتأخر الظهور حتى 5 دقائق'
+export const REVALIDATION_WARNING = 'تم الحفظ، لكن تحديث المتجر الفوري فشل. سيظهر التغيير مع التحديث الدوري للمتجر في الزيارات التالية، ويمكن إعادة المحاولة بتحديث المتجر من اللوحة.'
 
 /**
  * يبني رابط /api/revalidate بعد تحقق صارم من STOREFRONT_URL،
