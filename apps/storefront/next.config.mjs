@@ -26,10 +26,7 @@ const nextConfig = {
       },
     ],
   },
-  async rewrites() {
-    // SEO-BASICS: ‎/favicon.ico‎ = أيقونة الموقع بمقاس 48 (app/icon.tsx) — جوجل والمتصفحات بيدوّروا على المسار ده مباشرة.
-    return [{ source: '/favicon.ico', destination: '/icon/48' }]
-  },
+  // Z-ICON (2026-11-15): favicon.ico ملف ثابت في public/، فإعادة توجيهه لمسار الأيقونة المولّدة اتشالت مع app/icon.tsx.
   async headers() {
     return [
       // العامة الأول: لو rule بعدها حطّت نفس المفتاح، الأخيرة بتكسب (صفحة الإيصال تحت بتحتفظ بـ no-referrer).
