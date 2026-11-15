@@ -1,7 +1,8 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { CartLine } from '@zell/core'
+import { installModeAfterLinesChange } from './install/installChoice'
 
 /** نفس مفتاح التخزين القديم — سلات الزباين الحالية ما تضيعش عند التحويل. */
 const STORAGE_KEY = 'zell-cart-v2'
@@ -97,6 +98,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([])
   const [ready, setReady] = useState(false)
   const [installMode, setInstallMode] = useState<InstallMode>('unset')
+  // INSTALL-RESET — آخر عدد سطور شافه الـ effect تحت (null = لسه ماتزوّدش بعد الجاهزية)
+  const linesCountRef = useRef<number | null>(null)
 
   // القراءة بعد التركيب فقط — السيرفر مالوش localStorage
   useEffect(() => {
@@ -123,6 +126,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } catch {
       // التخزين مقفول — السلة تفضل في الذاكرة بس
     }
+  }, [lines, ready])
+
+  // INSTALL-RESET (docs/contracts/INSTALL-RESET.md): السلة اتحولت من فيها سطور لفاضية (remove / removeByProduct،
+  // ومنه الشيل التلقائي لسطر منتجه اختفى) → الاختيار يرجع unset زي clear()، والمفتاح بيتشال بالـ effect بتاع التخزين فوق.
+  // • أول تشغيل بعد الجاهزية بيزوّد العدد المسترجع من التخزين بس، من غير تصفير وقت التحميل.
+  // • المرجع بيتحدّث بعد كل انتقال، فدورات الإضافة والشيل المتكررة بتشتغل.
+  // • الـ effect بيشوف النتيجة النهائية بعد تحديثات React المتجمعة (شيل في loop في نفس الحدث = انتقال واحد).
+  useEffect(() => {
+    if (!ready) return
+    const previous = linesCountRef.current
+    linesCountRef.current = lines.length
+    setInstallMode((mode) => installModeAfterLinesChange(previous, lines.length, mode))
   }, [lines, ready])
 
   const add = useCallback((productId: number, lengthCm: number, widthCm?: number) => {
