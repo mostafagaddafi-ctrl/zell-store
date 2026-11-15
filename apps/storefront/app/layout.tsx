@@ -12,6 +12,7 @@ import { CartProvider } from '../lib/cart'
 import { getStorefrontData } from '../lib/data/source'
 import { homeHelpVisibility } from '../lib/nav/storeNav'
 import { storeJsonLd } from '../lib/seo/structuredData'
+import { SITE_ICONS } from '../lib/seo/icons'
 import { SITE_URL } from '../lib/site'
 import './globals.css'
 
@@ -34,6 +35,8 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description,
     applicationName: settings.storeName,
+    // Z-ICON: أيقونات ثابتة من public/ بعناوين ثابتة (lib/seo/icons.ts)
+    icons: SITE_ICONS,
     // معاينة المشاركة: الروابط المطلقة من metadataBase، والصورة الافتراضية من app/opengraph-image.tsx
     metadataBase: new URL(SITE_URL),
     openGraph: { type: 'website', locale: 'ar_EG', siteName: settings.storeName, title, description },
