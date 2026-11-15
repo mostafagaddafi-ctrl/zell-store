@@ -334,6 +334,9 @@ async function groupCore() {
     expect(hidden.status === 404, 'after hide + revalidate status ' + String(hidden.status) + ', expected 404')
   })
 
+  // §٣-٣ مسار الإبطال (قرار المالك 2026-11-15، العقد §٦ بند ٧): بعد POST /api/revalidate والمصدر واقع
+  // = خطأ مش متكاش، وكل طلب بيعيد محاولة الجلب فعلًا (عدّاد المصدر)، والرجوع بأحدث نسخة من أول طلب بعد عودة المصدر.
+  // المسار الزمني (T6b) ماتغيّرش: آخر نسخة ناجحة تفضل ظاهرة.
   await runCase('T6a', async ({ expect, note }) => {
     const warm = await request('/product/1')
     sample('T6a warm', warm)
@@ -341,30 +344,39 @@ async function groupCore() {
 
     source.updateProduct(1, { price_per_meter_piastres: PRICE.C })
     source.setFailing(true)
-    const c0 = source.total()
     const rv = await revalidate(REVALIDATE_SECRET)
     sample('T6a revalidate while source fails', rv)
     expect(revalidated(rv), 'revalidate failed (' + String(rv.status) + ')')
 
     const during = []
     for (let i = 0; i < 6; i += 1) {
-      during.push(sample('T6a during failure #' + String(i + 1), await request('/product/1')))
+      const before = source.total()
+      const response = await request('/product/1')
+      during.push(sample('T6a during failure #' + String(i + 1), response, { sourceAttempts: source.total() - before }))
       if (i < 5) await sleep(5000)
     }
-    const attempts = source.total() - c0
-    note('sourceAttemptsDuringFailure', attempts)
-    note('duringFailure', during.map((row) => [row.status, row.cache, row.price]))
-    expect(attempts > 0, 'no refetch attempt reached the source during failure')
+    note('duringFailure', during.map((row) => [row.status, row.cache, row.cacheControl, row.sourceAttempts]))
     expect(
-      during.every((row) => row.status === 200 && row.price === 'B'),
-      'policy §٣-٣: last successful version (B) must stay visible with no error after invalidation',
+      during.every((row) => row.status >= 500),
+      'policy §٣-٣ (invalidation path): expected an error response on every request while the source is down',
+    )
+    expect(
+      during.every((row) => row.sourceAttempts > 0),
+      'error looks cached: a request during the failure did not reach the source',
+    )
+    expect(
+      during.every((row) => !/s-maxage/i.test(row.cacheControl || '')),
+      'error response is cacheable (s-maxage present)',
     )
 
     source.setFailing(false)
-    const recovery = await pollUntil('T6a recovery', '/product/1', (r) => r.status === 200 && priceOf(r.body) === 'C', Date.now() + 120_000)
-    note('recoverySeconds', recovery.seconds)
-    note('recoveryRequests', recovery.rows.length)
-    expect(recovery.ok, 'no recovery to C within the 120s test bound')
+    const recovered = await request('/product/1')
+    sample('T6a first request after source recovery', recovered)
+    note('firstAfterRecovery', [recovered.status, recovered.cache, priceOf(recovered.body)])
+    expect(
+      recovered.status === 200 && priceOf(recovered.body) === 'C',
+      'first request after source recovery: expected 200 with the newest price C, got ' + String(recovered.status) + ' ' + priceOf(recovered.body),
+    )
   })
 
   await runCase('T6c', async ({ expect, note }) => {
