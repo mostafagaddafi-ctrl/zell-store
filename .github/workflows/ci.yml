@@ -93,11 +93,44 @@ jobs:
       - name: "security headers: admin"
         run: node scripts/check-security-headers.mjs admin
 
+  # PRODUCT-ISR §٧ — كشف التغييرات لـ job اختبار التكامل (بنفس أسلوب jobs الـ SQL، بس بجمع فرق بيحسب الحذف وطرفي النقل):
+  # السكربت بيشغّل الـ selftest الأول، وبعدين بيجمع الفرق بـ git diff --no-renames --name-only -z من نقطة تفرّع الـ PR.
+  # push لـ main وworkflow_dispatch والفرق اللي مايتقراش = تشغيل كامل.
+  storefront-isr-integration-changes:
+    name: "PRODUCT-ISR integration: detect changes"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      run: ${{ steps.scope.outputs.run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: "PRODUCT-ISR scope: selftest"
+        run: node scripts/isr-integration-scope.mjs --selftest
+
+      - name: "PRODUCT-ISR scope: decide"
+        id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/isr-integration-scope.mjs --event "$EVENT" --base "$BASE_SHA"
+
   # PRODUCT-ISR §٢-٢ و§٤ — اختبار تكامل كاش صفحة المنتج: بناء + next start على مصدر HTTP صناعي
   # (من غير Supabase ولا أي مفتاح أو داتا Production)، ونداء /api/revalidate الحقيقي بمفتاح اختبار.
   # المجموعات متوازية لأن T5 وT6b بيستنّوا مدة الـ 300 ثانية الحقيقية.
   storefront-isr-integration:
     name: "PRODUCT-ISR integration: ${{ matrix.group }} (synthetic source)"
+    needs: storefront-isr-integration-changes
+    if: needs.storefront-isr-integration-changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
