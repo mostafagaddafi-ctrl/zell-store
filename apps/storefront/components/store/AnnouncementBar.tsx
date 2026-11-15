@@ -2,13 +2,14 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import type { Announcement } from '@zell/core'
 import { Container } from '../ui/Container'
+import { AnnouncementDismiss } from './AnnouncementDismiss'
 
 /**
- * الشريط العلوي — **Server Component**، صفر JavaScript.
+ * الشريط العلوي — المحتوى **Server Component** (النص والرابط من «الشريط العلوي» في صفحة المحتوى).
  *
- * رفيع وثابت: بيظهر مع الصفحة من غير حركة ولا تأخير ولا زرار إغلاق،
- * فمابيزقّش الهيدر ومابيختفيش بعد الريفرش. للإعلانات المهمة بس
- * (خصم · مواعيد)، والتحكم من «الشريط العلوي» في صفحة المحتوى.
+ * رفيع وثابت: بيظهر مع الصفحة من غير حركة ولا تأخير، فمابيزقّش الهيدر. للإعلانات المهمة بس
+ * (خصم · مواعيد). ANNOUNCE-CLOSE (2026-11-15): الغلاف AnnouncementDismiss (Client) بيضيف زرار إغلاق
+ * بيخفي الشريط للجلسة بس، من غير أي تغيير في الإعلان نفسه.
  *
  * «نص العرض» (الهدية) **مش هنا** — مكانه صفحة المنتج وملخص الطلب
  * (GiftNote · OrderSummary)، في لحظة قرار الشراء.
@@ -36,7 +37,7 @@ export function AnnouncementBar({ announcement }: { announcement: Announcement }
   )
 
   return (
-    <aside aria-label="إعلان" className="bg-brand text-brand-fg">
+    <AnnouncementDismiss>
       {href !== '' ? (
         <Link href={href} className="block transition-opacity hover:opacity-90">
           {body}
@@ -44,6 +45,6 @@ export function AnnouncementBar({ announcement }: { announcement: Announcement }
       ) : (
         body
       )}
-    </aside>
+    </AnnouncementDismiss>
   )
 }
