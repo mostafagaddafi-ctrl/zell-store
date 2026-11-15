@@ -54,8 +54,8 @@
 
 | الفولدر | بيعمل إيه |
 | --- | --- |
-| `apps/storefront/` (الجذر) | الإعدادات: `middleware.ts` (بيصدر كوكي جلسة الدفع على `/checkout`) · `next.config.mjs` · `vercel.json` · `.env.example` · `scripts/run-cases.mjs` (حالات المتجر الخالصة — 0021-D2) · `scripts/isr-integration/` (PRODUCT-ISR: اختبار تكامل كاش صفحة المنتج — `source.mjs` مصدر HTTP صناعي بدل Supabase، و`run.mjs` بيبني ويشغّل `next start` وبيشغّل T1–T6؛ في CI job `storefront-isr-integration`) |
-| `app/` | `page.tsx` (الرئيسية) · `layout.tsx` · `not-found.tsx` · `icon.tsx` · `apple-icon.tsx` · `opengraph-image.tsx` (معاينة المشاركة) · `manifest.ts` · `robots.ts` · `sitemap.ts` |
+| `apps/storefront/` (الجذر) | `public/` (Z-ICON: أيقونات الموقع الثابتة — `favicon.ico` و`icon-16`…`icon-512.png`، والإعلان في `lib/seo/icons.ts`) · الإعدادات: `middleware.ts` (بيصدر كوكي جلسة الدفع على `/checkout`) · `next.config.mjs` · `vercel.json` · `.env.example` · `scripts/run-cases.mjs` (حالات المتجر الخالصة — 0021-D2) · `scripts/isr-integration/` (PRODUCT-ISR: اختبار تكامل كاش صفحة المنتج — `source.mjs` مصدر HTTP صناعي بدل Supabase، و`run.mjs` بيبني ويشغّل `next start` وبيشغّل T1–T6؛ في CI job `storefront-isr-integration`) |
+| `app/` | `page.tsx` (الرئيسية) · `layout.tsx` · `not-found.tsx` · `opengraph-image.tsx` (معاينة المشاركة) · `manifest.ts` · `robots.ts` · `sitemap.ts` |
 | `app/products` · `app/product/[productId]` | كل المنتجات، وصفحة المنتج (PRODUCT-ISR: ISR بمدة تجديد مستهدفة 300ث = `REVALIDATE_SECONDS` مش سقف، و`generateStaticParams` فاضية، وتجديد فوري بتاج `storefront-data`) |
 | `app/collections` · `app/collection/[slug]` | الأقسام، وصفحة القسم |
 | `app/cart` · `app/checkout` | السلة وإتمام الطلب |
