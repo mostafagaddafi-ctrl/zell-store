@@ -401,7 +401,7 @@ export const revalidateStorefrontAction = actionWithAccess(
   async (_ctx: AccessContext): Promise<MutationResult<null>> => {
     return (await revalidateStorefront())
       ? { ok: true, data: null }
-      : { ok: false, code: 'INTERNAL', message: 'تحديث المتجر الفوري فشل. قد يتأخر الظهور حتى ٥ دقائق.' }
+      : { ok: false, code: 'INTERNAL', message: 'تحديث المتجر الفوري فشل. سيظهر التغيير مع التحديث الدوري للمتجر في الزيارات التالية.' }
   },
 )
 
