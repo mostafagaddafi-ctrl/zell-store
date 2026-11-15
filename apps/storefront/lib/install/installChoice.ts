@@ -47,3 +47,15 @@ export function installChoiceRequired(state: { showChoice: boolean; ready: boole
   if (!state.showChoice || !state.ready) return false
   return state.mode === 'unset' || (state.installerOnly && state.mode !== 'installer')
 }
+
+/**
+ * INSTALL-RESET (docs/contracts/INSTALL-RESET.md) — الاختيار بعد تغيير عدد سطور السلة:
+ * من فيها سطور لفاضية (شيل: remove / removeByProduct، ومنه الشيل التلقائي) = unset زي clear()،
+ * وأي انتقال تاني (شيل جزء · فاضية لفاضية · إضافة) = الاختيار زي ما هو.
+ * previousCount = null: أول تشغيل بعد الجاهزية (العدد المسترجع من التخزين) — مفيش تصفير وقت التحميل،
+ * فاختيار قديم متخزّن مع سلة فاضية أصلًا بيفضل زي ما هو (برّه النطاق، العقد §٦ بند ١).
+ */
+export function installModeAfterLinesChange(previousCount: number | null, nextCount: number, mode: InstallMode): InstallMode {
+  if (previousCount === null) return mode
+  return previousCount > 0 && nextCount === 0 ? 'unset' : mode
+}
