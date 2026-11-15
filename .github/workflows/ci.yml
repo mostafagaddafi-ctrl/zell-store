@@ -47,8 +47,13 @@ jobs:
       - name: Storefront cases
         run: pnpm --filter @zell/storefront cases
 
+      # PRODUCT-ISR §٢-٣ — لوج البناء بيتحفظ علشان الفحص الهيكلي يقرا سطر /product/[productId].
       - name: Build storefront
-        run: pnpm --filter @zell/storefront build
+        run: set -o pipefail; pnpm --filter @zell/storefront build 2>&1 | tee "$RUNNER_TEMP/storefront-build.log"
+
+      # PRODUCT-ISR §٢-٣ — فحص هيكلي مكمّل بس (مش دليل على المدة ولا التجديد؛ الدليل في job الـ integration).
+      - name: "PRODUCT-ISR: structure"
+        run: node scripts/check-product-isr.mjs --build-log "$RUNNER_TEMP/storefront-build.log"
 
       # COOKIES-HEADERS §٤-٢ — الـ headers النهائية لكل مسار عيّنة من routes-manifest بعد البناء (من غير شبكة).
       - name: "security headers: storefront"
@@ -87,6 +92,37 @@ jobs:
 
       - name: "security headers: admin"
         run: node scripts/check-security-headers.mjs admin
+
+  # PRODUCT-ISR §٢-٢ و§٤ — اختبار تكامل كاش صفحة المنتج: بناء + next start على مصدر HTTP صناعي
+  # (من غير Supabase ولا أي مفتاح أو داتا Production)، ونداء /api/revalidate الحقيقي بمفتاح اختبار.
+  # المجموعات متوازية لأن T5 وT6b بيستنّوا مدة الـ 300 ثانية الحقيقية.
+  storefront-isr-integration:
+    name: "PRODUCT-ISR integration: ${{ matrix.group }} (synthetic source)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [core, time, time-failure]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: "PRODUCT-ISR integration (${{ matrix.group }})"
+        run: node apps/storefront/scripts/isr-integration/run.mjs ${{ matrix.group }}
 
   # 0021-P — job منفصل جوه نفس الـ workflow: بيشتغل لما ملفات 0021-P تتغيّر بس (غير كده بيظهر skipped).
   sql-0021d-changes:
