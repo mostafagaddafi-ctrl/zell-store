@@ -1,8 +1,9 @@
 import type { MetadataRoute } from 'next'
 import { getStorefrontSettings } from '../lib/data/source'
 import { SITE_NAME_FALLBACK } from '../lib/site'
+import { MANIFEST_ICONS } from '../lib/seo/icons'
 
-/** manifest بسيط: الاسم + الأيقونات (app/icon.tsx · app/apple-icon.tsx) + themeColor. وقت الطلب، مش وقت البناء. */
+/** manifest بسيط: الاسم + الأيقونات (ملفات ثابتة في public/، Z-ICON — lib/seo/icons.ts) + themeColor. وقت الطلب، مش وقت البناء. */
 export const dynamic = 'force-dynamic'
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
@@ -19,10 +20,6 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     display: 'standalone',
     background_color: '#FAF7F2',
     theme_color: '#FAF7F2',
-    icons: [
-      { src: '/icon/192', sizes: '192x192', type: 'image/png' },
-      { src: '/icon/512', sizes: '512x512', type: 'image/png' },
-      { src: '/apple-icon', sizes: '180x180', type: 'image/png' },
-    ],
+    icons: MANIFEST_ICONS,
   }
 }
