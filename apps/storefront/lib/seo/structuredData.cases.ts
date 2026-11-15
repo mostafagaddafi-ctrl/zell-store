@@ -1,13 +1,15 @@
 /**
  * SEO-BASICS — حالات البيانات المنظّمة والمسارات القانونية والأيقونات (pnpm --filter @zell/storefront cases، suite seo).
  * S01 القرش ← جنيه · S02 المسارات · S03 منتج بالمتر · S04 منتج بأكتر من عرض = أقل سعر · S05 القطعة · S06 الحقول الاختيارية ·
- * S07 نص الـ script آمن ويرجع نفس البيانات · S08 بيانات المتجر · S09 أيقونات 48 و96 الأول ومن غير 32 (FAVICON-ORDER) و/favicon.ico.
+ * S07 نص الـ script آمن ويرجع نفس البيانات · S08 بيانات المتجر · S09 الأيقونات الثابتة (Z-ICON): favicon.ico ثم 48 و96 و192 ومن غير 32 (FAVICON-ORDER)،
+ *   و180 لأبل، والـ manifest 192 و512، والملفات في public/، ومفيش مسارات مولّدة ولا إعادة توجيه.
  */
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { StoreProduct } from '@zell/core'
 import { canonicalPath, jsonLdText, piastresToEgp, productJsonLd, storeJsonLd } from './structuredData'
+import { MANIFEST_ICONS, SITE_ICONS } from './icons'
 
 export type SeoCaseFailure = { name: string; expected: string; actual: string }
 
@@ -105,10 +107,29 @@ export function runSeoCases(): { passed: number; failures: SeoCaseFailure[] } {
   const bare = storeJsonLd({ name: 'myzill', siteUrl: SITE, logoUrl: null, sameAs: [] })
   check('S08 no logo/sameAs when empty', ['logo' in (bare[0] ?? {}), 'sameAs' in (bare[0] ?? {})], [false, false])
 
-  const icon = readFileSync(join(process.cwd(), 'app', 'icon.tsx'), 'utf8')
-  check('S09 icon sizes: 48 then 96 first, no 32 (FAVICON-ORDER), 192 and 512 kept for the manifest', [icon.includes('const SIZES = [48, 96, 192, 512]'), /SIZES = \[[^\]]*\b32\b/.test(icon), icon.includes('?? 48')], [true, false, true])
+  // S09 — Z-ICON (2026-11-15): أيقونات ثابتة في public/ بعناوين ثابتة؛ FAVICON-ORDER: أول PNG معلن 48 ومن غير 32
+  check(
+    'S09 declared icons: favicon.ico then 48, 96, 192 (no 16/32 declared), apple 180',
+    [SITE_ICONS.icon.map((entry) => entry.url), SITE_ICONS.apple.map((entry) => entry.url)],
+    [['/favicon.ico', '/icon-48.png', '/icon-96.png', '/icon-192.png'], ['/icon-180.png']],
+  )
+  check('S09 manifest icons: 192 and 512', MANIFEST_ICONS.map((entry) => entry.src), ['/icon-192.png', '/icon-512.png'])
+  check(
+    'S09 static URLs without ?hash',
+    [...SITE_ICONS.icon.map((entry) => entry.url), ...SITE_ICONS.apple.map((entry) => entry.url), ...MANIFEST_ICONS.map((entry) => entry.src)].every((url) => !url.includes('?')),
+    true,
+  )
+  const ICON_FILES = ['favicon.ico', 'icon-16.png', 'icon-32.png', 'icon-48.png', 'icon-96.png', 'icon-180.png', 'icon-192.png', 'icon-512.png']
+  check('S09 the 8 static icon files are in public/', ICON_FILES.map((file) => existsSync(join(process.cwd(), 'public', file))), ICON_FILES.map(() => true))
+  check(
+    'S09 generated icon routes removed (app/icon.tsx, app/apple-icon.tsx)',
+    [existsSync(join(process.cwd(), 'app', 'icon.tsx')), existsSync(join(process.cwd(), 'app', 'apple-icon.tsx'))],
+    [false, false],
+  )
   const config = readFileSync(join(process.cwd(), 'next.config.mjs'), 'utf8')
-  check('S09 /favicon.ico serves the 48px icon', config.includes("{ source: '/favicon.ico', destination: '/icon/48' }"), true)
+  check('S09 no /favicon.ico rewrite (served from public/)', [config.includes("source: '/favicon.ico'"), config.includes('/icon/48')], [false, false])
+  const layout = readFileSync(join(process.cwd(), 'app', 'layout.tsx'), 'utf8')
+  check('S09 the layout metadata declares SITE_ICONS', layout.includes('icons: SITE_ICONS'), true)
 
   return { passed, failures }
 }
