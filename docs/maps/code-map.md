@@ -101,7 +101,8 @@
 | --- | --- |
 | `backend/db/` | **شغّال:** `schema.sql` (الأساس) · `migrations/` · `ci/` (اختبارات SQL في CI). الخريطة: `docs/maps/db-map.md` |
 | `backend/admin` · `backend/lib` · `backend/storefront` · `frontend/` | ⚠ **نسخة Retool القديمة، مرجع تاريخي بس.** مفيش حاجة في `apps/` بتستوردها ومفيش حاجة فيها بتشتغل. التسعير المعتمد في `packages/core/src/pricing.ts` وبس |
-| `.github/workflows/ci.yml` | CI: install + typecheck + build + حالات اللوحة، وjob لـ 0021-P بيشتغل لما ملفاته تتغيّر، وjob `storefront-isr-integration` (PRODUCT-ISR، تلات مجموعات متوازية) |
+| `.github/workflows/ci.yml` | CI: install + typecheck + build + حالات اللوحة، وjob لـ 0021-P بيشتغل لما ملفاته تتغيّر، وjob `storefront-isr-integration` (PRODUCT-ISR، تلات مجموعات متوازية؛ §٧: بيشتغل بس لو `storefront-isr-integration-changes` لقى ملف جوه النطاق في الـ PR، وكامل دايمًا على main وworkflow_dispatch) |
+| `scripts/isr-integration-scope.mjs` | PRODUCT-ISR §٧: قرار تشغيل job اختبار التكامل — جمع الفرق بـ `git diff --no-renames --name-only -z` من نقطة التفرّع (الحذف وطرفي النقل بيتحسبوا)، والنطاق `apps/storefront/**` · `packages/**` · ملفات الجذر · `ci.yml` · السكربت نفسه؛ push وworkflow_dispatch وفرق مايتقراش = تشغيل. `--selftest` (حالات ثابتة + ريبو git مؤقت) بيتشغّل على كل PR |
 | `scripts/check-product-isr.mjs` | PRODUCT-ISR §٢-٣: فحص هيكلي مكمّل بعد بناء المتجر (`revalidate` في صفحة المنتج = `REVALIDATE_SECONDS` · `generateStaticParams` فاضية · المسار في `dynamicRoutes` · سطر البناء فيه ● مش ƒ). مش دليل على التجديد |
 | `scripts/vercel-ignore-build.sh` | خطوة Vercel «تخطّي البناء»: production بيتبني دايمًا، والمعاينة بتتخطّى مع `wip` أو `[skip deploy]` أو لو مسارات الفرع مالهاش علاقة بالتطبيق، وأي غموض = يبني |
 | `docs/` | توثيق السيستم: العقود (`contracts/`)، والخرايط (`maps/`)، والخطط (`plans/`) |
