@@ -20,7 +20,11 @@ import {
 } from './mappers'
 import { restGet, supabaseProjectUrl } from './supabaseServer'
 
-/** ٥ دقايق. تعديل سعر من الداشبورد يبان خلال المدة دي كحد أقصى. */
+/**
+ * ٥ دقايق — مدة تجديد **مستهدفة** مش سقف مضمون (PRODUCT-ISR §٣-١): التجديد الزمني بيحصل
+ * مع طلب بعد انتهاء المدة لو إعادة الجلب نجحت. مشتركة لكل بيانات المتجر، ولازم تساوي
+ * revalidate في app/product/[productId]/page.tsx (scripts/check-product-isr.mjs بيتأكد في CI).
+ */
 export const REVALIDATE_SECONDS = 300
 
 const PRODUCT_COLUMNS = [
