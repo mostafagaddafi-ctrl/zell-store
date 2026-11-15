@@ -24,12 +24,25 @@ import { canonicalPath, productJsonLd } from '../../../lib/seo/structuredData'
 import { SITE_URL } from '../../../lib/site'
 
 /**
- * مفيش generateStaticParams عن قصد.
+ * PRODUCT-ISR (docs/contracts/PRODUCT-ISR.md) — كاش استجابة الصفحة (ISR).
  *
- * كانت بتقرا من الداتابيز **وقت البناء**، فأي خلل في مفتاح أو شبكة كان
- * بيفشّل النشر كله. من غيرها الصفحة بتتولّد عند أول طلب وبتتكاش حسب
- * revalidate، وكمان أي منتج جديد بيظهر من غير إعادة نشر.
+ * • generateStaticParams بترجّع قايمة فاضية عن قصد: مابتعدّش منتجات ولا بتقرا
+ *   الداتابيز وقت البناء (أي خلل في مفتاح أو شبكة كان بيفشّل النشر كله). كل
+ *   منتج بيتولّد عند أول طلب وبيتكاش، ومنتج جديد بيظهر من غير إعادة نشر
+ *   (dynamicParams الافتراضي true). ده مش ضمان إن البناء كله مابيقراش الداتا:
+ *   الـ layout والصفحات التانية بتقرا مصدر الداتا وقت البناء.
+ * • revalidate = مدة تجديد **مستهدفة** مش سقف مضمون: التجديد الزمني بيحصل مع
+ *   طلب بعد انتهاء المدة، ولو إعادة التوليد نجحت. الرقم لازم يساوي
+ *   REVALIDATE_SECONDS في lib/data/queries.ts (Next بيقرا الإعداد ده وقت البناء
+ *   فمينفعش يتستورد)، و scripts/check-product-isr.mjs بيفشّل CI لو اختلفوا.
+ * • التجديد الفوري: /api/revalidate بيلغي تاج storefront-data، والصفحة بتورث
+ *   التاج من fetch الداتا، فأول طلب سيرفر بعد إبطال ناجح بيتولّد من جديد.
  */
+export const revalidate = 300
+
+export async function generateStaticParams(): Promise<Array<{ productId: string }>> {
+  return []
+}
 
 type PageProps = { params: Promise<{ productId: string }> }
 
