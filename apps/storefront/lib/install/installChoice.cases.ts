@@ -3,12 +3,13 @@
  * منطق خالص بيتشغّل فعلًا في CI (pnpm --filter @zell/storefront cases، suite install).
  */
 
-import type { InstallMode } from '../cart'
+import type { ChosenInstallMode, InstallMode } from '../cart'
 import { installerRequiredFor, orderRequiresInstaller, parseInstallationConfig } from '@zell/core'
 import {
   INSTALL_MODE_LABELS,
   currentInstallModeLine,
   installChoiceRequired,
+  installModeAfterLinesChange,
   installerOnlyLine,
   revealToolsOnChange,
   showToolSuggestions,
@@ -24,6 +25,24 @@ function check(name: string, actual: unknown, expected: unknown): void {
   const e = JSON.stringify(expected)
   if (a === e) passed += 1
   else failures.push({ name, expected: e, actual: a })
+}
+
+/**
+ * INSTALL-RESET — نفس خطوات الـ effect في CartProvider: أول خطوة = أول تشغيل بعد الجاهزية (previous = null)،
+ * والعدد السابق بيتحدّث بعد كل انتقال. choose = اختيار العميل بعد الانتقال (setInstallMode).
+ */
+type CartStep = { count: number; choose?: ChosenInstallMode }
+function modesAfter(stored: InstallMode, steps: CartStep[]): InstallMode[] {
+  let previous: number | null = null
+  let mode = stored
+  const modes: InstallMode[] = []
+  for (const step of steps) {
+    mode = installModeAfterLinesChange(previous, step.count, mode)
+    previous = step.count
+    if (step.choose !== undefined) mode = step.choose
+    modes.push(mode)
+  }
+  return modes
 }
 
 /** حالة الصفحة بعد اختيار نهائي (الاختيار المحفوظ اتقري، والعميل اختار). */
@@ -110,6 +129,57 @@ export function runInstallChoiceCases(): { passed: number; failures: InstallCase
     [true, false, true, false, false, false],
   )
   check('I08 installer-only lines', [installerOnlyLine('product'), installerOnlyLine('cart')], ['المنتج ده متاح بفني.', 'طلبك فيه منتج بيتركّب مع فني تركيب بس.'])
+
+  // INSTALL-RESET (docs/contracts/INSTALL-RESET.md): السلة تفضى بالشيل → unset زي clear()، وغير كده الاختيار زي ما هو
+  check(
+    'R01 non-empty -> empty (last line removed): self / installer / unset all become unset',
+    [installModeAfterLinesChange(3, 0, 'self'), installModeAfterLinesChange(1, 0, 'installer'), installModeAfterLinesChange(2, 0, 'unset')],
+    ['unset', 'unset', 'unset'],
+  )
+  check(
+    'R02 non-empty -> non-empty (part removed, or same count): unchanged',
+    [installModeAfterLinesChange(3, 2, 'self'), installModeAfterLinesChange(2, 1, 'installer'), installModeAfterLinesChange(2, 2, 'installer')],
+    ['self', 'installer', 'installer'],
+  )
+  check(
+    'R03 empty -> empty (choice made on the product page before the first add): unchanged',
+    [installModeAfterLinesChange(0, 0, 'installer'), installModeAfterLinesChange(0, 0, 'self')],
+    ['installer', 'self'],
+  )
+  check(
+    'R04 empty -> non-empty (first add): unchanged',
+    [installModeAfterLinesChange(0, 1, 'installer'), installModeAfterLinesChange(0, 2, 'self'), installModeAfterLinesChange(0, 1, 'unset')],
+    ['installer', 'self', 'unset'],
+  )
+  check(
+    'R05 first run after ready (previous = null) seeds the restored count without a reset, even with an empty restored cart',
+    [installModeAfterLinesChange(null, 0, 'installer'), installModeAfterLinesChange(null, 0, 'self'), installModeAfterLinesChange(null, 2, 'self')],
+    ['installer', 'self', 'self'],
+  )
+  check(
+    'R06 load an old saved choice with an empty cart: stays (out of scope, contract §6 item 1) until a removal empties the cart',
+    modesAfter('installer', [{ count: 0 }, { count: 1 }, { count: 0 }]),
+    ['installer', 'installer', 'unset'],
+  )
+  check(
+    'R07 repeated add/remove cycles: the previous count is updated after every transition',
+    modesAfter('unset', [
+      { count: 0, choose: 'installer' },
+      { count: 1 },
+      { count: 0 },
+      { count: 1, choose: 'self' },
+      { count: 2 },
+      { count: 1 },
+      { count: 0 },
+      { count: 1 },
+    ]),
+    ['installer', 'installer', 'unset', 'self', 'self', 'self', 'unset', 'unset'],
+  )
+  check(
+    'R08 batched removals in one event (3 lines -> 0 seen once after the batch): unset',
+    modesAfter('self', [{ count: 3 }, { count: 0 }]),
+    ['self', 'unset'],
+  )
 
   return { passed, failures }
 }
