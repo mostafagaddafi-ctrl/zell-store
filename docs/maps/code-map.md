@@ -54,9 +54,9 @@
 
 | الفولدر | بيعمل إيه |
 | --- | --- |
-| `apps/storefront/` (الجذر) | الإعدادات: `middleware.ts` (بيصدر كوكي جلسة الدفع على `/checkout`) · `next.config.mjs` · `vercel.json` · `.env.example` · `scripts/run-cases.mjs` (حالات المتجر الخالصة — 0021-D2) |
+| `apps/storefront/` (الجذر) | الإعدادات: `middleware.ts` (بيصدر كوكي جلسة الدفع على `/checkout`) · `next.config.mjs` · `vercel.json` · `.env.example` · `scripts/run-cases.mjs` (حالات المتجر الخالصة — 0021-D2) · `scripts/isr-integration/` (PRODUCT-ISR: اختبار تكامل كاش صفحة المنتج — `source.mjs` مصدر HTTP صناعي بدل Supabase، و`run.mjs` بيبني ويشغّل `next start` وبيشغّل T1–T6؛ في CI job `storefront-isr-integration`) |
 | `app/` | `page.tsx` (الرئيسية) · `layout.tsx` · `not-found.tsx` · `icon.tsx` · `apple-icon.tsx` · `opengraph-image.tsx` (معاينة المشاركة) · `manifest.ts` · `robots.ts` · `sitemap.ts` |
-| `app/products` · `app/product/[productId]` | كل المنتجات، وصفحة المنتج |
+| `app/products` · `app/product/[productId]` | كل المنتجات، وصفحة المنتج (PRODUCT-ISR: ISR بمدة تجديد مستهدفة 300ث = `REVALIDATE_SECONDS` مش سقف، و`generateStaticParams` فاضية، وتجديد فوري بتاج `storefront-data`) |
 | `app/collections` · `app/collection/[slug]` | الأقسام، وصفحة القسم |
 | `app/cart` · `app/checkout` | السلة وإتمام الطلب |
 | `app/order/[orderNumber]` | الإيصال (بكوكي `HttpOnly`) — وهو نفسه صفحة نجاح الطلب (Checkout بيحوّل عليه) — + «احتفظ برقم طلبك» (`OrderNumberKeep`) |
@@ -101,7 +101,8 @@
 | --- | --- |
 | `backend/db/` | **شغّال:** `schema.sql` (الأساس) · `migrations/` · `ci/` (اختبارات SQL في CI). الخريطة: `docs/maps/db-map.md` |
 | `backend/admin` · `backend/lib` · `backend/storefront` · `frontend/` | ⚠ **نسخة Retool القديمة، مرجع تاريخي بس.** مفيش حاجة في `apps/` بتستوردها ومفيش حاجة فيها بتشتغل. التسعير المعتمد في `packages/core/src/pricing.ts` وبس |
-| `.github/workflows/ci.yml` | CI: install + typecheck + build + حالات اللوحة، وjob لـ 0021-P بيشتغل لما ملفاته تتغيّر |
+| `.github/workflows/ci.yml` | CI: install + typecheck + build + حالات اللوحة، وjob لـ 0021-P بيشتغل لما ملفاته تتغيّر، وjob `storefront-isr-integration` (PRODUCT-ISR، تلات مجموعات متوازية) |
+| `scripts/check-product-isr.mjs` | PRODUCT-ISR §٢-٣: فحص هيكلي مكمّل بعد بناء المتجر (`revalidate` في صفحة المنتج = `REVALIDATE_SECONDS` · `generateStaticParams` فاضية · المسار في `dynamicRoutes` · سطر البناء فيه ● مش ƒ). مش دليل على التجديد |
 | `scripts/vercel-ignore-build.sh` | خطوة Vercel «تخطّي البناء»: production بيتبني دايمًا، والمعاينة بتتخطّى مع `wip` أو `[skip deploy]` أو لو مسارات الفرع مالهاش علاقة بالتطبيق، وأي غموض = يبني |
 | `docs/` | توثيق السيستم: العقود (`contracts/`)، والخرايط (`maps/`)، والخطط (`plans/`) |
 | الجذر | `package.json` · `pnpm-workspace.yaml` · `tsconfig.base.json` · `README.md` (حالة النظام الحي) |
