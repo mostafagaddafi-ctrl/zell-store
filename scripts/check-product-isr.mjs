@@ -46,7 +46,7 @@ if (pageRevalidate.length === 1 && dataSeconds.length === 1 && pageRevalidate[0]
   fail('page revalidate (' + String(pageRevalidate[0]) + ') != REVALIDATE_SECONDS (' + String(dataSeconds[0]) + ')')
 }
 
-if (!/^export async function generateStaticParams\(\)[^{]*\{\s*return \[\]\s*\}/m.test(page)) {
+if (!/^export async function generateStaticParams\(\)[^\n]*\{\n\s*return \[\]\n\}/m.test(page)) {
   fail('generateStaticParams must exist and return an empty list')
 }
 for (const name of ['dynamic', 'fetchCache', 'dynamicParams']) {
