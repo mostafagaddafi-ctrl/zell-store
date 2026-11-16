@@ -44,6 +44,8 @@ const SUITES = [
   { name: 'coupon', dir: 'lib/orders', entry: 'coupon.cases.ts', run: 'runStorefrontCouponCases' },
   { name: 'coupon-checkout', dir: 'lib/orders', entry: 'couponCheckout.cases.ts', run: 'runCheckoutCouponCases', also: ['lib', 'lib/size'] },
   { name: 'core-coupons', core: true, entry: 'coupons.cases.ts', run: 'runCouponCases' },
+  // META-PIXEL §٤-١ — العنوان النضيف والـ referrer وشرط التهيئة والـ runtime ببيئة مزيّفة
+  { name: 'meta-pixel', dir: 'lib/analytics', entry: 'metaPixel.cases.ts', run: 'runMetaPixelCases' },
 ]
 
 const COMPILER_OPTIONS = {
