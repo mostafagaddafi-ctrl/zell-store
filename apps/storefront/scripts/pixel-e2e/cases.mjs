@@ -550,6 +550,75 @@ export async function P11({ browser, expect, note, app }) {
       await context.close()
     }
   }
+  // (ز) مراجعة 05a11e7 — مستند بدأ والخانة فاضية، وفيه تاريخ مش نضيف، وبعدين ID صالح بـ router.refresh جوه نفس المستند
+  {
+    await app.applyPixelId('')
+    const { context, page, state } = await openContext(browser)
+    try {
+      const doc = await gotoLoad(page, ORIGIN + '/?phone=PRIVATE_Q9')
+      await internalNav(page, '/products')
+      await page.evaluate(() => {
+        window.__pixelE2eMark = 'empty-start'
+      })
+      await app.applyPixelId(VALID_ID)
+      await routerRefresh(page)
+      await sleep(3000)
+      await internalNav(page, '/product/' + String(METER_ID))
+      await sleep(6000)
+      const neverArmed = await page.evaluate(() => {
+        const boot = window.__zellPixelBoot
+        return !boot || boot.bridge === null
+      })
+      const mark = await page.evaluate(() => window.__pixelE2eMark || null)
+      expect(mark === 'empty-start' && (await docOf(page)) === doc, 'empty-start: document was replaced')
+      expect(neverArmed, 'empty-start document armed after a valid id arrived')
+      expect(state.sdkRequests.length === 0 && sdkAppends(state, doc).length === 0, 'empty-start document requested the sdk')
+      expect(calls(state, doc).length === 0, 'empty-start document: fbq calls')
+      note('empty start then valid id', { neverArmed, sdkRequests: state.sdkRequests.length, calls: calls(state, doc).length })
+    } finally {
+      await context.close()
+    }
+  }
+  // (ح) ع١-ب — الخانة صالحة من الأول، بس التسليح اتأخر (chunk الـ runtime محجوز) والمستند مرّ بعنوان مش نضيف قبله
+  {
+    await app.applyPixelId(VALID_ID)
+    const { context, page, state } = await openContext(browser, { holdPixelChunk: true })
+    try {
+      await page.goto(ORIGIN + '/', { waitUntil: 'domcontentloaded' })
+      const doc = await docOf(page)
+      await waitFor(() => state.pixelChunk, 20000, 'pixel runtime chunk requested')
+      // سطر سجل مش نضيف بيفضل في السجل (push)، وبعدين العنوان الحالي نضيف وقت التسليح
+      await internalNav(page, '/products?x=PRIVATE_Q10')
+      await internalNav(page, '/products')
+      const historyLength = await page.evaluate(() => history.length)
+      state.releaseChunk()
+      await waitForArmed(page)
+      await sleep(6000)
+      expect(state.sdkRequests.length === 0 && sdkAppends(state, doc).length === 0, 'armed after unclean history: sdk requested')
+      expect(calls(state, doc).length === 0, 'armed after unclean history: fbq calls')
+      note('unclean history before arming', { chunk: state.pixelChunk, historyLength, sdkRequests: state.sdkRequests.length, calls: calls(state, doc).length })
+    } finally {
+      state.releaseChunk()
+      await context.close()
+    }
+  }
+  // (ط) ضابط لـ (ح): نفس الحجز من غير تاريخ مش نضيف ⇐ السكربت بيتحمّل عادي
+  {
+    const { context, page, state } = await openContext(browser, { holdPixelChunk: true })
+    try {
+      await page.goto(ORIGIN + '/', { waitUntil: 'domcontentloaded' })
+      const doc = await docOf(page)
+      await waitFor(() => state.pixelChunk, 20000, 'pixel runtime chunk requested')
+      await sleep(800)
+      state.releaseChunk()
+      await waitForInit(state, doc)
+      expect(inits(state, doc).length === 1, 'control: no init after release')
+      note('control: held chunk, clean history', { inits: inits(state, doc).length })
+    } finally {
+      state.releaseChunk()
+      await context.close()
+    }
+  }
   await app.applyPixelId(VALID_ID)
 }
 
