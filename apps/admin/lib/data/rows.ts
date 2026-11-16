@@ -426,6 +426,8 @@ export function readHero(map: Map<string, unknown>): HeroContent {
     productSizeEntry: readProductSizeEntry(raw['productSizeEntry']),
     // SIZE-TEXTS — لازم تتقري علشان ماتضيعش مع حفظ باقي المحتوى
     productSizeTexts: readProductSizeTexts(raw['productSizeTexts']),
+    // META-PIXEL — لازم يتقري علشان مايضيعش مع حفظ باقي المحتوى (نص زي ما هو؛ التحقق وقت الحفظ)
+    metaPixelId: text(raw['metaPixelId']).trim(),
   }
 }
 
