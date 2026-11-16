@@ -2,6 +2,7 @@ import 'server-only'
 
 import type { Announcement, FaqItem, FooterLink, HeroContent, OrderStep, StoreContent, StoreSection } from '../adminData'
 import { checkSectionMobileLayout } from '../content/homeMobile'
+import { checkMetaPixelId } from '../content/metaPixel'
 import { checkProductSizeEntry } from '../content/sizeEntry'
 import { checkProductSizeTexts } from '../content/sizeTexts'
 import { SECTION_KEYS, type SectionKey } from '../enums'
@@ -56,6 +57,9 @@ function validateHero(value: unknown): { ok: true; value: HeroContent } | Valida
   // SIZE-TEXTS — اختياري (الغايب = {})، والفاضي بيتشال، والأطول من الحد مرفوض من غير قص، وبيتكتب دايمًا في p_hero
   const sizeTexts = checkProductSizeTexts(value['productSizeTexts'])
   if (!sizeTexts.ok) return invalid(sizeTexts.message)
+  // META-PIXEL — اختياري (الغايب أو الفاضي = '')، وأرقام 10–20 بس، وبيتكتب دايمًا في p_hero
+  const pixelId = checkMetaPixelId(value['metaPixelId'])
+  if (!pixelId.ok) return invalid(pixelId.message)
 
   const hero: HeroContent = {
     title: title.value,
@@ -64,6 +68,7 @@ function validateHero(value: unknown): { ok: true; value: HeroContent } | Valida
     ctaLabel: ctaLabel.value ?? '',
     productSizeEntry: sizeEntry.value,
     productSizeTexts: sizeTexts.value,
+    metaPixelId: pixelId.value,
   }
   return { ok: true, value: hero }
 }
