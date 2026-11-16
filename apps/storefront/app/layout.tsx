@@ -60,7 +60,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const toolsLink = toolsPage.enabled && hasInstallationTools(products) ? { href: '/installation-tools', label: toolsPage.title } : null
   // STORE-MENU §٥ — «إزاي أطلب» و«الأسئلة المتكررة» في قائمة الموبايل بنفس شرط الرئيسية (من نفس settings، من غير قراية جديدة)
   const help = homeHelpVisibility(settings.content)
-  // META-PIXEL §٢-١ — الخانة فاضية أو غلط ⇐ مفيش مكوّن خالص (لا سكربت ولا طلب ولا كوكي ولا تغيير في التنقل)
+  // META-PIXEL §٢-١ — الخانة فاضية أو غلط ⇐ '' ⇐ MetaPixelLoader مابيرسمش MetaPixel (لا سكربت ولا طلب ولا كوكي ولا تغيير في التنقل)،
+  // وبيوقف المستند المفتوح لو الـ ID اتفضّى بعد ما اتسلّح (§٢-٥). القوايم بتتبعت بس لما الـ ID صالح.
   const metaPixelId = normalizeMetaPixelId(settings.content.metaPixelId)
 
   return (
@@ -78,13 +79,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <CartProvider>
           {/* مسارات التاب ده لزرار «رجوع» — مابيعرضش حاجة */}
           <NavHistory />
-          {metaPixelId !== '' ? (
-            <MetaPixelLoader
-              pixelId={metaPixelId}
-              productIds={products.map((product) => String(product.id))}
-              collectionSlugs={collections.map((collection) => collection.slug)}
-            />
-          ) : null}
+          <MetaPixelLoader
+            pixelId={metaPixelId}
+            productIds={metaPixelId !== '' ? products.map((product) => String(product.id)) : []}
+            collectionSlugs={metaPixelId !== '' ? collections.map((collection) => collection.slug) : []}
+          />
           {/* فوق الهيدر — settings متاحة هنا أصلاً، فمفيش fetch زيادة */}
           <AnnouncementBar announcement={settings.announcement} />
           <SiteHeader
