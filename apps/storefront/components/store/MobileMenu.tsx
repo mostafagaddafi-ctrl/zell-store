@@ -9,6 +9,7 @@ import { useCart } from '../../lib/cart'
 import { cn } from '../../lib/cn'
 import { buildMobileMenu, cartBadge, cartLabel, type HomeHelpVisibility, type MenuItem } from '../../lib/nav/storeNav'
 import { Num } from './Num'
+import { PixelSafeLink } from '../analytics/PixelSafeLink'
 import { SocialLinks } from './SocialLinks'
 
 /**
@@ -193,7 +194,7 @@ export function MobileMenu({
                 </Link>
               </li>
               <li className="zell-drawer-item" style={itemStyle(trackItem)}>
-                <Link
+                <PixelSafeLink
                   href={trackItem.href}
                   onClick={closeMenu}
                   {...currentProps(trackItem)}
@@ -201,7 +202,7 @@ export function MobileMenu({
                 >
                   <PackageSearch className="h-5 w-5 shrink-0" aria-hidden="true" />
                   {trackItem.label}
-                </Link>
+                </PixelSafeLink>
               </li>
             </ul>
 
