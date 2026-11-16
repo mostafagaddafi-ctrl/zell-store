@@ -17,6 +17,8 @@ import {
   type StoreProduct,
 } from '@zell/core'
 import { useCart } from '../../lib/cart'
+import { trackPixel } from '../../lib/analytics/pixelBridge'
+import { addToCartParams } from '../../lib/analytics/pixelEvents'
 import { BUY_NOW_PENDING_TEXT } from '../../lib/buy/buyNow'
 import { BuyNowSlowNotice } from './BuyNowSlowNotice'
 import { useBuyNow } from './useBuyNow'
@@ -121,6 +123,7 @@ export function ProductBuy({
     if (decision.kind === 'reveal') setAttempt((value) => value + 1)
     if (decision.kind !== 'add') return
     cart.add(product.id, decision.lengthCm, chosenWidth)
+    trackPixel('AddToCart', addToCartParams(product.id))
     lastAddedRef.current = lineKey(decision.lengthCm)
     setAddedLengthCm(decision.lengthCm)
     setAddedToolsCount(addSelectedAddons())
@@ -138,6 +141,7 @@ export function ProductBuy({
       const quantity = addonQty[addon.id] ?? 0
       if (quantity > 0) {
         cart.addPiece(addon.id, quantity, maxQuantityOf(addon))
+        trackPixel('AddToCart', addToCartParams(addon.id))
         added += 1
       }
     }
@@ -157,6 +161,7 @@ export function ProductBuy({
       justAdded && lastAddedRef.current === key,
       () => {
         cart.add(product.id, decision.lengthCm, chosenWidth)
+        trackPixel('AddToCart', addToCartParams(product.id))
         lastAddedRef.current = key
       },
       // الإضافات المختارة دلوقتي بتتضاف دايمًا (بتتصفّر بعد الإضافة، فمابتتكررش) — اللي ظاهر مختار = اللي بيتضاف
