@@ -55,6 +55,10 @@ jobs:
       - name: "PRODUCT-ISR: structure"
         run: node scripts/check-product-isr.mjs --build-log "$RUNNER_TEMP/storefront-build.log"
 
+      # META-PIXEL §٤-٢ — فحص هيكلي بعد البناء والخانة فاضية (من غير شبكة).
+      - name: "META-PIXEL: structure"
+        run: node scripts/check-meta-pixel.mjs
+
       # COOKIES-HEADERS §٤-٢ — الـ headers النهائية لكل مسار عيّنة من routes-manifest بعد البناء (من غير شبكة).
       - name: "security headers: storefront"
         run: node scripts/check-security-headers.mjs storefront
