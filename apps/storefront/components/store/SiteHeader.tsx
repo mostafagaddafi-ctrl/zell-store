@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { MessageCircle, PackageSearch, ShoppingBag } from 'lucide-react'
 import type { SocialLink, StoreCollection, StoreImage } from '@zell/core'
+import { PixelSafeLink } from '../analytics/PixelSafeLink'
 import { useCart } from '../../lib/cart'
 import { cn } from '../../lib/cn'
 import { buildDesktopNav, cartBadge, cartLabel, type HomeHelpVisibility } from '../../lib/nav/storeNav'
@@ -171,7 +172,8 @@ export function SiteHeader({
           ) : null}
 
           {/* STORE-MENU §٣ — «تتبّع طلبك» بنصّه جنب السلة (الكمبيوتر بس؛ على الموبايل في القائمة) */}
-          <Link
+          {/* META-PIXEL §٢-٢ ع٢ — /track محجوبة: تنقل كامل في المستند المسلّح */}
+          <PixelSafeLink
             href="/track"
             aria-current={desktop.trackCurrent ? 'page' : undefined}
             className={cn(
@@ -181,7 +183,7 @@ export function SiteHeader({
           >
             <PackageSearch className="h-5 w-5" aria-hidden="true" />
             تتبّع طلبك
-          </Link>
+          </PixelSafeLink>
 
           <Link
             href="/cart"
