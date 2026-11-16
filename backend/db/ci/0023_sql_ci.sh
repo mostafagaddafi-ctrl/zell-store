@@ -161,6 +161,30 @@ wait_holder() {
   return 1
 }
 now_ms() { date +%s%3N; }
+# C02-CLOCK (docs/contracts/INVENTORY-REMOVAL.md، تعديل 2026-11-15 §ج): قياس مزدوج للمتابعة بس — مابيغيّرش أي شرط ولا حساب t0/t1.
+wall_ms() { date +%s%3N; }
+mono_ms() { python3 -c 'import time; print(time.monotonic_ns() // 1000000)' 2> /dev/null; }
+isnum() { case "$1" in ''|*[!0-9-]*) return 1 ;; esac; return 0; }
+yn() { if "$@"; then echo yes; else echo no; fi; }
+not_has() { ! grep -q -- "$2" "$1"; }
+# ε: أكبر (Δwall − Δmono) لـ 5 عينات بنفس الترتيب wall0 → mono0 → mono1 → wall1 من غير حاجة في النص (تكلفة أخذ العينات).
+clock_eps() {
+  local i a b c d diff max=""
+  for i in 1 2 3 4 5; do
+    a=$(wall_ms); b=$(mono_ms); c=$(mono_ms); d=$(wall_ms)
+    if isnum "$a" && isnum "$b" && isnum "$c" && isnum "$d"; then
+      diff=$(( (d - a) - (c - b) ))
+      if [ -z "$max" ] || [ "$diff" -gt "$max" ]; then max=$diff; fi
+    fi
+  done
+  echo "${max:-n/a}"
+}
+# حالة ساعة الجهاز — معلومة مساعدة بس، وأي أمر مش موجود أو بيفشل مابيوقّعش حاجة.
+clock_state() {
+  echo "CLOCK_STATE $1 clocksource=$(cat /sys/devices/system/clocksource/clocksource0/current_clocksource 2> /dev/null || echo n/a)"
+  if command -v timedatectl > /dev/null 2>&1; then echo "CLOCK_STATE $1 timedatectl $(timedatectl show -p NTPSynchronized -p TimeUSec 2> /dev/null | tr '\n' ' ')"; else echo "CLOCK_STATE $1 timedatectl n/a"; fi
+  if command -v chronyc > /dev/null 2>&1; then echo "CLOCK_STATE $1 chronyc $(chronyc tracking 2> /dev/null | tr '\n' ' ' | cut -c1-600)"; else echo "CLOCK_STATE $1 chronyc n/a"; fi
+}
 
 # ---- 1) فحوص ثابتة ----
 if python3 "$SHAPE" --selftest > "$TMP/shape_self.out" 2>&1 && python3 "$SHAPE" "$PTEST" "$VERIFY" > "$TMP/shape.out" 2>&1; then ok=yes; else ok=no; fi
@@ -259,10 +283,17 @@ ok=no; has "$TMP/g5.out" 'ZELL_0023_SHAPE' && [ "$st" = "$BEFORE_STATE" ] && [ "
 record "G05 a plpgsql function outside inventory calls zell_inv_* (no dependency recorded) -> ZELL_0023_SHAPE, nothing changed; then dropped" "$ok" "state=$st $(tailof "$TMP/g5c.log") $(tailof "$TMP/g5.out")"
 
 # ---- 5ج) التزامن (مراجعة #195 B1): قفل الجداول العشرة قبل أول قراية بيانات ----
+# C02-CLOCK §ج: معايرة ε قبل C01 + حالة ساعة الجهاز (معلومات بس)
+EPS_PRE=$(clock_eps); clock_state before-C01
+C1_WD=""; C1_MD=""; C1_T=""; C2_WD=""; C2_MD=""; C2_T=""
 holder "CI supplier 0023 C01" 3 commit "$TMP/c1h.out" &
 hp=$!
 if wait_holder; then
+  w0=$(wall_ms); m0=$(mono_ms)
   t0=$(now_ms); run_with "$APPLY" "ci-0023" "$EXP" "$TMP/c1.out"; t1=$(now_ms)
+  m1=$(mono_ms); w1=$(wall_ms)
+  C1_T=$((t1 - t0))
+  if isnum "$w0" && isnum "$m0" && isnum "$m1" && isnum "$w1"; then C1_WD=$((w1 - w0)); C1_MD=$((m1 - m0)); fi
   wait "$hp"; hrc=$?
   st=$(state); fp=$(fp_out)
   kept=$(su_q "$DB" -c "select pg_catalog.count(*) from public.suppliers where name_key = 'ci supplier 0023 c01'")
@@ -271,22 +302,38 @@ if wait_holder; then
   has "$TMP/c1.out" 'ZELL_0023_DATA_CHANGED' && has "$TMP/c1.out" ' suppliers=2 ' && [ "$hrc" -eq 0 ] && [ "$kept" = "1" ] && [ $((t1 - t0)) -ge 1500 ] \
     && [ "$st" = "$BEFORE_STATE" ] && [ "$fp" = "$FP0" ] && [ "$(data_line)" = "$EXP" ] && ok=yes
   record "C01 a supplier insert in flight commits while apply waits on the preflight lock ($((t1 - t0)) ms) -> ZELL_0023_DATA_CHANGED (suppliers=2); the supplier is kept, nothing changed" "$ok" "holder_rc=$hrc kept=$kept state=$st $(tailof "$TMP/c1.out") $(tailof "$TMP/c1h.out") $(tailof "$TMP/c1c.log")"
+  echo "C01_CHECKS data_changed=$(yn has "$TMP/c1.out" 'ZELL_0023_DATA_CHANGED') suppliers2=$(yn has "$TMP/c1.out" ' suppliers=2 ') holder_rc0=$(yn [ "$hrc" -eq 0 ]) kept=$(yn [ "$kept" = "1" ]) state_before=$(yn [ "$st" = "$BEFORE_STATE" ]) fp_before=$(yn [ "$fp" = "$FP0" ]) data_expected=$(yn [ "$(data_line)" = "$EXP" ])"
 else
   wait "$hp"; record "C01 a supplier insert in flight" no "the second session never took its lock: $(tailof "$TMP/c1h.out")"
 fi
 holder "CI supplier 0023 C02" 8 rollback "$TMP/c2h.out" &
 hp=$!
 if wait_holder; then
+  w0=$(wall_ms); m0=$(mono_ms)
   t0=$(now_ms); run_with "$APPLY" "ci-0023" "$EXP" "$TMP/c2.out"; t1=$(now_ms)
+  m1=$(mono_ms); w1=$(wall_ms)
+  C2_T=$((t1 - t0))
+  if isnum "$w0" && isnum "$m0" && isnum "$m1" && isnum "$w1"; then C2_WD=$((w1 - w0)); C2_MD=$((m1 - m0)); fi
   st=$(state); fp=$(fp_out)
   wait "$hp"; hrc=$?
   ok=no
   has "$TMP/c2.out" '55P03' && has "$TMP/c2.out" 'lock timeout' && has "$TMP/c2.out" 'lock table public.inventory_locations' && ! grep -q 'ZELL_0023_' "$TMP/c2.out" \
     && [ $((t1 - t0)) -ge 4500 ] && [ "$hrc" -eq 0 ] && [ "$st" = "$BEFORE_STATE" ] && [ "$fp" = "$FP0" ] && [ "$(data_line)" = "$EXP" ] && ok=yes
   record "C02 a writer holds suppliers longer than lock_timeout -> apply stops on the preflight lock after $((t1 - t0)) ms (55P03), nothing changed, the writer's row rolled back" "$ok" "holder_rc=$hrc state=$st $(tailof "$TMP/c2.out") $(tailof "$TMP/c2h.out")"
+  echo "C02_CHECKS 55P03=$(yn has "$TMP/c2.out" '55P03') lock_timeout=$(yn has "$TMP/c2.out" 'lock timeout') lock_table=$(yn has "$TMP/c2.out" 'lock table public.inventory_locations') no_zell=$(yn not_has "$TMP/c2.out" 'ZELL_0023_') holder_rc0=$(yn [ "$hrc" -eq 0 ]) state_before=$(yn [ "$st" = "$BEFORE_STATE" ]) fp_before=$(yn [ "$fp" = "$FP0" ]) data_expected=$(yn [ "$(data_line)" = "$EXP" ])"
 else
   wait "$hp"; record "C02 a writer holds suppliers longer than lock_timeout" no "the second session never took its lock: $(tailof "$TMP/c2h.out")"
 fi
+# C02-CLOCK §ج: معايرة ε بعد C02 + حالة ساعة الجهاز + سطور التوقيت (معلومات بس، مابتغيّرش أي نتيجة)
+EPS_POST=$(clock_eps); clock_state after-C02
+EPS="n/a"
+if isnum "$EPS_PRE" && isnum "$EPS_POST"; then EPS=$EPS_PRE; [ "$EPS_POST" -gt "$EPS" ] && EPS=$EPS_POST; elif isnum "$EPS_PRE"; then EPS=$EPS_PRE; elif isnum "$EPS_POST"; then EPS=$EPS_POST; fi
+echo "CLOCK_EPS pre=$EPS_PRE post=$EPS_POST eps=$EPS"
+timing_line() {
+  if isnum "$2" && isnum "$3"; then echo "$1 wall=$2 mono=$3 diff=$(($2 - $3)) eps=$EPS t=$4"; else echo "$1 n/a wall=$2 mono=$3 eps=$EPS t=$4"; fi
+}
+timing_line C01_TIMING "$C1_WD" "$C1_MD" "$C1_T"
+timing_line C02_TIMING "$C2_WD" "$C2_MD" "$C2_T"
 
 # ---- 6) المعاملة بترجع كلها: نفس الملف بخطأ مقصود بعد آخر خطوة وقبل commit ----
 sed "s/^commit;\$/do \$z23\$ begin raise exception 'ZELL_CI_ABORT_AFTER_BODY'; end \$z23\$;\ncommit;/" "$APPLY" > "$TMP/abort.sql"
