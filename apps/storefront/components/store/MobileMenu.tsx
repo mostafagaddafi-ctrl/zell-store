@@ -157,11 +157,13 @@ export function MobileMenu({
             <h2 id={titleId} className="text-sm font-bold">
               القائمة
             </h2>
+            {/* قرار المالك 2026-11-15: من غير إطار تركيز على زرار القفل — الدرج بيحط التركيز عليه لما بيفتح، والإطار كان
+                بيظهر على بعض الموبايلات (آيفون). outline-none (شفاف) بدل الكلاسات القديمة علشان إطار المتصفح الافتراضي مايظهرش مكانه. */}
             <button
               type="button"
               onClick={closeMenu}
               aria-label="اقفل القائمة"
-              className="flex h-11 w-11 items-center justify-center rounded-lg border border-border text-fg transition-colors hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="flex h-11 w-11 items-center justify-center rounded-lg border border-border text-fg transition-colors hover:text-accent focus-visible:outline-none"
             >
               <X className="h-5 w-5" />
             </button>
