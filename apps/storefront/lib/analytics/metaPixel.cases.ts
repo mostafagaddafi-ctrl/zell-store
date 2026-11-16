@@ -485,6 +485,20 @@ export function runMetaPixelCases(): { passed: number; failures: PixelCaseFailur
     f.runIdle()
     check('R29 clean history before arming: requested', [rt.isTainted(), f.log.filter((l) => l.startsWith('request')).length], [false, 1])
   }
+  {
+    const f = fakeEnv('/#PRIVATE_DUP')
+    const rt = createPixelRuntime(f.env, false)
+    rt.arm(ID, CATALOG, { hrefs: [at('/#PRIVATE_DUP'), at('/#products'), at('/#PRIVATE_DUP')], overflow: false })
+    f.runIdle()
+    check('R30 [A unclean, B clean, A unclean again]: old A is not excused by matching the current text: tainted, no request', [rt.isTainted(), f.log.filter((l) => l.startsWith('request'))], [true, []])
+  }
+  {
+    const f = fakeEnv('/products')
+    const rt = createPixelRuntime(f.env, false)
+    rt.arm(ID, CATALOG, { hrefs: [at('/'), at('/#products')], overflow: false })
+    f.runIdle()
+    check('R31 history does not end at the current address (ambiguous = unknown): tainted, no request', [rt.isTainted(), f.log.filter((l) => l.startsWith('request'))], [true, []])
+  }
 
   return { passed, failures }
 }
