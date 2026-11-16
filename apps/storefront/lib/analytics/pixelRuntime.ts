@@ -36,6 +36,11 @@ export type PixelEnv = {
 
 export type PixelPhase = 'idle' | 'armed' | 'requested' | 'ready' | 'off'
 
+/** ع١-ب — العناوين اللي المستند مرّ بيها قبل التسليح (من الجسر)، وهل السجل ناقص. */
+export type PixelPrior = { hrefs: readonly string[]; overflow: boolean }
+
+const NO_PRIOR: PixelPrior = { hrefs: [], overflow: false }
+
 const EMPTY_CATALOG: PixelCatalog = { productIds: new Set<string>(), collectionSlugs: new Set<string>() }
 
 function pathOf(href: string): string {
@@ -87,6 +92,13 @@ export function createPixelRuntime(env: PixelEnv, initiallyTainted: boolean) {
     } catch {
       // ولا حاجة
     }
+  }
+
+  /** ع١-ب — أي عنوان قبل التسليح غير العنوان الحالي مش نضيف، أو السجل ناقص ⇐ تاريخ مش معروف. */
+  function priorUnclean(prior: PixelPrior): boolean {
+    if (prior.overflow) return true
+    const current = env.href()
+    return prior.hrefs.some((href) => href !== current && !isCleanHref(href, env.origin, catalog))
   }
 
   /** ن١ — قبل بدء الطلب: الـ query والـ hash بيتنضّفوا، والمسار مش نضيف = تلوّث. */
@@ -196,7 +208,7 @@ export function createPixelRuntime(env: PixelEnv, initiallyTainted: boolean) {
     sdkRequested: (): boolean => sdkRequested,
 
     /** التسليح مرة واحدة لكل مستند، والـ ID بيتثبت. */
-    arm(rawId: string, next: PixelCatalog): void {
+    arm(rawId: string, next: PixelCatalog, prior: PixelPrior = NO_PRIOR): void {
       if (phase !== 'idle') return
       const pinned = normalizeMetaPixelId(rawId)
       if (pinned === '') return
@@ -205,6 +217,11 @@ export function createPixelRuntime(env: PixelEnv, initiallyTainted: boolean) {
       phase = 'armed'
       if (tainted) {
         queue = []
+        return
+      }
+      // ع١-ب — تاريخ المستند قبل وصول الـ runtime مايتنساش
+      if (priorUnclean(prior)) {
+        taint()
         return
       }
       if (isBlockedPath(pathOf(env.href())) || !isCleanReferrer(env.referrer, env.origin, catalog)) {
