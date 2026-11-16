@@ -7,6 +7,7 @@ import { saveContentAction } from '../../lib/actions'
 import type { StoreContent } from '../../lib/adminData'
 import { useSaveAction } from '../../lib/client/useSaveAction'
 import { HOME_MOBILE_NOTE, HOME_MOBILE_OPTIONS, HOME_MOBILE_TITLE, type HomeMobileLayout } from '../../lib/content/homeMobile'
+import { META_PIXEL_HINT, META_PIXEL_LABEL, META_PIXEL_NOTE, META_PIXEL_TITLE } from '../../lib/content/metaPixel'
 import { SIZE_ENTRY_NOTE, SIZE_ENTRY_OPTIONS, SIZE_ENTRY_TITLE } from '../../lib/content/sizeEntry'
 import {
   SIZE_TEXTS_EMPTY_HINT,
@@ -230,6 +231,22 @@ export function ContentEditor({ content, storefrontHref }: { content: StoreConte
             )
           })}
         </div>
+      </Card>
+
+      {/* META-PIXEL §٢-١ — معرّف Meta Pixel (settings.hero.metaPixelId)، وبيتحفظ مع المحتوى (نفس action). فاضي = مقفول. */}
+      <Card title={META_PIXEL_TITLE}>
+        <Field htmlFor="meta-pixel-id" label={META_PIXEL_LABEL} hint={META_PIXEL_HINT}>
+          <input
+            id="meta-pixel-id"
+            value={draft.hero.metaPixelId}
+            inputMode="numeric"
+            dir="ltr"
+            autoComplete="off"
+            onChange={(e) => touch({ ...draft, hero: { ...draft.hero, metaPixelId: e.target.value } })}
+            className={inputClasses}
+          />
+        </Field>
+        <p className="mt-2 text-xs text-muted">{META_PIXEL_NOTE}</p>
       </Card>
 
       <Card title="خطوات الطلب">
