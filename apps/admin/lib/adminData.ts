@@ -168,6 +168,8 @@ export type HeroContent = {
   productSizeEntry: ProductSizeEntry
   /** SIZE-TEXTS — نصوص «حدد المقاس» في صفحة المنتج (settings.hero.productSizeTexts؛ الغايب = {} والمتجر بيعرض الافتراضي). */
   productSizeTexts: ProductSizeTexts
+  /** META-PIXEL — معرّف Meta Pixel (settings.hero.metaPixelId؛ نص، والفاضي = مقفول). */
+  metaPixelId: string
 }
 export type OrderStep = { title: string; description: string }
 export type FaqItem = { question: string; answer: string }
