@@ -15,6 +15,8 @@ export type PixelBridge = {
   needsFullNavigation: (href: string) => boolean
   /** §٢-٥ — الـ ID اتفضّى أو بقى غلط والمستند مفتوح: وقف لباقي عمر المستند. */
   disable: () => void
+  /** B1 — تغيّر المسار من MetaPixelLoader (بيفضل مركّب)، فالحراسة بتشوفه حتى بعد إلغاء تركيب MetaPixel. */
+  locationChanged: () => void
 }
 
 export type PixelBoot = {
@@ -53,6 +55,8 @@ if (typeof window !== 'undefined') pixelBoot()
 export function markPixelPath(pathname: string): void {
   try {
     if (isBlockedPath(pathname)) pixelBoot().visitedBlocked = true
+    // B1 — تغيّر المسار بيوصل لحراسة المستند (لو اتسلّح قبل كده) حتى بعد ما الـ ID اتفضّى
+    pixelBoot().bridge?.locationChanged()
   } catch {
     // التتبّع عمره ما يوقف الصفحة
   }
