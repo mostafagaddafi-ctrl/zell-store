@@ -13,6 +13,7 @@ import {
   type StoreProduct,
 } from '@zell/core'
 import { Num } from '../../../components/store/Num'
+import { PixelViewContent } from '../../../components/analytics/PixelViewContent'
 import { PieceBuy } from '../../../components/store/PieceBuy'
 import { ProductBuy } from '../../../components/store/ProductBuy'
 import { ProductGallery } from '../../../components/store/ProductGallery'
@@ -157,6 +158,9 @@ export default async function ProductPage({ params }: PageProps) {
               </dl>
             )}
           </section>
+
+          {/* META-PIXEL §٢-٤ — ViewContent (مكوّن متصفح؛ الصفحة ISR والكاش زي ما هو) */}
+          <PixelViewContent productId={product.id} name={product.name_ar} />
 
           {/* ٣ + ٤ — اختيار المقاس والإضافة للسلة */}
           {piece ? (
