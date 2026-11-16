@@ -160,8 +160,8 @@ wait_holder() {
   done
   return 1
 }
-now_ms() { date +%s%3N; }
-# C02-CLOCK (docs/contracts/INVENTORY-REMOVAL.md، تعديل 2026-11-15 §ج): قياس مزدوج للمتابعة بس — مابيغيّرش أي شرط ولا حساب t0/t1.
+now_ms() { python3 -c 'import time; print(time.monotonic_ns() // 1000000)'; }
+# C02-CLOCK (docs/contracts/INVENTORY-REMOVAL.md §هـ و§ح-٣): now_ms فوق بالساعة الـ monotonic، وهي اللي بتتقارن بالحدود في C01/C02. wall_ms/mono_ms وسطور التوقيت للمتابعة بس.
 wall_ms() { date +%s%3N; }
 mono_ms() { python3 -c 'import time; print(time.monotonic_ns() // 1000000)' 2> /dev/null; }
 isnum() { case "$1" in ''|*[!0-9-]*) return 1 ;; esac; return 0; }
