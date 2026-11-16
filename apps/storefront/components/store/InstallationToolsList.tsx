@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { ArrowLeft, Check, Minus, Plus, ShoppingBag } from 'lucide-react'
 import { formatPiastres } from '@zell/core'
 import { useCart } from '../../lib/cart'
+import { trackPixel } from '../../lib/analytics/pixelBridge'
+import { addToCartParams } from '../../lib/analytics/pixelEvents'
 import { Button, buttonClasses } from '../ui/Button'
 import { ImageSlot } from '../ui/ImageSlot'
 import { Num } from './Num'
@@ -102,7 +104,10 @@ export function InstallationToolsList({ rows, checkoutLabel }: { rows: ToolRow[]
     if (totalQuantity === 0) return
     for (const row of rows) {
       const quantity = quantityOf(row)
-      if (quantity > 0) cart.addPiece(row.id, quantity, row.max)
+      if (quantity > 0) {
+        cart.addPiece(row.id, quantity, row.max)
+        trackPixel('AddToCart', addToCartParams(row.id))
+      }
     }
     setAdded(totalQuantity)
     setPicked({})
