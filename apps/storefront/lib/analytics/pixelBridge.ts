@@ -26,6 +26,14 @@ export type PixelBoot = {
   visitedBlocked: boolean
   pending: Array<{ event: PixelEvent; params: PixelParams | undefined }>
   bridge: PixelBridge | null
+  /** §٢-٥ — أهلية المستند من أول قيمة ID شافها في المتصفح (null = لسه). فاضي أو غلط ⇐ مش مؤهّل لباقي عمره. */
+  eligible: boolean | null
+  /** ع١-ب — عناوين المستند قبل التسليح (تقريب لسجل التنقّل فيه)، بحد PIXEL_SEEN_MAX. */
+  seen: string[]
+  /** ع١-ب — السجل عدّى الحد ⇐ مش معروف. */
+  seenOverflow: boolean
+  /** المسجّل اتركّب (مرة واحدة لكل مستند). */
+  recorder: boolean
 }
 
 export const PIXEL_PENDING_MAX = 20
@@ -42,19 +50,106 @@ export function pixelBoot(): PixelBoot {
   let boot = holder.__zellPixelBoot
   if (!boot) {
     const initialPath = typeof window === 'undefined' ? '' : window.location.pathname
-    boot = { initialPath, visitedBlocked: isBlockedPath(initialPath), pending: [], bridge: null }
+    boot = {
+      initialPath,
+      visitedBlocked: isBlockedPath(initialPath),
+      pending: [],
+      bridge: null,
+      eligible: null,
+      seen: typeof window === 'undefined' ? [] : [window.location.href],
+      seenOverflow: false,
+      recorder: false,
+    }
     holder.__zellPixelBoot = boot
   }
   return boot
 }
 
-// أول تقييم في المتصفح بيثبّت أول مسار للمستند
-if (typeof window !== 'undefined') pixelBoot()
+export const PIXEL_SEEN_MAX = 50
+
+/**
+ * ع١-ب — تسجيل عنوان المستند قبل التسليح: إضافة (pushState · hashchange · popstate · تغيّر المسار) أو استبدال آخر
+ * عنوان (replaceState، لأن السطر القديم بيختفي من السجل). بعد تسجيل الجسر الحراسة هي اللي بتحكم، فمفيش تسجيل.
+ */
+function notePixelHref(replace: boolean): void {
+  try {
+    const boot = pixelBoot()
+    if (boot.bridge) return
+    const href = window.location.href
+    if (replace && boot.seen.length > 0) {
+      boot.seen[boot.seen.length - 1] = href
+      return
+    }
+    if (boot.seen[boot.seen.length - 1] === href) return
+    if (boot.seen.length >= PIXEL_SEEN_MAX) {
+      boot.seenOverflow = true
+      return
+    }
+    boot.seen.push(href)
+  } catch {
+    // التتبّع عمره ما يوقف الصفحة
+  }
+}
+
+/** تسجيل بس: نفس النداء الأصلي بالحرف، وبعده تسجيل العنوان. مفيش أي طلب ولا تغيير في التنقل. */
+function installHrefRecorder(): void {
+  const history = window.history
+  const push = history.pushState
+  const replace = history.replaceState
+  history.pushState = function (this: History, ...args: Parameters<History['pushState']>): void {
+    push.apply(this, args)
+    notePixelHref(false)
+  }
+  history.replaceState = function (this: History, ...args: Parameters<History['replaceState']>): void {
+    replace.apply(this, args)
+    notePixelHref(true)
+  }
+  window.addEventListener('hashchange', () => notePixelHref(false))
+  window.addEventListener('popstate', () => notePixelHref(false))
+}
+
+// أول تقييم في المتصفح بيثبّت أول مسار وأول عنوان للمستند، وبيبدأ تسجيل العناوين قبل التسليح (ع١-ب)
+if (typeof window !== 'undefined') {
+  const boot = pixelBoot()
+  if (!boot.recorder) {
+    boot.recorder = true
+    installHrefRecorder()
+  }
+}
+
+/** ع١-ب — العناوين المسجّلة قبل التسليح (نسخة) وهل السجل ناقص. */
+export function pixelPrior(): { hrefs: string[]; overflow: boolean } {
+  const boot = pixelBoot()
+  return { hrefs: boot.seen.slice(), overflow: boot.seenOverflow }
+}
+
+/** §٢-٥ — منطق خالص: أول قيمة بتثبّت الأهلية، وبعدها المسموح = مؤهّل والـ ID الحالي مش فاضي. */
+export function decideEligibility(pinned: boolean | null, pixelId: string): { pinned: boolean; allowed: boolean } {
+  const next = pinned === null ? pixelId !== '' : pinned
+  return { pinned: next, allowed: next && pixelId !== '' }
+}
+
+/**
+ * §٢-٥ — من MetaPixelLoader: المستند اللي أول ID شافه في المتصفح فاضي أو غلط مابيتسلّحش أبدًا، حتى لو وصل ID صالح بعدين
+ * (router.refresh). على السيرفر مفيش تثبيت (قيمة الطلب بس).
+ */
+export function pixelEligible(pixelId: string): boolean {
+  if (typeof window === 'undefined') return pixelId !== ''
+  try {
+    const boot = pixelBoot()
+    const decision = decideEligibility(boot.eligible, pixelId)
+    boot.eligible = decision.pinned
+    return decision.allowed
+  } catch {
+    return false
+  }
+}
 
 /** بيتنادى مع كل مسار (MetaPixelLoader): المرور بمسار محجوب بيلوّث المستند لباقي عمره. */
 export function markPixelPath(pathname: string): void {
   try {
     if (isBlockedPath(pathname)) pixelBoot().visitedBlocked = true
+    notePixelHref(false)
     // B1 — تغيّر المسار بيوصل لحراسة المستند (لو اتسلّح قبل كده) حتى بعد ما الـ ID اتفضّى
     pixelBoot().bridge?.locationChanged()
   } catch {
