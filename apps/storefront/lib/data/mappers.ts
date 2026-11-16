@@ -30,6 +30,7 @@ import {
 } from '@zell/core'
 import { readProductSizeEntry } from '../size/sizeEntry'
 import { readProductSizeTexts } from '../size/sizeTexts'
+import { normalizeMetaPixelId } from '@zell/core'
 
 /** صف جدول products. */
 export type ProductRow = {
@@ -505,7 +506,10 @@ function settingContent(map: Map<string, unknown>): StoreContent {
   // SIZE-TEXTS — نصوص «حدد المقاس» من settings.hero.productSizeTexts (الخانات الصالحة بس، والباقي = الافتراضي في SizePanel)
   const productSizeTexts = readProductSizeTexts(heroRaw ? heroRaw['productSizeTexts'] : undefined)
 
-  return { hero, homeSections, orderSteps, faqs, footerLinks, trustLine, heroMobileLayout, productSizeEntry, productSizeTexts }
+  // META-PIXEL §٢-١ — معرّف Meta Pixel من settings.hero.metaPixelId (نص؛ فاضي أو غلط = '' = مقفول)
+  const metaPixelId = normalizeMetaPixelId(heroRaw ? heroRaw['metaPixelId'] : undefined)
+
+  return { hero, homeSections, orderSteps, faqs, footerLinks, trustLine, heroMobileLayout, productSizeEntry, productSizeTexts, metaPixelId }
 }
 
 /**
