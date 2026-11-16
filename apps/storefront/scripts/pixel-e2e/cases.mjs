@@ -5,6 +5,7 @@
 import {
   ALT_ORIGIN,
   CART_PIECE,
+  CART_PIECE_3,
   MOBILE,
   ORDER_NUMBER,
   ORIGIN,
@@ -18,6 +19,7 @@ import {
   ofDoc,
   openContext,
   routerRefresh,
+  scriptBytes,
   sends,
   sleep,
   submitOrder,
@@ -27,7 +29,7 @@ import {
   waitForInit,
   waitForSdkAppend,
 } from './harness.mjs'
-import { GOVERNORATE, METER_ID, PIECE_ID, TRACK_CUSTOMER, TRACK_ORDER_NUMBER } from './source.mjs'
+import { CONTENT_TRACK_LABEL, GOVERNORATE, METER_ID, PIECE_ID, TRACK_CUSTOMER, TRACK_ORDER_NUMBER } from './source.mjs'
 
 export const VALID_ID = '1234567890123456'
 export const OTHER_VALID_ID = '9876543210987654'
@@ -72,6 +74,7 @@ async function assertDormant(browser, expect, note, label) {
       await sleep(5000)
       const fbq = await page.evaluate(() => typeof window.fbq)
       expect(fbq === 'undefined', label + ' ' + target + ': typeof window.fbq = ' + fbq)
+      if (target === '/') note(label + ' js bytes on /', await scriptBytes(page))
     }
     const cookies = await context.cookies()
     expect(!cookies.some((cookie) => cookie.name === '_fbp'), label + ': _fbp cookie exists')
@@ -109,6 +112,9 @@ export async function P03({ browser, expect, note }) {
       expect(typeof append.loadEventEnd === 'number' && append.loadEventEnd > 0, 'loadEventEnd missing: ' + String(append.loadEventEnd))
       expect(append.t >= append.loadEventEnd, 'script appended before loadEventEnd: t=' + String(append.t) + ' loadEventEnd=' + String(append.loadEventEnd))
     }
+    // §٤-٤ — مجموع JS على / بعد التهيئة (ومنه الـ runtime الديناميكي)، للمقارنة بـ P01 (الخانة فاضية)
+    await sleep(1000)
+    note('js bytes on / after init', await scriptBytes(page))
     const first = calls(state, doc).slice(0, 2).map((entry) => entry.args)
     expect(
       JSON.stringify(first) === JSON.stringify([['set', 'autoConfig', false, VALID_ID], ['init', VALID_ID]]),
@@ -238,9 +244,9 @@ export async function P07({ browser, expect, note }) {
 
 export async function P08({ browser, expect, note }) {
   const states = []
-  // (أ) Purchase بالمفاتيح المسموحة بس
+  // (أ) Purchase بالمفاتيح المسموحة بس (سطر قطعة بكمية 3 ⇐ num_items = 3)
   {
-    const { context, page, state } = await openContext(browser, { cart: CART_PIECE })
+    const { context, page, state } = await openContext(browser, { cart: CART_PIECE_3 })
     states.push(state)
     try {
       const doc = await gotoLoad(page, ORIGIN + '/checkout')
@@ -253,7 +259,7 @@ export async function P08({ browser, expect, note }) {
       const keys = params ? Object.keys(params).sort() : []
       expect(JSON.stringify(keys) === JSON.stringify(['content_ids', 'content_type', 'currency', 'num_items', 'value']), 'Purchase keys = ' + JSON.stringify(keys))
       expect(params !== null && params.value === 267 && params.currency === 'EGP', 'Purchase value/currency = ' + JSON.stringify(params))
-      expect(params !== null && JSON.stringify(params.content_ids) === JSON.stringify([String(PIECE_ID)]) && params.num_items === 1, 'Purchase content = ' + JSON.stringify(params))
+      expect(params !== null && JSON.stringify(params.content_ids) === JSON.stringify([String(PIECE_ID)]) && params.num_items === 3, 'Purchase content = ' + JSON.stringify(params))
       expect(state.orders.length === 1 && state.orders[0].includes(PRIVATE_CUSTOMER.name), 'order body did not reach the mocked /api/orders')
       note('purchase', { params, receiptNewDocument: !receipt.sameDocument })
     } finally {
@@ -452,6 +458,94 @@ export async function P11({ browser, expect, note, app }) {
       expect(JSON.stringify(all) === JSON.stringify([VALID_ID]), 'inits = ' + JSON.stringify(all))
       expect(state.sdkRequests.length === 1, 'sdk requests = ' + String(state.sdkRequests.length))
       note('other valid id', { inits: all, sdkRequests: state.sdkRequests.length })
+    } finally {
+      await context.close()
+    }
+  }
+  // (د) B1 — السكربت متحمّل ومهيّأ وفيه إرسال مؤجّل ← الـ ID اتفضّى ← لينك «محتوى» ديناميكي (next/link) لـ /track
+  {
+    await app.applyPixelId(VALID_ID)
+    const { context, page, state } = await openContext(browser, { fake: { sendDelayMs: 15000 } })
+    try {
+      const doc = await gotoLoad(page, ORIGIN + '/')
+      await waitForInit(state, doc)
+      await internalNav(page, '/products')
+      const pending = tracks(state, doc, 'PageView').length
+      await app.applyPixelId('')
+      await routerRefresh(page)
+      await sleep(2500)
+      expect(sends(state).length === 0, 'a send happened before the link click (delay too short)')
+      await page.evaluate(() => {
+        window.__pixelE2eMark = 'armed'
+      })
+      const link = page.getByRole('link', { name: CONTENT_TRACK_LABEL }).first()
+      await link.scrollIntoViewIfNeeded()
+      await link.click()
+      await page.waitForURL((url) => url.pathname === '/track', { timeout: 15000 })
+      await page.waitForLoadState('load')
+      const mark = await page.evaluate(() => window.__pixelE2eMark || null)
+      const next = await docOf(page)
+      await sleep(16000)
+      expect(pending >= 2, 'no pending PageView before emptying: ' + String(pending))
+      expect(mark === null && next !== doc, 'content link to /track stayed inside the document that holds the SDK (mark=' + String(mark) + ')')
+      expect(blockedSends(state).length === 0, 'sends from a blocked url = ' + JSON.stringify(blockedSends(state)))
+      expect(sdkAppends(state, next).length === 0, 'sdk appended in /track document')
+      note('emptied, delayed send, content link', { pendingPageViews: pending, newDocument: mark === null && next !== doc, sends: sends(state).length, blockedSends: blockedSends(state).length })
+    } finally {
+      await context.close()
+    }
+  }
+  // (هـ) B1 — بعد الإيقاف (الـ ID اتفضّى بعد التحميل): توسيخ العنوان لسه بيتراقب ويتنضّف
+  {
+    await app.applyPixelId(VALID_ID)
+    const { context, page, state } = await openContext(browser)
+    try {
+      const doc = await gotoLoad(page, ORIGIN + '/')
+      await waitForInit(state, doc)
+      await sleep(1500)
+      await app.applyPixelId('')
+      await routerRefresh(page)
+      await sleep(2500)
+      const before = calls(state, doc).length
+      await page.evaluate(() => {
+        location.hash = '#PRIVATE_H7'
+      })
+      await sleep(1000)
+      const afterHash = page.url()
+      await internalNav(page, '/products')
+      await sleep(1500)
+      expect(!afterHash.includes('PRIVATE_'), 'hash after stop not cleaned: ' + afterHash)
+      expect(calls(state, doc).length === before, 'fbq calls after stop: ' + String(before) + ' -> ' + String(calls(state, doc).length))
+      note('url guard after stop', { urlAfterHash: afterHash.replace(ORIGIN, ''), callsBefore: before, callsAfter: calls(state, doc).length })
+    } finally {
+      await context.close()
+    }
+  }
+  // (و) مستند بدأ والخانة فاضية: مابيتسلّحش (مفيش جسر ولا حراسة)، ونفس لينك «المحتوى» انتقال داخلي زي النهارده
+  {
+    await app.applyPixelId('')
+    const { context, page, state } = await openContext(browser)
+    try {
+      const doc = await gotoLoad(page, ORIGIN + '/')
+      await page.evaluate(() => {
+        window.__pixelE2eMark = 'empty'
+      })
+      await sleep(1000)
+      const neverArmed = await page.evaluate(() => {
+        const boot = window.__zellPixelBoot
+        return !boot || boot.bridge === null
+      })
+      const link = page.getByRole('link', { name: CONTENT_TRACK_LABEL }).first()
+      await link.scrollIntoViewIfNeeded()
+      await link.click()
+      await page.waitForURL((url) => url.pathname === '/track', { timeout: 15000 })
+      await sleep(1500)
+      const mark = await page.evaluate(() => window.__pixelE2eMark || null)
+      const same = (await docOf(page)) === doc
+      expect(neverArmed, 'empty-start document: pixel bridge registered')
+      expect(mark === 'empty' && same, 'empty-start document: content link was not an internal navigation')
+      expect(state.sdkRequests.length === 0, 'empty-start document: sdk requested')
+      note('empty-start document', { neverArmed, internal: mark === 'empty' && same, sdkRequests: state.sdkRequests.length })
     } finally {
       await context.close()
     }
