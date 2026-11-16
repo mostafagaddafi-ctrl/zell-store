@@ -619,6 +619,29 @@ export async function P11({ browser, expect, note, app }) {
       await context.close()
     }
   }
+  // (ي) مراجعة cf7b63f — قبل التسليح (chunk الـ runtime محجوز): [A مش نضيفة · B نضيفة · A مش نضيفة جديدة] ⇐ ملوّث وصفر طلب
+  {
+    await app.applyPixelId(VALID_ID)
+    const { context, page, state } = await openContext(browser, { holdPixelChunk: true })
+    try {
+      await page.goto(ORIGIN + '/', { waitUntil: 'domcontentloaded' })
+      const doc = await docOf(page)
+      await waitFor(() => state.pixelChunk, 20000, 'pixel runtime chunk requested')
+      await internalNav(page, '/products?x=PRIVATE_DUP')
+      await internalNav(page, '/products')
+      await internalNav(page, '/products?x=PRIVATE_DUP')
+      const historyLength = await page.evaluate(() => history.length)
+      state.releaseChunk()
+      await waitForArmed(page)
+      await sleep(6000)
+      expect(state.sdkRequests.length === 0 && sdkAppends(state, doc).length === 0, '[A, B, A]: sdk requested')
+      expect(calls(state, doc).length === 0, '[A, B, A]: fbq calls')
+      note('unclean A, clean B, unclean A again', { historyLength, sdkRequests: state.sdkRequests.length, calls: calls(state, doc).length })
+    } finally {
+      state.releaseChunk()
+      await context.close()
+    }
+  }
   await app.applyPixelId(VALID_ID)
 }
 
