@@ -238,6 +238,8 @@ export type StoreContent = {
   productSizeEntry: ProductSizeEntry
   /** SIZE-TEXTS — نصوص «حدد المقاس» المعدّلة من «المحتوى» (settings.hero.productSizeTexts). الخانة الغايبة = النص الافتراضي في المتجر. */
   productSizeTexts: ProductSizeTexts
+  /** META-PIXEL — معرّف Meta Pixel من settings.hero.metaPixelId (نص؛ فاضي أو غلط = '' = مقفول). */
+  metaPixelId: string
 }
 
 /** LENGTH-INPUT — 'cm' = مقاس المكان بالسنتيمتر (الافتراضي) · 'm' = الطول بالمتر. نوع وإعداد بس، مالوش دخل بالحساب. */
@@ -299,6 +301,7 @@ export const DEFAULT_STORE_CONTENT: StoreContent = {
   heroMobileLayout: 'compact',
   productSizeEntry: 'cm',
   productSizeTexts: {},
+  metaPixelId: '',
 }
 
 // ── فني التركيب (بالتواصل) ─────────────────────────────────────
