@@ -27,6 +27,8 @@ export type PixelEnv = {
   installStub: () => void
   loadScript: (src: string, onLoad: () => void, onError: () => void) => void
   setTimer: (fn: () => void, ms: number) => void
+  /** وقت monotonic بالمللي ثانية (performance.now في المتصفح) — موعد مهلة ت١ (B2). */
+  now: () => number
   /** بعد حدث load للصفحة وفي وقت فاضي للمتصفح. */
   afterLoadIdle: (fn: () => void) => void
   reload: () => void
@@ -48,6 +50,10 @@ export function createPixelRuntime(env: PixelEnv, initiallyTainted: boolean) {
   let phase: PixelPhase = 'idle'
   let tainted = initiallyTainted
   let timedOut = false
+  /** B2 — موعد المهلة بمرجع monotonic، بيتحط مع بدء الطلب وبيتفحص مباشرة في ت١. */
+  let deadline = Number.POSITIVE_INFINITY
+  /** B1 — الـ SDK اتطلب في المستند ده (مش مستنتج من المرحلة): بيفضل true لحد قفل المستند، والحراسة معاه. */
+  let sdkRequested = false
   let id = ''
   let catalog: PixelCatalog = EMPTY_CATALOG
   let queue: Array<{ event: PixelEvent; params: PixelParams | undefined }> = []
@@ -133,6 +139,8 @@ export function createPixelRuntime(env: PixelEnv, initiallyTainted: boolean) {
   /** ت١ — في معالج load بتاع عنصر السكربت. */
   function onScriptLoad(): void {
     if (phase !== 'requested') return
+    // B2 — المهلة بالموعد المحفوظ نفسه، مش بتنفيذ callback المؤقّت (ممكن يتأخر لو الخيط الرئيسي مشغول)
+    if (env.now() >= deadline) timedOut = true
     const hrefClean = isCleanHref(env.href(), env.origin, catalog)
     const referrerClean = isCleanReferrer(env.referrer, env.origin, catalog)
     const fbq = env.getFbq()
@@ -163,6 +171,9 @@ export function createPixelRuntime(env: PixelEnv, initiallyTainted: boolean) {
       return
     }
     phase = 'requested'
+    sdkRequested = true
+    deadline = env.now() + PIXEL_LOAD_TIMEOUT_MS
+    // المؤقّت للتنضيف بس (وقف وتفضية الطابور)؛ قرار ت١ بالموعد المحفوظ فوق
     env.setTimer(() => {
       if (phase === 'requested') {
         timedOut = true
@@ -182,6 +193,7 @@ export function createPixelRuntime(env: PixelEnv, initiallyTainted: boolean) {
     phase: (): PixelPhase => phase,
     isTainted: (): boolean => tainted,
     queued: (): number => queue.length,
+    sdkRequested: (): boolean => sdkRequested,
 
     /** التسليح مرة واحدة لكل مستند، والـ ID بيتثبت. */
     arm(rawId: string, next: PixelCatalog): void {
@@ -209,21 +221,26 @@ export function createPixelRuntime(env: PixelEnv, initiallyTainted: boolean) {
       if (normalizeMetaPixelId(rawId) === '') stop()
     },
 
-    /** تغيّر في العنوان (مسار أو hash أو popstate). */
+    /**
+     * تغيّر في العنوان (مسار أو hash أو popstate). B1 — حراسة المستند منفصلة عن إيقاف الأحداث: لو الـ SDK اتطلب في
+     * المستند ده، الحراسة بتفضل شغّالة لحد قفله حتى مع ID فاضي أو مرحلة off أو تلوّث (السكربت وإرسالاته المعلّقة
+     * مابيختفوش بإيقافنا). لو ماتطلبش، السلوك زي الأول.
+     */
     onLocationChange(): void {
       const path = pathOf(env.href())
       if (isBlockedPath(path)) {
-        const live = phase === 'requested' || phase === 'ready'
+        const hadSdk = sdkRequested
         taint()
         // ع٣ — شبكة أمان: المفروض مايحصلش (ع٢)
-        if (live) env.reload()
+        if (hadSdk) env.reload()
         return
       }
-      if (phase === 'idle' || phase === 'off' || tainted) return
-      if (phase === 'armed') {
-        ensureClean()
+      if (phase === 'idle') return
+      if (!sdkRequested) {
+        if (phase === 'armed' && !tainted) ensureClean()
         return
       }
+      // ن٣ — بعد طلب الـ SDK: أي عنوان مش نضيف ⇐ تلوّث وتنضيف (taint)، مهما كانت المرحلة
       if (!isCleanHref(env.href(), env.origin, catalog)) taint()
     },
 
