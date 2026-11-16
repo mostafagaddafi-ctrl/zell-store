@@ -14,7 +14,7 @@ import {
   type PixelCatalog,
 } from './metaPixel'
 import { addToCartParams, initiateCheckoutParams, purchaseParams, viewContentParams } from './pixelEvents'
-import { createPixelRuntime, PIXEL_QUEUE_MAX, PIXEL_SDK_SRC, type FbqLike, type PixelEnv } from './pixelRuntime'
+import { createPixelRuntime, PIXEL_LOAD_TIMEOUT_MS, PIXEL_QUEUE_MAX, PIXEL_SDK_SRC, type FbqLike, type PixelEnv } from './pixelRuntime'
 
 export type PixelCaseFailure = { name: string; expected: string; actual: string }
 
@@ -47,6 +47,8 @@ function fakeEnv(start: string, referrer = '') {
   let onLoad: (() => void) | null = null
   let onError: (() => void) | null = null
   let consumed: unknown[] = []
+  /** ساعة monotonic مزيّفة — المؤقّت مستقل عنها (B2). */
+  let clock = 0
   const env: PixelEnv = {
     href: () => href,
     origin: ORIGIN,
@@ -72,6 +74,7 @@ function fakeEnv(start: string, referrer = '') {
     setTimer: (fn) => {
       timer = fn
     },
+    now: () => clock,
     afterLoadIdle: (fn) => {
       idle = fn
     },
@@ -102,6 +105,10 @@ function fakeEnv(start: string, referrer = '') {
     load: () => onLoad?.(),
     fail: () => onError?.(),
     timeout: () => timer?.(),
+    /** الوقت بيعدّي من غير ما callback المؤقّت يشتغل. */
+    advance: (ms: number) => {
+      clock += ms
+    },
   }
 }
 
@@ -179,17 +186,17 @@ export function runMetaPixelCases(): { passed: number; failures: PixelCaseFailur
   ], [true, true, false, false, false, false, true, false, false])
 
   // ── الأحداث ──
-  check('M10 event params keys', [Object.keys(viewContentParams(7, 'x')), Object.keys(addToCartParams(7)), initiateCheckoutParams([1, 1, 2])], [
+  check('M10 event params keys', [Object.keys(viewContentParams(7, 'x')), Object.keys(addToCartParams(7)), initiateCheckoutParams([{ productId: 1 }, { productId: 1 }, { productId: 2 }])], [
     ['content_ids', 'content_type', 'content_name'],
     ['content_ids', 'content_type'],
     { content_ids: ['1', '2'], content_type: 'product', num_items: 3 },
   ])
   check('M11 purchase from server snapshot', [
-    purchaseParams({ ok: true, order: { orderNumber: 'Z-1', totalPiastres: 123450, replayed: false, couponCode: 'X' } }, [1, 2]),
-    purchaseParams({ ok: true, order: { orderNumber: 'Z-1', totalPiastres: 123450, replayed: true } }, [1]),
-    purchaseParams({ ok: true, order: { orderNumber: 'Z-1', totalPiastres: 123450 } }, [1]),
-    purchaseParams({ ok: true, order: { totalPiastres: 1.5, replayed: false } }, [1]),
-    purchaseParams(null, [1]),
+    purchaseParams({ ok: true, order: { orderNumber: 'Z-1', totalPiastres: 123450, replayed: false, couponCode: 'X' } }, [{ productId: 1 }, { productId: 2 }]),
+    purchaseParams({ ok: true, order: { orderNumber: 'Z-1', totalPiastres: 123450, replayed: true } }, [{ productId: 1 }]),
+    purchaseParams({ ok: true, order: { orderNumber: 'Z-1', totalPiastres: 123450 } }, [{ productId: 1 }]),
+    purchaseParams({ ok: true, order: { totalPiastres: 1.5, replayed: false } }, [{ productId: 1 }]),
+    purchaseParams(null, [{ productId: 1 }]),
   ], [
     { value: 1234.5, currency: 'EGP', content_ids: ['1', '2'], content_type: 'product', num_items: 2 },
     null,
@@ -365,6 +372,72 @@ export function runMetaPixelCases(): { passed: number; failures: PixelCaseFailur
     f.runIdle()
     f.fail()
     check('R19 script error: stopped', rt.phase(), 'off')
+  }
+
+  // ── num_items = مجموع الكميات (Non-blocking (أ)، مراجعة 2b8da95) ──
+  check('M14 num_items counts quantities (piece x3 = 3, meter line = 1)', [
+    initiateCheckoutParams([{ productId: 2, quantity: 3 }, { productId: 1 }]),
+    purchaseParams({ ok: true, order: { orderNumber: 'Z-1', totalPiastres: 100, replayed: false } }, [{ productId: 2, quantity: 3 }]),
+    initiateCheckoutParams([{ productId: 2, quantity: 0 }, { productId: 3, quantity: 1.5 }]),
+  ], [
+    { content_ids: ['2', '1'], content_type: 'product', num_items: 4 },
+    { value: 1, currency: 'EGP', content_ids: ['2'], content_type: 'product', num_items: 3 },
+    { content_ids: ['2', '3'], content_type: 'product', num_items: 2 },
+  ])
+
+  // ── B2 — المهلة بالموعد المحفوظ (monotonic) مش بتنفيذ المؤقّت ──
+  {
+    const f = fakeEnv('/products')
+    const rt = createPixelRuntime(f.env, false)
+    rt.arm(ID, CATALOG)
+    rt.track('PageView')
+    f.runIdle()
+    f.advance(PIXEL_LOAD_TIMEOUT_MS)
+    f.execute()
+    f.load()
+    check('R20 deadline passed, timer callback not run yet, then load: no init, no events', [inits(f.sdkCalls), tracks(f.sdkCalls), rt.phase(), rt.queued()], [0, [], 'off', 0])
+  }
+  {
+    const f = fakeEnv('/products')
+    const rt = createPixelRuntime(f.env, false)
+    rt.arm(ID, CATALOG)
+    f.runIdle()
+    f.advance(PIXEL_LOAD_TIMEOUT_MS - 1)
+    f.execute()
+    f.load()
+    check('R21 load just before the deadline: init', [inits(f.sdkCalls), rt.phase()], [1, 'ready'])
+  }
+
+  // ── B1 — الإيقاف مش إلغاء حراسة: بعد طلب الـ SDK الحراسة شغّالة حتى مع off ──
+  {
+    const f = fakeEnv('/products')
+    const rt = createPixelRuntime(f.env, false)
+    rt.arm(ID, CATALOG)
+    f.runIdle()
+    f.execute()
+    f.load()
+    rt.updateId('')
+    const callsAtStop = f.sdkCalls.length
+    f.setHref('/products#PRIVATE')
+    rt.onLocationChange()
+    rt.track('PageView')
+    check('R22 stopped after load: dirty hash still cleaned, no new events', [rt.phase(), rt.sdkRequested(), f.env.href(), f.sdkCalls.length - callsAtStop], ['off', true, ORIGIN + '/products', 0])
+    f.setHref('/track')
+    rt.onLocationChange()
+    check('R23 stopped after load: blocked path still reloads (safety net)', f.log.includes('reload'), true)
+    check('R24 stopped after load: blocked link still needs full navigation', rt.needsFullNavigation(at('/track')), true)
+  }
+  {
+    const f = fakeEnv('/products')
+    const rt = createPixelRuntime(f.env, false)
+    rt.arm(ID, CATALOG)
+    rt.updateId('')
+    f.runIdle()
+    f.setHref('/products#x')
+    rt.onLocationChange()
+    f.setHref('/track')
+    rt.onLocationChange()
+    check('R25 stopped before any request: no request, no url rewrite, no reload', [rt.sdkRequested(), f.log.filter((l) => l.startsWith('request') || l.startsWith('replace /products') || l === 'reload')], [false, []])
   }
 
   return { passed, failures }
