@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { ArrowLeft, Check, Loader2, Minus, Plus, ShoppingBag } from 'lucide-react'
 import { formatPiastres, maxQuantityOf, type StoreProduct } from '@zell/core'
 import { useCart } from '../../lib/cart'
+import { trackPixel } from '../../lib/analytics/pixelBridge'
+import { addToCartParams } from '../../lib/analytics/pixelEvents'
 import { BUY_NOW_PENDING_TEXT } from '../../lib/buy/buyNow'
 import { BuyNowSlowNotice } from './BuyNowSlowNotice'
 import { useBuyNow } from './useBuyNow'
@@ -36,13 +38,17 @@ export function PieceBuy({ product }: { product: StoreProduct }) {
 
   const handleAdd = () => {
     cart.addPiece(product.id, quantity, max)
+    trackPixel('AddToCart', addToCartParams(product.id))
     setJustAdded(true)
     addedBox.reveal()
   }
 
   // لو نفس الكمية اتضافت لسه (justAdded) مابيضيفهاش تاني — يروح بس (السلوك القديم).
   const handleBuyNow = () => {
-    buyNow.go(String(quantity), justAdded, () => cart.addPiece(product.id, quantity, max))
+    buyNow.go(String(quantity), justAdded, () => {
+      cart.addPiece(product.id, quantity, max)
+      trackPixel('AddToCart', addToCartParams(product.id))
+    })
   }
 
   return (
