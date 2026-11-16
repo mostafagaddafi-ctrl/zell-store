@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { Cairo } from 'next/font/google'
 import type { ReactNode } from 'react'
-import { hasInstallationTools } from '@zell/core'
+import { hasInstallationTools, normalizeMetaPixelId } from '@zell/core'
+import { MetaPixelLoader } from '../components/analytics/MetaPixelLoader'
 import { AnnouncementBar } from '../components/store/AnnouncementBar'
 import { SiteFooter } from '../components/store/SiteFooter'
 import { SiteHeader } from '../components/store/SiteHeader'
@@ -59,6 +60,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const toolsLink = toolsPage.enabled && hasInstallationTools(products) ? { href: '/installation-tools', label: toolsPage.title } : null
   // STORE-MENU §٥ — «إزاي أطلب» و«الأسئلة المتكررة» في قائمة الموبايل بنفس شرط الرئيسية (من نفس settings، من غير قراية جديدة)
   const help = homeHelpVisibility(settings.content)
+  // META-PIXEL §٢-١ — الخانة فاضية أو غلط ⇐ مفيش مكوّن خالص (لا سكربت ولا طلب ولا كوكي ولا تغيير في التنقل)
+  const metaPixelId = normalizeMetaPixelId(settings.content.metaPixelId)
 
   return (
     <html lang="ar" dir="rtl" className={cairo.variable}>
@@ -75,6 +78,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <CartProvider>
           {/* مسارات التاب ده لزرار «رجوع» — مابيعرضش حاجة */}
           <NavHistory />
+          {metaPixelId !== '' ? (
+            <MetaPixelLoader
+              pixelId={metaPixelId}
+              productIds={products.map((product) => String(product.id))}
+              collectionSlugs={collections.map((collection) => collection.slug)}
+            />
+          ) : null}
           {/* فوق الهيدر — settings متاحة هنا أصلاً، فمفيش fetch زيادة */}
           <AnnouncementBar announcement={settings.announcement} />
           <SiteHeader
