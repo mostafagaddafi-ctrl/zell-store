@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { MessageCircle } from 'lucide-react'
 import type { SocialLink, StoreContent } from '@zell/core'
+import { PixelSafeLink } from '../analytics/PixelSafeLink'
 import { SocialLinks } from './SocialLinks'
 import { Container } from '../ui/Container'
 
@@ -58,9 +59,9 @@ export function SiteFooter({
           <ul className="space-y-1.5 text-sm text-muted">
             {/* TRACK-ORDER — لينك ثابت لصفحة «تتبّع طلبك» */}
             <li>
-              <Link href="/track" className="transition-colors hover:text-accent">
+              <PixelSafeLink href="/track" className="transition-colors hover:text-accent">
                 تتبّع طلبك
-              </Link>
+              </PixelSafeLink>
             </li>
             {links.map((link, index) => (
               <li key={String(index) + link.label}>
