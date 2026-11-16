@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { Check, Copy, Search } from 'lucide-react'
 import { ORDER_NUMBER_KEEP, TRACK_PAGE_HREF } from '../../lib/orders/trackView'
+import { PixelSafeLink } from '../analytics/PixelSafeLink'
 import { buttonClasses } from '../ui/Button'
 
 /**
@@ -38,10 +38,11 @@ export function OrderNumberKeep({ orderNumber }: { orderNumber: string }) {
           {copy === 'done' ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
           {ORDER_NUMBER_KEEP.copy}
         </button>
-        <Link href={TRACK_PAGE_HREF} className={buttonClasses('ghost', 'md')}>
+        {/* META-PIXEL §٢-٢ — /track محجوبة: نفس اللينك الآمن في كل مكان */}
+        <PixelSafeLink href={TRACK_PAGE_HREF} className={buttonClasses('ghost', 'md')}>
           <Search className="h-4 w-4" aria-hidden="true" />
           تتبّع طلبك
-        </Link>
+        </PixelSafeLink>
       </div>
       <p role="status" aria-live="polite" className="min-h-4 text-xs text-muted">
         {copy === 'done' ? ORDER_NUMBER_KEEP.copied : copy === 'failed' ? ORDER_NUMBER_KEEP.copyFailed : ''}
