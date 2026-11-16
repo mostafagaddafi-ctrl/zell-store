@@ -198,6 +198,34 @@ async function handleRoute(route, state) {
       }
       return
     }
+    // ع١-ب — حجز chunk الـ runtime (اللي فيه رابط سكربت ميتا) لحد ما الحالة تسيبه، علشان التسليح يتأخر بشكل حتمي
+    if (state.holdPixelChunk && parsed.origin === ORIGIN && parsed.pathname.startsWith('/_next/static/chunks/') && parsed.pathname.endsWith('.js')) {
+      let response = null
+      try {
+        response = await route.fetch()
+      } catch {
+        response = null
+      }
+      if (!response) {
+        try {
+          await route.abort()
+        } catch {
+          // ولا حاجة
+        }
+        return
+      }
+      const body = await response.text()
+      if (body.includes(SDK_SRC)) {
+        state.pixelChunk = parsed.pathname
+        if (!state.chunkReleased) await new Promise((resolve) => state.chunkHolds.push(resolve))
+      }
+      try {
+        await route.fulfill({ response, body })
+      } catch {
+        // ولا حاجة
+      }
+      return
+    }
     if (parsed.origin === ORIGIN && parsed.pathname === '/api/orders' && request.method() === 'POST') {
       state.orders.push(request.postData() || '')
       try {
@@ -237,6 +265,10 @@ export async function openContext(browser, options = {}) {
     released: false,
     replayed: false,
     fake: { ...(options.fake || {}) },
+    holdPixelChunk: options.holdPixelChunk === true,
+    pixelChunk: null,
+    chunkHolds: [],
+    chunkReleased: false,
   }
   caseStates.push(state)
   const context = await browser.newContext({ viewport: options.viewport || DESKTOP, serviceWorkers: 'block', locale: 'ar-EG' })
@@ -252,6 +284,10 @@ export async function openContext(browser, options = {}) {
   state.release = () => {
     state.released = true
     for (const resolve of state.holds.splice(0)) resolve()
+  }
+  state.releaseChunk = () => {
+    state.chunkReleased = true
+    for (const resolve of state.chunkHolds.splice(0)) resolve()
   }
   return { context, page, state }
 }
