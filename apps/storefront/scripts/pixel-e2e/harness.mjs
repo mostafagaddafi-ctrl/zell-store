@@ -22,6 +22,8 @@ export const DESKTOP = { width: 1280, height: 900 }
 export const MOBILE = { width: 390, height: 844 }
 export const ORDER_NUMBER = 'FLM-PZQXWK'
 export const CART_PIECE = [{ id: 'pixel-e2e-line', productId: 2, lengthCm: 0, quantity: 1 }]
+/** سطر قطعة بكمية 3 — num_items = مجموع الكميات (P08). */
+export const CART_PIECE_3 = [{ id: 'pixel-e2e-line-3', productId: 2, lengthCm: 0, quantity: 3 }]
 
 const FAKE_TEMPLATE = readFileSync(path.join(HERE, 'fake-fbevents.js'), 'utf8')
 const CONFIG_MARK = '/*__PIXEL_E2E_CONFIG__*/ null'
@@ -349,4 +351,14 @@ export async function submitOrder(page, state, customer, { replayed = false } = 
   const mark = await page.evaluate(() => window.__pixelE2eMark || null).catch(() => null)
   const after = await docOf(page).catch(() => null)
   return { ms, sameDocument: mark === 'checkout' && after === before, before, after, url: page.url() }
+}
+
+/** مجموع JS المتحمّل من نفس الأصل في المستند الحالي (decodedBodySize) — §٤-٤: تكلفة الـ runtime الديناميكي لما الـ ID صالح. */
+export async function scriptBytes(page) {
+  return page.evaluate(() =>
+    performance
+      .getEntriesByType('resource')
+      .filter((entry) => entry.name.startsWith(location.origin) && /\.js(\?|$)/.test(entry.name))
+      .reduce((sum, entry) => sum + (entry.decodedBodySize || 0), 0),
+  )
 }
