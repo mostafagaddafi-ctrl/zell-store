@@ -81,7 +81,13 @@ export function MetaPixel({ pixelId, productIds, collectionSlugs }: Props) {
     const rt = getRuntime()
     const first = initial.current
     rt.arm(first.pixelId, { productIds: new Set(first.productIds), collectionSlugs: new Set(first.collectionSlugs) })
-    pixelBoot().bridge = { track: rt.track, isArmed: rt.isArmed, needsFullNavigation: rt.needsFullNavigation }
+    // §٢-٥ — disable من MetaPixelLoader لما الـ ID يتفضّى والمستند مفتوح (المكوّن ده مابيترسمش تاني ساعتها)
+    pixelBoot().bridge = {
+      track: rt.track,
+      isArmed: rt.isArmed,
+      needsFullNavigation: rt.needsFullNavigation,
+      disable: () => rt.updateId(''),
+    }
 
     const onChange = (): void => rt.onLocationChange()
     // ع٢ — أي لينك داخلي لعنوان مش نضيف (محجوب أو مش معروف، ومنه روابط «المحتوى») = تنقل كامل لمستند جديد
