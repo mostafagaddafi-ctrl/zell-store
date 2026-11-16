@@ -15,6 +15,8 @@ export const METER_ID = 1
 export const PIECE_ID = 2
 export const COLLECTION_SLUG = 'test-collection'
 export const GOVERNORATE = 'القاهرة'
+/** لينك «المحتوى» في الفوتر (footer_links، next/link عادي) لمسار محجوب — P11 (د) و(و). */
+export const CONTENT_TRACK_LABEL = 'تتبّع من المحتوى'
 export const TRACK_ORDER_NUMBER = 'FLM-MRFVB3'
 export const TRACK_CUSTOMER = {
   name: 'PRIVATE_TRACK_NAME',
@@ -101,6 +103,7 @@ export function createPixelSource({ port, readKey, serviceKey }) {
       { key: 'hero', value: { metaPixelId: pixelId, productSizeEntry: 'm' } },
       { key: 'shipping_rates', value: { [GOVERNORATE]: 5000 } },
       { key: 'installation_tools_page', value: { enabled: true, title: 'أدوات التركيب' } },
+      { key: 'footer_links', value: [{ label: CONTENT_TRACK_LABEL, href: '/track' }] },
     ]
   }
 
