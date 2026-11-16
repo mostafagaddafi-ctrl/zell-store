@@ -161,6 +161,49 @@ jobs:
       - name: "PRODUCT-ISR integration (${{ matrix.group }})"
         run: node apps/storefront/scripts/isr-integration/run.mjs ${{ matrix.group }}
 
+  # META-PIXEL §٤-٣ — اختبار متصفح حتمي P01–P14ج: بناء المتجر + next start على مصدر HTTP صناعي (من غير Supabase ولا أي
+  # مفتاح أو داتا Production)، وChrome من غير واجهة بـ playwright-core، وسكربت ميتا وهمي. كل طلب لغير السيرفر المحلي بيتقفل
+  # ويتسجّل، فمفيش أي اتصال بميتا. ⚠️ playwright-core بإصدار مثبّت بيتنزّل هنا برّه ملفات المشروع (RUNNER_TEMP)، بدل
+  # devDependency في apps/storefront/package.json زي ما العقد بيقول (§٢-٦) — انحراف مستني رأي المراجع (وصف PR #253):
+  # تحديث pnpm-lock.yaml محتاج pnpm، وبيئة التنفيذ مافيهاش.
+  storefront-pixel-e2e:
+    name: "META-PIXEL browser e2e: P01–P14ج (fake Meta script, synthetic source)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: "playwright-core (pinned, outside the project files)"
+        run: |
+          mkdir -p "$RUNNER_TEMP/playwright-core"
+          cd "$RUNNER_TEMP/playwright-core"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund --ignore-scripts playwright-core@1.52.0
+
+      - name: Chrome
+        run: |
+          command -v google-chrome
+          google-chrome --version
+
+      - name: "META-PIXEL browser e2e (P01–P14ج)"
+        env:
+          PLAYWRIGHT_CORE_DIR: ${{ runner.temp }}/playwright-core
+        run: node apps/storefront/scripts/pixel-e2e/run.mjs
+
   # 0021-P — job منفصل جوه نفس الـ workflow: بيشتغل لما ملفات 0021-P تتغيّر بس (غير كده بيظهر skipped).
   sql-0021d-changes:
     name: "sql 0021-D: detect changes"
