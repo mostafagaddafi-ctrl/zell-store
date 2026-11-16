@@ -15,6 +15,7 @@ import {
 } from './metaPixel'
 import { addToCartParams, initiateCheckoutParams, purchaseParams, viewContentParams } from './pixelEvents'
 import { createPixelRuntime, PIXEL_LOAD_TIMEOUT_MS, PIXEL_QUEUE_MAX, PIXEL_SDK_SRC, type FbqLike, type PixelEnv } from './pixelRuntime'
+import { decideEligibility } from './pixelBridge'
 
 export type PixelCaseFailure = { name: string; expected: string; actual: string }
 
@@ -438,6 +439,51 @@ export function runMetaPixelCases(): { passed: number; failures: PixelCaseFailur
     f.setHref('/track')
     rt.onLocationChange()
     check('R25 stopped before any request: no request, no url rewrite, no reload', [rt.sdkRequested(), f.log.filter((l) => l.startsWith('request') || l.startsWith('replace /products') || l === 'reload')], [false, []])
+  }
+
+  // ── أهلية المستند (مراجعة 05a11e7): أول قيمة بتثبّت ──
+  check('M15 eligibility pinned by the first value', [
+    decideEligibility(null, ''),
+    decideEligibility(null, ID),
+    decideEligibility(false, ID),
+    decideEligibility(true, ''),
+    decideEligibility(true, ID),
+  ], [
+    { pinned: false, allowed: false },
+    { pinned: true, allowed: true },
+    { pinned: false, allowed: false },
+    { pinned: true, allowed: false },
+    { pinned: true, allowed: true },
+  ])
+
+  // ── ع١-ب — العناوين قبل التسليح ──
+  {
+    const f = fakeEnv('/products')
+    const rt = createPixelRuntime(f.env, false)
+    rt.arm(ID, CATALOG, { hrefs: [at('/?phone=PRIVATE'), at('/products')], overflow: false })
+    f.runIdle()
+    check('R26 unclean address before arming (not current): tainted, no request', [rt.isTainted(), f.log.filter((l) => l.startsWith('request'))], [true, []])
+  }
+  {
+    const f = fakeEnv('/products?utm_source=x')
+    const rt = createPixelRuntime(f.env, false)
+    rt.arm(ID, CATALOG, { hrefs: [at('/products?utm_source=x')], overflow: false })
+    f.runIdle()
+    check('R27 only the current address dirty: cleaned (n1), requested', [rt.isTainted(), f.log], [false, ['replace /products', 'stub', 'request ' + PIXEL_SDK_SRC]])
+  }
+  {
+    const f = fakeEnv('/products')
+    const rt = createPixelRuntime(f.env, false)
+    rt.arm(ID, CATALOG, { hrefs: [at('/'), at('/products')], overflow: true })
+    f.runIdle()
+    check('R28 history over the cap (unknown): tainted, no request', [rt.isTainted(), f.log.filter((l) => l.startsWith('request'))], [true, []])
+  }
+  {
+    const f = fakeEnv('/products')
+    const rt = createPixelRuntime(f.env, false)
+    rt.arm(ID, CATALOG, { hrefs: [at('/'), at('/#products'), at('/products')], overflow: false })
+    f.runIdle()
+    check('R29 clean history before arming: requested', [rt.isTainted(), f.log.filter((l) => l.startsWith('request')).length], [false, 1])
   }
 
   return { passed, failures }
