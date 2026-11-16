@@ -296,7 +296,7 @@ export function CheckoutForm({
   useEffect(() => {
     if (initiateSentRef.current || !cart.ready || entries.length === 0) return
     initiateSentRef.current = true
-    trackPixel('InitiateCheckout', initiateCheckoutParams(entries.map((entry) => entry.product.id)))
+    trackPixel('InitiateCheckout', initiateCheckoutParams(entries.map((entry) => ({ productId: entry.product.id, quantity: entry.line.quantity }))))
   }, [cart.ready, entries])
 
   const subtotal = entries.reduce(
@@ -515,7 +515,7 @@ export function CheckoutForm({
         orderPlacedRef.current = true
         clearCheckoutDraft()
         // META-PIXEL §٢-٤ — Purchase من رد السيرفر (replayed = false بس)، قبل التنقل ومن غير انتظار
-        const purchase = purchaseParams(result, entries.map((entry) => entry.product.id))
+        const purchase = purchaseParams(result, entries.map((entry) => ({ productId: entry.product.id, quantity: entry.line.quantity })))
         if (purchase !== null) trackPixel('Purchase', purchase)
         // META-PIXEL §٢-٢ ع٢ — في المستند المسلّح الإيصال مستند جديد، وإلا router.push زي الأول
         navigateToReceipt(router, '/order/' + result.order.orderNumber)
