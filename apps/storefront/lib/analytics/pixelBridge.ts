@@ -13,6 +13,8 @@ export type PixelBridge = {
   track: (event: PixelEvent, params?: PixelParams) => void
   isArmed: () => boolean
   needsFullNavigation: (href: string) => boolean
+  /** §٢-٥ — الـ ID اتفضّى أو بقى غلط والمستند مفتوح: وقف لباقي عمر المستند. */
+  disable: () => void
 }
 
 export type PixelBoot = {
@@ -80,6 +82,15 @@ export function pixelNeedsFullNavigation(href: string): boolean {
     return pixelBoot().bridge?.needsFullNavigation(href) === true
   } catch {
     return false
+  }
+}
+
+/** §٢-٥ — من MetaPixelLoader لما الـ ID يبقى فاضي أو غلط: بيوقف المستند لو المكوّن كان اشتغل، وإلا ولا حاجة. */
+export function disablePixel(): void {
+  try {
+    pixelBoot().bridge?.disable()
+  } catch {
+    // التتبّع عمره ما يوقف الصفحة
   }
 }
 
