@@ -7,7 +7,7 @@
 import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { createPixelRuntime, type FbqLike, type PixelEnv, type PixelRuntime } from '../../lib/analytics/pixelRuntime'
-import { isBlockedPath, pixelBoot } from '../../lib/analytics/pixelBridge'
+import { isBlockedPath, pixelBoot, pixelPrior } from '../../lib/analytics/pixelBridge'
 
 type FbqStub = FbqLike & { push?: unknown; loaded?: boolean; version?: string; disablePushState?: boolean }
 type PixelWindow = Window & { fbq?: FbqStub; _fbq?: FbqStub }
@@ -116,7 +116,8 @@ export function MetaPixel({ pixelId, productIds, collectionSlugs }: Props) {
   useEffect(() => {
     const rt = getRuntime()
     const first = initial.current
-    rt.arm(first.pixelId, { productIds: new Set(first.productIds), collectionSlugs: new Set(first.collectionSlugs) })
+    // ع١-ب — العناوين اللي المستند مرّ بيها قبل ما الـ runtime يوصل
+    rt.arm(first.pixelId, { productIds: new Set(first.productIds), collectionSlugs: new Set(first.collectionSlugs) }, pixelPrior())
     // §٢-٥ — disable من MetaPixelLoader لما الـ ID يتفضّى والمستند مفتوح (المكوّن ده مابيترسمش تاني ساعتها)
     pixelBoot().bridge = {
       track: rt.track,
