@@ -94,11 +94,16 @@ export function createPixelRuntime(env: PixelEnv, initiallyTainted: boolean) {
     }
   }
 
-  /** ع١-ب — أي عنوان قبل التسليح غير العنوان الحالي مش نضيف، أو السجل ناقص ⇐ تاريخ مش معروف. */
+  /**
+   * ع١-ب — السجل قبل التسليح: الاستثناء لموضع العنوان الحالي بس (آخر سطر، ون١ بتنضّفه)، مش لأي سطر نصه بيساويه —
+   * زيارة قديمة مش نضيفة بتفضل في سجل المتصفح حتى لو اتكررت. آخر سطر مش هو العنوان الحالي (التباس) أو سجل ناقص ⇐ مجهول.
+   */
   function priorUnclean(prior: PixelPrior): boolean {
     if (prior.overflow) return true
-    const current = env.href()
-    return prior.hrefs.some((href) => href !== current && !isCleanHref(href, env.origin, catalog))
+    const hrefs = prior.hrefs
+    if (hrefs.length === 0) return false
+    if (hrefs[hrefs.length - 1] !== env.href()) return true
+    return hrefs.slice(0, -1).some((href) => !isCleanHref(href, env.origin, catalog))
   }
 
   /** ن١ — قبل بدء الطلب: الـ query والـ hash بيتنضّفوا، والمسار مش نضيف = تلوّث. */
